@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Point } from '@prisma/client';
+import { Point, Prisma } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { PrismaRepository } from 'src/repository';
 
@@ -40,34 +40,20 @@ export class PointRepository extends PrismaRepository<'point'> {
   }
 
   async createPoint({
-    name,
-    symbol,
-    initialSupply,
-    decimal,
-    frameSize,
-    slotSize,
-    contractAddress,
     merchantId,
+    data,
   }: {
-    name: string;
-    symbol: string;
-    initialSupply: number;
-    decimal: number;
-    frameSize: number;
-    slotSize: number;
-    contractAddress: string;
     merchantId: string;
+    data: Prisma.PointCreateInput;
   }): Promise<Point> {
     const point = await this.create({
       data: {
-        name,
-        symbol,
-        initialSupply,
-        decimal,
-        frameSize,
-        slotSize,
-        contractAddress,
-        merchantId,
+        ...data,
+        Merchant: {
+          connect: {
+            id: merchantId,
+          },
+        },
       },
     });
 

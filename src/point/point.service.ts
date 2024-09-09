@@ -60,13 +60,15 @@ export class PointService {
       });
 
       const point = await this.repository.createPoint({
-        name,
-        symbol,
-        initialSupply,
-        decimal,
-        frameSize,
-        slotSize,
-        contractAddress: pointContractAddress,
+        data: {
+          name,
+          symbol,
+          initialSupply,
+          decimal,
+          frameSize,
+          slotSize,
+          contractAddress: pointContractAddress,
+        },
         merchantId: merchantId,
       });
 

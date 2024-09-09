@@ -5,12 +5,15 @@ import {
 } from '@nestjs/common';
 import { PointRepository } from './point.repository';
 import { createNewPointToken } from 'src/blockchain/createNewPointToken';
+import { Point } from '@prisma/client';
 
 @Injectable()
 export class PointService {
   constructor(private repository: PointRepository) {}
 
-  async getPoints(userId: string) {
+  async getPoints(
+    userId: string,
+  ): Promise<{ points: Point[]; counts: number }> {
     try {
       const { points, counts } = await this.repository.getPoints(userId);
 
@@ -45,7 +48,7 @@ export class PointService {
     frameSize: number;
     slotSize: number;
     merchantId: string;
-  }) {
+  }): Promise<Point> {
     try {
       const pointContractAddress = await createNewPointToken({
         name,

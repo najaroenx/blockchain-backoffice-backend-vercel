@@ -4,12 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { MerchantRepository } from './merchant.repository';
+import { Merchant } from '@prisma/client';
 
 @Injectable()
 export class MerchantService {
   constructor(private repository: MerchantRepository) {}
 
-  async getMerchants(userId: string) {
+  async getMerchants(
+    userId: string,
+  ): Promise<{ merchants: Merchant[]; counts: number }> {
     try {
       const { merchants, counts } = await this.repository.getMerchants(userId);
 
@@ -38,7 +41,7 @@ export class MerchantService {
     website: string;
     userId: string;
     lineOfficialId?: string;
-  }) {
+  }): Promise<Merchant> {
     try {
       const merchant = await this.repository.createMerchant({
         name,

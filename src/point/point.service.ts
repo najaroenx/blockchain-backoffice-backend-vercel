@@ -12,10 +12,10 @@ export class PointService {
   constructor(private repository: PointRepository) {}
 
   async getPoints(
-    userId: string,
+    merchantId: string,
   ): Promise<{ points: Point[]; counts: number }> {
     try {
-      const { points, counts } = await this.repository.getPoints(userId);
+      const { points, counts } = await this.repository.getPoints(merchantId);
 
       if (!points && !counts) throw new NotFoundException('data_not_found');
 

@@ -6,11 +6,11 @@ import { GetPointsDto, CreatePointDto } from './dtos';
 export class PointController {
   constructor(private readonly pointService: PointService) {}
 
-  @Get('/:userId')
+  @Get('/:merchantId')
   @HttpCode(200)
   async getPoints(@Param() params: GetPointsDto) {
-    const { userId } = params;
-    return this.pointService.getPoints(userId);
+    const { merchantId } = params;
+    return this.pointService.getPoints(merchantId);
   }
 
   @Post('/')

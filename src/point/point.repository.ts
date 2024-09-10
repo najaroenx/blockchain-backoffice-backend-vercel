@@ -10,14 +10,14 @@ export class PointRepository extends PrismaRepository<'point'> {
   }
 
   async getPoints(
-    userId: string,
+    merchantId: string,
   ): Promise<{ points: Point[]; counts: number } | undefined> {
     const points = await this.findMany({
       where: {
         Merchant: {
           userMerchant: {
             some: {
-              userId: userId,
+              merchantId: merchantId,
             },
           },
         },
@@ -29,7 +29,7 @@ export class PointRepository extends PrismaRepository<'point'> {
         Merchant: {
           userMerchant: {
             some: {
-              userId: userId,
+              merchantId: merchantId,
             },
           },
         },

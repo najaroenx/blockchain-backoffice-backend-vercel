@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ApiKeyRepository } from './api-key.repository';
 import { ApiKey } from '@prisma/client';
-import { TokenService } from 'src/token/token.service';
+import { TokenService } from 'src/providers/token/token.service';
 
 @Injectable()
 export class ApiKeyService {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { TokenService } from 'src/token/token.service';
+import { TokenService } from 'src/providers/token/token.service';
 import { Request } from 'express';
-import { LOGIN_ACCESS_TOKEN } from 'src/token/token.constants';
+import { LOGIN_ACCESS_TOKEN } from 'src/providers/token/token.constants';
 import { AccessTokenClaims } from './interfaces';
 import { Strategy } from 'passport-strategy';
 import { PassportStrategy } from '@nestjs/passport';

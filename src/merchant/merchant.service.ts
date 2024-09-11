@@ -35,19 +35,16 @@ export class MerchantService {
     name,
     website,
     userId,
-    lineOfficialId,
   }: {
     name: string;
     website: string;
     userId: string;
-    lineOfficialId?: string;
   }): Promise<Merchant> {
     try {
       const merchant = await this.repository.createMerchant({
         name,
         website,
         userId,
-        lineOfficialId,
       });
 
       return merchant;

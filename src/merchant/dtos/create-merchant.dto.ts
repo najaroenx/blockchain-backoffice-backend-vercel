@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsString } from 'class-validator';
 
 export class CreateMerchantsDto {
   @IsString()
@@ -6,10 +6,6 @@ export class CreateMerchantsDto {
 
   @IsString()
   website: string;
-
-  @IsOptional()
-  @IsString()
-  lineOfficialId?: string;
 
   @IsString()
   userId: string;

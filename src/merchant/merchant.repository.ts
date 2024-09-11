@@ -39,18 +39,15 @@ export class MerchantRepository extends PrismaRepository<'merchant'> {
     name,
     website,
     userId,
-    lineOfficialId,
   }: {
     name: string;
     website: string;
     userId: string;
-    lineOfficialId?: string;
   }): Promise<Merchant> {
     const merchant = await this.create({
       data: {
         name,
         website,
-        lineOfficialId,
         userMerchant: {
           create: {
             userId: userId,

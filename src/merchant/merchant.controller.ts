@@ -16,13 +16,12 @@ export class MerchantController {
   @Post('/')
   @HttpCode(201)
   async createMerchant(@Body() body: CreateMerchantsDto) {
-    const { userId, name, website, lineOfficialId } = body;
+    const { userId, name, website } = body;
 
     return this.merchantService.createMerchant({
       userId,
       name,
       website,
-      lineOfficialId,
     });
   }
 }

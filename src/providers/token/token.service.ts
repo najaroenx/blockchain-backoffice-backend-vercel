@@ -1,9 +1,16 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { nanoid } from 'nanoid';
 import { sign, SignOptions, VerifyOptions, verify } from 'jsonwebtoken';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class TokenService {
+  private jwtSecret: string;
+
+  constructor(private configService: ConfigService) {
+    this.jwtSecret = this.configService.get<string>('JWT_SECRET');
+  }
+
   /**
    * Generate a cryptographically strong random string
    * @param length - Length of returned string
@@ -27,7 +34,7 @@ export class TokenService {
   ) {
     if (typeof payload === 'number') payload = payload.toString();
     // TODO : add jwt secret
-    return sign(payload, 'TEST-SECRET', {
+    return sign(payload, this.jwtSecret, {
       ...options,
       subject,
       expiresIn,
@@ -43,7 +50,7 @@ export class TokenService {
   verify<T>(subject: string, token: string, options?: VerifyOptions) {
     try {
       // TODO : add jwt secret
-      return verify(token, 'TEST-SECRET', { ...options, subject }) as any as T;
+      return verify(token, this.jwtSecret, { ...options, subject }) as any as T;
     } catch (error) {
       throw new UnauthorizedException('Invalid token');
     }

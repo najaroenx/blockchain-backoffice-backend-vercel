@@ -2,9 +2,24 @@ import { Injectable } from '@nestjs/common';
 import { createPoint } from './types';
 import * as PointFactoryABI from './abis/PointFactoryABI.json';
 import { Contract, JsonRpcProvider, Wallet } from 'ethers';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class BlockchainService {
+  private pointFactoryAddress: string;
+
+  private privateKey: string;
+
+  private rpc: string;
+
+  constructor(private configService: ConfigService) {
+    this.pointFactoryAddress = this.configService.get<string>(
+      'POINT_FACTORY_ADDRESS',
+    );
+    this.privateKey = this.configService.get<string>('PRIVATE_KEY');
+    this.rpc = this.configService.get<string>('RPC_URL');
+  }
+
   async createNewPointToken({
     initialSupply,
     name,
@@ -13,15 +28,11 @@ export class BlockchainService {
     frameSize,
     slotSize,
   }: createPoint) {
-    const POINT_FACTORY_ADDRESS = process.env.POINT_FACTORY_ADDRESS!;
-    const PRIVATE_KEY = process.env.PRIVATE_KEY!;
-    const RPC_URL = process.env.RPC_URL!;
-
-    const provider = new JsonRpcProvider(RPC_URL);
-    const signer = new Wallet(PRIVATE_KEY, provider);
+    const provider = new JsonRpcProvider(this.rpc);
+    const signer = new Wallet(this.privateKey, provider);
 
     const contract = new Contract(
-      POINT_FACTORY_ADDRESS,
+      this.pointFactoryAddress,
       PointFactoryABI,
       signer,
     );

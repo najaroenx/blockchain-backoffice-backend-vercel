@@ -24,7 +24,7 @@ export class ApiKeyService {
     merchantId: string;
   }): Promise<ApiKey> {
     try {
-      const apiKey = await this.tokenService.generateRandomString();
+      const apiKey = await this.tokenService.generateRandomString({});
 
       const merchant = await this.repository.createApiKey({
         merchantId,

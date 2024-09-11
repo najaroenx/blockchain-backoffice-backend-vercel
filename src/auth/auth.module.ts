@@ -1,0 +1,19 @@
+import { Module } from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { UserRepository } from 'src/user/user.repository';
+import { TokenModule } from 'src/token/token.module';
+import { SessionModule } from 'src/session/session.module';
+import { AuthStrategy } from './auth.strategy';
+import { PassportModule } from '@nestjs/passport';
+
+@Module({
+  imports: [
+    TokenModule,
+    SessionModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+  ],
+  providers: [AuthService, UserRepository, AuthStrategy],
+  controllers: [AuthController],
+})
+export class AuthModule {}

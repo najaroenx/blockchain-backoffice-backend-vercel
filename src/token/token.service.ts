@@ -1,14 +1,51 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { nanoid } from 'nanoid';
+import { sign, SignOptions, VerifyOptions, verify } from 'jsonwebtoken';
 
 @Injectable()
 export class TokenService {
   /**
    * Generate a cryptographically strong random string
    * @param length - Length of returned string
-   * @param charactersOrType - Characters or one of the supported types
    */
-  async generateRandomString(): Promise<string> {
-    return nanoid(20);
+  async generateRandomString({ length = 20 }): Promise<string> {
+    return nanoid(length);
+  }
+
+  /**
+   * Sign a JWT
+   * @param subject - Subject
+   * @param payload - Object payload
+   * @param expiresIn - Expiry string (vercel/ms)
+   * @param options - Signing options
+   */
+  signJwt(
+    subject: string,
+    payload: number | string | object | Buffer,
+    expiresIn?: string,
+    options?: SignOptions,
+  ) {
+    if (typeof payload === 'number') payload = payload.toString();
+    // TODO : add jwt secret
+    return sign(payload, 'TEST-SECRET', {
+      ...options,
+      subject,
+      expiresIn,
+    });
+  }
+
+  /**
+   * Verify and decode a JWT
+   * @param subject - Subject
+   * @param token - JWT
+   * @param options - Verify options
+   */
+  verify<T>(subject: string, token: string, options?: VerifyOptions) {
+    try {
+      // TODO : add jwt secret
+      return verify(token, 'TEST-SECRET', { ...options, subject }) as any as T;
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
+    }
   }
 }

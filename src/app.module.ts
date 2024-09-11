@@ -9,6 +9,10 @@ import { ConfigModule } from '@nestjs/config';
 import { configSchema } from './configSchema';
 import { ApiKeyModule } from './api-key/api-key.module';
 import { TokenModule } from './token/token.module';
+import { AuthModule } from './auth/auth.module';
+import { SessionModule } from './session/session.module';
+import { CustomAuthGuard } from './auth/custom-auth.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -22,8 +26,16 @@ import { TokenModule } from './token/token.module';
     }),
     ApiKeyModule,
     TokenModule,
+    AuthModule,
+    SessionModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: CustomAuthGuard,
+    },
+  ],
 })
 export class AppModule {}

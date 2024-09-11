@@ -42,7 +42,6 @@ export class AuthService {
     const accessToken = await this.getAccessToken(user, id);
 
     return {
-      userId: user.id,
       accessToken,
       refreshToken: token,
     };
@@ -51,8 +50,16 @@ export class AuthService {
   private async getAccessToken(user: User, sessionId: string): Promise<string> {
     const payload: AccessTokenClaims = {
       id: user.id,
+      email: user.email,
       sessionId,
     };
-    return this.tokenService.signJwt(LOGIN_ACCESS_TOKEN, payload, '10000000');
+
+    const expiresIn = 30 * 24 * 60 * 60 * 1000; // 1 month in milliseconds
+
+    return this.tokenService.signJwt(
+      LOGIN_ACCESS_TOKEN,
+      payload,
+      expiresIn.toString(),
+    );
   }
 }

@@ -47,15 +47,26 @@ model UserMerchant {
 }
 
 model Merchant {
-  id             String         @id @default(cuid())
-  name           String
-  website        String
-  lineOfficialId String?
-  createdAt      DateTime       @default(now()) @map(name: "created_at")
-  updatedAt      DateTime       @updatedAt @map(name: "updated_at")
-  userMerchant   UserMerchant[]
-  branch         Branch[]
-  point          Point[]
+  id           String         @id @default(cuid())
+  name         String
+  website      String
+  createdAt    DateTime       @default(now()) @map(name: "created_at")
+  updatedAt    DateTime       @updatedAt @map(name: "updated_at")
+  userMerchant UserMerchant[]
+  branch       Branch[]
+  point        Point[]
+  apiKey       ApiKey[]
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  name        String?
+  description String?
+  apiKey      String    @unique
+  merchantId  String?
+  createdAt   DateTime  @default(now()) @map(name: "created_at")
+  updatedAt   DateTime  @updatedAt @map(name: "updated_at")
+  Merchant    Merchant? @relation(fields: [merchantId], references: [id])
 }
 
 model Branch {

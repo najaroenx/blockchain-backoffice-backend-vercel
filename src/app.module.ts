@@ -7,6 +7,8 @@ import { MerchantModule } from './merchant/merchant.module';
 import { PointModule } from './point/point.module';
 import { ConfigModule } from '@nestjs/config';
 import { configSchema } from './configSchema';
+import { ApiKeyModule } from './api-key/api-key.module';
+import { TokenModule } from './token/token.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { configSchema } from './configSchema';
       isGlobal: true,
       validationSchema: configSchema,
     }),
+    ApiKeyModule,
+    TokenModule,
   ],
   controllers: [AppController],
   providers: [AppService],

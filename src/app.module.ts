@@ -1,17 +1,15 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { UserModule } from './user/user.module';
+import { UserModule } from './modules/user/user.module';
 import { PrismaModule } from 'prisma/prisma.module';
-import { MerchantModule } from './merchant/merchant.module';
-import { PointModule } from './point/point.module';
+import { MerchantModule } from './modules/merchant/merchant.module';
+import { PointModule } from './modules/point/point.module';
 import { ConfigModule } from '@nestjs/config';
 import { configSchema } from './configSchema';
-import { ApiKeyModule } from './api-key/api-key.module';
+import { ApiKeyModule } from './modules/api-key/api-key.module';
 import { TokenModule } from './providers/token/token.module';
-import { AuthModule } from './auth/auth.module';
-import { SessionModule } from './session/session.module';
-import { CustomAuthGuard } from './auth/custom-auth.guard';
+import { AuthModule } from './modules/auth/auth.module';
+import { SessionModule } from './modules/session/session.module';
+import { CustomAuthGuard } from './modules/auth/custom-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
 
 @Module({
@@ -29,9 +27,8 @@ import { APP_GUARD } from '@nestjs/core';
     AuthModule,
     SessionModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [
-    AppService,
     {
       provide: APP_GUARD,
       useClass: CustomAuthGuard,

@@ -4,9 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { User } from '@prisma/client';
-import { SessionService } from 'src/session/session.service';
+import { SessionService } from 'src/modules/session/session.service';
 import { TokenService } from 'src/providers/token/token.service';
-import { UserRepository } from 'src/user/user.repository';
+import { UserRepository } from 'src/modules/user/user.repository';
 import { AccessTokenClaims } from './interfaces';
 import { LOGIN_ACCESS_TOKEN } from 'src/providers/token/token.constants';
 import { TokenResponse } from './interfaces/TokenResponse';

@@ -66,4 +66,24 @@ export class ApiKeyService {
       }
     }
   }
+
+  async getApiKey(apiKey: string): Promise<ApiKey> {
+    try {
+      const apiKeyDetail = await this.repository.findFirst({
+        where: {
+          apiKey,
+        },
+      });
+
+      if (!apiKeyDetail) throw new NotFoundException('data_not_found');
+
+      return apiKeyDetail;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      } else {
+        throw new InternalServerErrorException('server_error');
+      }
+    }
+  }
 }

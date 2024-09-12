@@ -8,5 +8,6 @@ import { TokenModule } from 'src/providers/token/token.module';
   imports: [TokenModule],
   controllers: [ApiKeyController],
   providers: [ApiKeyService, ApiKeyRepository],
+  exports: [ApiKeyService],
 })
 export class ApiKeyModule {}

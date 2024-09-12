@@ -14,13 +14,21 @@ export class MerchantService {
     userId: string,
   ): Promise<{ merchants: Merchant[]; counts: number }> {
     try {
-      const { merchants, counts } = await this.repository.getMerchants(userId);
+      const merchants: Merchant[] = await this.repository.findMany({
+        where: {
+          userMerchant: {
+            some: {
+              userId,
+            },
+          },
+        },
+      });
 
-      if (!merchants && !counts) throw new NotFoundException('data_not_found');
+      if (!merchants) throw new NotFoundException('data_not_found');
 
       return {
         merchants,
-        counts,
+        counts: merchants.length,
       };
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -41,10 +49,16 @@ export class MerchantService {
     userId: string;
   }): Promise<Merchant> {
     try {
-      const merchant = await this.repository.createMerchant({
-        name,
-        website,
-        userId,
+      const merchant = await this.repository.create({
+        data: {
+          name,
+          website,
+          userMerchant: {
+            create: {
+              userId,
+            },
+          },
+        },
       });
 
       return merchant;

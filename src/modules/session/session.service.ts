@@ -12,7 +12,12 @@ export class SessionService {
 
   async createSession(token: string, userId: string): Promise<Session> {
     try {
-      return await this.repository.createSession(token, userId);
+      return await this.repository.create({
+        data: {
+          token,
+          userId,
+        },
+      });
     } catch (error) {
       console.log(error);
       if (error instanceof NotFoundException) {

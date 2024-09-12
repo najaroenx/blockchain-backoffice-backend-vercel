@@ -18,13 +18,23 @@ export class PointService {
     merchantId: string,
   ): Promise<{ points: Point[]; counts: number }> {
     try {
-      const { points, counts } = await this.repository.getPoints(merchantId);
+      const points: Point[] = await this.repository.findMany({
+        where: {
+          Merchant: {
+            userMerchant: {
+              some: {
+                merchantId,
+              },
+            },
+          },
+        },
+      });
 
-      if (!points && !counts) throw new NotFoundException('data_not_found');
+      if (!points) throw new NotFoundException('data_not_found');
 
       return {
         points,
-        counts,
+        counts: points.length,
       };
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -63,7 +73,7 @@ export class PointService {
           initialSupply,
         });
 
-      const point = await this.repository.createPoint({
+      const point: Point = await this.repository.create({
         data: {
           name,
           symbol,
@@ -72,8 +82,8 @@ export class PointService {
           frameSize,
           slotSize,
           contractAddress: pointContractAddress,
+          merchantId,
         },
-        merchantId: merchantId,
       });
 
       return point;

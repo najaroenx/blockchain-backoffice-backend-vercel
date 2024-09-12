@@ -26,12 +26,12 @@ export class ApiKeyService {
     try {
       const apiKey = await this.tokenService.generateRandomString({});
 
-      const merchant = await this.repository.createApiKey({
-        merchantId,
+      const merchant = await this.repository.create({
         data: {
           name,
           description,
           apiKey,
+          merchantId,
         },
       });
 
@@ -46,13 +46,17 @@ export class ApiKeyService {
     merchantId: string,
   ): Promise<{ apiKeys: ApiKey[]; counts: number }> {
     try {
-      const { apiKeys, counts } = await this.repository.getApiKeys(merchantId);
+      const apiKeys: ApiKey[] = await this.repository.findMany({
+        where: {
+          merchantId,
+        },
+      });
 
-      if (!apiKeys && !counts) throw new NotFoundException('data_not_found');
+      if (!apiKeys) throw new NotFoundException('data_not_found');
 
       return {
         apiKeys,
-        counts,
+        counts: apiKeys.length,
       };
     } catch (error) {
       if (error instanceof NotFoundException) {

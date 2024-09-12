@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { User } from '@prisma/client';
 import { SessionService } from 'src/modules/session/session.service';
@@ -19,13 +20,31 @@ export class AuthService {
     private sessionService: SessionService,
   ) {}
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string): Promise<TokenResponse> {
     try {
       const user = await this.repository.getUserByEmail(email, password);
 
       if (!user) throw new NotFoundException('data_not_found');
 
       return this.loginResponse(user);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      } else {
+        throw new InternalServerErrorException('server_error');
+      }
+    }
+  }
+
+  async refresh(token: string): Promise<TokenResponse> {
+    try {
+      if (!token) throw new UnprocessableEntityException('no_token_provide');
+      const session = await this.sessionService.getSessionByToken(token);
+
+      return {
+        accessToken: await this.getAccessToken(session.user, session.id),
+        refreshToken: token,
+      };
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

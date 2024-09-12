@@ -20,7 +20,7 @@ export class PointService {
     try {
       const points: Point[] = await this.repository.findMany({
         where: {
-          Merchant: {
+          merchant: {
             userMerchant: {
               some: {
                 merchantId,

@@ -24,7 +24,7 @@ model Point {
   slotSize        Int
   createdAt       DateTime  @default(now()) @map(name: "created_at")
   updatedAt       DateTime  @updatedAt @map(name: "updated_at")
-  Merchant        Merchant? @relation(fields: [merchantId], references: [id])
+  merchant        Merchant? @relation(fields: [merchantId], references: [id])
   merchantId      String?
 }
 
@@ -43,16 +43,16 @@ model Session {
   token     String
   createdAt DateTime @default(now()) @map(name: "created_at")
   updatedAt DateTime @updatedAt @map(name: "updated_at")
-  User      User?    @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
   userId    String?
 }
 
 model UserMerchant {
   id String @id @default(cuid())
 
-  User       User?     @relation(fields: [userId], references: [id])
+  user       User?     @relation(fields: [userId], references: [id])
   userId     String?
-  Merchant   Merchant? @relation(fields: [merchantId], references: [id])
+  merchant   Merchant? @relation(fields: [merchantId], references: [id])
   merchantId String?
 }
 
@@ -76,7 +76,7 @@ model ApiKey {
   merchantId  String?
   createdAt   DateTime  @default(now()) @map(name: "created_at")
   updatedAt   DateTime  @updatedAt @map(name: "updated_at")
-  Merchant    Merchant? @relation(fields: [merchantId], references: [id])
+  merchant    Merchant? @relation(fields: [merchantId], references: [id])
 }
 
 model Branch {
@@ -89,6 +89,6 @@ model Branch {
   zip        String
   createdAt  DateTime  @default(now()) @map(name: "created_at")
   updatedAt  DateTime  @updatedAt @map(name: "updated_at")
-  Merchant   Merchant? @relation(fields: [merchantId], references: [id])
+  merchant   Merchant? @relation(fields: [merchantId], references: [id])
   merchantId String?
 }

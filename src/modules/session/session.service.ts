@@ -5,6 +5,10 @@ import {
 } from '@nestjs/common';
 import { SessionRepository } from './session.repository';
 import { Session, User } from '@prisma/client';
+import {
+  INTERNAL_SERVER_ERROR,
+  SESSION_NOT_FOUND,
+} from 'src/errors/error.constants';
 
 @Injectable()
 export class SessionService {
@@ -23,7 +27,7 @@ export class SessionService {
       if (error instanceof NotFoundException) {
         throw error;
       } else {
-        throw new InternalServerErrorException('server_error');
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
   }
@@ -35,7 +39,7 @@ export class SessionService {
         include: { user: true },
       });
 
-      if (!session) throw new NotFoundException('not_found');
+      if (!session) throw new NotFoundException(SESSION_NOT_FOUND);
 
       return session;
     } catch (error) {
@@ -43,7 +47,7 @@ export class SessionService {
       if (error instanceof NotFoundException) {
         throw error;
       } else {
-        throw new InternalServerErrorException('server_error');
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
   }

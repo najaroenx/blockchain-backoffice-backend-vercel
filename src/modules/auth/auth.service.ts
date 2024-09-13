@@ -11,6 +11,11 @@ import { UserRepository } from 'src/modules/user/user.repository';
 import { AccessTokenClaims } from './interfaces';
 import { LOGIN_ACCESS_TOKEN } from 'src/providers/token/token.constants';
 import { TokenResponse } from './interfaces/TokenResponse';
+import {
+  INTERNAL_SERVER_ERROR,
+  NO_TOKEN_PROVIDED,
+  USER_NOT_FOUND,
+} from 'src/errors/error.constants';
 
 @Injectable()
 export class AuthService {
@@ -24,21 +29,21 @@ export class AuthService {
     try {
       const user = await this.repository.getUserByEmail(email, password);
 
-      if (!user) throw new NotFoundException('data_not_found');
+      if (!user) throw new NotFoundException(USER_NOT_FOUND);
 
       return this.loginResponse(user);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       } else {
-        throw new InternalServerErrorException('server_error');
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
   }
 
   async refresh(token: string): Promise<TokenResponse> {
     try {
-      if (!token) throw new UnprocessableEntityException('no_token_provide');
+      if (!token) throw new UnprocessableEntityException(NO_TOKEN_PROVIDED);
       const session = await this.sessionService.getSessionByToken(token);
 
       return {
@@ -49,7 +54,7 @@ export class AuthService {
       if (error instanceof NotFoundException) {
         throw error;
       } else {
-        throw new InternalServerErrorException('server_error');
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
   }

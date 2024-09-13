@@ -6,6 +6,10 @@ import {
 import { ApiKeyRepository } from './api-key.repository';
 import { ApiKey } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
+import {
+  API_KEY_NOT_FOUND,
+  INTERNAL_SERVER_ERROR,
+} from 'src/errors/error.constants';
 
 @Injectable()
 export class ApiKeyService {
@@ -38,7 +42,7 @@ export class ApiKeyService {
       return merchant;
     } catch (error) {
       console.log(error);
-      throw new InternalServerErrorException('server_error');
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -52,7 +56,7 @@ export class ApiKeyService {
         },
       });
 
-      if (!apiKeys) throw new NotFoundException('data_not_found');
+      if (!apiKeys) throw new NotFoundException(API_KEY_NOT_FOUND);
 
       return {
         apiKeys,
@@ -62,7 +66,7 @@ export class ApiKeyService {
       if (error instanceof NotFoundException) {
         throw error;
       } else {
-        throw new InternalServerErrorException('server_error');
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
   }
@@ -75,14 +79,14 @@ export class ApiKeyService {
         },
       });
 
-      if (!apiKeyDetail) throw new NotFoundException('data_not_found');
+      if (!apiKeyDetail) throw new NotFoundException(API_KEY_NOT_FOUND);
 
       return apiKeyDetail;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       } else {
-        throw new InternalServerErrorException('server_error');
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
   }

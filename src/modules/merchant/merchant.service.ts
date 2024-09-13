@@ -5,6 +5,10 @@ import {
 } from '@nestjs/common';
 import { MerchantRepository } from './merchant.repository';
 import { Merchant } from '@prisma/client';
+import {
+  INTERNAL_SERVER_ERROR,
+  MERCHANT_NOT_FOUND,
+} from 'src/errors/error.constants';
 
 @Injectable()
 export class MerchantService {
@@ -24,7 +28,7 @@ export class MerchantService {
         },
       });
 
-      if (!merchants) throw new NotFoundException('data_not_found');
+      if (!merchants) throw new NotFoundException(MERCHANT_NOT_FOUND);
 
       return {
         merchants,
@@ -34,7 +38,7 @@ export class MerchantService {
       if (error instanceof NotFoundException) {
         throw error;
       } else {
-        throw new InternalServerErrorException('server_error');
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
   }
@@ -63,7 +67,7 @@ export class MerchantService {
 
       return merchant;
     } catch (error) {
-      throw new InternalServerErrorException('server_error');
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }
 }

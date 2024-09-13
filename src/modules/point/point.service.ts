@@ -6,6 +6,10 @@ import {
 import { PointRepository } from './point.repository';
 import { Point } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import {
+  INTERNAL_SERVER_ERROR,
+  POINT_NOT_FOUND,
+} from 'src/errors/error.constants';
 
 @Injectable()
 export class PointService {
@@ -30,7 +34,7 @@ export class PointService {
         },
       });
 
-      if (!points) throw new NotFoundException('data_not_found');
+      if (!points) throw new NotFoundException(POINT_NOT_FOUND);
 
       return {
         points,
@@ -40,7 +44,7 @@ export class PointService {
       if (error instanceof NotFoundException) {
         throw error;
       } else {
-        throw new InternalServerErrorException('server_error');
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
   }
@@ -89,7 +93,7 @@ export class PointService {
       return point;
     } catch (error) {
       console.log(error);
-      throw new InternalServerErrorException('server_error');
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }
 }

@@ -42,8 +42,12 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
         )
       ) {
         try {
-          const apiKeyDetails =
-            await this.apiKeyService.getApiKey(authorizationKey);
+          const merchantId = request.params['merchantId'];
+
+          const apiKeyDetails = await this.apiKeyService.getApiKey(
+            authorizationKey,
+            merchantId,
+          );
 
           return this.success({
             type: 'api-key',

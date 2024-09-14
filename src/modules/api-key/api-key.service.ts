@@ -71,11 +71,12 @@ export class ApiKeyService {
     }
   }
 
-  async getApiKey(apiKey: string): Promise<ApiKey> {
+  async getApiKey(apiKey: string, merchantId: string): Promise<ApiKey> {
     try {
       const apiKeyDetail = await this.repository.findFirst({
         where: {
           apiKey,
+          merchantId,
         },
       });
 

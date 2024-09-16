@@ -1,6 +1,11 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { PointService } from './point.service';
-import { GetPointsDto, CreatePointDto } from './dtos';
+import {
+  GetPointsDto,
+  CreatePointDto,
+  RedeemPointsDto,
+  RedeemPointBodyDto,
+} from './dtos';
 
 @Controller('point')
 export class PointController {
@@ -34,6 +39,26 @@ export class PointController {
       slotSize,
       frameSize,
       decimal,
+    });
+  }
+
+  @Post('/redeem/:merchantId/point/:pointId')
+  @HttpCode(200)
+  async redeemPoint(
+    @Param() params: RedeemPointsDto,
+    @Body() body: RedeemPointBodyDto,
+  ) {
+    const { merchantId, pointId } = params;
+
+    const { receiverAddress, transactionTypeId, amount, email } = body;
+
+    return this.pointService.transaction({
+      merchantId,
+      amount,
+      pointId,
+      receiverAddress,
+      transactionTypeId,
+      email,
     });
   }
 }

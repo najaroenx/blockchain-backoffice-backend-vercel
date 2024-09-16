@@ -11,6 +11,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { SessionModule } from './modules/session/session.module';
 import { CustomAuthGuard } from './modules/auth/custom-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
+import { TransactionModule } from './transaction/transaction.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { APP_GUARD } from '@nestjs/core';
     TokenModule,
     AuthModule,
     SessionModule,
+    TransactionModule,
   ],
   controllers: [],
   providers: [

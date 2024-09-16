@@ -14,7 +14,7 @@ datasource db {
 }
 
 model Point {
-  id              String    @id @default(cuid())
+  id              String        @id @default(cuid())
   name            String
   symbol          String
   contractAddress String
@@ -22,10 +22,11 @@ model Point {
   decimal         Int
   frameSize       Int
   slotSize        Int
-  createdAt       DateTime  @default(now()) @map(name: "created_at")
-  updatedAt       DateTime  @updatedAt @map(name: "updated_at")
-  merchant        Merchant? @relation(fields: [merchantId], references: [id])
+  createdAt       DateTime      @default(now()) @map(name: "created_at")
+  updatedAt       DateTime      @updatedAt @map(name: "updated_at")
+  merchant        Merchant?     @relation(fields: [merchantId], references: [id])
   merchantId      String?
+  transaction     Transaction[]
 }
 
 model User {
@@ -66,6 +67,7 @@ model Merchant {
   branch       Branch[]
   point        Point[]
   apiKey       ApiKey[]
+  transaction  Transaction[]
 }
 
 model ApiKey {
@@ -91,4 +93,29 @@ model Branch {
   updatedAt  DateTime  @updatedAt @map(name: "updated_at")
   merchant   Merchant? @relation(fields: [merchantId], references: [id])
   merchantId String?
+}
+
+model Transaction {
+  id                String           @id @default(cuid())
+  email             String?
+  firstName         String?
+  lastName          String?
+  txHash            String
+  receiverAddress   String
+  amount            Int
+  createdAt         DateTime         @default(now()) @map(name: "created_at")
+  updatedAt         DateTime         @updatedAt @map(name: "updated_at")
+  merchant          Merchant?        @relation(fields: [merchantId], references: [id])
+  merchantId        String?
+  point             Point?           @relation(fields: [pointId], references: [id])
+  pointId           String?
+  transactionType   TransactionType? @relation(fields: [transactionTypeId], references: [id])
+  transactionTypeId String?
+}
+
+model TransactionType {
+  id          String        @id @unique
+  name        String
+  description String
+  transaction Transaction[]
 }

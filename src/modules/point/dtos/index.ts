@@ -1,23 +1,11 @@
-import { IsNumber, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
-export class GetPointDto {
-  @IsString()
-  pointId: string;
-}
-
-export class GetPointsDto {
-  @IsString()
-  merchantId: string;
-}
 export class CreatePointDto {
   @IsString()
   name: string;
 
   @IsString()
   symbol: string;
-
-  @IsString()
-  merchantId: string;
 
   @IsNumber()
   initialSupply: number;
@@ -52,4 +40,14 @@ export class RedeemPointBodyDto {
 
   @IsString()
   email: string;
+}
+
+export class UpdatePointDto {
+  @IsNumber()
+  @IsOptional()
+  frameSize?: number;
+
+  @IsNumber()
+  @IsOptional()
+  slotSize?: number;
 }

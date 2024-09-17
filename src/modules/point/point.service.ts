@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PointRepository } from './point.repository';
-import { Point } from '@prisma/client';
+import { Point, Prisma } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import {
   INTERNAL_SERVER_ERROR,
@@ -20,7 +20,7 @@ export class PointService {
     private transactionService: TransactionService,
   ) {}
 
-  async getPoints(
+  async getPointsByMerchant(
     merchantId: string,
   ): Promise<{ points: Point[]; counts: number }> {
     try {
@@ -51,42 +51,39 @@ export class PointService {
     }
   }
 
-  async createPoint({
-    name,
-    symbol,
-    initialSupply,
-    decimal,
-    frameSize,
-    slotSize,
-    merchantId,
-  }: {
-    name: string;
-    symbol: string;
-    initialSupply: number;
-    decimal: number;
-    frameSize: number;
-    slotSize: number;
-    merchantId: string;
-  }): Promise<Point> {
+  async getPointById(pointId: string): Promise<{ point: Point }> {
+    try {
+      const point: Point = await this.repository.findUnique({
+        where: {
+          id: pointId,
+        },
+      });
+
+      if (!point) throw new NotFoundException(POINT_NOT_FOUND);
+
+      return {
+        point,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      } else {
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+      }
+    }
+  }
+
+  async createPoint(
+    merchantId: string,
+    data: Omit<Omit<Prisma.PointCreateInput, 'contractAddress'>, 'merchant'>,
+  ): Promise<Point> {
     try {
       const pointContractAddress =
-        await this.blockchainService.createNewPointToken({
-          name,
-          symbol,
-          decimal,
-          slotSize,
-          frameSize,
-          initialSupply,
-        });
+        await this.blockchainService.createNewPointToken(data);
 
       const point: Point = await this.repository.create({
         data: {
-          name,
-          symbol,
-          initialSupply,
-          decimal,
-          frameSize,
-          slotSize,
+          ...data,
           contractAddress: pointContractAddress,
           merchantId,
         },
@@ -99,23 +96,32 @@ export class PointService {
     }
   }
 
-  async transaction({
-    merchantId,
-    amount,
-    receiverAddress,
-    transactionTypeId,
-    pointId,
-    email,
-  }: {
-    merchantId: string;
-    amount: number;
-    receiverAddress: string;
-    transactionTypeId: string;
-    email: string;
-    pointId: string;
-  }) {
+  async updatePoint(
+    pointId: string,
+    data: Prisma.PointUpdateInput,
+  ): Promise<{ point: Point }> {
     try {
-      const point = await this.repository.findUnique({
+      const point = await this.repository.update({
+        where: {
+          id: pointId,
+        },
+        data,
+      });
+
+      return { point };
+    } catch (error) {
+      console.log(error);
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async transaction(
+    merchantId: string,
+    pointId: string,
+    data: Omit<Prisma.TransactionCreateInput, 'txHash' | 'point' | 'merchant'>,
+  ) {
+    try {
+      const point: Point = await this.repository.findUnique({
         where: {
           id: pointId,
         },
@@ -124,20 +130,17 @@ export class PointService {
       if (!point) throw new NotFoundException(POINT_NOT_FOUND);
 
       const { txId } = await this.blockchainService.transaction({
-        amount,
-        to: receiverAddress,
+        amount: data.amount,
+        to: data.receiverAddress,
         pointContractAddress: point.contractAddress,
       });
 
-      const transaction = await this.transactionService.createTransacetion({
-        txHash: txId,
-        receiverAddress,
-        amount,
-        transactionTypeId,
-        email,
+      const transaction = await this.transactionService.createTransacetion(
         merchantId,
-        pointId,
-      });
+        point.id,
+        txId,
+        data,
+      );
 
       return transaction.id;
     } catch (error) {

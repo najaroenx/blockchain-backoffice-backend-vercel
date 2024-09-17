@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { TransactionRepository } from './transaction.repository';
-import { Transaction } from '@prisma/client';
+import { Prisma, Transaction } from '@prisma/client';
 
 @Injectable()
 export class TransactionService {
@@ -23,33 +23,22 @@ export class TransactionService {
     }
   }
 
-  async createTransacetion({
-    txHash,
-    amount,
-    transactionTypeId,
-    receiverAddress,
-    email,
-    pointId,
-    merchantId,
-  }: {
-    txHash: string;
-    amount: number;
-    transactionTypeId: string;
-    receiverAddress: string;
-    email: string;
-    pointId: string;
-    merchantId: string;
-  }): Promise<Transaction> {
+  async createTransacetion(
+    merchantId: string,
+    pointId: string,
+    txHash: string,
+    data: Omit<
+      Prisma.TransactionCreateInput,
+      'merchant' | 'point' | 'transactionType' | 'txHash'
+    >,
+  ): Promise<Transaction> {
     try {
       const transaction = await this.repository.create({
         data: {
-          txHash,
-          amount,
-          email,
-          pointId,
+          ...data,
           merchantId,
-          receiverAddress,
-          transactionTypeId,
+          pointId,
+          txHash,
         },
       });
       return transaction;

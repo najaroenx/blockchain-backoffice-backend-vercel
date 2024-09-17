@@ -119,7 +119,7 @@ export class PointService {
     merchantId: string,
     pointId: string,
     data: Omit<Prisma.TransactionCreateInput, 'txHash' | 'point' | 'merchant'>,
-  ) {
+  ): Promise<{ txId: string }> {
     try {
       const point: Point = await this.repository.findUnique({
         where: {
@@ -142,7 +142,7 @@ export class PointService {
         data,
       );
 
-      return transaction.id;
+      return { txId: transaction.txHash };
     } catch (error) {
       console.log(error);
       if (error instanceof NotFoundException) {

@@ -1,15 +1,15 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 import { MerchantService } from './merchant.service';
-import { CreateMerchantsDto, GetMerchantsDto } from './dtos';
+import { CreateMerchantsDto } from './dtos';
 
 @Controller('merchant')
 export class MerchantController {
   constructor(private readonly merchantService: MerchantService) {}
 
-  @Get('/:userId')
+  @Get('/')
   @HttpCode(200)
-  async getMerchants(@Param() params: GetMerchantsDto) {
-    const { userId } = params;
+  async getMerchants(@Req() request: Request) {
+    const userId = (request as any).user.id as string;
     return this.merchantService.getMerchants(userId);
   }
 

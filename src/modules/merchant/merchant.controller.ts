@@ -18,10 +18,11 @@ export class MerchantController {
   async createMerchant(@Body() body: CreateMerchantsDto) {
     const { userId, name, website } = body;
 
-    return this.merchantService.createMerchant({
-      userId,
+    const data = {
       name,
       website,
-    });
+    };
+
+    return this.merchantService.createMerchant(userId, data);
   }
 }

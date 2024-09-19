@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ApiKeyRepository } from './api-key.repository';
-import { ApiKey } from '@prisma/client';
+import { ApiKey, Prisma } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
 import {
   API_KEY_NOT_FOUND,
@@ -18,22 +18,16 @@ export class ApiKeyService {
     private tokenService: TokenService,
   ) {}
 
-  async createApiKey({
-    name,
-    description,
-    merchantId,
-  }: {
-    name: string;
-    description: string;
-    merchantId: string;
-  }): Promise<ApiKey> {
+  async createApiKey(
+    merchantId: string,
+    data: Omit<Prisma.ApiKeyCreateInput, 'apiKey' | 'merchant'>,
+  ): Promise<ApiKey> {
     try {
       const apiKey = await this.tokenService.generateRandomString({});
 
       const merchant = await this.repository.create({
         data: {
-          name,
-          description,
+          ...data,
           apiKey,
           merchantId,
         },

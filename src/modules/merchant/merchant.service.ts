@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { MerchantRepository } from './merchant.repository';
-import { Merchant } from '@prisma/client';
+import { Merchant, Prisma } from '@prisma/client';
 import {
   INTERNAL_SERVER_ERROR,
   MERCHANT_NOT_FOUND,
@@ -43,20 +43,14 @@ export class MerchantService {
     }
   }
 
-  async createMerchant({
-    name,
-    website,
-    userId,
-  }: {
-    name: string;
-    website: string;
-    userId: string;
-  }): Promise<Merchant> {
+  async createMerchant(
+    userId: string,
+    data: Omit<Prisma.MerchantCreateInput, 'userMerchant'>,
+  ): Promise<Merchant> {
     try {
       const merchant = await this.repository.create({
         data: {
-          name,
-          website,
+          ...data,
           userMerchant: {
             create: {
               userId,

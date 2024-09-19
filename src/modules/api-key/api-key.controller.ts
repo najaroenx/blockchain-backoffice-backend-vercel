@@ -12,13 +12,7 @@ export class ApiKeyController {
     @Param('merchantId') merchantId: string,
     @Body() body: CreateApiKeyDto,
   ) {
-    const { name, description } = body;
-
-    return this.apiKeyService.createApiKey({
-      merchantId,
-      name,
-      description,
-    });
+    return this.apiKeyService.createApiKey(merchantId, body);
   }
 
   @Get('/:merchantId')

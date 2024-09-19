@@ -13,7 +13,7 @@ import {
   RedeemPointsDto,
   RedeemPointBodyDto,
   UpdatePointDto,
-} from './dtos';
+} from './dto';
 
 @Controller('/:merchantId/point')
 export class PointController {

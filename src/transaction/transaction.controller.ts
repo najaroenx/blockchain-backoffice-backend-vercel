@@ -1,5 +1,5 @@
 import { Controller, Get, HttpCode, Param } from '@nestjs/common';
-import { GetTransactionsDto } from './dtos';
+import { GetTransactionsDto } from './dto';
 import { TransactionService } from './transaction.service';
 
 @Controller('transaction')

@@ -8,3 +8,8 @@ export class CreateApiKeyDto {
   @IsString()
   name: string;
 }
+
+export class GetAPiKeysDto {
+  @IsString()
+  merchantId: string;
+}

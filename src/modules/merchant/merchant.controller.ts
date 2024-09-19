@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 import { MerchantService } from './merchant.service';
-import { CreateMerchantsDto } from './dtos';
+import { CreateMerchantsDto } from './dto';
 
 @Controller('merchant')
 export class MerchantController {

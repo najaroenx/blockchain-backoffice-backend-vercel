@@ -39,7 +39,7 @@ export class PointController {
     return this.pointService.createPoint(merchantId, data);
   }
 
-  @Post('/:pointId/redeem')
+  @Post('/:pointId/transaction')
   @HttpCode(200)
   async redeemPoint(
     @Param() params: RedeemPointsDto,

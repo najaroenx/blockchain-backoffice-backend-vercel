@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { nanoid } from 'nanoid';
 import { sign, SignOptions, VerifyOptions, verify } from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
-
+import * as CryptoJS from 'crypto-js';
 @Injectable()
 export class TokenService {
   private jwtSecret: string;
@@ -55,4 +55,19 @@ export class TokenService {
       throw new UnauthorizedException('Invalid token');
     }
   }
+
+  encryptKey = (salt, privateKey) => {
+    const encryptedPrivateKey = CryptoJS.AES.encrypt(
+      privateKey,
+      salt,
+    ).toString();
+    return encryptedPrivateKey;
+  };
+
+  decryptKey = (salt, encryptedData) => {
+    const bytes = CryptoJS.AES.decrypt(encryptedData, salt);
+    const decryptedMnemonic = bytes.toString(CryptoJS.enc.Utf8);
+
+    return decryptedMnemonic;
+  };
 }

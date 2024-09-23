@@ -12,6 +12,7 @@ import { SessionModule } from './modules/session/session.module';
 import { CustomAuthGuard } from './modules/auth/custom-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { TransactionModule } from './transaction/transaction.module';
+import { CustomerModule } from './modules/customer/customer.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { TransactionModule } from './transaction/transaction.module';
     AuthModule,
     SessionModule,
     TransactionModule,
+    CustomerModule,
   ],
   controllers: [],
   providers: [

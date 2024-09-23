@@ -5,4 +5,5 @@ export const configSchema = Joi.object({
   PRIVATE_KEY: Joi.string(),
   RPC_URL: Joi.string(),
   JWT_SECRET: Joi.string(),
+  SALT: Joi.string(),
 });

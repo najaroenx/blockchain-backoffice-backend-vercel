@@ -9,10 +9,14 @@ import {
   INTERNAL_SERVER_ERROR,
   MERCHANT_NOT_FOUND,
 } from 'src/errors/error.constants';
+import { ApiKeyService } from '../api-key/api-key.service';
 
 @Injectable()
 export class MerchantService {
-  constructor(private repository: MerchantRepository) {}
+  constructor(
+    private repository: MerchantRepository,
+    private apiKeyService: ApiKeyService,
+  ) {}
 
   async getMerchants(
     userId: string,
@@ -48,7 +52,7 @@ export class MerchantService {
     data: Omit<Prisma.MerchantCreateInput, 'userMerchant'>,
   ): Promise<Merchant> {
     try {
-      const merchant = await this.repository.create({
+      const merchant: Merchant = await this.repository.create({
         data: {
           ...data,
           userMerchant: {
@@ -57,6 +61,10 @@ export class MerchantService {
             },
           },
         },
+      });
+
+      await this.apiKeyService.createApiKey(merchant.id, {
+        name: 'default api key',
       });
 
       return merchant;

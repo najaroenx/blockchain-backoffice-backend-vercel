@@ -11,6 +11,7 @@ import {
   POINT_NOT_FOUND,
 } from 'src/errors/error.constants';
 import { TransactionService } from 'src/transaction/transaction.service';
+import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
 export class PointService {
@@ -20,9 +21,10 @@ export class PointService {
     private transactionService: TransactionService,
   ) {}
 
-  async getPointsByMerchant(
-    merchantId: string,
-  ): Promise<{ points: Point[]; counts: number }> {
+  async getPointsByMerchant(merchantId: string): Promise<{
+    points: Array<Omit<Point, 'contractAddress'> & { contractAddress: string }>;
+    counts: number;
+  }> {
     try {
       const points: Point[] = await this.repository.findMany({
         where: {
@@ -38,8 +40,13 @@ export class PointService {
 
       if (!points) throw new NotFoundException(POINT_NOT_FOUND);
 
+      const cleanPoint = points.map((point) => ({
+        ...point,
+        contractAddress: convertBufferToAddress(point.contractAddress),
+      }));
+
       return {
-        points,
+        points: cleanPoint,
         counts: points.length,
       };
     } catch (error) {
@@ -131,8 +138,8 @@ export class PointService {
 
       const { txId } = await this.blockchainService.transaction({
         amount: data.amount,
-        to: data.receiverAddress,
-        pointContractAddress: point.contractAddress,
+        to: convertBufferToAddress(data.receiverAddress),
+        pointBuffer: point.contractAddress,
       });
 
       const transaction = await this.transactionService.createTransacetion(
@@ -142,7 +149,9 @@ export class PointService {
         data,
       );
 
-      return { txId: transaction.txHash };
+      const txAddress = convertBufferToAddress(transaction.txHash);
+
+      return { txId: txAddress };
     } catch (error) {
       console.log(error);
       if (error instanceof NotFoundException) {

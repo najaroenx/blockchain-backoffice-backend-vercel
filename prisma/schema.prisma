@@ -17,7 +17,7 @@ model Point {
   id              String        @id @default(cuid())
   name            String
   symbol          String
-  contractAddress String
+  contractAddress Bytes
   initialSupply   Int
   decimal         Int
   frameSize       Int
@@ -58,16 +58,17 @@ model UserMerchant {
 }
 
 model Merchant {
-  id           String         @id @default(cuid())
-  name         String
-  website      String
-  createdAt    DateTime       @default(now()) @map(name: "created_at")
-  updatedAt    DateTime       @updatedAt @map(name: "updated_at")
-  userMerchant UserMerchant[]
-  branch       Branch[]
-  point        Point[]
-  apiKey       ApiKey[]
-  transaction  Transaction[]
+  id               String             @id @default(cuid())
+  name             String
+  website          String
+  createdAt        DateTime           @default(now()) @map(name: "created_at")
+  updatedAt        DateTime           @updatedAt @map(name: "updated_at")
+  userMerchant     UserMerchant[]
+  branch           Branch[]
+  point            Point[]
+  apiKey           ApiKey[]
+  transaction      Transaction[]
+  customerMerChant CustomerMerChant[]
 }
 
 model ApiKey {
@@ -97,11 +98,11 @@ model Branch {
 
 model Transaction {
   id                String           @id @default(cuid())
-  email             String?
+  email             String
   firstName         String?
   lastName          String?
-  txHash            String
-  receiverAddress   String
+  txHash            Bytes
+  receiverAddress   Bytes
   amount            Int
   createdAt         DateTime         @default(now()) @map(name: "created_at")
   updatedAt         DateTime         @updatedAt @map(name: "updated_at")
@@ -111,6 +112,28 @@ model Transaction {
   pointId           String?
   transactionType   TransactionType? @relation(fields: [transactionTypeId], references: [id])
   transactionTypeId String?
+  customer          Customer?        @relation(fields: [customerId], references: [id])
+  customerId        String?
+}
+
+model Customer {
+  id               String             @id @default(cuid())
+  email            String
+  firstName        String?
+  lastName         String?
+  walletAddress    Bytes
+  createdAt        DateTime           @default(now()) @map(name: "created_at")
+  updatedAt        DateTime           @updatedAt @map(name: "updated_at")
+  customerMerChant CustomerMerChant[]
+  transaction      Transaction[]
+}
+
+model CustomerMerChant {
+  id         String    @id @default(cuid())
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerId String?
+  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+  merchantId String?
 }
 
 model TransactionType {

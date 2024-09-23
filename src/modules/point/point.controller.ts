@@ -14,6 +14,7 @@ import {
   RedeemPointBodyDto,
   UpdatePointDto,
 } from './dto';
+import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 
 @Controller('/:merchantId/point')
 export class PointController {
@@ -47,7 +48,10 @@ export class PointController {
   ) {
     const { merchantId, pointId } = params;
 
-    return this.pointService.transaction(merchantId, pointId, body);
+    return this.pointService.transaction(merchantId, pointId, {
+      ...body,
+      receiverAddress: createBufferFromHex(body.receiverAddress),
+    });
   }
 
   @Put('/:pointId')

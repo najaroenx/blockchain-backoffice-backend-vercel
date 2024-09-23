@@ -6,6 +6,8 @@ import * as PointERC20ABI from './abis/PointERC20ABI.json';
 import { Contract, JsonRpcProvider, Wallet } from 'ethers';
 import { ConfigService } from '@nestjs/config';
 import { transaction } from './types/transaction.type';
+import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 
 @Injectable()
 export class BlockchainService {
@@ -68,16 +70,20 @@ export class BlockchainService {
 
     await tx.wait();
 
-    return pointAddress;
+    const pointBuffer = createBufferFromHex(pointAddress);
+
+    return pointBuffer;
   }
 
   async transaction({
     amount,
     to,
-    pointContractAddress,
+    pointBuffer,
   }: transaction): Promise<{ txId: string }> {
     const provider = new JsonRpcProvider(this.rpc);
     const signer = new Wallet(this.privateKey, provider);
+
+    const pointContractAddress = convertBufferToAddress(pointBuffer);
 
     const contract = new Contract(pointContractAddress, PointERC20ABI, signer);
 

@@ -121,7 +121,9 @@ model Customer {
   email            String
   firstName        String?
   lastName         String?
+  tel              String?
   walletAddress    Bytes
+  privateKey       String //TODO: move to key vault
   createdAt        DateTime           @default(now()) @map(name: "created_at")
   updatedAt        DateTime           @updatedAt @map(name: "updated_at")
   customerMerChant CustomerMerChant[]

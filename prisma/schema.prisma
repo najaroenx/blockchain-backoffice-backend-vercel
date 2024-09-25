@@ -98,10 +98,10 @@ model Branch {
 
 model Transaction {
   id                String           @id @default(cuid())
-  email             String
   firstName         String?
   lastName          String?
   txHash            Bytes
+  senderAddress     Bytes
   receiverAddress   Bytes
   amount            Int
   createdAt         DateTime         @default(now()) @map(name: "created_at")

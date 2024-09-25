@@ -3,11 +3,11 @@ import { CustomerController } from './customer.controller';
 import { CustomerService } from './customer.service';
 import { CustomerRepository } from './customer.repository';
 import { TokenModule } from 'src/providers/token/token.module';
-import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 
 @Module({
-  imports: [TokenModule, BlockchainModule],
+  imports: [TokenModule],
   controllers: [CustomerController],
   providers: [CustomerService, CustomerRepository],
+  exports: [CustomerService],
 })
 export class CustomerModule {}

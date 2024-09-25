@@ -4,16 +4,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CustomerRepository } from './customer.repository';
-import { Customer, CustomerMerChant, Prisma } from '@prisma/client';
+import {
+  Customer,
+  CustomerMerChant,
+  Prisma,
+  Transaction,
+} from '@prisma/client';
 import {
   INTERNAL_SERVER_ERROR,
   CUSTOMER_NOT_FOUND,
 } from 'src/errors/error.constants';
-import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { ConfigService } from '@nestjs/config';
 import { TokenService } from 'src/providers/token/token.service';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { createWallet } from 'src/libs/createWallet';
 
 @Injectable()
 export class CustomerService {
@@ -21,7 +26,6 @@ export class CustomerService {
 
   constructor(
     private repository: CustomerRepository,
-    private blockchainService: BlockchainService,
     private configService: ConfigService,
     private tokenService: TokenService,
   ) {
@@ -106,7 +110,7 @@ export class CustomerService {
         }
       }
 
-      const wallet = await this.blockchainService.createWallet();
+      const wallet = createWallet();
 
       const encryptedPrivateKey = this.tokenService.encryptKey(
         this.salt,
@@ -168,14 +172,14 @@ export class CustomerService {
 
       if (!customers) throw new NotFoundException(CUSTOMER_NOT_FOUND);
 
-      const cleanDataCustomers = customers.map((customer) => ({
+      const formattedCustomer = customers.map((customer) => ({
         ...customer,
         walletAddress: convertBufferToAddress(customer.walletAddress),
       }));
 
       return {
-        customers: cleanDataCustomers,
-        counts: cleanDataCustomers.length,
+        customers: formattedCustomer,
+        counts: formattedCustomer.length,
       };
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -187,11 +191,55 @@ export class CustomerService {
   }
 
   async getCustomerById(customerId: string): Promise<{
-    customer: Omit<Customer, 'walletAddress'> | { walletAddress: string };
+    customer: Omit<Customer, 'walletAddress'>;
   }> {
     try {
-      const customer: Customer = await this.repository.findUnique({
-        where: { id: customerId },
+      const customer: Customer & { transaction: Transaction[] } =
+        await this.repository.findUnique({
+          where: { id: customerId },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            walletAddress: true,
+            transaction: true,
+          },
+        });
+
+      if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
+
+      const formattedTransactions = customer.transaction.map((tx) => ({
+        ...tx,
+        receiverAddress: convertBufferToAddress(tx.receiverAddress),
+        senderAddress: convertBufferToAddress(tx.senderAddress),
+        txHash: convertBufferToAddress(tx.txHash),
+      }));
+
+      const formattedCustomer = {
+        ...customer,
+        walletAddress: convertBufferToAddress(customer.walletAddress),
+        transaction: formattedTransactions,
+      };
+
+      return {
+        customer: formattedCustomer,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      } else {
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+      }
+    }
+  }
+
+  async getCustomerByAddress(walletAddress: Buffer): Promise<{
+    customer: Omit<Customer, 'walletAddress'>;
+  }> {
+    try {
+      const customer: Customer = await this.repository.findFirst({
+        where: { walletAddress },
         select: {
           id: true,
           email: true,
@@ -204,13 +252,13 @@ export class CustomerService {
 
       if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
 
-      const formatData = {
+      const formattedCustomer = {
         ...customer,
         walletAddress: convertBufferToAddress(customer.walletAddress),
       };
 
       return {
-        customer: formatData,
+        customer: formattedCustomer,
       };
     } catch (error) {
       if (error instanceof NotFoundException) {

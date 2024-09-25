@@ -97,12 +97,4 @@ export class BlockchainService {
       txId: tx.hash,
     };
   }
-
-  async createWallet() {
-    const wallet = Wallet.createRandom();
-    return {
-      walletAddress: wallet.address,
-      privateKey: wallet.privateKey,
-    };
-  }
 }

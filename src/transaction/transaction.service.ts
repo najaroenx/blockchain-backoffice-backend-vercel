@@ -4,16 +4,25 @@ import { TransactionRepository } from './transaction.repository';
 import { Prisma, Transaction } from '@prisma/client';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { PointService } from 'src/modules/point/point.service';
+import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { CustomerService } from 'src/modules/customer/customer.service';
 
 @Injectable()
 export class TransactionService {
-  constructor(private repository: TransactionRepository) {}
+  constructor(
+    private repository: TransactionRepository,
+    private pointService: PointService,
+    private blockchainService: BlockchainService,
+    private customerService: CustomerService,
+  ) {}
 
   async getTransactionsByMerchatId(merchantId: string): Promise<{
     transactions: Array<
-      Omit<Transaction, 'txHash' | 'receiverAddress'> & {
+      Omit<Transaction, 'txHash' | 'receiverAddress' | 'senderAddress'> & {
         txHash: string;
         receiverAddress: string;
+        senderAddress: string;
       }
     >;
     counts: number;
@@ -28,6 +37,7 @@ export class TransactionService {
       const cleanTransactions = transactions.map((transaction) => ({
         ...transaction,
         txHash: convertBufferToAddress(transaction.txHash),
+        senderAddress: convertBufferToAddress(transaction.senderAddress),
         receiverAddress: convertBufferToAddress(transaction.receiverAddress),
       }));
 
@@ -37,24 +47,34 @@ export class TransactionService {
     }
   }
 
-  async createTransacetion(
+  async createTransaction(
     merchantId: string,
     pointId: string,
-    txHash: string,
     data: Omit<
       Prisma.TransactionCreateInput,
       'merchant' | 'point' | 'transactionType' | 'txHash' | 'customer'
     >,
   ): Promise<Transaction> {
     try {
-      const txHashBuffer = createBufferFromHex(txHash);
+      const { point } = await this.pointService.getPointById(pointId);
+
+      const { customer } = await this.customerService.getCustomerByAddress(
+        data.receiverAddress,
+      );
+
+      const { txId } = await this.blockchainService.transaction({
+        amount: data.amount,
+        to: convertBufferToAddress(data.receiverAddress),
+        pointBuffer: point.contractAddress,
+      });
 
       const transaction: Transaction = await this.repository.create({
         data: {
           ...data,
           merchantId,
           pointId,
-          txHash: txHashBuffer,
+          txHash: createBufferFromHex(txId),
+          customerId: customer.id,
         },
       });
       return transaction;

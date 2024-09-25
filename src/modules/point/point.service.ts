@@ -10,7 +10,6 @@ import {
   INTERNAL_SERVER_ERROR,
   POINT_NOT_FOUND,
 } from 'src/errors/error.constants';
-import { TransactionService } from 'src/transaction/transaction.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
@@ -18,7 +17,6 @@ export class PointService {
   constructor(
     private repository: PointRepository,
     private blockchainService: BlockchainService,
-    private transactionService: TransactionService,
   ) {}
 
   async getPointsByMerchant(merchantId: string): Promise<{
@@ -118,45 +116,6 @@ export class PointService {
       return { point };
     } catch (error) {
       console.log(error);
-      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  async transaction(
-    merchantId: string,
-    pointId: string,
-    data: Omit<Prisma.TransactionCreateInput, 'txHash' | 'point' | 'merchant'>,
-  ): Promise<{ txId: string }> {
-    try {
-      const point: Point = await this.repository.findUnique({
-        where: {
-          id: pointId,
-        },
-      });
-
-      if (!point) throw new NotFoundException(POINT_NOT_FOUND);
-
-      const { txId } = await this.blockchainService.transaction({
-        amount: data.amount,
-        to: convertBufferToAddress(data.receiverAddress),
-        pointBuffer: point.contractAddress,
-      });
-
-      const transaction = await this.transactionService.createTransacetion(
-        merchantId,
-        point.id,
-        txId,
-        data,
-      );
-
-      const txAddress = convertBufferToAddress(transaction.txHash);
-
-      return { txId: txAddress };
-    } catch (error) {
-      console.log(error);
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

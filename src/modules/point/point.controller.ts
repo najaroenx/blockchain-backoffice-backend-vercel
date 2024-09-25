@@ -8,13 +8,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { PointService } from './point.service';
-import {
-  CreatePointDto,
-  RedeemPointsDto,
-  RedeemPointBodyDto,
-  UpdatePointDto,
-} from './dto';
-import { createBufferFromHex } from 'src/libs/createBufferFromHex';
+import { CreatePointDto, UpdatePointDto } from './dto';
 
 @Controller('/:merchantId/point')
 export class PointController {
@@ -38,20 +32,6 @@ export class PointController {
     @Body() data: CreatePointDto,
   ) {
     return this.pointService.createPoint(merchantId, data);
-  }
-
-  @Post('/:pointId/transaction')
-  @HttpCode(200)
-  async redeemPoint(
-    @Param() params: RedeemPointsDto,
-    @Body() body: RedeemPointBodyDto,
-  ) {
-    const { merchantId, pointId } = params;
-
-    return this.pointService.transaction(merchantId, pointId, {
-      ...body,
-      receiverAddress: createBufferFromHex(body.receiverAddress),
-    });
   }
 
   @Put('/:pointId')

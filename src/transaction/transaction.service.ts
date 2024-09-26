@@ -47,6 +47,40 @@ export class TransactionService {
     }
   }
 
+  async getTransactionsByCustomerId(
+    customerId: string,
+    merchantId: string,
+  ): Promise<{
+    transactions: Array<
+      Omit<Transaction, 'txHash' | 'receiverAddress' | 'senderAddress'> & {
+        txHash: string;
+        receiverAddress: string;
+        senderAddress: string;
+      }
+    >;
+    counts: number;
+  }> {
+    try {
+      const transactions: Transaction[] = await this.repository.findMany({
+        where: {
+          customerId,
+          merchantId,
+        },
+      });
+
+      const cleanTransactions = transactions.map((transaction) => ({
+        ...transaction,
+        txHash: convertBufferToAddress(transaction.txHash),
+        senderAddress: convertBufferToAddress(transaction.senderAddress),
+        receiverAddress: convertBufferToAddress(transaction.receiverAddress),
+      }));
+
+      return { transactions: cleanTransactions, counts: transactions.length };
+    } catch (error) {
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+    }
+  }
+
   async createTransaction(
     merchantId: string,
     pointId: string,

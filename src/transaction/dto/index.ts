@@ -1,19 +1,6 @@
 import { IsNumber, IsString } from 'class-validator';
 
-export class GetTransactionsDto {
-  @IsString()
-  merchantId: string;
-}
-
-export class CreateTransactionDto {
-  @IsString()
-  merchantId: string;
-
-  @IsString()
-  pointId: string;
-}
-
-export class CreateTransactionDtoBodyDto {
+export class CreateTransactionBodyDto {
   @IsString()
   transactionTypeId: string;
 

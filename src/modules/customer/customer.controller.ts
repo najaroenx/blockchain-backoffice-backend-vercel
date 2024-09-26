@@ -23,7 +23,10 @@ export class CustomerController {
 
   @Get('/:customerId')
   @HttpCode(200)
-  async getCustomerById(@Param('customerId') customerId: string) {
-    return this.customerService.getCustomerById(customerId);
+  async getCustomerById(
+    @Param('customerId') customerId: string,
+    @Param('merchantId') merchantId: string,
+  ) {
+    return this.customerService.getCustomerById(customerId, merchantId);
   }
 }

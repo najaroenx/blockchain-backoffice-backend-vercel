@@ -190,7 +190,10 @@ export class CustomerService {
     }
   }
 
-  async getCustomerById(customerId: string): Promise<{
+  async getCustomerById(
+    customerId: string,
+    merchantId: string,
+  ): Promise<{
     customer: Omit<Customer, 'walletAddress'>;
   }> {
     try {
@@ -203,7 +206,11 @@ export class CustomerService {
             firstName: true,
             lastName: true,
             walletAddress: true,
-            transactions: true,
+            transactions: {
+              where: {
+                merchantId,
+              },
+            },
           },
         });
 

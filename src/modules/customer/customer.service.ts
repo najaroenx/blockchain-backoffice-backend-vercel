@@ -194,7 +194,7 @@ export class CustomerService {
     customer: Omit<Customer, 'walletAddress'>;
   }> {
     try {
-      const customer: Customer & { transaction: Transaction[] } =
+      const customer: Customer & { transactions: Transaction[] } =
         await this.repository.findUnique({
           where: { id: customerId },
           select: {
@@ -203,13 +203,13 @@ export class CustomerService {
             firstName: true,
             lastName: true,
             walletAddress: true,
-            transaction: true,
+            transactions: true,
           },
         });
 
       if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
 
-      const formattedTransactions = customer.transaction.map((tx) => ({
+      const formattedTransactions = customer.transactions.map((tx) => ({
         ...tx,
         receiverAddress: convertBufferToAddress(tx.receiverAddress),
         senderAddress: convertBufferToAddress(tx.senderAddress),
@@ -219,7 +219,7 @@ export class CustomerService {
       const formattedCustomer = {
         ...customer,
         walletAddress: convertBufferToAddress(customer.walletAddress),
-        transaction: formattedTransactions,
+        transactions: formattedTransactions,
       };
 
       return {
@@ -246,7 +246,7 @@ export class CustomerService {
           firstName: true,
           lastName: true,
           walletAddress: true,
-          transaction: true,
+          transactions: true,
         },
       });
 

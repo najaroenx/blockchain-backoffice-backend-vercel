@@ -13,11 +13,12 @@ export class TransactionController {
 
   @Get('/')
   @HttpCode(200)
-  async getPoints(@Param() params: GetTransactionsDto) {
+  async getTransactions(@Param() params: GetTransactionsDto) {
     const { merchantId } = params;
     return this.transactionService.getTransactionsByMerchatId(merchantId);
   }
 
+  // TODO : split out for merchant and customer (B2C, C2C)
   @Post('/:pointId')
   @HttpCode(201)
   async transaction(

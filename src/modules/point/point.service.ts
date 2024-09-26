@@ -56,7 +56,9 @@ export class PointService {
     }
   }
 
-  async getPointById(pointId: string): Promise<{ point: Point }> {
+  async getPointById(pointId: string): Promise<{
+    point: Omit<Point, 'contractAddress'> & { contractAddress: string };
+  }> {
     try {
       const point: Point = await this.repository.findUnique({
         where: {
@@ -67,7 +69,10 @@ export class PointService {
       if (!point) throw new NotFoundException(POINT_NOT_FOUND);
 
       return {
-        point,
+        point: {
+          ...point,
+          contractAddress: convertBufferToAddress(point.contractAddress),
+        },
       };
     } catch (error) {
       if (error instanceof NotFoundException) {

@@ -54,7 +54,10 @@ export class TransactionService {
       Prisma.TransactionCreateInput,
       'merchant' | 'point' | 'transactionType' | 'txHash' | 'customer'
     >,
-  ): Promise<Transaction> {
+  ): Promise<
+    | Transaction
+    | { txHash: string; senderAddress: string; receiverAddress: string }
+  > {
     try {
       const { point } = await this.pointService.getPointById(pointId);
 
@@ -65,7 +68,7 @@ export class TransactionService {
       const { txId } = await this.blockchainService.transaction({
         amount: data.amount,
         to: convertBufferToAddress(data.receiverAddress),
-        pointBuffer: point.contractAddress,
+        pointAddress: point.contractAddress,
       });
 
       const transaction: Transaction = await this.repository.create({
@@ -77,7 +80,12 @@ export class TransactionService {
           customerId: customer.id,
         },
       });
-      return transaction;
+      return {
+        ...transaction,
+        txHash: convertBufferToAddress(transaction.txHash),
+        senderAddress: convertBufferToAddress(transaction.senderAddress),
+        receiverAddress: convertBufferToAddress(transaction.receiverAddress),
+      };
     } catch (error) {
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }

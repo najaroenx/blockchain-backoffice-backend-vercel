@@ -14,7 +14,7 @@ datasource db {
 }
 
 model Point {
-  id              String        @id @default(cuid())
+  id              String          @id @default(cuid())
   name            String
   symbol          String
   contractAddress Bytes
@@ -22,11 +22,12 @@ model Point {
   decimal         Int
   frameSize       Int
   slotSize        Int
-  createdAt       DateTime      @default(now()) @map(name: "created_at")
-  updatedAt       DateTime      @updatedAt @map(name: "updated_at")
-  merchant        Merchant?     @relation(fields: [merchantId], references: [id])
+  createdAt       DateTime        @default(now()) @map(name: "created_at")
+  updatedAt       DateTime        @updatedAt @map(name: "updated_at")
+  merchant        Merchant?       @relation(fields: [merchantId], references: [id])
   merchantId      String?
-  transaction     Transaction[]
+  transactions    Transaction[]
+  customerPoints  CustomerPoint[]
 }
 
 model User {
@@ -67,7 +68,7 @@ model Merchant {
   branch           Branch[]
   point            Point[]
   apiKey           ApiKey[]
-  transaction      Transaction[]
+  transactions     Transaction[]
   customerMerChant CustomerMerChant[]
 }
 
@@ -98,8 +99,6 @@ model Branch {
 
 model Transaction {
   id                String           @id @default(cuid())
-  firstName         String?
-  lastName          String?
   txHash            Bytes
   senderAddress     Bytes
   receiverAddress   Bytes
@@ -127,7 +126,8 @@ model Customer {
   createdAt        DateTime           @default(now()) @map(name: "created_at")
   updatedAt        DateTime           @updatedAt @map(name: "updated_at")
   customerMerChant CustomerMerChant[]
-  transaction      Transaction[]
+  transactions     Transaction[]
+  customerPoints   CustomerPoint[]
 }
 
 model CustomerMerChant {
@@ -136,6 +136,15 @@ model CustomerMerChant {
   customerId String?
   merchant   Merchant? @relation(fields: [merchantId], references: [id])
   merchantId String?
+}
+
+model CustomerPoint {
+  id         String    @id @default(cuid())
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerId String?
+  point      Point?    @relation(fields: [pointId], references: [id])
+  pointId    String?
+  balances   Int       @default(0)
 }
 
 model TransactionType {

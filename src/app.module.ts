@@ -11,19 +11,19 @@ import { AuthModule } from './modules/auth/auth.module';
 import { SessionModule } from './modules/session/session.module';
 import { CustomAuthGuard } from './modules/auth/custom-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
-import { TransactionModule } from './transaction/transaction.module';
+import { TransactionModule } from './modules/transaction/transaction.module';
 import { CustomerModule } from './modules/customer/customer.module';
 
 @Module({
   imports: [
-    PrismaModule,
-    UserModule,
-    MerchantModule,
-    PointModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: configSchema,
     }),
+    PrismaModule,
+    UserModule,
+    MerchantModule,
+    PointModule,
     ApiKeyModule,
     TokenModule,
     AuthModule,

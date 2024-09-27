@@ -7,6 +7,7 @@ import { CustomerRepository } from './customer.repository';
 import {
   Customer,
   CustomerMerChant,
+  CustomerPoint,
   Prisma,
   Transaction,
 } from '@prisma/client';
@@ -194,25 +195,51 @@ export class CustomerService {
     customerId: string,
     merchantId: string,
   ): Promise<{
-    customer: Omit<Customer, 'walletAddress'>;
+    customer: Customer & {
+      transactions: Transaction[];
+      customerPoints: CustomerPoint[];
+    };
   }> {
     try {
-      const customer: Customer & { transactions: Transaction[] } =
-        await this.repository.findUnique({
-          where: { id: customerId },
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            walletAddress: true,
-            transactions: {
-              where: {
-                merchantId,
-              },
+      const customer = await this.repository.findUnique({
+        where: { id: customerId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          walletAddress: true,
+          transactions: {
+            where: {
+              merchantId,
             },
           },
-        });
+          customerPoints: {
+            where: {
+              customer: {
+                id: customerId,
+              },
+              point: {
+                merchant: {
+                  id: merchantId,
+                },
+              },
+            },
+            select: {
+              point: {
+                select: {
+                  name: true,
+                  symbol: true,
+                  contractAddress: true,
+                  decimal: true,
+                  merchantId: true,
+                },
+              },
+              balances: true,
+            },
+          },
+        },
+      });
 
       if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
 
@@ -223,10 +250,19 @@ export class CustomerService {
         txHash: convertBufferToAddress(tx.txHash),
       }));
 
+      const formattedCustomerPoint = customer.customerPoints.map(
+        ({ point, balances }) => ({
+          ...point,
+          contractAddress: convertBufferToAddress(point.contractAddress),
+          balances,
+        }),
+      );
+
       const formattedCustomer = {
         ...customer,
         walletAddress: convertBufferToAddress(customer.walletAddress),
         transactions: formattedTransactions,
+        customerPoints: formattedCustomerPoint,
       };
 
       return {
@@ -241,11 +277,18 @@ export class CustomerService {
     }
   }
 
-  async getCustomerByAddress(walletAddress: Buffer): Promise<{
-    customer: Omit<Customer, 'walletAddress'>;
+  async getCustomerByAddress(
+    merchantId: string,
+    walletAddress: Buffer,
+  ): Promise<{
+    customer: Omit<Customer, 'walletAddress'> & {
+      customerPoints: CustomerPoint[];
+    };
   }> {
     try {
-      const customer: Customer = await this.repository.findFirst({
+      const customer: Customer & {
+        customerPoints: CustomerPoint[];
+      } = await this.repository.findFirst({
         where: { walletAddress },
         select: {
           id: true,
@@ -254,6 +297,18 @@ export class CustomerService {
           lastName: true,
           walletAddress: true,
           transactions: true,
+          customerPoints: {
+            where: {
+              customer: {
+                walletAddress: walletAddress,
+              },
+              point: {
+                merchant: {
+                  id: merchantId,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -274,5 +329,23 @@ export class CustomerService {
         throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
+  }
+
+  async updateCustomer(
+    customerId: string,
+    data: Prisma.CustomerUpdateInput,
+  ): Promise<Customer> {
+    const getCustomer = await this.repository.findUnique({
+      where: { id: customerId },
+    });
+
+    if (!getCustomer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
+
+    const customer = await this.repository.update({
+      where: { id: customerId },
+      data,
+    });
+
+    return customer;
   }
 }

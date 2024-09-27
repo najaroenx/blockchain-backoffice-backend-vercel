@@ -96,6 +96,7 @@ export class TransactionService {
       const { point } = await this.pointService.getPointById(pointId);
 
       const { customer } = await this.customerService.getCustomerByAddress(
+        merchantId,
         data.receiverAddress,
       );
 
@@ -109,11 +110,42 @@ export class TransactionService {
         data: {
           ...data,
           merchantId,
-          pointId,
+          pointId: point.id,
           txHash: createBufferFromHex(txId),
           customerId: customer.id,
         },
       });
+
+      if (customer.customerPoints.length === 0) {
+        await this.customerService.updateCustomer(customer.id, {
+          customerPoints: {
+            create: {
+              pointId: point.id,
+              balances: data.amount,
+            },
+          },
+        });
+      }
+
+      if (customer.customerPoints.length > 0) {
+        const customerPoint = customer.customerPoints.find(
+          (cp) => cp.pointId === point.id,
+        );
+
+        await this.customerService.updateCustomer(customer.id, {
+          customerPoints: {
+            update: {
+              where: {
+                id: customerPoint.id,
+              },
+              data: {
+                balances: customerPoint.balances + data.amount,
+              },
+            },
+          },
+        });
+      }
+
       return {
         ...transaction,
         txHash: convertBufferToAddress(transaction.txHash),

@@ -1,28 +1,31 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
-import { CreateTransactionBodyDto } from './dto';
-import { TransactionService } from './transaction.service';
+import { CreateTransactionBodyDto } from '../dto';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
+import { GetTransactionsByCustomerId } from '../handlers/getTransactionsByCustomerId.handler';
+import { GetTransactionsByMerchantId } from '../handlers/getTransactionsByMerchantId.handler';
+import { CreateTransaction } from '../handlers/createTransaction.handler';
 
 @Controller('/:merchantId/transaction')
 export class TransactionController {
-  constructor(private readonly transactionService: TransactionService) {}
+  constructor(
+    private readonly getTransactionsByCustomerId: GetTransactionsByCustomerId,
+    private readonly getTransactionsByMerchantId: GetTransactionsByMerchantId,
+    private readonly createTransaction: CreateTransaction,
+  ) {}
 
   @Get('/')
   @HttpCode(200)
   async getTransactions(@Param('merchantId') merchantId: string) {
-    return this.transactionService.getTransactionsByMerchatId(merchantId);
+    return this.getTransactionsByMerchantId.execute(merchantId);
   }
 
   @Get('/:customerId')
   @HttpCode(200)
-  async getTransactionsByCustomerId(
+  async getTransactionsByCustomer(
     @Param('merchantId') merchantId: string,
     @Param('customerId') customerId: string,
   ) {
-    return this.transactionService.getTransactionsByCustomerId(
-      customerId,
-      merchantId,
-    );
+    return this.getTransactionsByCustomerId.execute(customerId, merchantId);
   }
 
   // TODO : split out for merchant and customer (B2C, C2C)
@@ -33,7 +36,7 @@ export class TransactionController {
     @Param('pointId') pointId: string,
     @Body() body: CreateTransactionBodyDto,
   ) {
-    return this.transactionService.createTransaction(merchantId, pointId, {
+    return this.createTransaction.execute(merchantId, pointId, {
       ...body,
       senderAddress: createBufferFromHex(body.senderAddress),
       receiverAddress: createBufferFromHex(body.receiverAddress),

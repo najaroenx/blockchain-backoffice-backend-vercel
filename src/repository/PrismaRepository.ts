@@ -21,7 +21,7 @@ export class PrismaRepository<
     return (this.prisma[this.model].count as any)(...args);
   }
 
-  create(...args: Parameters<PrismaClient[K]['create']>) {
+  create<T>(...args: Parameters<PrismaClient[K]['create']>): Promise<T> {
     return (this.prisma[this.model].create as any)(...args);
   }
 
@@ -41,8 +41,12 @@ export class PrismaRepository<
     return (this.prisma[this.model].findFirstOrThrow as any)(...args);
   }
 
-  findMany(...args: Parameters<PrismaClient[K]['findMany']>) {
-    return (this.prisma[this.model].findMany as any)(...args);
+  async findMany<T>(
+    ...args: Parameters<PrismaClient[K]['findMany']>
+  ): Promise<T[]> {
+    const results = await (this.prisma[this.model].findMany as any)(...args);
+
+    return results as T[];
   }
 
   findUnique(...args: Parameters<PrismaClient[K]['findUnique']>) {

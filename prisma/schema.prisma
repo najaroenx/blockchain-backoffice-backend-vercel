@@ -111,8 +111,11 @@ model Transaction {
   pointId           String?
   transactionType   TransactionType? @relation(fields: [transactionTypeId], references: [id])
   transactionTypeId String?
-  customer          Customer?        @relation(fields: [customerId], references: [id])
-  customerId        String?
+
+  sender     Customer? @relation("Sender", fields: [senderId], references: [id])
+  senderId   String?
+  receiver   Customer? @relation("Receiver", fields: [receiverId], references: [id])
+  receiverId String?
 }
 
 model Customer {
@@ -126,8 +129,10 @@ model Customer {
   createdAt        DateTime           @default(now()) @map(name: "created_at")
   updatedAt        DateTime           @updatedAt @map(name: "updated_at")
   customerMerChant CustomerMerChant[]
-  transactions     Transaction[]
   customerPoints   CustomerPoint[]
+
+  sentTxns     Transaction[] @relation("Sender")
+  receivedTxns Transaction[] @relation("Receiver")
 }
 
 model CustomerMerChant {

@@ -1,0 +1,66 @@
+import { Customer, Merchant, Point, Transaction } from '@prisma/client';
+
+export type GetTransactionByMerchantIdResponseType = {
+  transactions: Array<
+    Omit<
+      Transaction,
+      | 'txHash'
+      | 'receiverAddress'
+      | 'senderAddress'
+      | 'merchantId'
+      | 'pointId'
+      | 'updatedAt'
+      | 'senderId'
+      | 'receiverId'
+    > & {
+      txHash: string;
+      receiverAddress: string;
+      senderAddress: string;
+    }
+  >;
+  counts: number;
+};
+
+export type GetTransactionsByCustomerIdResponseType = {
+  transactions: Array<
+    Omit<
+      Transaction,
+      | 'txHash'
+      | 'receiverAddress'
+      | 'senderAddress'
+      | 'merchantId'
+      | 'pointId'
+      | 'updatedAt'
+      | 'senderId'
+      | 'receiverId'
+    > & {
+      txHash: string;
+      receiverAddress: string;
+      senderAddress: string;
+    }
+  >;
+  counts: number;
+};
+
+export type GetTransactionsByCustomerId = Transaction & {
+  sender: Customer;
+  receiver: Customer;
+  merchant: Merchant;
+  point: Point;
+};
+
+export type GetTransactionsByMerchantId = Transaction & {
+  sender: Customer;
+  receiver: Customer;
+  merchant: Merchant;
+  point: Point;
+};
+
+export type CreateTransaction = Omit<
+  Transaction,
+  'txHash' | 'senderAddress' | 'receiverAddress'
+> & {
+  txHash: string;
+  senderAddress: string;
+  receiverAddress: string;
+};

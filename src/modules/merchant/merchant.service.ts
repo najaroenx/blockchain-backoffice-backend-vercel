@@ -9,13 +9,13 @@ import {
   INTERNAL_SERVER_ERROR,
   MERCHANT_NOT_FOUND,
 } from 'src/errors/error.constants';
-import { ApiKeyService } from '../api-key/api-key.service';
+import { CreateApiKey } from '../api-key/handlers/createApiKey.handler';
 
 @Injectable()
 export class MerchantService {
   constructor(
     private repository: MerchantRepository,
-    private apiKeyService: ApiKeyService,
+    private createApiKey: CreateApiKey,
   ) {}
 
   async getMerchants(
@@ -63,7 +63,7 @@ export class MerchantService {
         },
       });
 
-      await this.apiKeyService.createApiKey(merchant.id, {
+      await this.createApiKey.execute(merchant.id, {
         name: 'default api key',
       });
 

@@ -5,7 +5,7 @@ import { LOGIN_ACCESS_TOKEN } from 'src/providers/token/token.constants';
 import { AccessTokenClaims } from './interfaces';
 import { Strategy } from 'passport-strategy';
 import { PassportStrategy } from '@nestjs/passport';
-import { ApiKeyService } from '../api-key/api-key.service';
+import { GetApiKey } from '../api-key/handlers/getApiKey.handler';
 
 class AuthStrategyName extends Strategy {
   name = 'authStrategy';
@@ -15,7 +15,7 @@ class AuthStrategyName extends Strategy {
 export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
   constructor(
     private tokenService: TokenService,
-    private apiKeyService: ApiKeyService,
+    private getApiKey: GetApiKey,
   ) {
     super();
   }
@@ -44,7 +44,7 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
         try {
           const merchantId = request.params['merchantId'];
 
-          const apiKeyDetails = await this.apiKeyService.getApiKey(
+          const apiKeyDetails = await this.getApiKey.execute(
             authorizationKey,
             merchantId,
           );

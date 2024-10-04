@@ -9,7 +9,7 @@ export class CreateApiKeyDto {
   name: string;
 }
 
-export class GetAPiKeysDto {
+export class GetAPiKeysParams {
   @IsString()
   merchantId: string;
 }

@@ -34,10 +34,12 @@ export class SessionService {
 
   async getSessionByToken(token: string): Promise<Session & { user: User }> {
     try {
-      const session = await this.repository.findFirst({
-        where: { token },
-        include: { user: true },
-      });
+      const session = await this.repository.findFirst<Session & { user: User }>(
+        {
+          where: { token },
+          include: { user: true },
+        },
+      );
 
       if (!session) throw new NotFoundException(SESSION_NOT_FOUND);
 

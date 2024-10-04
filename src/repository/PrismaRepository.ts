@@ -33,7 +33,7 @@ export class PrismaRepository<
     return (this.prisma[this.model].delete as any)(...args);
   }
 
-  findFirst(...args: Parameters<PrismaClient[K]['findFirst']>) {
+  findFirst<T>(...args: Parameters<PrismaClient[K]['findFirst']>): Promise<T> {
     return (this.prisma[this.model].findFirst as any)(...args);
   }
 

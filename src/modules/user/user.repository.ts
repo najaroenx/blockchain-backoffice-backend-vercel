@@ -10,7 +10,7 @@ export class UserRepository extends PrismaRepository<'user'> {
   }
 
   async getUserByEmail(email: string, password: string): Promise<User> {
-    const user = await this.findFirst({
+    const user = await this.findFirst<User>({
       where: {
         email,
         password,

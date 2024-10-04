@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
-import { CreateTransactionBodyDto } from '../dto';
+import { CreateTransactionBodyDto } from '../dtos';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { GetTransactionsByCustomerId } from '../handlers/getTransactionsByCustomerId.handler';
 import { GetTransactionsByMerchantId } from '../handlers/getTransactionsByMerchantId.handler';

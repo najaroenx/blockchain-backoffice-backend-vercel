@@ -5,9 +5,10 @@ import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { Prisma } from '@prisma/client';
 import { PointService } from 'src/modules/point/point.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
-import { CustomerService } from 'src/modules/customer/customer.service';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { CreateTransaction as CreateTransactionResponse } from '../types';
+import { GetCustomerByEmail } from 'src/modules/customer/handlers/getCustomerByEmail.handler';
+import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
 
 @Injectable()
 export class CreateTransaction {
@@ -15,7 +16,8 @@ export class CreateTransaction {
     private readonly db: TransactionDBService,
     private readonly pointService: PointService,
     private readonly blockchainService: BlockchainService,
-    private readonly customerService: CustomerService,
+    private readonly getCustomerByEmail: GetCustomerByEmail,
+    private readonly updateCustomer: UpdateCustomer,
   ) {}
 
   async execute(
@@ -32,6 +34,7 @@ export class CreateTransaction {
       | 'transactionTypeId'
     > & {
       transactionTypeId: string;
+      email: string;
     },
   ): Promise<CreateTransactionResponse> {
     try {
@@ -39,9 +42,9 @@ export class CreateTransaction {
 
       const { point } = await this.pointService.getPointById(pointId);
 
-      const { customer } = await this.customerService.getCustomerByAddress(
+      const { customer } = await this.getCustomerByEmail.execute(
         merchantId,
-        data.receiverAddress,
+        data.email,
       );
 
       const { txId } = await this.blockchainService.transaction({
@@ -76,7 +79,7 @@ export class CreateTransaction {
       });
 
       if (customer.customerPoints.length === 0) {
-        await this.customerService.updateCustomer(customer.id, {
+        await this.updateCustomer.execute(customer.id, {
           customerPoints: {
             create: {
               pointId: point.id,
@@ -92,7 +95,7 @@ export class CreateTransaction {
         );
 
         if (customerPoint) {
-          await this.customerService.updateCustomer(customer.id, {
+          await this.updateCustomer.execute(customer.id, {
             customerPoints: {
               update: {
                 where: {
@@ -106,7 +109,7 @@ export class CreateTransaction {
           });
           return;
         } else {
-          await this.customerService.updateCustomer(customer.id, {
+          await this.updateCustomer.execute(customer.id, {
             customerPoints: {
               create: {
                 pointId: point.id,

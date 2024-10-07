@@ -1,0 +1,35 @@
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  CUSTOMER_NOT_FOUND,
+  INTERNAL_SERVER_ERROR,
+} from 'src/errors/error.constants';
+import { CustomerDBService } from '../services/customer-db.service';
+import { Customer, Prisma } from '@prisma/client';
+
+@Injectable()
+export class UpdateCustomer {
+  constructor(private db: CustomerDBService) {}
+
+  async execute(
+    customerId: string,
+    data: Prisma.CustomerUpdateInput,
+  ): Promise<Customer> {
+    try {
+      const customer = await this.db.updateCustomer(customerId, data);
+
+      return customer;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException(CUSTOMER_NOT_FOUND);
+        }
+      } else {
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+      }
+    }
+  }
+}

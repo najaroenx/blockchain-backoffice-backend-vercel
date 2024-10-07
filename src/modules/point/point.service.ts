@@ -111,7 +111,7 @@ export class PointService {
     data: Prisma.PointUpdateInput,
   ): Promise<{ point: Point }> {
     try {
-      const point = await this.repository.update({
+      const point = await this.repository.update<Point>({
         where: {
           id: pointId,
         },

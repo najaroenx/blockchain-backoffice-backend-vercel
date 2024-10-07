@@ -57,7 +57,7 @@ export class PrismaRepository<
     return (this.prisma[this.model].findUniqueOrThrow as any)(...args);
   }
 
-  update(...args: Parameters<PrismaClient[K]['update']>) {
+  update<T>(...args: Parameters<PrismaClient[K]['update']>): Promise<T> {
     return (this.prisma[this.model].update as any)(...args);
   }
 

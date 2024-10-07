@@ -1,0 +1,43 @@
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  CUSTOMER_NOT_FOUND,
+  INTERNAL_SERVER_ERROR,
+} from 'src/errors/error.constants';
+import { CustomerDBService } from '../services/customer-db.service';
+import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { GetCustomerByEmailResponseType } from '../types';
+
+@Injectable()
+export class GetCustomerByEmail {
+  constructor(private db: CustomerDBService) {}
+
+  async execute(
+    merchantId: string,
+    email: string,
+  ): Promise<GetCustomerByEmailResponseType> {
+    try {
+      const customer = await this.db.getCustomersByEmail(merchantId, email);
+
+      if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
+
+      const formattedCustomer = {
+        ...customer,
+        walletAddress: convertBufferToAddress(customer.walletAddress),
+      };
+
+      return {
+        customer: formattedCustomer,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      } else {
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+      }
+    }
+  }
+}

@@ -1,11 +1,18 @@
 import { Module } from '@nestjs/common';
-import { SessionService } from './session.service';
-import { SessionController } from './session.controller';
+import { SessionController } from './controllers/session.controller';
 import { SessionRepository } from './session.repository';
+import { SessionDBService } from './services/session-db.service';
+import { CreateSession } from './handlers/createSession.handler';
+import { GetSessionByToken } from './handlers/getSessionByToken.handler';
 
 @Module({
-  providers: [SessionService, SessionRepository],
+  providers: [
+    SessionRepository,
+    SessionDBService,
+    CreateSession,
+    GetSessionByToken,
+  ],
   controllers: [SessionController],
-  exports: [SessionService],
+  exports: [CreateSession, GetSessionByToken],
 })
 export class SessionModule {}

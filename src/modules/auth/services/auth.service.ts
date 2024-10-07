@@ -5,7 +5,6 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { User } from '@prisma/client';
-import { SessionService } from 'src/modules/session/session.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { UserRepository } from 'src/modules/user/user.repository';
 import { AccessTokenClaims } from '../types/AccessTokenClaims';
@@ -16,13 +15,16 @@ import {
   NO_TOKEN_PROVIDED,
   USER_NOT_FOUND,
 } from 'src/errors/error.constants';
+import { CreateSession } from 'src/modules/session/handlers/createSession.handler';
+import { GetSessionByToken } from 'src/modules/session/handlers/getSessionByToken.handler';
 
 @Injectable()
 export class AuthService {
   constructor(
     private repository: UserRepository,
     private tokenService: TokenService,
-    private sessionService: SessionService,
+    private createSession: CreateSession,
+    private getSessionByToken: GetSessionByToken,
   ) {}
 
   async login(email: string, password: string): Promise<TokenResponse> {
@@ -44,7 +46,7 @@ export class AuthService {
   async refresh(token: string): Promise<TokenResponse> {
     try {
       if (!token) throw new UnprocessableEntityException(NO_TOKEN_PROVIDED);
-      const session = await this.sessionService.getSessionByToken(token);
+      const session = await this.getSessionByToken.execute(token);
 
       return {
         accessToken: await this.getAccessToken(session.user, session.id),
@@ -61,7 +63,7 @@ export class AuthService {
 
   private async loginResponse(user: User): Promise<TokenResponse> {
     const token = await this.tokenService.generateRandomString({ length: 30 });
-    const { id } = await this.sessionService.createSession(token, user.id);
+    const { id } = await this.createSession.execute(token, user.id);
 
     const accessToken = await this.getAccessToken(user, id);
 

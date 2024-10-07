@@ -29,6 +29,7 @@ export type GetCustomersIdResponseType = {
 
 export type GetCustomerByEmailResponseType = {
   customer: Omit<Customer, 'walletAddress'> & {
+    walletAddress: string;
     customerPoints: Array<
       CustomerPoint & {
         point: Point;

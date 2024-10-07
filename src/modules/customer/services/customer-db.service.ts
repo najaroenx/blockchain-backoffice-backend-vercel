@@ -143,7 +143,22 @@ export class CustomerDBService {
       }[];
     }
   > {
-    const customer = await this.repository.findUnique({
+    const customer = await this.repository.findUnique<
+      Customer & {
+        receivedTxns: Array<
+          Transaction & {
+            sender: Customer;
+            receiver: Customer;
+            merchant: Merchant;
+            amount: number;
+          }
+        >;
+        customerPoints: {
+          point: Point;
+          balances: number;
+        }[];
+      }
+    >({
       where: {
         id: customerId,
       },

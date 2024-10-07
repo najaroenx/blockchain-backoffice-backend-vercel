@@ -39,7 +39,6 @@ export class TransactionController {
     return this.createTransaction.execute(merchantId, pointId, {
       ...body,
       senderAddress: createBufferFromHex(body.senderAddress),
-      receiverAddress: createBufferFromHex(body.receiverAddress),
     });
   }
 }

@@ -49,7 +49,9 @@ export class PrismaRepository<
     return results as T[];
   }
 
-  findUnique(...args: Parameters<PrismaClient[K]['findUnique']>) {
+  findUnique<T>(
+    ...args: Parameters<PrismaClient[K]['findUnique']>
+  ): Promise<T> {
     return (this.prisma[this.model].findUnique as any)(...args);
   }
 

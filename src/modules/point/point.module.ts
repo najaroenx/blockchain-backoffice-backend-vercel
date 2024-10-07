@@ -1,13 +1,24 @@
 import { Module } from '@nestjs/common';
-import { PointController } from './point.controller';
-import { PointService } from './point.service';
+import { PointController } from './controllers/point.controller';
 import { PointRepository } from './point.repository';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
+import { PointDBService } from './services/point-db.service';
+import { GetPointsByMerchantId } from './handlers/getPointsByMerchantId.handler';
+import { GetPointById } from './handlers/getPointById.handler';
+import { UpdatePoint } from './handlers/updatePoint.handler';
+import { CreatePoint } from './handlers/createPoint.handler';
 
 @Module({
   controllers: [PointController],
-  providers: [PointService, PointRepository],
+  providers: [
+    PointRepository,
+    PointDBService,
+    GetPointsByMerchantId,
+    GetPointById,
+    UpdatePoint,
+    CreatePoint,
+  ],
   imports: [BlockchainModule],
-  exports: [PointService],
+  exports: [UpdatePoint, GetPointById],
 })
 export class PointModule {}

@@ -1,4 +1,4 @@
-import { IsNumber, IsString } from 'class-validator';
+import { IsEmail, IsNumber, IsString } from 'class-validator';
 
 export class CreateTransactionBodyDto {
   @IsString()
@@ -7,8 +7,8 @@ export class CreateTransactionBodyDto {
   @IsString()
   senderAddress: string;
 
-  @IsString()
-  receiverAddress: string;
+  @IsEmail()
+  email: string;
 
   @IsNumber()
   amount: number;

@@ -3,18 +3,18 @@ import { TransactionDBService } from '../services/transaction-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { Prisma } from '@prisma/client';
-import { PointService } from 'src/modules/point/point.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { CreateTransaction as CreateTransactionResponse } from '../types';
 import { GetCustomerByEmail } from 'src/modules/customer/handlers/getCustomerByEmail.handler';
 import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
+import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
 
 @Injectable()
 export class CreateTransaction {
   constructor(
     private readonly db: TransactionDBService,
-    private readonly pointService: PointService,
+    private readonly getPointByIdHandler: GetPointById,
     private readonly blockchainService: BlockchainService,
     private readonly getCustomerByEmail: GetCustomerByEmail,
     private readonly updateCustomer: UpdateCustomer,
@@ -32,29 +32,31 @@ export class CreateTransaction {
       | 'sender'
       | 'receiver'
       | 'transactionTypeId'
+      | 'receiverAddress'
     > & {
       transactionTypeId: string;
       email: string;
     },
   ): Promise<CreateTransactionResponse> {
     try {
-      const { transactionTypeId, ...rest } = data;
+      const { transactionTypeId, email, ...rest } = data;
 
-      const { point } = await this.pointService.getPointById(pointId);
+      const { point } = await this.getPointByIdHandler.execute(pointId);
 
       const { customer } = await this.getCustomerByEmail.execute(
         merchantId,
-        data.email,
+        email,
       );
 
       const { txId } = await this.blockchainService.transaction({
         amount: data.amount,
-        to: convertBufferToAddress(data.receiverAddress),
+        to: customer.walletAddress,
         pointAddress: point.contractAddress,
       });
 
       const transaction = await this.db.createTransaction({
         ...rest,
+        receiverAddress: createBufferFromHex(customer.walletAddress),
         merchant: {
           connect: {
             id: merchantId,
@@ -107,7 +109,6 @@ export class CreateTransaction {
               },
             },
           });
-          return;
         } else {
           await this.updateCustomer.execute(customer.id, {
             customerPoints: {
@@ -117,7 +118,6 @@ export class CreateTransaction {
               },
             },
           });
-          return;
         }
       }
 

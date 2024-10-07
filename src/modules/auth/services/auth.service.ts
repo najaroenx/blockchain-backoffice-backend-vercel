@@ -8,9 +8,9 @@ import { User } from '@prisma/client';
 import { SessionService } from 'src/modules/session/session.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { UserRepository } from 'src/modules/user/user.repository';
-import { AccessTokenClaims } from './interfaces';
+import { AccessTokenClaims } from '../types/AccessTokenClaims';
 import { LOGIN_ACCESS_TOKEN } from 'src/providers/token/token.constants';
-import { TokenResponse } from './interfaces/TokenResponse';
+import { TokenResponse } from '../interfaces/TokenResponse';
 import {
   INTERNAL_SERVER_ERROR,
   NO_TOKEN_PROVIDED,

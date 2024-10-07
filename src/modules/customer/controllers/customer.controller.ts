@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
-import { CreateCustomerDto } from '../dto';
+import { CreateCustomerDto } from '../dtos';
 import { GetCustomersByMerchantId } from '../handlers/getCustomersByMerchantId.handler';
 import { GetCustomerById } from '../handlers/getCustomerById.handler';
 import { CreateCustomer } from '../handlers/createCustomer.handler';

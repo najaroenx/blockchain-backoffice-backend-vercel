@@ -1,16 +1,21 @@
 import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
-import { MerchantService } from './merchant.service';
-import { CreateMerchantsDto } from './dto';
+import { CreateMerchantsDto } from '../dtos';
+
+import { GetMerchants } from '../handlers/getMerchants.handler';
+import { CreateMerchant } from '../handlers/createMerchant.handler';
 
 @Controller('merchant')
 export class MerchantController {
-  constructor(private readonly merchantService: MerchantService) {}
+  constructor(
+    private readonly getMerchantsHandler: GetMerchants,
+    private readonly createMerchantHandler: CreateMerchant,
+  ) {}
 
   @Get('/')
   @HttpCode(200)
   async getMerchants(@Req() request: Request) {
     const userId = (request as any).user.id as string;
-    return this.merchantService.getMerchants(userId);
+    return this.getMerchantsHandler.execute(userId);
   }
 
   @Post('/')
@@ -23,6 +28,6 @@ export class MerchantController {
       website,
     };
 
-    return this.merchantService.createMerchant(userId, data);
+    return this.createMerchantHandler.execute(userId, data);
   }
 }

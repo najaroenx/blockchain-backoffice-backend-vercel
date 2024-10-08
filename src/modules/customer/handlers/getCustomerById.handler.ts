@@ -24,9 +24,11 @@ export class GetCustomerById {
 
       if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
 
-      const { receivedTxns, ...rest } = customer;
+      const { receivedTxns, sentTxns, ...rest } = customer;
 
-      const formattedTransactions = receivedTxns.map((tx) => ({
+      const mergeTransaction = receivedTxns.concat(sentTxns);
+
+      const formattedTransactions = mergeTransaction.map((tx) => ({
         id: tx.id,
         sender: tx.sender?.email ?? tx.merchant.website,
         receiver: tx.receiver.email,

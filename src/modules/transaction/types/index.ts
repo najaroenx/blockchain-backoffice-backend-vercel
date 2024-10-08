@@ -1,4 +1,10 @@
-import { Customer, Merchant, Point, Transaction } from '@prisma/client';
+import {
+  Customer,
+  CustomerPoint,
+  Merchant,
+  Point,
+  Transaction,
+} from '@prisma/client';
 
 export type GetTransactionByMerchantIdResponseType = {
   transactions: Array<
@@ -63,4 +69,17 @@ export type CreateTransaction = Omit<
   txHash: string;
   senderAddress: string;
   receiverAddress: string;
+};
+
+export type CustomerType = Omit<Customer, 'walletAddress'> & {
+  walletAddress: string;
+  customerPoints: Array<
+    CustomerPoint & {
+      point: Point;
+    }
+  >;
+};
+
+export type PointType = Omit<Point, 'contractAddress'> & {
+  contractAddress: string;
 };

@@ -11,7 +11,7 @@ import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.han
 import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
 
 @Injectable()
-export class CreateTransaction {
+export class CreateTransactionB2C {
   constructor(
     private readonly db: TransactionDBService,
     private readonly getPointByIdHandler: GetPointById,

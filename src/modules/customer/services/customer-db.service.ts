@@ -99,6 +99,7 @@ export class CustomerDBService {
         firstName: true,
         lastName: true,
         walletAddress: true,
+        privateKey: true,
         customerMerChant: {
           select: {
             id: true,
@@ -137,6 +138,14 @@ export class CustomerDBService {
           amount: number;
         }
       >;
+      sentTxns: Array<
+        Transaction & {
+          sender: Customer;
+          receiver: Customer;
+          merchant: Merchant;
+          amount: number;
+        }
+      >;
       customerPoints: {
         point: Point;
         balances: number;
@@ -145,6 +154,14 @@ export class CustomerDBService {
   > {
     const customer = await this.repository.findUnique<
       Customer & {
+        sentTxns: Array<
+          Transaction & {
+            sender: Customer;
+            receiver: Customer;
+            merchant: Merchant;
+            amount: number;
+          }
+        >;
         receivedTxns: Array<
           Transaction & {
             sender: Customer;
@@ -168,6 +185,36 @@ export class CustomerDBService {
         firstName: true,
         lastName: true,
         walletAddress: true,
+        sentTxns: {
+          where: {
+            merchantId,
+          },
+          select: {
+            id: true,
+            txHash: true,
+            createdAt: true,
+            transactionTypeId: true,
+            receiver: {
+              select: {
+                email: true,
+                walletAddress: true,
+              },
+            },
+            sender: {
+              select: {
+                email: true,
+                walletAddress: true,
+              },
+            },
+            merchant: {
+              select: {
+                name: true,
+                website: true,
+              },
+            },
+            amount: true,
+          },
+        },
         receivedTxns: {
           where: {
             merchantId,

@@ -1,16 +1,18 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
-import { CreateTransactionBodyDto } from '../dtos';
+import { CreateTransactionBodyDto, CreateTransactionC2CBodyDto } from '../dtos';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { GetTransactionsByCustomerId } from '../handlers/getTransactionsByCustomerId.handler';
 import { GetTransactionsByMerchantId } from '../handlers/getTransactionsByMerchantId.handler';
-import { CreateTransaction } from '../handlers/createTransaction.handler';
+import { CreateTransactionB2C } from '../handlers/createTransactionB2C.handler';
+import { CreateTransactionC2C } from '../handlers/createTransactionC2C.handler';
 
 @Controller('/:merchantId/transaction')
 export class TransactionController {
   constructor(
     private readonly getTransactionsByCustomerId: GetTransactionsByCustomerId,
     private readonly getTransactionsByMerchantId: GetTransactionsByMerchantId,
-    private readonly createTransaction: CreateTransaction,
+    private readonly createTransactionB2C: CreateTransactionB2C,
+    private readonly createTransactionC2C: CreateTransactionC2C,
   ) {}
 
   @Get('/')
@@ -28,7 +30,6 @@ export class TransactionController {
     return this.getTransactionsByCustomerId.execute(customerId, merchantId);
   }
 
-  // TODO : split out for merchant and customer (B2C, C2C)
   @Post('/:pointId')
   @HttpCode(201)
   async transaction(
@@ -36,9 +37,21 @@ export class TransactionController {
     @Param('pointId') pointId: string,
     @Body() body: CreateTransactionBodyDto,
   ) {
-    return this.createTransaction.execute(merchantId, pointId, {
+    return this.createTransactionB2C.execute(merchantId, pointId, {
       ...body,
       senderAddress: createBufferFromHex(body.senderAddress),
+    });
+  }
+
+  @Post('/:pointId/customer')
+  @HttpCode(201)
+  async transactionC2C(
+    @Param('merchantId') merchantId: string,
+    @Param('pointId') pointId: string,
+    @Body() body: CreateTransactionC2CBodyDto,
+  ) {
+    return this.createTransactionC2C.execute(merchantId, pointId, {
+      ...body,
     });
   }
 }

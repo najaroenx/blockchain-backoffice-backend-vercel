@@ -13,3 +13,14 @@ export class CreateTransactionBodyDto {
   @IsNumber()
   amount: number;
 }
+
+export class CreateTransactionC2CBodyDto {
+  @IsEmail()
+  toEmail: string;
+
+  @IsEmail()
+  fromEmail: string;
+
+  @IsNumber()
+  amount: number;
+}

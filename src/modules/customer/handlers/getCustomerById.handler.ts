@@ -26,7 +26,7 @@ export class GetCustomerById {
 
       const { receivedTxns, sentTxns, ...rest } = customer;
 
-      const mergeTransaction = receivedTxns.concat(sentTxns);
+      const mergeTransaction = [...receivedTxns, ...sentTxns];
 
       const formattedTransactions = mergeTransaction.map((tx) => ({
         id: tx.id,

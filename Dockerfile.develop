@@ -1,0 +1,51 @@
+FROM node:18-alpine AS builder
+
+# update npm global
+RUN npm install -g npm@latest \
+    && npm -g update
+
+# update alpine dependencies
+RUN apk update \
+    && apk upgrade \
+    && rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY prisma ./prisma/
+
+
+RUN yarn install
+
+COPY . .
+
+RUN npx prisma generate
+
+RUN yarn run build
+
+FROM node:18-alpine
+
+# update npm global
+RUN npm install -g npm@latest \
+    && npm -g update
+
+# update alpine dependencies
+RUN apk update \
+    && apk upgrade \
+    && rm -rf /var/cache/apk/*
+
+
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+
+COPY .env.development ./.env
+
+
+EXPOSE 4000
+
+CMD ["yarn", "run", "start:migrate:develop-zone"]
+
+

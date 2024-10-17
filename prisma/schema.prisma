@@ -24,7 +24,7 @@ model Point {
   slotSize        Int
   createdAt       DateTime        @default(now()) @map(name: "created_at")
   updatedAt       DateTime        @updatedAt @map(name: "updated_at")
-  merchant        Merchant?       @relation(fields: [merchantId], references: [id])
+  merchant        Merchant?       @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantId      String?
   transactions    Transaction[]
   customerPoints  CustomerPoint[]
@@ -45,16 +45,16 @@ model Session {
   token     String
   createdAt DateTime @default(now()) @map(name: "created_at")
   updatedAt DateTime @updatedAt @map(name: "updated_at")
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   userId    String?
 }
 
 model UserMerchant {
   id String @id @default(cuid())
 
-  user       User?     @relation(fields: [userId], references: [id])
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   userId     String?
-  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+  merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantId String?
 }
 
@@ -80,7 +80,7 @@ model ApiKey {
   merchantId  String?
   createdAt   DateTime  @default(now()) @map(name: "created_at")
   updatedAt   DateTime  @updatedAt @map(name: "updated_at")
-  merchant    Merchant? @relation(fields: [merchantId], references: [id])
+  merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Branch {
@@ -93,7 +93,7 @@ model Branch {
   zip        String
   createdAt  DateTime  @default(now()) @map(name: "created_at")
   updatedAt  DateTime  @updatedAt @map(name: "updated_at")
-  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+  merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantId String?
 }
 
@@ -105,16 +105,16 @@ model Transaction {
   amount            Int
   createdAt         DateTime         @default(now()) @map(name: "created_at")
   updatedAt         DateTime         @updatedAt @map(name: "updated_at")
-  merchant          Merchant?        @relation(fields: [merchantId], references: [id])
+  merchant          Merchant?        @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantId        String?
-  point             Point?           @relation(fields: [pointId], references: [id])
+  point             Point?           @relation(fields: [pointId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   pointId           String?
   transactionType   TransactionType? @relation(fields: [transactionTypeId], references: [id])
   transactionTypeId String?
 
-  sender     Customer? @relation("Sender", fields: [senderId], references: [id])
+  sender     Customer? @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   senderId   String?
-  receiver   Customer? @relation("Receiver", fields: [receiverId], references: [id])
+  receiver   Customer? @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   receiverId String?
 }
 
@@ -137,17 +137,17 @@ model Customer {
 
 model CustomerMerChant {
   id         String    @id @default(cuid())
-  customer   Customer? @relation(fields: [customerId], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   customerId String?
-  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+  merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantId String?
 }
 
 model CustomerPoint {
   id         String    @id @default(cuid())
-  customer   Customer? @relation(fields: [customerId], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   customerId String?
-  point      Point?    @relation(fields: [pointId], references: [id])
+  point      Point?    @relation(fields: [pointId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   pointId    String?
   balances   Int       @default(0)
 }

@@ -7,6 +7,7 @@ import { SessionModule } from 'src/modules/session/session.module';
 import { AuthStrategy } from './auth.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { ApiKeyModule } from '../api-key/api-key.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ApiKeyModule } from '../api-key/api-key.module';
     SessionModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     ApiKeyModule,
+    UserModule,
   ],
   providers: [AuthService, UserRepository, AuthStrategy],
   controllers: [AuthController],

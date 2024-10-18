@@ -8,3 +8,5 @@ export class LoginDto {
   @IsString()
   password: string;
 }
+
+export class RegisterDto extends LoginDto {}

@@ -21,6 +21,11 @@ import { CreateCustomer } from './handlers/createCustomer.handler';
     UpdateCustomer,
     CreateCustomer,
   ],
-  exports: [GetCustomerByEmail, UpdateCustomer],
+  exports: [
+    GetCustomerByEmail,
+    UpdateCustomer,
+    GetCustomersByMerchantId,
+    CustomerDBService,
+  ],
 })
 export class CustomerModule {}

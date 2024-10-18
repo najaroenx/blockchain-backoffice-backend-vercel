@@ -5,6 +5,7 @@ import {
   GetTransactionsByMerchantId,
 } from '../types';
 import { Prisma, Transaction } from '@prisma/client';
+import { startOfDay, endOfDay } from 'date-fns';
 
 @Injectable()
 export class TransactionDBService {
@@ -38,6 +39,54 @@ export class TransactionDBService {
       await this.repository.findMany<GetTransactionsByMerchantId>({
         where: {
           merchantId,
+        },
+        include: {
+          merchant: true,
+          sender: true,
+          receiver: true,
+          point: true,
+        },
+      });
+
+    return transactions;
+  }
+
+  async getTransactionsTodayByMerchantId(
+    merchantId: string,
+  ): Promise<GetTransactionsByMerchantId[]> {
+    const transactions =
+      await this.repository.findMany<GetTransactionsByMerchantId>({
+        where: {
+          merchantId,
+          createdAt: {
+            gte: startOfDay(new Date()),
+            lte: endOfDay(new Date()),
+          },
+        },
+        include: {
+          merchant: true,
+          sender: true,
+          receiver: true,
+          point: true,
+        },
+      });
+
+    return transactions;
+  }
+
+  async getTransactionsTodayByMerchantIdAndTypeId(
+    merchantId: string,
+    typeId: string,
+  ): Promise<GetTransactionsByMerchantId[]> {
+    const transactions =
+      await this.repository.findMany<GetTransactionsByMerchantId>({
+        where: {
+          merchantId,
+          transactionTypeId: typeId,
+          createdAt: {
+            gte: startOfDay(new Date()),
+            lte: endOfDay(new Date()),
+          },
         },
         include: {
           merchant: true,

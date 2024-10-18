@@ -29,6 +29,7 @@ export class PointController {
   }
 
   @Get('/:pointId')
+  @HttpCode(200)
   async getPointById(@Param('pointId') pointId: string) {
     return this.getPointByIdHandler.execute(pointId);
   }
@@ -43,6 +44,7 @@ export class PointController {
   }
 
   @Put('/:pointId')
+  @HttpCode(201)
   async update(
     @Body() data: UpdatePointDto,
     @Param('pointId') pointId: string,

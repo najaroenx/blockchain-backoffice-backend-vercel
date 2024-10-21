@@ -63,6 +63,23 @@ export class TransactionDBService {
             lte: endOfDay(new Date()),
           },
         },
+      });
+
+    return transactions;
+  }
+
+  async getTransactionsMonthByMerchantId(
+    merchantId: string,
+  ): Promise<GetTransactionsByMerchantId[]> {
+    const transactions =
+      await this.repository.findMany<GetTransactionsByMerchantId>({
+        where: {
+          merchantId,
+          createdAt: {
+            gte: startOfDay(new Date()),
+            lte: endOfDay(new Date()),
+          },
+        },
         include: {
           merchant: true,
           sender: true,

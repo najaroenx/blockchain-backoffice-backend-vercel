@@ -1,6 +1,9 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
-import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
+import {
+  INTERNAL_SERVER_ERROR,
+  RPC_SERVER_ERROR,
+} from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { Prisma } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
@@ -128,6 +131,9 @@ export class CreateTransactionB2C {
         receiverAddress: convertBufferToAddress(transaction.receiverAddress),
       };
     } catch (error) {
+      if (error.message === '500001: RPC server error') {
+        throw new InternalServerErrorException(RPC_SERVER_ERROR);
+      }
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

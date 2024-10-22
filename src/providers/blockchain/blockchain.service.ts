@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { createPoint } from './types';
 import * as PointFactoryABI from './abis/PointFactoryABI.json';
 import * as PointERC20ABI from './abis/PointERC20ABI.json';
@@ -7,6 +7,7 @@ import { Contract, JsonRpcProvider, Wallet } from 'ethers';
 import { ConfigService } from '@nestjs/config';
 import { transaction, transactionC2C } from './types/transaction.type';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
+import { RPC_SERVER_ERROR } from 'src/errors/error.constants';
 
 @Injectable()
 export class BlockchainService {
@@ -79,20 +80,24 @@ export class BlockchainService {
     to,
     pointAddress,
   }: transaction): Promise<{ txId: string }> {
-    const provider = new JsonRpcProvider(this.rpc);
-    const signer = new Wallet(this.privateKey, provider);
+    try {
+      const provider = new JsonRpcProvider(this.rpc);
+      const signer = new Wallet(this.privateKey, provider);
 
-    const contract = new Contract(pointAddress, PointERC20ABI, signer);
+      const contract = new Contract(pointAddress, PointERC20ABI, signer);
 
-    const contractWithSigner = contract.connect(signer) as any;
+      const contractWithSigner = contract.connect(signer) as any;
 
-    const tx = await contractWithSigner['transfer'](to, amount);
+      const tx = await contractWithSigner['transfer'](to, amount);
 
-    await tx.wait();
+      await tx.wait();
 
-    return {
-      txId: tx.hash,
-    };
+      return {
+        txId: tx.hash,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(RPC_SERVER_ERROR);
+    }
   }
 
   async transactionC2C({
@@ -101,19 +106,23 @@ export class BlockchainService {
     senderPrivateKey,
     pointAddress,
   }: transactionC2C): Promise<{ txId: string }> {
-    const provider = new JsonRpcProvider(this.rpc);
-    const signer = new Wallet(senderPrivateKey, provider);
+    try {
+      const provider = new JsonRpcProvider(this.rpc);
+      const signer = new Wallet(senderPrivateKey, provider);
 
-    const contract = new Contract(pointAddress, PointERC20ABI, signer);
+      const contract = new Contract(pointAddress, PointERC20ABI, signer);
 
-    const contractWithSigner = contract.connect(signer) as any;
+      const contractWithSigner = contract.connect(signer) as any;
 
-    const tx = await contractWithSigner['transfer'](to, amount);
+      const tx = await contractWithSigner['transfer'](to, amount);
 
-    await tx.wait();
+      await tx.wait();
 
-    return {
-      txId: tx.hash,
-    };
+      return {
+        txId: tx.hash,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(RPC_SERVER_ERROR);
+    }
   }
 }

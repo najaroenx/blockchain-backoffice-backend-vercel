@@ -14,7 +14,10 @@ import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { GetCustomerByEmailResponseType } from 'src/modules/customer/types';
-import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
+import {
+  INTERNAL_SERVER_ERROR,
+  RPC_SERVER_ERROR,
+} from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
@@ -61,6 +64,7 @@ export class CreateTransactionC2C {
         merchantId,
         fromEmail,
       );
+
       const { customer: receiver } = await this.getCustomer(
         merchantId,
         toEmail,
@@ -114,7 +118,10 @@ export class CreateTransactionC2C {
         receiverAddress: convertBufferToAddress(transaction.receiverAddress),
       };
     } catch (error) {
-      console.log(error);
+      if (error.message === '500001: RPC server error') {
+        throw new InternalServerErrorException(RPC_SERVER_ERROR);
+      }
+
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

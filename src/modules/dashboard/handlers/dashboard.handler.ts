@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { startOfDay, endOfDay, startOfYear, endOfYear } from 'date-fns';
 import { PrismaService } from 'prisma/prisma.service';
+import { GetTransactionsByMerchantId } from 'src/modules/transaction/handlers/getTransactionsByMerchantId.handler';
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly getTransactionsByMerchantId: GetTransactionsByMerchantId,
+  ) {}
 
   async execute(merchantId: string): Promise<any> {
     const today = new Date();
@@ -22,8 +26,11 @@ export class DashboardService {
       },
     });
 
+    const allTransactionsPromise =
+      this.getTransactionsByMerchantId.execute(merchantId);
+
     // Count transactions for today and group transactions by month
-    const transactionCountsPromise = this.prisma.transaction.findMany({
+    const transactionMonthlyCountsPromise = this.prisma.transaction.findMany({
       where: {
         merchantId,
         createdAt: {
@@ -50,21 +57,32 @@ export class DashboardService {
       },
     });
 
+    const allTransactionsTodayPromise = this.prisma.transaction.count({
+      where: {
+        merchantId,
+        createdAt: { gte: startOfToday, lte: endOfToday },
+      },
+    });
+
     // Execute all promises concurrently
     const [
       customers,
-      transactions,
+      transactionsMonthly,
       transactionsTodayByRedeem,
       transactionsTodayByTransfer,
+      allTransactions,
+      allTransactionsToday,
     ] = await Promise.all([
       customerCountPromise,
-      transactionCountsPromise,
+      transactionMonthlyCountsPromise,
       transactionsTodayRedeemPromise,
       transactionsTodayTransferPromise,
+      allTransactionsPromise,
+      allTransactionsTodayPromise,
     ]);
 
     // Filter and group transactions by type
-    const txMonthly = transactions.filter(
+    const txMonthly = transactionsMonthly.filter(
       (tx) => tx.createdAt >= startOfCurrentYear,
     );
     const txRedeemByMonthly = txMonthly.filter(
@@ -83,7 +101,7 @@ export class DashboardService {
 
     return {
       customerWallet: customers,
-      transactionsToday: transactions.length,
+      transactionsToday: allTransactionsToday,
       totalRedeem: transactionsTodayByRedeem,
       totalTransfer: transactionsTodayByTransfer,
       transactionsMonthly: this.formatMonthlyData(totalTransactionsByMonthly),
@@ -93,6 +111,7 @@ export class DashboardService {
       transactionsTransferMonthly: this.formatMonthlyData(
         totalTransactionsTransferByMonthly,
       ),
+      allTransactions,
     };
   }
 

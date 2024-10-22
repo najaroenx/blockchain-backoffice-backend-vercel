@@ -21,7 +21,7 @@ import { TokenModule } from 'src/providers/token/token.module';
     CreateTransactionB2C,
     CreateTransactionC2C,
   ],
-  exports: [TransactionDBService],
+  exports: [GetTransactionsByMerchantId],
   controllers: [TransactionController],
 })
 export class TransactionModule {}

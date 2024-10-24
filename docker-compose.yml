@@ -2,6 +2,17 @@ version: '3.8'
 
 services:
 
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile.develop
+    container_name: merchant-backend
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "4000:4000"
+
   db:
     image: postgres:14
     container_name: postgres-merchant

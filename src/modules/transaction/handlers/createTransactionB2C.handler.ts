@@ -77,7 +77,7 @@ export class CreateTransactionB2C {
         },
         transactionType: {
           connect: {
-            id: transactionTypeId,
+            id: 'redeem',
           },
         },
         txHash: createBufferFromHex(txId),

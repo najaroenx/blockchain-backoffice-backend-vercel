@@ -1,6 +1,6 @@
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
-export class CreateMerchantsDto {
+export class CreateMerchantDto {
   @IsString()
   name: string;
 
@@ -9,4 +9,14 @@ export class CreateMerchantsDto {
 
   @IsString()
   userId: string;
+}
+
+export class UpdateMerchantDto {
+  @IsString()
+  @IsOptional()
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  website: string;
 }

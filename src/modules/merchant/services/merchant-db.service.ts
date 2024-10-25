@@ -37,4 +37,17 @@ export class MerchantDBService {
 
     return merchant;
   }
+
+  async updateMerchant(
+    merchantId: string,
+    data: Prisma.MerchantUpdateInput,
+  ): Promise<Merchant> {
+    const merchant = await this.repository.update<Merchant>({
+      where: {
+        id: merchantId,
+      },
+      data,
+    });
+    return merchant;
+  }
 }

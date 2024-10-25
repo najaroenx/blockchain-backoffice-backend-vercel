@@ -5,6 +5,7 @@ import { ApiKeyModule } from '../api-key/api-key.module';
 import { MerchantDBService } from './services/merchant-db.service';
 import { GetMerchants } from './handlers/getMerchants.handler';
 import { CreateMerchant } from './handlers/createMerchant.handler';
+import { UpdateMerchant } from './handlers/updateMerchant.handler';
 
 @Module({
   controllers: [MerchantController],
@@ -13,6 +14,7 @@ import { CreateMerchant } from './handlers/createMerchant.handler';
     MerchantDBService,
     GetMerchants,
     CreateMerchant,
+    UpdateMerchant,
   ],
   imports: [ApiKeyModule],
 })

@@ -1,14 +1,25 @@
-import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
-import { CreateMerchantsDto } from '../dtos';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  Req,
+} from '@nestjs/common';
+import { CreateMerchantDto, UpdateMerchantDto } from '../dtos';
 
 import { GetMerchants } from '../handlers/getMerchants.handler';
 import { CreateMerchant } from '../handlers/createMerchant.handler';
+import { UpdateMerchant } from '../handlers/updateMerchant.handler';
 
 @Controller('merchant')
 export class MerchantController {
   constructor(
     private readonly getMerchantsHandler: GetMerchants,
     private readonly createMerchantHandler: CreateMerchant,
+    private readonly updateMerchantHandler: UpdateMerchant,
   ) {}
 
   @Get('/')
@@ -20,7 +31,7 @@ export class MerchantController {
 
   @Post('/')
   @HttpCode(201)
-  async createMerchant(@Body() body: CreateMerchantsDto) {
+  async createMerchant(@Body() body: CreateMerchantDto) {
     const { userId, name, website } = body;
 
     const data = {
@@ -29,5 +40,14 @@ export class MerchantController {
     };
 
     return this.createMerchantHandler.execute(userId, data);
+  }
+
+  @Put('/:merchantId')
+  @HttpCode(201)
+  async update(
+    @Body() data: UpdateMerchantDto,
+    @Param('merchantId') merchantId: string,
+  ) {
+    return this.updateMerchantHandler.execute(merchantId, data);
   }
 }

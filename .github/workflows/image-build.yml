@@ -27,8 +27,8 @@ jobs:
         id: build-docker-image
         run: |
           ls -la 
-          docker build . -f Dockerfile -t $DOCKER_USER/$REPO_NAME:latest
+          docker build . -f Dockerfile -t $DOCKERHUB_USERNAME/$REPO_NAME:latest
 
       - name: push the docker image
         id: push-docker-image
-        run: docker push $DOCKER_USER/$REPO_NAME:latest
+        run: docker push $DOCKERHUB_USERNAME/$REPO_NAME:latest

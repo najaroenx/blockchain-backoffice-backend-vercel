@@ -5,7 +5,6 @@ services:
   app:
     build: 
       context: .
-      dockerfile: Dockerfile.develop
     container_name: merchant-backend
     restart: always
     depends_on:

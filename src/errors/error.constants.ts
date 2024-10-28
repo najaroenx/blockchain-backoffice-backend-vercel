@@ -12,5 +12,7 @@ export const CUSTOMER_NOT_FOUND = '404006: Customer not found';
 export const EMAIL_USER_CONFLICT =
   '409001: User with this email already exists';
 
+export const BAD_REQUEST = '400000: Bad Request';
+
 export const INTERNAL_SERVER_ERROR = '500000: Internal server error';
 export const RPC_SERVER_ERROR = '500001: RPC server error';

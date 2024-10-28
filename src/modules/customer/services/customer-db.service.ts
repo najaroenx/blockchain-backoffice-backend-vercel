@@ -9,6 +9,7 @@ import {
   Prisma,
   Transaction,
 } from '@prisma/client';
+import { PageOptionsDto } from 'src/common/dtos';
 
 @Injectable()
 export class CustomerDBService {
@@ -46,7 +47,12 @@ export class CustomerDBService {
     return customer;
   }
 
-  async getCustomersByMerchant(merchantId: string): Promise<Customer[]> {
+  async getCustomersByMerchant(
+    merchantId: string,
+    pageOptionsDto: PageOptionsDto,
+  ): Promise<{ customers: Customer[]; count: number }> {
+    const count = await this.repository.count();
+
     const customers = await this.repository.findMany<Customer>({
       where: {
         customerMerChant: {
@@ -55,6 +61,8 @@ export class CustomerDBService {
           },
         },
       },
+      take: pageOptionsDto.take,
+      skip: pageOptionsDto.skip,
       select: {
         id: true,
         email: true,
@@ -64,7 +72,7 @@ export class CustomerDBService {
       },
     });
 
-    return customers;
+    return { customers, count };
   }
 
   async getCustomersByEmail(

@@ -1,8 +1,17 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CreateCustomerDto } from '../dtos';
 import { GetCustomersByMerchantId } from '../handlers/getCustomersByMerchantId.handler';
 import { GetCustomerById } from '../handlers/getCustomerById.handler';
 import { CreateCustomer } from '../handlers/createCustomer.handler';
+import { PageOptionsDto } from 'src/common/dtos';
 
 @Controller('/:merchantId/customer')
 export class CustomerController {
@@ -23,8 +32,14 @@ export class CustomerController {
 
   @Get('/')
   @HttpCode(200)
-  async getCustomersByMerchant(@Param('merchantId') merchantId: string) {
-    return this.getCustomersByMerchantIdHandler.execute(merchantId);
+  async getCustomersByMerchant(
+    @Param('merchantId') merchantId: string,
+    @Query() pageOptionsDto: PageOptionsDto,
+  ) {
+    return this.getCustomersByMerchantIdHandler.execute(
+      merchantId,
+      pageOptionsDto,
+    );
   }
 
   @Get('/:customerId')

@@ -1,19 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { ApiKeyRepository } from '../api-key.repository';
 import { ApiKey, Prisma } from '@prisma/client';
+import { PageOptionsDto } from 'src/common/dtos';
 
 @Injectable()
 export class ApiKeyDBService {
   constructor(private readonly repository: ApiKeyRepository) {}
 
-  async getApiKeys(merchantId: string): Promise<ApiKey[]> {
-    const apiKeys = await this.repository.findMany<ApiKey>({
+  async getApiKeys(
+    merchantId: string,
+    pageOptionsDto: PageOptionsDto,
+  ): Promise<{ apiKeys: ApiKey[]; count: number }> {
+    const count = await this.repository.count({
       where: {
         merchantId,
       },
     });
 
-    return apiKeys;
+    const apiKeys = await this.repository.findMany<ApiKey>({
+      where: {
+        merchantId,
+      },
+      take: pageOptionsDto.take,
+      skip: pageOptionsDto.skip,
+    });
+
+    return { apiKeys, count };
   }
 
   async getApiKey(

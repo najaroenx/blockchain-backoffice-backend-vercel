@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
 import { UserModule } from './modules/user/user.module';
 import { PrismaModule } from 'prisma/prisma.module';
 import { MerchantModule } from './modules/merchant/merchant.module';
@@ -10,10 +10,11 @@ import { TokenModule } from './providers/token/token.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SessionModule } from './modules/session/session.module';
 import { CustomAuthGuard } from './modules/auth/custom-auth.guard';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { TransactionModule } from './modules/transaction/transaction.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { HttpExceptionFilter } from './filters/http-exception.filter';
 
 @Module({
   imports: [
@@ -36,8 +37,20 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
   controllers: [],
   providers: [
     {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+    {
       provide: APP_GUARD,
       useClass: CustomAuthGuard,
+    },
+    {
+      provide: APP_PIPE,
+      useValue: new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     },
   ],
 })

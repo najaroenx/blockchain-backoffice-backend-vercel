@@ -1,7 +1,16 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CreateApiKeyDto, GetAPiKeysParams } from '../dtos';
 import { GetApiKeys } from '../handlers/getApiKeys.handler';
 import { CreateApiKey } from '../handlers/createApiKey.handler';
+import { PageOptionsDto } from 'src/common/dtos';
 
 @Controller('api-key')
 export class ApiKeyController {
@@ -21,8 +30,11 @@ export class ApiKeyController {
 
   @Get('/:merchantId')
   @HttpCode(200)
-  async getApiKeys(@Param() params: GetAPiKeysParams) {
+  async getApiKeys(
+    @Param() params: GetAPiKeysParams,
+    @Query() pageOptionsDto: PageOptionsDto,
+  ) {
     const { merchantId } = params;
-    return this.getApiKeysByMerchantId.execute(merchantId);
+    return this.getApiKeysByMerchantId.execute(merchantId, pageOptionsDto);
   }
 }

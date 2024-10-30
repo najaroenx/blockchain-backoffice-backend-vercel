@@ -34,6 +34,9 @@ FROM node:18-alpine
 RUN npm install -g npm@latest \
     && npm -g update
 
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S merchant-backoffice -u 1001
+
 # Update alpine dependencies
 RUN apk update \
     && apk upgrade \
@@ -42,10 +45,10 @@ RUN apk update \
 WORKDIR /app
 
 # Copy necessary files from the builder stage
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=merchant-backoffice:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
+COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
+COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
 
 # Expose application port
 EXPOSE 4000

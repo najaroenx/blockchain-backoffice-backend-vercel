@@ -50,6 +50,8 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
 
+USER merchant-backoffice
+
 # Expose application port
 EXPOSE 4000
 

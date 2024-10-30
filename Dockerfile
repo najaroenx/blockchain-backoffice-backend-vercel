@@ -51,7 +51,7 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
 
 # Workaround solution
-RUN chown -R merchant-backoffice:nodejs /tmp
+RUN mkdir -p /tmp && chmod 1777 /tmp && chown -R merchant-backoffice:nodejs /tmp
 # Workaround solution
 
 USER merchant-backoffice

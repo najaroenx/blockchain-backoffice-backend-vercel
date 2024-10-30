@@ -50,6 +50,13 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
 
+# Workaround solution -start-
+ENV TMPDIR=/app/temp
+ENV YARN_CACHE_FOLDER=/app/.yarn
+
+RUN mkdir -p /app/temp /app/.yarn && chown -R merchant-backoffice:nodejs /app/temp /app/.yarn
+# Workaround solution -end-
+
 USER merchant-backoffice
 
 # Expose application port

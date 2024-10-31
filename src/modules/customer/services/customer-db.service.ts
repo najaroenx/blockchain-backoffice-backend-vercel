@@ -51,7 +51,15 @@ export class CustomerDBService {
     merchantId: string,
     pageOptionsDto: PageOptionsDto,
   ): Promise<{ customers: Customer[]; count: number }> {
-    const count = await this.repository.count();
+    const count = await this.repository.count({
+      where: {
+        customerMerChant: {
+          some: {
+            merchantId,
+          },
+        },
+      },
+    });
 
     const customers = await this.repository.findMany<Customer>({
       where: {

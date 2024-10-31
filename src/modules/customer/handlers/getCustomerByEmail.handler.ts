@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import {
   CUSTOMER_NOT_FOUND,
@@ -13,6 +14,8 @@ import { GetCustomerByEmailResponseType } from '../types';
 
 @Injectable()
 export class GetCustomerByEmail {
+  private logger = new Logger(GetCustomerByEmail.name);
+
   constructor(private db: CustomerDBService) {}
 
   async execute(
@@ -33,6 +36,9 @@ export class GetCustomerByEmail {
         customer: formattedCustomer,
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       } else {

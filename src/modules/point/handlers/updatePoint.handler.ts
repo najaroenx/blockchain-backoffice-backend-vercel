@@ -1,6 +1,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -15,6 +16,8 @@ import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
 export class UpdatePoint {
+  private logger = new Logger(UpdatePoint.name);
+
   constructor(private db: PointDBService) {}
 
   async execute(
@@ -36,6 +39,9 @@ export class UpdatePoint {
         },
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
           throw new NotFoundException(POINT_NOT_FOUND);

@@ -1,6 +1,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -13,6 +14,8 @@ import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
 export class GetPointById {
+  private logger = new Logger(GetPointById.name);
+
   constructor(private db: PointDBService) {}
 
   async execute(pointId: string): Promise<GetPointResponseType> {
@@ -28,6 +31,9 @@ export class GetPointById {
         },
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       } else {

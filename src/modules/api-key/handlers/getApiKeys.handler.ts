@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ApiKeyDBService } from '../services/api-key-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { GetApiKeysResponseType } from '../types';
@@ -6,6 +10,8 @@ import { PageOptionsDto } from 'src/common/dtos';
 
 @Injectable()
 export class GetApiKeys {
+  private logger = new Logger(GetApiKeys.name);
+
   constructor(private db: ApiKeyDBService) {}
 
   async execute(
@@ -30,6 +36,9 @@ export class GetApiKeys {
         upper: pageOptionsDto.skip + pageOptionsDto.take - 1,
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

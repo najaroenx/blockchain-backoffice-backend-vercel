@@ -1,6 +1,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -12,6 +13,8 @@ import { MerchantDBService } from '../services/merchant-db.service';
 
 @Injectable()
 export class UpdateMerchant {
+  private logger = new Logger(UpdateMerchant.name);
+
   constructor(private db: MerchantDBService) {}
 
   async execute(
@@ -30,6 +33,9 @@ export class UpdateMerchant {
           throw new NotFoundException(MERCHANT_NOT_FOUND);
         }
       } else {
+        this.logger.error(
+          `Error message : ${error.message}, \n Error detail : ${error}`,
+        );
         throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }

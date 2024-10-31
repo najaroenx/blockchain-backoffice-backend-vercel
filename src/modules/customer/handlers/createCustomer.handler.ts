@@ -1,6 +1,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
@@ -15,6 +16,7 @@ import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 @Injectable()
 export class CreateCustomer {
   private salt: string;
+  private logger = new Logger(CreateCustomer.name);
 
   constructor(
     private db: CustomerDBService,
@@ -87,6 +89,9 @@ export class CreateCustomer {
         walletAddress: convertBufferToAddress(newCustomer.walletAddress),
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       } else {

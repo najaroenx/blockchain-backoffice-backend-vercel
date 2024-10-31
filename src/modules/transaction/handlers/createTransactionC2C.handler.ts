@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
@@ -23,6 +27,8 @@ import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 @Injectable()
 export class CreateTransactionC2C {
   private salt: string;
+
+  private logger = new Logger(CreateTransactionC2C.name);
 
   constructor(
     private readonly db: TransactionDBService,
@@ -118,6 +124,10 @@ export class CreateTransactionC2C {
         receiverAddress: convertBufferToAddress(transaction.receiverAddress),
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
+
       if (error.message === '500001: RPC server error') {
         throw new InternalServerErrorException(RPC_SERVER_ERROR);
       }

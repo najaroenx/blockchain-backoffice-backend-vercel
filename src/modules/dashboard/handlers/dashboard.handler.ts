@@ -1,118 +1,133 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { startOfDay, endOfDay, startOfYear, endOfYear } from 'date-fns';
 import { PrismaService } from 'prisma/prisma.service';
 import { GetTransactionsByMerchantId } from 'src/modules/transaction/handlers/getTransactionsByMerchantId.handler';
-
+import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 @Injectable()
 export class DashboardService {
+  private logger = new Logger(DashboardService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly getTransactionsByMerchantId: GetTransactionsByMerchantId,
   ) {}
 
   async execute(merchantId: string): Promise<any> {
-    const today = new Date();
-    const startOfToday = startOfDay(today);
-    const endOfToday = endOfDay(today);
-    const startOfCurrentYear = startOfYear(today);
-    const endOfCurrentYear = endOfYear(today);
+    try {
+      const today = new Date();
+      const startOfToday = startOfDay(today);
+      const endOfToday = endOfDay(today);
+      const startOfCurrentYear = startOfYear(today);
+      const endOfCurrentYear = endOfYear(today);
 
-    // Count customers for the merchant
-    const customerCountPromise = this.prisma.customer.count({
-      where: {
-        customerMerChant: {
-          some: { merchantId },
+      // Count customers for the merchant
+      const customerCountPromise = this.prisma.customer.count({
+        where: {
+          customerMerChant: {
+            some: { merchantId },
+          },
         },
-      },
-    });
+      });
 
-    const allTransactionsPromise =
-      this.getTransactionsByMerchantId.execute(merchantId);
+      const allTransactionsPromise =
+        this.getTransactionsByMerchantId.execute(merchantId);
 
-    // Count transactions for today and group transactions by month
-    const transactionMonthlyCountsPromise = this.prisma.transaction.findMany({
-      where: {
-        merchantId,
-        createdAt: {
-          gte: startOfCurrentYear,
-          lte: endOfCurrentYear,
+      // Count transactions for today and group transactions by month
+      const transactionMonthlyCountsPromise = this.prisma.transaction.findMany({
+        where: {
+          merchantId,
+          createdAt: {
+            gte: startOfCurrentYear,
+            lte: endOfCurrentYear,
+          },
         },
-      },
-    });
+      });
 
-    // Count transactions for today by type
-    const transactionsTodayRedeemPromise = this.prisma.transaction.count({
-      where: {
-        merchantId,
-        transactionTypeId: 'redeem',
-        createdAt: { gte: startOfToday, lte: endOfToday },
-      },
-    });
+      // Count transactions for today by type
+      const transactionsTodayRedeemPromise = this.prisma.transaction.count({
+        where: {
+          merchantId,
+          transactionTypeId: 'redeem',
+          createdAt: { gte: startOfToday, lte: endOfToday },
+        },
+      });
 
-    const transactionsTodayTransferPromise = this.prisma.transaction.count({
-      where: {
-        merchantId,
-        transactionTypeId: 'transfer',
-        createdAt: { gte: startOfToday, lte: endOfToday },
-      },
-    });
+      const transactionsTodayTransferPromise = this.prisma.transaction.count({
+        where: {
+          merchantId,
+          transactionTypeId: 'transfer',
+          createdAt: { gte: startOfToday, lte: endOfToday },
+        },
+      });
 
-    const allTransactionsTodayPromise = this.prisma.transaction.count({
-      where: {
-        merchantId,
-        createdAt: { gte: startOfToday, lte: endOfToday },
-      },
-    });
+      const allTransactionsTodayPromise = this.prisma.transaction.count({
+        where: {
+          merchantId,
+          createdAt: { gte: startOfToday, lte: endOfToday },
+        },
+      });
 
-    // Execute all promises concurrently
-    const [
-      customers,
-      transactionsMonthly,
-      transactionsTodayByRedeem,
-      transactionsTodayByTransfer,
-      allTransactions,
-      allTransactionsToday,
-    ] = await Promise.all([
-      customerCountPromise,
-      transactionMonthlyCountsPromise,
-      transactionsTodayRedeemPromise,
-      transactionsTodayTransferPromise,
-      allTransactionsPromise,
-      allTransactionsTodayPromise,
-    ]);
+      // Execute all promises concurrently
+      const [
+        customers,
+        transactionsMonthly,
+        transactionsTodayByRedeem,
+        transactionsTodayByTransfer,
+        allTransactions,
+        allTransactionsToday,
+      ] = await Promise.all([
+        customerCountPromise,
+        transactionMonthlyCountsPromise,
+        transactionsTodayRedeemPromise,
+        transactionsTodayTransferPromise,
+        allTransactionsPromise,
+        allTransactionsTodayPromise,
+      ]);
 
-    // Filter and group transactions by type
-    const txMonthly = transactionsMonthly.filter(
-      (tx) => tx.createdAt >= startOfCurrentYear,
-    );
-    const txRedeemByMonthly = txMonthly.filter(
-      (tx) => tx.transactionTypeId === 'redeem',
-    );
-    const txTransferByMonthly = txMonthly.filter(
-      (tx) => tx.transactionTypeId === 'transfer',
-    );
+      // Filter and group transactions by type
+      const txMonthly = transactionsMonthly.filter(
+        (tx) => tx.createdAt >= startOfCurrentYear,
+      );
+      const txRedeemByMonthly = txMonthly.filter(
+        (tx) => tx.transactionTypeId === 'redeem',
+      );
+      const txTransferByMonthly = txMonthly.filter(
+        (tx) => tx.transactionTypeId === 'transfer',
+      );
 
-    // Group transactions by month
-    const totalTransactionsByMonthly = this.groupTransactionsByMonth(txMonthly);
-    const totalTransactionsRedeemByMonthly =
-      this.groupTransactionsByMonth(txRedeemByMonthly);
-    const totalTransactionsTransferByMonthly =
-      this.groupTransactionsByMonth(txTransferByMonthly);
+      // Group transactions by month
+      const totalTransactionsByMonthly =
+        this.groupTransactionsByMonth(txMonthly);
+      const totalTransactionsRedeemByMonthly =
+        this.groupTransactionsByMonth(txRedeemByMonthly);
+      const totalTransactionsTransferByMonthly =
+        this.groupTransactionsByMonth(txTransferByMonthly);
 
-    return {
-      customerWallet: customers,
-      transactionsToday: allTransactionsToday,
-      totalRedeem: transactionsTodayByRedeem,
-      totalTransfer: transactionsTodayByTransfer,
-      transactionsMonthly: this.formatMonthlyData(totalTransactionsByMonthly),
-      transactionsRedeemMonthly: this.formatMonthlyData(
-        totalTransactionsRedeemByMonthly,
-      ),
-      transactionsTransferMonthly: this.formatMonthlyData(
-        totalTransactionsTransferByMonthly,
-      ),
-      allTransactions,
-    };
+      return {
+        customerWallet: customers,
+        transactionsToday: allTransactionsToday,
+        totalRedeem: transactionsTodayByRedeem,
+        totalTransfer: transactionsTodayByTransfer,
+        transactionsMonthly: this.formatMonthlyData(totalTransactionsByMonthly),
+        transactionsRedeemMonthly: this.formatMonthlyData(
+          totalTransactionsRedeemByMonthly,
+        ),
+        transactionsTransferMonthly: this.formatMonthlyData(
+          totalTransactionsTransferByMonthly,
+        ),
+        allTransactions,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
+
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+    }
   }
 
   private groupTransactionsByMonth = (

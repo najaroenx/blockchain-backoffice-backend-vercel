@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import {
   INTERNAL_SERVER_ERROR,
@@ -15,6 +19,8 @@ import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
 
 @Injectable()
 export class CreateTransactionB2C {
+  private logger = new Logger(CreateTransactionB2C.name);
+
   constructor(
     private readonly db: TransactionDBService,
     private readonly getPointByIdHandler: GetPointById,
@@ -131,6 +137,9 @@ export class CreateTransactionB2C {
         receiverAddress: convertBufferToAddress(transaction.receiverAddress),
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       if (error.message === '500001: RPC server error') {
         throw new InternalServerErrorException(RPC_SERVER_ERROR);
       }

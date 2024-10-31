@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
+  Logger,
 } from '@nestjs/common';
 import { Prisma, User } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
@@ -32,6 +33,8 @@ export class AuthService {
     private userDBService: UserDBService,
   ) {}
 
+  private logger = new Logger(AuthService.name);
+
   async login(email: string, password: string): Promise<TokenResponse> {
     try {
       const user = await this.userDBService.getUserByEmail(email);
@@ -43,6 +46,9 @@ export class AuthService {
 
       return this.loginResponse(user);
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       } else {
@@ -68,6 +74,9 @@ export class AuthService {
         email: newUser.email,
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       if (error instanceof ConflictException) {
         throw error;
       } else {
@@ -86,6 +95,9 @@ export class AuthService {
         refreshToken: token,
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       } else {

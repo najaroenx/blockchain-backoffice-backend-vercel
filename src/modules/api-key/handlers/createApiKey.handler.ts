@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ApiKeyDBService } from '../services/api-key-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { ApiKey, Prisma } from '@prisma/client';
@@ -6,6 +10,8 @@ import { TokenService } from 'src/providers/token/token.service';
 
 @Injectable()
 export class CreateApiKey {
+  private logger = new Logger(CreateApiKey.name);
+
   constructor(
     private db: ApiKeyDBService,
     private tokenService: TokenService,
@@ -25,6 +31,9 @@ export class CreateApiKey {
 
       return apiKey;
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

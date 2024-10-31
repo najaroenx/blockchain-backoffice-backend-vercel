@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
@@ -6,6 +10,8 @@ import { GetTransactionByMerchantIdResponseType } from '../types';
 
 @Injectable()
 export class GetTransactionsByMerchantId {
+  private logger = new Logger(GetTransactionsByMerchantId.name);
+
   constructor(private db: TransactionDBService) {}
 
   async execute(
@@ -61,6 +67,9 @@ export class GetTransactionsByMerchantId {
         counts: res.length,
       };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

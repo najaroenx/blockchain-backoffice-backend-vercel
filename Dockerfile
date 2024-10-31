@@ -60,4 +60,4 @@ USER merchant-backoffice
 EXPOSE 4000
 
 # Run Prisma migrations and seeds, then start the application
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy && yarn start:develop-zone"]

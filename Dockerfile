@@ -50,11 +50,9 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
 
-# Workaround solution for permissions
-RUN chmod -R 777 /app && \
-    mkdir -p /tmp && \
-    chmod -R 777 /tmp && \
-    chown -R merchant-backoffice:nodejs /tmp
+# Workaround solution
+RUN mkdir -p /tmp && chmod -R 777 /tmp && chown -R merchant-backoffice:nodejs /tmp
+# Workaround solution
 
 USER merchant-backoffice
 
@@ -62,4 +60,4 @@ USER merchant-backoffice
 EXPOSE 4000
 
 # Run Prisma migrations and seeds, then start the application
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:develop-zone"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]

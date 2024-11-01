@@ -6,6 +6,7 @@ import { ApiKeyDBService } from './services/api-key-db.service';
 import { GetApiKeys } from './handlers/getApiKeys.handler';
 import { GetApiKey } from './handlers/getApiKey.handler';
 import { CreateApiKey } from './handlers/createApiKey.handler';
+import { DeleteApiKey } from './handlers/deleteApiKey.handler';
 
 @Module({
   imports: [TokenModule],
@@ -16,6 +17,7 @@ import { CreateApiKey } from './handlers/createApiKey.handler';
     GetApiKeys,
     GetApiKey,
     CreateApiKey,
+    DeleteApiKey,
   ],
   exports: [GetApiKey, CreateApiKey],
 })

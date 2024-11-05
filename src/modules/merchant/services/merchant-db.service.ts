@@ -20,6 +20,16 @@ export class MerchantDBService {
     return merchants;
   }
 
+  async getMerchantById(id: string): Promise<Merchant> {
+    const merchant = await this.repository.findUnique<Merchant>({
+      where: {
+        id,
+      },
+    });
+
+    return merchant;
+  }
+
   async createMerchant(
     userId: string,
     data: Omit<Prisma.MerchantCreateInput, 'userMerchant'>,
@@ -48,6 +58,16 @@ export class MerchantDBService {
       },
       data,
     });
+    return merchant;
+  }
+
+  async deleteMerchant(id: string): Promise<Merchant> {
+    const merchant = await this.repository.delete({
+      where: {
+        id,
+      },
+    });
+
     return merchant;
   }
 }

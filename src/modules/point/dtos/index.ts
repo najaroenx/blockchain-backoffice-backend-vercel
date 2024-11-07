@@ -50,4 +50,8 @@ export class UpdatePointDto {
   @IsNumber()
   @IsOptional()
   slotSize?: number;
+
+  @IsString()
+  @IsOptional()
+  contractAddress?: string;
 }

@@ -16,14 +16,16 @@ export class BlockchainService {
 
   private privateKey: string;
 
-  private rpc: string;
+  public provider: JsonRpcProvider;
 
   constructor(private configService: ConfigService) {
     this.pointFactoryAddress = this.configService.get<string>(
       'POINT_FACTORY_ADDRESS',
     );
     this.privateKey = this.configService.get<string>('PRIVATE_KEY');
-    this.rpc = this.configService.get<string>('RPC_URL');
+    this.provider = new JsonRpcProvider(
+      this.configService.get<string>('RPC_URL'),
+    );
   }
 
   async createNewPointToken({
@@ -33,8 +35,7 @@ export class BlockchainService {
     decimal,
     frameSize,
   }: createPoint) {
-    const provider = new JsonRpcProvider(this.rpc);
-    const signer = new Wallet(this.privateKey, provider);
+    const signer = new Wallet(this.privateKey, this.provider);
 
     const contract = new Contract(
       this.pointFactoryAddress,
@@ -81,14 +82,15 @@ export class BlockchainService {
     pointAddress,
   }: transaction): Promise<{ txId: string }> {
     try {
-      const provider = new JsonRpcProvider(this.rpc);
-      const signer = new Wallet(this.privateKey, provider);
+      const signer = new Wallet(this.privateKey, this.provider);
 
       const contract = new Contract(pointAddress, PointERC20ABI, signer);
 
       const contractWithSigner = contract.connect(signer) as any;
 
-      const tx = await contractWithSigner['transfer'](to, amount);
+      const amountWeiFormat = ethers.parseEther(amount.toString());
+
+      const tx = await contractWithSigner['transfer'](to, amountWeiFormat);
 
       await tx.wait();
 
@@ -107,14 +109,15 @@ export class BlockchainService {
     pointAddress,
   }: transactionC2C): Promise<{ txId: string }> {
     try {
-      const provider = new JsonRpcProvider(this.rpc);
-      const signer = new Wallet(senderPrivateKey, provider);
+      const signer = new Wallet(senderPrivateKey, this.provider);
 
       const contract = new Contract(pointAddress, PointERC20ABI, signer);
 
       const contractWithSigner = contract.connect(signer) as any;
 
-      const tx = await contractWithSigner['transfer'](to, amount);
+      const amountWeiFormat = ethers.parseEther(amount.toString());
+
+      const tx = await contractWithSigner['transfer'](to, amountWeiFormat);
 
       await tx.wait();
 

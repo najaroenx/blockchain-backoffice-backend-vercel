@@ -11,12 +11,17 @@ import {
 import { CustomerDBService } from '../services/customer-db.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { GetCustomersIdResponseType } from '../types';
+import { Kiwari } from '@kiwarilabs/kiwari-sdk';
+import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 
 @Injectable()
 export class GetCustomerById {
   private logger = new Logger(GetCustomerById.name);
 
-  constructor(private db: CustomerDBService) {}
+  constructor(
+    private db: CustomerDBService,
+    private blockchainService: BlockchainService,
+  ) {}
 
   async execute(
     merchantId: string,
@@ -41,12 +46,15 @@ export class GetCustomerById {
         transactionTypeId: tx.transactionTypeId,
       }));
 
-      const formattedCustomerPoint = customer.customerPoints.map(
-        ({ point, balances }) => ({
+      const formattedCustomerPoint = await Promise.all(
+        customer.customerPoints.map(async ({ point }) => ({
           ...point,
           contractAddress: convertBufferToAddress(point.contractAddress),
-          balances,
-        }),
+          balances: await this.getPointBalance(
+            convertBufferToAddress(point.contractAddress),
+            convertBufferToAddress(customer.walletAddress),
+          ),
+        })),
       );
 
       const formattedCustomer = {
@@ -69,5 +77,23 @@ export class GetCustomerById {
         throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }
+  }
+
+  private async getPointBalance(
+    pointAddress: string,
+    walletAddress: string,
+  ): Promise<number> {
+    const kiwari = new Kiwari({
+      provider: this.blockchainService.provider,
+    });
+
+    const balances = await kiwari.erc20Expirable.getBalanceOf({
+      contractAddress: pointAddress,
+      accountAddress: walletAddress,
+    });
+
+    console.log(balances);
+
+    return balances;
   }
 }

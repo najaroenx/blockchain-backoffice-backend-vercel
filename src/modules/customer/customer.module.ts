@@ -8,9 +8,10 @@ import { GetCustomerById } from './handlers/getCustomerById.handler';
 import { GetCustomerByEmail } from './handlers/getCustomerByEmail.handler';
 import { UpdateCustomer } from './handlers/updateCustomer.handler';
 import { CreateCustomer } from './handlers/createCustomer.handler';
+import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 
 @Module({
-  imports: [TokenModule],
+  imports: [TokenModule, BlockchainModule],
   controllers: [CustomerController],
   providers: [
     CustomerRepository,

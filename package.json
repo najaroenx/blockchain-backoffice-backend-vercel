@@ -28,6 +28,7 @@
     "seed": "tsc prisma/seed.ts --outDir dist/prisma && node dist/prisma/seed.js"
   },
   "dependencies": {
+    "@kiwarilabs/kiwari-sdk": "^1.0.1-alpha.2",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.2.3",
     "@nestjs/core": "^10.0.0",

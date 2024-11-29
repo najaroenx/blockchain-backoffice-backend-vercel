@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { createPoint } from './types';
 import * as PointFactoryABI from './abis/PointFactoryABI.json';
 import * as PointERC20ABI from './abis/PointERC20ABI.json';
 
-import { Contract, JsonRpcProvider, Wallet } from 'ethers';
+import { Contract, JsonRpcProvider, Wallet, ethers } from 'ethers';
 import { ConfigService } from '@nestjs/config';
 import { transaction, transactionC2C } from './types/transaction.type';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
@@ -15,14 +16,16 @@ export class BlockchainService {
 
   private privateKey: string;
 
-  private rpc: string;
+  public provider: JsonRpcProvider;
 
   constructor(private configService: ConfigService) {
     this.pointFactoryAddress = this.configService.get<string>(
       'POINT_FACTORY_ADDRESS',
     );
     this.privateKey = this.configService.get<string>('PRIVATE_KEY');
-    this.rpc = this.configService.get<string>('RPC_URL');
+    this.provider = new JsonRpcProvider(
+      this.configService.get<string>('RPC_URL'),
+    );
   }
 
   async createNewPointToken({
@@ -31,10 +34,8 @@ export class BlockchainService {
     symbol,
     decimal,
     frameSize,
-    slotSize,
   }: createPoint) {
-    const provider = new JsonRpcProvider(this.rpc);
-    const signer = new Wallet(this.privateKey, provider);
+    const signer = new Wallet(this.privateKey, this.provider);
 
     const contract = new Contract(
       this.pointFactoryAddress,
@@ -44,28 +45,28 @@ export class BlockchainService {
 
     const contractWithSigner = contract.connect(signer) as any;
 
+    const initialSupplyWeiFormat = ethers.parseEther(initialSupply.toString());
+
     const result = await contract['createNewPointContract'].staticCallResult(
-      initialSupply,
+      initialSupplyWeiFormat,
       signer.address,
       name,
       symbol,
-      decimal,
-      15, // TODO: remove fix block time
+      // decimal,
+      12000, // TODO: remove fix block time
       frameSize,
-      slotSize,
     );
 
     const pointAddress = result[0];
 
     const tx = await contractWithSigner['createNewPointContract'](
-      initialSupply,
+      initialSupplyWeiFormat,
       signer.address,
       name,
       symbol,
-      decimal,
-      15, // TODO: remove fix block time
+      // decimal,
+      12000, // TODO: remove fix block time
       frameSize,
-      slotSize,
     );
 
     await tx.wait();
@@ -81,14 +82,15 @@ export class BlockchainService {
     pointAddress,
   }: transaction): Promise<{ txId: string }> {
     try {
-      const provider = new JsonRpcProvider(this.rpc);
-      const signer = new Wallet(this.privateKey, provider);
+      const signer = new Wallet(this.privateKey, this.provider);
 
       const contract = new Contract(pointAddress, PointERC20ABI, signer);
 
       const contractWithSigner = contract.connect(signer) as any;
 
-      const tx = await contractWithSigner['transfer'](to, amount);
+      const amountWeiFormat = ethers.parseEther(amount.toString());
+
+      const tx = await contractWithSigner['transfer'](to, amountWeiFormat);
 
       await tx.wait();
 
@@ -107,14 +109,15 @@ export class BlockchainService {
     pointAddress,
   }: transactionC2C): Promise<{ txId: string }> {
     try {
-      const provider = new JsonRpcProvider(this.rpc);
-      const signer = new Wallet(senderPrivateKey, provider);
+      const signer = new Wallet(senderPrivateKey, this.provider);
 
       const contract = new Contract(pointAddress, PointERC20ABI, signer);
 
       const contractWithSigner = contract.connect(signer) as any;
 
-      const tx = await contractWithSigner['transfer'](to, amount);
+      const amountWeiFormat = ethers.parseEther(amount.toString());
+
+      const tx = await contractWithSigner['transfer'](to, amountWeiFormat);
 
       await tx.wait();
 

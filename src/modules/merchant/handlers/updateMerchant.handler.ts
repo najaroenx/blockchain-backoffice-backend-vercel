@@ -8,8 +8,9 @@ import {
   INTERNAL_SERVER_ERROR,
   MERCHANT_NOT_FOUND,
 } from 'src/errors/error.constants';
-import { Merchant, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { MerchantDBService } from '../services/merchant-db.service';
+import { UpdateMerchantResponseType } from '../types';
 
 @Injectable()
 export class UpdateMerchant {
@@ -20,22 +21,22 @@ export class UpdateMerchant {
   async execute(
     merchantId: string,
     data: Prisma.MerchantUpdateInput,
-  ): Promise<Merchant> {
+  ): Promise<UpdateMerchantResponseType> {
     try {
       const merchant = await this.db.updateMerchant(merchantId, {
         ...data,
       });
 
-      return merchant;
+      return { merchant };
     } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
           throw new NotFoundException(MERCHANT_NOT_FOUND);
         }
       } else {
-        this.logger.error(
-          `Error message : ${error.message}, \n Error detail : ${error}`,
-        );
         throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
     }

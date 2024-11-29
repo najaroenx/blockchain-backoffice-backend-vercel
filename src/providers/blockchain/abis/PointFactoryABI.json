@@ -98,11 +98,6 @@
         "type": "string"
       },
       {
-        "internalType": "uint8",
-        "name": "_decimals",
-        "type": "uint8"
-      },
-      {
         "internalType": "uint16",
         "name": "_blockTime",
         "type": "uint16"
@@ -110,11 +105,6 @@
       {
         "internalType": "uint8",
         "name": "_frameSize",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "_slotSize",
         "type": "uint8"
       }
     ],

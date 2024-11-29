@@ -42,6 +42,20 @@ export class ApiKeyDBService {
     return apiKeyDetail;
   }
 
+  async getApiKeyById(
+    id: string,
+    merchantId: string,
+  ): Promise<ApiKey | undefined> {
+    const apiKeyDetail = await this.repository.findFirst<ApiKey | undefined>({
+      where: {
+        id,
+        merchantId,
+      },
+    });
+
+    return apiKeyDetail;
+  }
+
   async createApiKey(
     merchantId: string,
     generatedApiKey: string,
@@ -51,6 +65,17 @@ export class ApiKeyDBService {
       data: {
         ...data,
         apiKey: generatedApiKey,
+        merchantId,
+      },
+    });
+
+    return apiKey;
+  }
+
+  async deleteApiKy(id: string, merchantId: string): Promise<ApiKey> {
+    const apiKey = await this.repository.delete({
+      where: {
+        id,
         merchantId,
       },
     });

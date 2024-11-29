@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -13,6 +14,8 @@ import { CreateMerchantDto, UpdateMerchantDto } from '../dtos';
 import { GetMerchants } from '../handlers/getMerchants.handler';
 import { CreateMerchant } from '../handlers/createMerchant.handler';
 import { UpdateMerchant } from '../handlers/updateMerchant.handler';
+import { GetMerchant } from '../handlers/getMerchantById.handler';
+import { DeleteMerchant } from '../handlers/deleteMerchant.handler';
 
 @Controller('merchant')
 export class MerchantController {
@@ -20,6 +23,8 @@ export class MerchantController {
     private readonly getMerchantsHandler: GetMerchants,
     private readonly createMerchantHandler: CreateMerchant,
     private readonly updateMerchantHandler: UpdateMerchant,
+    private readonly getMerchantHandler: GetMerchant,
+    private readonly deleteMerchantHandler: DeleteMerchant,
   ) {}
 
   @Get('/')
@@ -49,5 +54,17 @@ export class MerchantController {
     @Param('merchantId') merchantId: string,
   ) {
     return this.updateMerchantHandler.execute(merchantId, data);
+  }
+
+  @Get('/:merchantId')
+  @HttpCode(200)
+  async getMerchant(@Param('merchantId') merchantId: string) {
+    return this.getMerchantHandler.execute(merchantId);
+  }
+
+  @Delete('/:merchantId')
+  @HttpCode(201)
+  async deleteMerchant(@Param('merchantId') merchantId: string) {
+    return this.deleteMerchantHandler.execute(merchantId);
   }
 }

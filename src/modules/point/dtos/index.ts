@@ -15,9 +15,6 @@ export class CreatePointDto {
 
   @IsNumber()
   frameSize: number;
-
-  @IsNumber()
-  slotSize: number;
 }
 
 export class RedeemPointsDto {
@@ -50,4 +47,8 @@ export class UpdatePointDto {
   @IsNumber()
   @IsOptional()
   slotSize?: number;
+
+  @IsString()
+  @IsOptional()
+  contractAddress?: string;
 }

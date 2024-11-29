@@ -13,3 +13,11 @@ export class GetAPiKeysParams {
   @IsString()
   merchantId: string;
 }
+
+export class DeleteApiKeyParams {
+  @IsString()
+  id: string;
+
+  @IsString()
+  merchantId: string;
+}

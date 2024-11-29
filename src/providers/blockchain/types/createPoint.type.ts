@@ -4,5 +4,4 @@ export type createPoint = {
   symbol: string;
   decimal: number;
   frameSize: number;
-  slotSize: number;
 };

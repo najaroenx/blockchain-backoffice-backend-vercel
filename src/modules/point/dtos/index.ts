@@ -15,9 +15,6 @@ export class CreatePointDto {
 
   @IsNumber()
   frameSize: number;
-
-  @IsNumber()
-  slotSize: number;
 }
 
 export class RedeemPointsDto {

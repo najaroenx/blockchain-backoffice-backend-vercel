@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { createPoint } from './types';
 import * as PointFactoryABI from './abis/PointFactoryABI.json';
 import * as PointERC20ABI from './abis/PointERC20ABI.json';
 
-import { Contract, JsonRpcProvider, Wallet } from 'ethers';
+import { Contract, JsonRpcProvider, Wallet, ethers } from 'ethers';
 import { ConfigService } from '@nestjs/config';
 import { transaction, transactionC2C } from './types/transaction.type';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
@@ -31,7 +32,6 @@ export class BlockchainService {
     symbol,
     decimal,
     frameSize,
-    slotSize,
   }: createPoint) {
     const provider = new JsonRpcProvider(this.rpc);
     const signer = new Wallet(this.privateKey, provider);
@@ -44,28 +44,28 @@ export class BlockchainService {
 
     const contractWithSigner = contract.connect(signer) as any;
 
+    const initialSupplyWeiFormat = ethers.parseEther(initialSupply.toString());
+
     const result = await contract['createNewPointContract'].staticCallResult(
-      initialSupply,
+      initialSupplyWeiFormat,
       signer.address,
       name,
       symbol,
-      decimal,
-      15, // TODO: remove fix block time
+      // decimal,
+      12000, // TODO: remove fix block time
       frameSize,
-      slotSize,
     );
 
     const pointAddress = result[0];
 
     const tx = await contractWithSigner['createNewPointContract'](
-      initialSupply,
+      initialSupplyWeiFormat,
       signer.address,
       name,
       symbol,
-      decimal,
-      15, // TODO: remove fix block time
+      // decimal,
+      12000, // TODO: remove fix block time
       frameSize,
-      slotSize,
     );
 
     await tx.wait();

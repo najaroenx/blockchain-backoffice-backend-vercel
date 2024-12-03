@@ -22,10 +22,11 @@ export class PointDBService {
     return points;
   }
 
-  async getPointById(pointId: string): Promise<Point> {
+  async getPointById(pointId: string, merchantId: string): Promise<Point> {
     const point = await this.repository.findUnique<Point>({
       where: {
         id: pointId,
+        merchantId,
       },
     });
     return point;
@@ -53,6 +54,17 @@ export class PointDBService {
       data: {
         ...data,
         contractAddress: pointContractAddress,
+        merchantId,
+      },
+    });
+
+    return point;
+  }
+
+  async deletePoint(id: string, merchantId: string): Promise<Point> {
+    const point = await this.repository.delete({
+      where: {
+        id,
         merchantId,
       },
     });

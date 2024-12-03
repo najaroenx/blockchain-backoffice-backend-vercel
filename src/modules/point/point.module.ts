@@ -7,6 +7,7 @@ import { GetPointsByMerchantId } from './handlers/getPointsByMerchantId.handler'
 import { GetPointById } from './handlers/getPointById.handler';
 import { UpdatePoint } from './handlers/updatePoint.handler';
 import { CreatePoint } from './handlers/createPoint.handler';
+import { DeletePoint } from './handlers/deletePoint.handler';
 
 @Module({
   controllers: [PointController],
@@ -17,6 +18,7 @@ import { CreatePoint } from './handlers/createPoint.handler';
     GetPointById,
     UpdatePoint,
     CreatePoint,
+    DeletePoint,
   ],
   imports: [BlockchainModule],
   exports: [UpdatePoint, GetPointById],

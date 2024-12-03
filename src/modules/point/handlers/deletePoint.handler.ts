@@ -4,28 +4,28 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiKeyDBService } from '../services/api-key-db.service';
+import { PointDBService } from '../services/point-db.service';
 import {
   API_KEY_NOT_FOUND,
   INTERNAL_SERVER_ERROR,
 } from 'src/errors/error.constants';
-import { ApiKey } from '@prisma/client';
+import { Point } from '@prisma/client';
 
 @Injectable()
-export class DeleteApiKey {
-  private logger = new Logger(DeleteApiKey.name);
+export class DeletePoint {
+  private logger = new Logger(DeletePoint.name);
 
-  constructor(private db: ApiKeyDBService) {}
+  constructor(private db: PointDBService) {}
 
-  async execute(id: string, merchantId: string): Promise<ApiKey> {
+  async execute(id: string, merchantId: string): Promise<Point> {
     try {
-      const findApiKey = await this.db.getApiKeyById(id, merchantId);
+      const findPoint = await this.db.getPointById(id, merchantId);
 
-      if (!findApiKey) throw new NotFoundException(API_KEY_NOT_FOUND);
+      if (!findPoint) throw new NotFoundException(API_KEY_NOT_FOUND);
 
-      const apiKey = await this.db.deleteApiKey(id, merchantId);
+      const point = await this.db.deletePoint(id, merchantId);
 
-      return apiKey;
+      return point;
     } catch (error) {
       this.logger.error(
         `Error message : ${error.message}, \n Error detail : ${error}`,

@@ -52,3 +52,19 @@ export class UpdatePointDto {
   @IsOptional()
   contractAddress?: string;
 }
+
+export class DeletePointParams {
+  @IsString()
+  id: string;
+
+  @IsString()
+  merchantId: string;
+}
+
+export class GetPointByIdParams {
+  @IsString()
+  pointId: string;
+
+  @IsString()
+  merchantId: string;
+}

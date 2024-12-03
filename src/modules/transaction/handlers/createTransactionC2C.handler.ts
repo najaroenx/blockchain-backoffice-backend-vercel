@@ -64,7 +64,10 @@ export class CreateTransactionC2C {
     try {
       const { fromEmail, toEmail, ...rest } = data;
 
-      const { point } = await this.getPointByIdHandler.execute(pointId);
+      const { point } = await this.getPointByIdHandler.execute(
+        pointId,
+        merchantId,
+      );
 
       const { customer: sender } = await this.getCustomer(
         merchantId,

@@ -6,12 +6,19 @@ import {
   Param,
   Put,
   Post,
+  Delete,
 } from '@nestjs/common';
-import { CreatePointDto, UpdatePointDto } from '../dtos';
+import {
+  CreatePointDto,
+  DeletePointParams,
+  GetPointByIdParams,
+  UpdatePointDto,
+} from '../dtos';
 import { GetPointsByMerchantId } from '../handlers/getPointsByMerchantId.handler';
 import { GetPointById } from '../handlers/getPointById.handler';
 import { UpdatePoint } from '../handlers/updatePoint.handler';
 import { CreatePoint } from '../handlers/createPoint.handler';
+import { DeletePoint } from '../handlers/deletePoint.handler';
 
 @Controller('/:merchantId/point')
 export class PointController {
@@ -20,6 +27,7 @@ export class PointController {
     private readonly getPointByIdHandler: GetPointById,
     private readonly updatePointHandler: UpdatePoint,
     private readonly createPointHandler: CreatePoint,
+    private readonly deletePointHandler: DeletePoint,
   ) {}
 
   @Get('/')
@@ -30,8 +38,9 @@ export class PointController {
 
   @Get('/:pointId')
   @HttpCode(200)
-  async getPointById(@Param('pointId') pointId: string) {
-    return this.getPointByIdHandler.execute(pointId);
+  async getPointById(@Param() params: GetPointByIdParams) {
+    const { merchantId, pointId } = params;
+    return this.getPointByIdHandler.execute(pointId, merchantId);
   }
 
   @Post('/')
@@ -50,5 +59,13 @@ export class PointController {
     @Param('pointId') pointId: string,
   ) {
     return this.updatePointHandler.execute(pointId, data);
+  }
+
+  @Delete('/:id')
+  @HttpCode(201)
+  async deletePoint(@Param() params: DeletePointParams) {
+    const { merchantId, id } = params;
+
+    return this.deletePointHandler.execute(id, merchantId);
   }
 }

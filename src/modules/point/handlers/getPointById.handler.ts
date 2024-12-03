@@ -18,9 +18,12 @@ export class GetPointById {
 
   constructor(private db: PointDBService) {}
 
-  async execute(pointId: string): Promise<GetPointResponseType> {
+  async execute(
+    pointId: string,
+    merchantId: string,
+  ): Promise<GetPointResponseType> {
     try {
-      const point = await this.db.getPointById(pointId);
+      const point = await this.db.getPointById(pointId, merchantId);
 
       if (!point) throw new NotFoundException(POINT_NOT_FOUND);
 

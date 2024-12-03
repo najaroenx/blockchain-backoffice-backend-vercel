@@ -50,7 +50,10 @@ export class CreateTransactionB2C {
     try {
       const { transactionTypeId, email, ...rest } = data;
 
-      const { point } = await this.getPointByIdHandler.execute(pointId);
+      const { point } = await this.getPointByIdHandler.execute(
+        pointId,
+        merchantId,
+      );
 
       const { customer } = await this.getCustomerByEmail.execute(
         merchantId,

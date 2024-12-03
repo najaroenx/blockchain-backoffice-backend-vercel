@@ -52,3 +52,11 @@ export class UpdatePointDto {
   @IsOptional()
   contractAddress?: string;
 }
+
+export class DeletePointKeyParams {
+  @IsString()
+  id: string;
+
+  @IsString()
+  merchantId: string;
+}

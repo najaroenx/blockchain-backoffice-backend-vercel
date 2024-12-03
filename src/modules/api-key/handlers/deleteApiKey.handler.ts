@@ -23,7 +23,7 @@ export class DeleteApiKey {
 
       if (!findApiKey) throw new NotFoundException(API_KEY_NOT_FOUND);
 
-      const apiKey = await this.db.deleteApiKy(id, merchantId);
+      const apiKey = await this.db.deleteApiKey(id, merchantId);
 
       return apiKey;
     } catch (error) {

@@ -72,7 +72,7 @@ export class ApiKeyDBService {
     return apiKey;
   }
 
-  async deleteApiKy(id: string, merchantId: string): Promise<ApiKey> {
+  async deleteApiKey(id: string, merchantId: string): Promise<ApiKey> {
     const apiKey = await this.repository.delete({
       where: {
         id,

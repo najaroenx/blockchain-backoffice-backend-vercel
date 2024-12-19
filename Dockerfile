@@ -39,7 +39,7 @@ RUN addgroup -g 1001 -S nodejs && \
 
 # Update alpine dependencies
 RUN apk update \
-    && apk upgrade \
+    && apk add --no-cache openssl \
     && rm -rf /var/cache/apk/*
 
 WORKDIR /app

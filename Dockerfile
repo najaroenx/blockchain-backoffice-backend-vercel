@@ -1,5 +1,5 @@
 # Stage 1: Build the NestJS app
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Update npm globally
 RUN npm install -g npm@latest \
@@ -28,7 +28,7 @@ RUN npx prisma generate
 RUN yarn run build
 
 # Stage 2: Production image
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Update npm globally
 RUN npm install -g npm@latest \

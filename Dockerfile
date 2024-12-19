@@ -7,7 +7,7 @@ RUN npm install -g npm@latest \
 
 # Update alpine dependencies
 RUN apk update \
-    && apk upgrade \
+    && apk add --no-cache openssl \
     && rm -rf /var/cache/apk/*
 
 WORKDIR /app

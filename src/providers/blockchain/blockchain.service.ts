@@ -102,6 +102,55 @@ export class BlockchainService {
     }
   }
 
+  async mint({
+    amount,
+    to,
+    pointAddress,
+  }: transaction): Promise<{ txId: string }> {
+    try {
+      const signer = new Wallet(this.privateKey, this.provider);
+
+      const contract = new Contract(pointAddress, PointERC20ABI, signer);
+
+      const contractWithSigner = contract.connect(signer) as any;
+
+      const amountWeiFormat = ethers.parseEther(amount.toString());
+
+      const tx = await contractWithSigner['mint'](to, amountWeiFormat);
+
+      await tx.wait();
+
+      return {
+        txId: tx.hash,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(RPC_SERVER_ERROR);
+    }
+  }
+
+  async burn({
+    amount,
+    pointAddress,
+    senderPrivateKey,
+  }: Omit<transactionC2C, 'to'>): Promise<{ txId: string }> {
+    try {
+      const signer = new Wallet(senderPrivateKey, this.provider);
+      const contract = new Contract(pointAddress, PointERC20ABI, signer);
+      const contractWithSigner = contract.connect(signer) as any;
+      const amountWeiFormat = ethers.parseEther(amount.toString());
+
+      const tx = await contractWithSigner['burn'](amountWeiFormat);
+
+      await tx.wait();
+
+      return {
+        txId: tx.hash,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(RPC_SERVER_ERROR);
+    }
+  }
+
   async transactionC2C({
     amount,
     to,

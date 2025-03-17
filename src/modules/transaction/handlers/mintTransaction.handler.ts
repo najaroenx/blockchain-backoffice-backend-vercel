@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   Injectable,
   InternalServerErrorException,
@@ -17,10 +16,13 @@ import { CreateTransaction as CreateTransactionResponse } from '../types';
 import { GetCustomerByEmail } from 'src/modules/customer/handlers/getCustomerByEmail.handler';
 import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
 import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class CreateTransactionB2C {
-  private logger = new Logger(CreateTransactionB2C.name);
+export class MintTransaction {
+  private salt: string;
+
+  private logger = new Logger(MintTransaction.name);
 
   constructor(
     private readonly db: TransactionDBService,
@@ -28,7 +30,10 @@ export class CreateTransactionB2C {
     private readonly blockchainService: BlockchainService,
     private readonly getCustomerByEmail: GetCustomerByEmail,
     private readonly updateCustomer: UpdateCustomer,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.salt = this.configService.get<string>('SALT');
+  }
 
   async execute(
     merchantId: string,
@@ -49,7 +54,7 @@ export class CreateTransactionB2C {
     },
   ): Promise<CreateTransactionResponse> {
     try {
-      const { transactionTypeId, email, ...rest } = data;
+      const { email, ...rest } = data;
 
       const { point } = await this.getPointByIdHandler.execute(
         pointId,
@@ -61,7 +66,7 @@ export class CreateTransactionB2C {
         email,
       );
 
-      const { txId } = await this.blockchainService.transaction({
+      const { txId } = await this.blockchainService.mint({
         amount: data.amount,
         to: customer.walletAddress,
         pointAddress: point.contractAddress,

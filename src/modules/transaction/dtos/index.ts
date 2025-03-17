@@ -24,3 +24,13 @@ export class CreateTransactionC2CBodyDto {
   @IsNumber()
   amount: number;
 }
+
+export class CreateMintTransactionBodyDto extends CreateTransactionBodyDto {}
+
+export class CreateBurnTransactionBodyDto {
+  @IsEmail()
+  fromEmail: string;
+
+  @IsNumber()
+  amount: number;
+}

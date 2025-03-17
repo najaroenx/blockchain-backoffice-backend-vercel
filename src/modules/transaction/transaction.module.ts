@@ -10,6 +10,8 @@ import { GetTransactionsByMerchantId } from './handlers/getTransactionsByMerchan
 import { CreateTransactionB2C } from './handlers/createTransactionB2C.handler';
 import { CreateTransactionC2C } from './handlers/createTransactionC2C.handler';
 import { TokenModule } from 'src/providers/token/token.module';
+import { MintTransaction } from './handlers/mintTransaction.handler';
+import { BurnTransaction } from './handlers/burnTransaction.handler';
 
 @Module({
   imports: [PointModule, BlockchainModule, CustomerModule, TokenModule],
@@ -20,6 +22,8 @@ import { TokenModule } from 'src/providers/token/token.module';
     GetTransactionsByMerchantId,
     CreateTransactionB2C,
     CreateTransactionC2C,
+    MintTransaction,
+    BurnTransaction,
   ],
   exports: [GetTransactionsByMerchantId],
   controllers: [TransactionController],

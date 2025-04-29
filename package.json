@@ -52,7 +52,7 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "passport-strategy": "^1.0.0",
-    "prisma": "^6.2.1",
+    "prisma": "^6.4.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

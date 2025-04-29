@@ -11,7 +11,7 @@ import {
 import { CustomerDBService } from '../services/customer-db.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { GetCustomersIdResponseType } from '../types';
-import { Kiwari } from '@kiwarilabs/kiwari-sdk';
+import { Kiwari } from '@kiwarilabs/chidori-sdk';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 
 @Injectable()

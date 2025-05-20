@@ -29,16 +29,19 @@ export class TokenService {
   signJwt(
     subject: string,
     payload: number | string | object | Buffer,
-    expiresIn?: string,
+    expiresIn?: string | number,
     options?: SignOptions,
   ) {
     if (typeof payload === 'number') payload = payload.toString();
-    // TODO : add jwt secret
-    return sign(payload, this.jwtSecret, {
+
+    const signOptions: SignOptions = {
       ...options,
       subject,
-      expiresIn,
-    });
+      // force-cast into the library’s StringValue type
+      expiresIn: expiresIn as SignOptions['expiresIn'],
+    };
+    // TODO : add jwt secret
+    return sign(payload, this.jwtSecret, signOptions);
   }
 
   /**

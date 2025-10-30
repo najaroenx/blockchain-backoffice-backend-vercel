@@ -21,6 +21,7 @@ model Point {
   initialSupply   Int
   decimal         Int
   frameSize       Int
+  slotSize        Int?
   createdAt       DateTime        @default(now()) @map(name: "created_at")
   updatedAt       DateTime        @updatedAt @map(name: "updated_at")
   merchant        Merchant?       @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -60,7 +61,13 @@ model UserMerchant {
 model Merchant {
   id               String             @id @default(cuid())
   name             String
+  description      String?
+  imageUrl         String?
+  points           Int                @default(0)
+  location         String?
   website          String
+  voucherIds       String[]           @default([])
+  categories       String[]           @default([])
   createdAt        DateTime           @default(now()) @map(name: "created_at")
   updatedAt        DateTime           @updatedAt @map(name: "updated_at")
   userMerchant     UserMerchant[]
@@ -69,6 +76,7 @@ model Merchant {
   apiKey           ApiKey[]
   transactions     Transaction[]
   customerMerChant CustomerMerChant[]
+  vouchers         Voucher[]
 }
 
 model ApiKey {
@@ -156,4 +164,38 @@ model TransactionType {
   name        String
   description String
   transaction Transaction[]
+}
+
+enum VoucherStatus {
+  active
+  upcoming
+}
+
+enum VoucherValueType {
+  percentage
+  cash
+  gift
+  multiplier
+}
+
+model Voucher {
+  id             String         @id
+  name           String
+  description    String
+  status         VoucherStatus
+  merchantName   String
+  merchantId     String?
+  merchant       Merchant?      @relation(fields: [merchantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  valueType      VoucherValueType
+  value          Float
+  currency       String?
+  pointsCost     Int
+  startDate      DateTime
+  endDate        DateTime
+  totalIssued    Int
+  totalRedeemed  Int
+  imageUrl       String?
+  limitPerMember Int?
+  createdAt      DateTime        @default(now()) @map(name: "created_at")
+  updatedAt      DateTime        @updatedAt @map(name: "updated_at")
 }

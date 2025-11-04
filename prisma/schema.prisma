@@ -58,6 +58,18 @@ model UserMerchant {
   merchantId String?
 }
 
+model Wallet{
+  id String 
+  privateKey String 
+  email String
+  phoneNumber String
+  type String 
+  status String
+  // relations
+  customer Customer?
+  merchant Merchant?
+}
+
 model Merchant {
   id               String             @id @default(cuid())
   name             String
@@ -67,16 +79,17 @@ model Merchant {
   location         String?
   website          String
   voucherIds       String[]           @default([])
-  categories       String[]           @default([])
   createdAt        DateTime           @default(now()) @map(name: "created_at")
   updatedAt        DateTime           @updatedAt @map(name: "updated_at")
   userMerchant     UserMerchant[]
-  branch           Branch[]
   point            Point[]
   apiKey           ApiKey[]
   transactions     Transaction[]
   customerMerChant CustomerMerChant[]
   vouchers         Voucher[]
+  tel              String 
+  walletId         String?            @unique
+  wallet           Wallet?            @relation(fields: [walletId], references: [id])
 }
 
 model ApiKey {
@@ -90,19 +103,6 @@ model ApiKey {
   merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
-model Branch {
-  id         String    @id @default(cuid())
-  email      String
-  addr1      String
-  addr2      String?
-  city       String
-  state      String
-  zip        String
-  createdAt  DateTime  @default(now()) @map(name: "created_at")
-  updatedAt  DateTime  @updatedAt @map(name: "updated_at")
-  merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  merchantId String?
-}
 
 model Transaction {
   id                String           @id @default(cuid())
@@ -130,7 +130,7 @@ model Customer {
   email            String
   firstName        String?
   lastName         String?
-  tel              String?
+  tel              String
   walletAddress    Bytes
   privateKey       String //TODO: move to key vault
   createdAt        DateTime           @default(now()) @map(name: "created_at")
@@ -140,6 +140,9 @@ model Customer {
 
   sentTxns     Transaction[] @relation("Sender")
   receivedTxns Transaction[] @relation("Receiver")
+
+  walletId         String?            @unique
+  wallet           Wallet?            @relation(fields: [walletId], references: [id])
 }
 
 model CustomerMerChant {
@@ -198,4 +201,5 @@ model Voucher {
   limitPerMember Int?
   createdAt      DateTime        @default(now()) @map(name: "created_at")
   updatedAt      DateTime        @updatedAt @map(name: "updated_at")
+  redeemCode     String
 }

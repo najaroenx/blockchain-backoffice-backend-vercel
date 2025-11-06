@@ -47,6 +47,16 @@ export class BlockchainService {
 
     const initialSupplyWeiFormat = ethers.parseEther(initialSupply.toString());
 
+    console.log(
+      initialSupplyWeiFormat,
+      signer.address,
+      name,
+      symbol,
+      // decimal,
+      12000,
+      frameSize,
+    );
+
     const result = await contract['createNewPointContract'].staticCallResult(
       initialSupplyWeiFormat,
       signer.address,

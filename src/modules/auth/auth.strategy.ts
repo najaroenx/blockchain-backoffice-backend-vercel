@@ -53,7 +53,7 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
             type: 'api-key',
             id: apiKeyDetails.id,
           });
-        } catch (error) {}
+        } catch {}
       }
     }
 
@@ -72,8 +72,12 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
         bearerToken,
       ) as AccessTokenClaims;
       return this.success(payload);
-    } catch (error) {}
-
-    return this.fail('Invalid token', 400);
+    } catch (err: any) {
+      console.error('Invalid token', err.toString());
+      return this.fail('Invalid token', 400);
+    }
   }
+
+  // PassportStrategy requires validate even when authenticate is overridden
+  async validate(): Promise<void> {}
 }

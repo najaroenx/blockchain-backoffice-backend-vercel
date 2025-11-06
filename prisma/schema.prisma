@@ -56,7 +56,13 @@ model UserMerchant {
   merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantId String?
 }
-
+model Wallet {
+  id          String   @id @default(cuid())
+  address     Bytes
+  privateKey  String //TODO: move to key vault
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+}
 model Merchant {
   id               String             @id @default(cuid())
   name             String
@@ -129,7 +135,6 @@ model Customer {
   updatedAt        DateTime           @updatedAt @map(name: "updated_at")
   customerMerChant CustomerMerChant[]
   customerPoints   CustomerPoint[]
-
   sentTxns     Transaction[] @relation("Sender")
   receivedTxns Transaction[] @relation("Receiver")
 }

@@ -37,3 +37,9 @@ export type GetCustomerByEmailResponseType = {
     >;
   };
 };
+
+export type GetCustomerByPhoneResponseNotFoundType = {
+  message: string;
+  url: string;
+  callbackUrl: string;
+};

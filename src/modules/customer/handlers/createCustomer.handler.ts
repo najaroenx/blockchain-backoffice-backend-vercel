@@ -38,7 +38,9 @@ export class CreateCustomer {
         merchantId,
         data.email,
       );
-
+      //TODO: Handle case customer already exists, should not; register more than once
+      //TODO:  verify if the customer already associated with the merchant <CAMARA PROJECT>
+      //TODO: should change identity with phone number
       if (customer) {
         const isUserAssociatedWithMerchant = customer.customerMerChant.some(
           (el) => el.merchantId === merchantId,

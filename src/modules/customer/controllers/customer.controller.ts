@@ -65,9 +65,9 @@ export class CustomerController {
     return this.GetCustomerByPhone.execute(merchantId, phone);
   }
 
-  @Get('/toverify/:phone')
+  @Get('/wallet/:phone')
   @HttpCode(200)
-  async toverify(
+  async getWallet(
     @Param('merchantId') merchantId: string,
     @Param('phone') phone: string,
   ) {

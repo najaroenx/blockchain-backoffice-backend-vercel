@@ -19,7 +19,6 @@ async function bootstrap() {
 
   app.use(helmet());
   app.enableCors();
-  console.log('Starting application...===>');
   await app.listen(4001);
 }
 bootstrap();

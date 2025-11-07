@@ -1,3 +1,6 @@
+jest.mock('prisma/prisma.service', () => ({
+  PrismaService: jest.fn(),
+}));
 import { CreateApiKey } from '../src/modules/api-key/handlers/createApiKey.handler';
 import { ApiKeyDBService } from '../src/modules/api-key/services/api-key-db.service';
 import { TokenService } from 'src/providers/token/token.service';

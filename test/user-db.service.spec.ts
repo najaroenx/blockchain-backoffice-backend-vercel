@@ -1,3 +1,6 @@
+jest.mock('prisma/prisma.service', () => ({
+  PrismaService: jest.fn(),
+}));
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserDBService } from '../src/modules/user/services/user-db.service';
 import { UserRepository } from '../src/modules/user/user.repository';

@@ -1,25 +1,38 @@
-// jest.config.js
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
   testEnvironment: 'node',
   testRegex: '.*\\.spec\\.ts$',
-
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
-
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
     '^test/(.*)$': '<rootDir>/test/$1',
+    '^prisma/(.*)$': '<rootDir>/prisma/$1',
   },
 
+  // ✅ เก็บ coverage ทุกครั้งที่เทส
   collectCoverage: true,
+
+  // ✅ รวมทุกไฟล์ยกเว้นพวก bootstrap / module / index
   collectCoverageFrom: [
-    'src/**/*.(t|j)s',
-    '!src/main.ts', // ไม่จำเป็นต้องเทส bootstrap หลัก
-    '!src/**/*.module.ts', // Module ไม่ต้องเทส
+    'src/**/*.ts',
+    '!src/main.ts',
+    '!src/**/*.module.ts',
     '!src/**/index.ts',
   ],
+
+  // ✅ เก็บผลไว้ในโฟลเดอร์ coverage
   coverageDirectory: './coverage',
+
+  // ✅ ให้ Jest รู้ว่าใช้ ts-jest
+  preset: 'ts-jest',
+
+  // ✅ ป้องกันปัญหา map coverage ไม่ได้
+  globals: {
+    'ts-jest': {
+      tsconfig: 'tsconfig.spec.json',
+    },
+  },
 };

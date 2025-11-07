@@ -1,3 +1,6 @@
+jest.mock('prisma/prisma.service', () => ({
+  PrismaService: jest.fn(),
+}));
 import { Test, TestingModule } from '@nestjs/testing';
 import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
 import { TransactionRepository } from '../src/modules/transaction/transaction.repository';

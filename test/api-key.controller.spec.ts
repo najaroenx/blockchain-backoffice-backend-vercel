@@ -1,3 +1,6 @@
+jest.mock('prisma/prisma.service', () => ({
+  PrismaService: jest.fn(),
+}));
 import { Test, TestingModule } from '@nestjs/testing';
 import { ApiKeyController } from '../src/modules/api-key/controllers/api-key.controller';
 import { GetApiKeys } from '../src/modules/api-key/handlers/getApiKeys.handler';

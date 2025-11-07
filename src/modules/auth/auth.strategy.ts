@@ -37,8 +37,8 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
 
       if (
         // If authentication is *not* a JWT
-        !authorizationKey.match(
-          /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$/,
+        !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+={0,2})?$/.test(
+          authorizationKey,
         )
       ) {
         try {

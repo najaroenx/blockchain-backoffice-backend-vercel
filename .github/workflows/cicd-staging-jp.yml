@@ -23,6 +23,7 @@ jobs:
       helm-repo-ref: staging
       helm-values-file: values.yaml
       unit-test-node-version: 20
+      node-yarn-install: true
       ignored-unit-test: true
       sonarqube-url: https://sast.matador.ais.co.th/
       sonarqube-args: |

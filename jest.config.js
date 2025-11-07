@@ -21,5 +21,5 @@ module.exports = {
     '!src/**/*.module.ts', // Module ไม่ต้องเทส
     '!src/**/index.ts',
   ],
-  coverageDirectory: '../coverage',
+  coverageDirectory: './coverage',
 };

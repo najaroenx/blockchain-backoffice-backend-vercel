@@ -21,6 +21,7 @@ model Point {
   initialSupply   Int
   decimal         Int
   frameSize       Int
+  imageUrl        String?
   slotSize        Int?
   createdAt       DateTime        @default(now()) @map(name: "created_at")
   updatedAt       DateTime        @updatedAt @map(name: "updated_at")
@@ -59,15 +60,15 @@ model UserMerchant {
 }
 
 model Wallet{
-  id String 
-  privateKey String 
-  email String
+  id          String    @id @default(cuid())
+  privateKey  String
+  email       String
   phoneNumber String
-  type String 
-  status String
+  type        String
+  status      String
   // relations
-  customer Customer?
-  merchant Merchant?
+  customer    Customer?
+  merchant    Merchant?
 }
 
 model Merchant {

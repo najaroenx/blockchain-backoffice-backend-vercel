@@ -70,7 +70,7 @@ async function seedMerchants() {
         location: merchant.location,
         website: merchant.website,
         voucherIds: merchant.voucherIds,
-        categories: merchant.categories,
+        tel: merchant.tel,
       },
       create: {
         id: merchant.id,
@@ -81,7 +81,7 @@ async function seedMerchants() {
         location: merchant.location,
         website: merchant.website,
         voucherIds: merchant.voucherIds,
-        categories: merchant.categories,
+        tel: merchant.tel,
       },
     });
   }
@@ -89,6 +89,7 @@ async function seedMerchants() {
 
 async function seedVouchers() {
   for (const voucher of voucherSeeds) {
+    const redeemCode = voucher.redeemCode ?? `REDEEM-${voucher.id}`;
     await prisma.voucher.upsert({
       where: { id: voucher.id },
       update: {
@@ -107,6 +108,7 @@ async function seedVouchers() {
         totalRedeemed: voucher.totalRedeemed,
         imageUrl: voucher.imageUrl,
         limitPerMember: voucher.limitPerMember,
+        redeemCode,
       },
       create: {
         id: voucher.id,
@@ -125,6 +127,7 @@ async function seedVouchers() {
         totalRedeemed: voucher.totalRedeemed,
         imageUrl: voucher.imageUrl,
         limitPerMember: voucher.limitPerMember,
+        redeemCode,
       },
     });
   }
@@ -198,6 +201,7 @@ async function seedCustomers() {
         lastName: customer.lastName,
         walletAddress: toAddressBuffer(customer.walletAddress),
         privateKey: `priv-key-${customer.id}`,
+        tel: customer.tel,
       },
     });
 

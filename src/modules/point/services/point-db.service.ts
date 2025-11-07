@@ -2,24 +2,39 @@ import { Injectable } from '@nestjs/common';
 import { Point, Prisma } from '@prisma/client';
 import { PointRepository } from '../point.repository';
 
+type GetPointsOptions = {
+  skip?: number;
+  take?: number;
+  orderBy?: Prisma.PointOrderByWithRelationInput;
+  where?: Prisma.PointWhereInput;
+};
+
 @Injectable()
 export class PointDBService {
   constructor(private readonly repository: PointRepository) {}
 
-  async getPointsByMerchant(merchantId: string): Promise<Point[]> {
-    const points = await this.repository.findMany<Point>({
-      where: {
-        merchant: {
-          userMerchant: {
-            some: {
-              merchantId,
-            },
-          },
-        },
-      },
-    });
+  async getPointsByMerchant(
+    merchantId: string,
+    options: GetPointsOptions = {},
+  ): Promise<{ points: Point[]; total: number }> {
+    const where: Prisma.PointWhereInput = {
+      merchantId,
+      ...(options.where ?? {}),
+    };
 
-    return points;
+    const [points, total] = await Promise.all([
+      this.repository.findMany<Point>({
+        where,
+        skip: options.skip,
+        take: options.take,
+        orderBy: options.orderBy,
+      }),
+      this.repository.count({
+        where,
+      }),
+    ]);
+
+    return { points, total };
   }
 
   async getPointById(pointId: string, merchantId: string): Promise<Point> {

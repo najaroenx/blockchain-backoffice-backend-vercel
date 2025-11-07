@@ -2,7 +2,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { createPoint } from './types';
 import * as PointFactoryABI from './abis/PointFactoryABI.json';
-import * as PointERC20ABI from './abis/PointERC20ABI.json';
+import * as PointERC20ABI from './abis/PointTokenABI.json';
 
 import { Contract, JsonRpcProvider, Wallet, ethers } from 'ethers';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +17,8 @@ export class BlockchainService {
   private privateKey: string;
 
   public provider: JsonRpcProvider;
+
+  private readonly DEFAULT_BLOCK_TIME = 12;
 
   constructor(private configService: ConfigService) {
     this.pointFactoryAddress = this.configService.get<string>(
@@ -35,6 +37,9 @@ export class BlockchainService {
     decimal,
     frameSize,
   }: createPoint) {
+    console.log('Creating new point token on blockchain... by ',this.pointFactoryAddress);
+    console.log('Creating new point token on blockchain... by ',this.privateKey);
+
     const signer = new Wallet(this.privateKey, this.provider);
 
     const contract = new Contract(
@@ -45,27 +50,28 @@ export class BlockchainService {
 
     const contractWithSigner = contract.connect(signer) as any;
 
-    const initialSupplyWeiFormat = ethers.parseEther(initialSupply.toString());
+    const blockTime = await this.resolveBlockTime();
 
+    const initialSupplyWeiFormat = ethers.parseEther(initialSupply.toString());
     const result = await contract['createNewPointContract'].staticCallResult(
       initialSupplyWeiFormat,
       signer.address,
       name,
       symbol,
       // decimal,
-      12000, // TODO: remove fix block time
+      blockTime,
       frameSize,
     );
 
     const pointAddress = result[0];
-
+    console.log('New point token address preview:', pointAddress);
     const tx = await contractWithSigner['createNewPointContract'](
       initialSupplyWeiFormat,
       signer.address,
       name,
       symbol,
       // decimal,
-      12000, // TODO: remove fix block time
+      blockTime,
       frameSize,
     );
 
@@ -74,6 +80,34 @@ export class BlockchainService {
     const pointBuffer = createBufferFromHex(pointAddress);
 
     return pointBuffer;
+  }
+
+  private async resolveBlockTime(): Promise<number> {
+    try {
+      const latestBlockNumber = await this.provider.getBlockNumber();
+      if (latestBlockNumber === 0) {
+        return this.DEFAULT_BLOCK_TIME;
+      }
+
+      const [latestBlock, previousBlock] = await Promise.all([
+        this.provider.getBlock(latestBlockNumber),
+        this.provider.getBlock(latestBlockNumber - 1),
+      ]);
+
+      if (!latestBlock || !previousBlock) {
+        return this.DEFAULT_BLOCK_TIME;
+      }
+
+      const diffSeconds = latestBlock.timestamp - previousBlock.timestamp;
+      if (!Number.isFinite(diffSeconds) || diffSeconds <= 0) {
+        return this.DEFAULT_BLOCK_TIME;
+      }
+
+      const blockTimeSeconds = Math.round(diffSeconds);
+      return Math.min(Math.max(blockTimeSeconds, 1), 65535);
+    } catch {
+      return this.DEFAULT_BLOCK_TIME;
+    }
   }
 
   async transaction({

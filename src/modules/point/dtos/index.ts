@@ -15,6 +15,10 @@ export class CreatePointDto {
 
   @IsNumber()
   frameSize: number;
+
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
 }
 
 export class RedeemPointsDto {

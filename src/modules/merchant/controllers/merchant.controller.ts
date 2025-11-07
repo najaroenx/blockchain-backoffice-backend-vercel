@@ -37,11 +37,12 @@ export class MerchantController {
   @Post('/')
   @HttpCode(201)
   async createMerchant(@Body() body: CreateMerchantDto) {
-    const { userId, name, website } = body;
+    const { userId, name, website, tel } = body;
 
     const data = {
       name,
       website,
+      tel,
     };
 
     return this.createMerchantHandler.execute(userId, data);

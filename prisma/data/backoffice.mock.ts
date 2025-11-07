@@ -7,7 +7,7 @@ export type MerchantSeed = {
   location: string;
   website: string;
   voucherIds: string[];
-  categories: string[];
+  tel: string;
 };
 
 export type VoucherSeed = {
@@ -27,6 +27,7 @@ export type VoucherSeed = {
   totalIssued: number;
   totalRedeemed: number;
   limitPerMember?: number;
+  redeemCode?: string;
 };
 
 export type PointSeed = {
@@ -39,6 +40,7 @@ export type PointSeed = {
   slotSize: number;
   initialSupply: number;
   decimal: number;
+  imageUrl?: string;
 };
 
 export type ApiKeySeed = {
@@ -62,6 +64,7 @@ export type CustomerSeed = {
   lastName?: string;
   merchantId: string;
   customerPoints: CustomerPointLink[];
+  tel: string;
 };
 
 export type TransactionSeed = {
@@ -72,10 +75,17 @@ export type TransactionSeed = {
   amount: number;
   transactionTypeId: 'redeem' | 'transfer' | 'earn';
   merchantId: string;
-  pointId: string;
+  pointId?: string;
   senderCustomerId?: string;
   receiverCustomerId?: string;
   createdAt: string;
+};
+
+export type UserSeed = {
+  id: string;
+  email: string;
+  password: string;
+  merchantIds: string[];
 };
 
 export const merchantSeeds: MerchantSeed[] = [
@@ -89,7 +99,7 @@ export const merchantSeeds: MerchantSeed[] = [
     location: 'สาขาทั่วประเทศ',
     website: 'https://www.centralretail.com',
     voucherIds: ['VCH-CR-20', 'VCH-CR-BONUS'],
-    categories: ['ห้างสรรพสินค้า', 'ซูเปอร์มาร์เก็ต'],
+    tel: '02-123-4567',
   },
   {
     id: 'the-mall-group',
@@ -101,7 +111,7 @@ export const merchantSeeds: MerchantSeed[] = [
     location: 'กรุงเทพฯ และปริมณฑล',
     website: 'https://www.themallgroup.com',
     voucherIds: ['VCH-MALL-350', 'VCH-MALL-DINE'],
-    categories: ['ห้างสรรพสินค้า', 'ไลฟ์สไตล์'],
+    tel: '02-234-5678',
   },
   {
     id: 'siam-piwat',
@@ -113,7 +123,7 @@ export const merchantSeeds: MerchantSeed[] = [
     location: 'เขตปทุมวัน, คลองสาน',
     website: 'https://www.siampiwat.com',
     voucherIds: ['VCH-SP-15', 'VCH-SP-VIP'],
-    categories: ['ห้างสรรพสินค้า', 'ลักชัวรี่'],
+    tel: '02-245-6789',
   },
   {
     id: 'cp-all',
@@ -125,7 +135,7 @@ export const merchantSeeds: MerchantSeed[] = [
     location: 'ร้านสะดวกซื้อทั่วประเทศ',
     website: 'https://www.cpall.co.th',
     voucherIds: ['VCH-CP-DRINK', 'VCH-CP-POINTX2'],
-    categories: ['ร้านสะดวกซื้อ', 'อาหารและเครื่องดื่ม'],
+    tel: '02-256-7890',
   },
   {
     id: 'big-c',
@@ -137,7 +147,7 @@ export const merchantSeeds: MerchantSeed[] = [
     location: 'สาขาทั่วประเทศ',
     website: 'https://www.bigc.co.th',
     voucherIds: ['VCH-BIGC-500', 'VCH-BIGC-FRESH'],
-    categories: ['ซูเปอร์มาร์เก็ต', 'ไฮเปอร์มาร์เก็ต'],
+    tel: '02-267-8901',
   },
   {
     id: 'crg',
@@ -149,7 +159,46 @@ export const merchantSeeds: MerchantSeed[] = [
     location: 'ร้านอาหารทั่วประเทศ',
     website: 'https://www.crg.co.th',
     voucherIds: ['VCH-CRG-SET', 'VCH-CRG-POINTX3'],
-    categories: ['อาหารและเครื่องดื่ม'],
+    tel: '02-278-9012',
+  },
+];
+
+export const userSeeds: UserSeed[] = [
+  {
+    id: 'user-central-admin',
+    email: 'central.admin@demo.com',
+    password: 'Password123!',
+    merchantIds: ['central-retail'],
+  },
+  {
+    id: 'user-mall-admin',
+    email: 'mall.admin@demo.com',
+    password: 'Password123!',
+    merchantIds: ['the-mall-group'],
+  },
+  {
+    id: 'user-siam-admin',
+    email: 'siam.admin@demo.com',
+    password: 'Password123!',
+    merchantIds: ['siam-piwat'],
+  },
+  {
+    id: 'user-cp-admin',
+    email: 'cp.admin@demo.com',
+    password: 'Password123!',
+    merchantIds: ['cp-all'],
+  },
+  {
+    id: 'user-bigc-admin',
+    email: 'bigc.admin@demo.com',
+    password: 'Password123!',
+    merchantIds: ['big-c'],
+  },
+  {
+    id: 'user-crg-admin',
+    email: 'crg.admin@demo.com',
+    password: 'Password123!',
+    merchantIds: ['crg'],
   },
 ];
 
@@ -480,28 +529,28 @@ export const voucherSeeds: VoucherSeed[] = [
 ];
 
 export const pointSeeds: PointSeed[] = [
-  {
-    id: 'point-demo-1',
-    name: 'Central Reward Points',
-    symbol: 'CRP',
-    contractAddress: '0xc000000000000000000000000000000000000001',
-    merchantId: 'central-retail',
-    frameSize: 1000,
-    slotSize: 100,
-    initialSupply: 1_000_000,
-    decimal: 18,
-  },
-  {
-    id: 'point-demo-2',
-    name: 'The Mall Privilege',
-    symbol: 'TMP',
-    contractAddress: '0xc000000000000000000000000000000000000002',
-    merchantId: 'the-mall-group',
-    frameSize: 800,
-    slotSize: 80,
-    initialSupply: 750_000,
-    decimal: 18,
-  },
+  // {
+  //   id: 'point-demo-1',
+  //   name: 'Central Reward Points',
+  //   symbol: 'CRP',
+  //   contractAddress: '0xc000000000000000000000000000000000000001',
+  //   merchantId: 'central-retail',
+  //   frameSize: 1000,
+  //   slotSize: 100,
+  //   initialSupply: 1_000_000,
+  //   decimal: 18,
+  // },
+  // {
+  //   id: 'point-demo-2',
+  //   name: 'The Mall Privilege',
+  //   symbol: 'TMP',
+  //   contractAddress: '0xc000000000000000000000000000000000000002',
+  //   merchantId: 'the-mall-group',
+  //   frameSize: 800,
+  //   slotSize: 80,
+  //   initialSupply: 750_000,
+  //   decimal: 18,
+  // },
 ];
 
 export const apiKeySeeds: ApiKeySeed[] = [
@@ -530,11 +579,12 @@ export const customerSeeds: CustomerSeed[] = [
     lastName: 'Wong',
     merchantId: 'central-retail',
     customerPoints: [
-      {
-        pointId: 'point-demo-1',
-        balances: 1250,
-      },
+      // {
+      //   pointId: 'point-demo-1',
+      //   balances: 1250,
+      // },
     ],
+    tel: '081-111-1111',
   },
   {
     id: 'customer-demo-2',
@@ -544,11 +594,12 @@ export const customerSeeds: CustomerSeed[] = [
     lastName: 'Supasith',
     merchantId: 'the-mall-group',
     customerPoints: [
-      {
-        pointId: 'point-demo-2',
-        balances: 320,
-      },
+      // {
+      //   pointId: 'point-demo-2',
+      //   balances: 320,
+      // },
     ],
+    tel: '082-222-2222',
   },
 ];
 
@@ -562,7 +613,7 @@ export const transactionSeeds: TransactionSeed[] = [
     amount: 450,
     transactionTypeId: 'redeem',
     merchantId: 'central-retail',
-    pointId: 'point-demo-1',
+    // pointId: 'point-demo-1',
     receiverCustomerId: 'customer-demo-1',
     createdAt: new Date().toISOString(),
   },
@@ -575,7 +626,7 @@ export const transactionSeeds: TransactionSeed[] = [
     amount: 200,
     transactionTypeId: 'earn',
     merchantId: 'the-mall-group',
-    pointId: 'point-demo-2',
+    // pointId: 'point-demo-2',
     senderCustomerId: 'customer-demo-2',
     createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
   },

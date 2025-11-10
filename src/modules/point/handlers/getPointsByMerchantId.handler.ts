@@ -96,10 +96,9 @@ export class GetPointsByMerchantId {
           field &&
           ALLOWED_SORT_FIELDS.includes(field as any)
         ) {
-          const orderDirection =
-            order?.toLowerCase() === 'desc' ? 'desc' : 'asc';
+          const orderDirection = order.toUpperCase() === 'DESC' ? 'desc' : 'asc';
           orderBy = {
-            [field]: orderDirection,
+            [field as typeof ALLOWED_SORT_FIELDS[number]]: orderDirection,
           } as Prisma.PointOrderByWithRelationInput;
         }
       }

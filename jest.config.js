@@ -4,7 +4,9 @@ module.exports = {
   testEnvironment: 'node',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.(t|j)s$': ['ts-jest', {
+      tsconfig: 'tsconfig.spec.json',
+    }],
   },
   transformIgnorePatterns: ['node_modules/(?!(nanoid|@babel/highlight)/)'],
   moduleNameMapper: {
@@ -29,11 +31,4 @@ module.exports = {
 
   // ✅ ให้ Jest รู้ว่าใช้ ts-jest
   preset: 'ts-jest',
-
-  // ✅ ป้องกันปัญหา map coverage ไม่ได้
-  globals: {
-    'ts-jest': {
-      tsconfig: 'tsconfig.spec.json',
-    },
-  },
 };

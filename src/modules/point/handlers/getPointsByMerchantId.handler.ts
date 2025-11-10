@@ -75,10 +75,27 @@ export class GetPointsByMerchantId {
         query.filter || query._filter,
       );
 
+      // Whitelist of allowed sortable fields to prevent prototype pollution
+      const ALLOWED_SORT_FIELDS = [
+        'id',
+        'name',
+        'symbol',
+        'decimals',
+        'contractAddress',
+        'merchantId',
+        'createdAt',
+        'updatedAt',
+        'imageUrl',
+      ] as const;
+
       let orderBy: Prisma.PointOrderByWithRelationInput | undefined;
       if (Array.isArray(sortValue) && sortValue.length === 2) {
         const [field, order] = sortValue;
-        if (typeof field === 'string' && field) {
+        if (
+          typeof field === 'string' &&
+          field &&
+          ALLOWED_SORT_FIELDS.includes(field as any)
+        ) {
           const orderDirection =
             order?.toLowerCase() === 'desc' ? 'desc' : 'asc';
           orderBy = {

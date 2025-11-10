@@ -9,6 +9,9 @@ export class CreateMerchantDto {
 
   @IsString()
   userId: string;
+
+  @IsString()
+  tel: string;
 }
 
 export class UpdateMerchantDto {
@@ -19,4 +22,8 @@ export class UpdateMerchantDto {
   @IsString()
   @IsOptional()
   website: string;
+
+  @IsString()
+  @IsOptional()
+  tel: string;
 }

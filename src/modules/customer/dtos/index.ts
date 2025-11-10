@@ -13,7 +13,6 @@ export class CreateCustomerDto {
   lastName?: string;
 
   @IsString()
-  @IsOptional()
   @MaxLength(20)
-  tel?: string;
+  tel: string;
 }

@@ -7,6 +7,7 @@ import {
   Put,
   Post,
   Delete,
+  Query,
 } from '@nestjs/common';
 import {
   CreatePointDto,
@@ -32,8 +33,11 @@ export class PointController {
 
   @Get('/')
   @HttpCode(200)
-  async getPointsByMerchant(@Param('merchantId') merchantId: string) {
-    return this.getPointsByMerchantIdHandler.execute(merchantId);
+  async getPointsByMerchant(
+    @Param('merchantId') merchantId: string,
+    @Query() query: Record<string, any>,
+  ) {
+    return this.getPointsByMerchantIdHandler.execute(merchantId, query);
   }
 
   @Get('/:pointId')

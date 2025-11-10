@@ -27,7 +27,9 @@ export class GetPointsByMerchantId {
     return value as T;
   }
 
-  private buildWhere(filter: Record<string, any> | null): Prisma.PointWhereInput {
+  private buildWhere(
+    filter: Record<string, any> | null,
+  ): Prisma.PointWhereInput {
     if (!filter) return {};
 
     const where: Prisma.PointWhereInput = {};

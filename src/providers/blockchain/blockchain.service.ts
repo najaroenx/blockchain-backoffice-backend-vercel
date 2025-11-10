@@ -37,8 +37,14 @@ export class BlockchainService {
     decimal,
     frameSize,
   }: createPoint) {
-    console.log('Creating new point token on blockchain... by ',this.pointFactoryAddress);
-    console.log('Creating new point token on blockchain... by ',this.privateKey);
+    console.log(
+      'Creating new point token on blockchain... by ',
+      this.pointFactoryAddress,
+    );
+    console.log(
+      'Creating new point token on blockchain... by ',
+      this.privateKey,
+    );
 
     const signer = new Wallet(this.privateKey, this.provider);
 

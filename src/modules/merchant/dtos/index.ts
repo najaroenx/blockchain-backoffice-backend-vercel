@@ -1,29 +1,77 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsInt, IsArray } from 'class-validator';
 
 export class CreateMerchantDto {
   @IsString()
   name: string;
 
   @IsString()
-  website: string;
+  @IsOptional()
+  description?: string;
 
   @IsString()
-  userId: string;
+  @IsOptional()
+  imageUrl?: string;
+
+  @IsInt()
+  @IsOptional()
+  points?: number;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsString()
+  website: string;
+
+  @IsArray()
+  @IsOptional()
+  voucherIds?: string[];
 
   @IsString()
   tel: string;
+
+  @IsString()
+  @IsOptional()
+  walletId?: string;
+
+  @IsString()
+  userId: string;
 }
 
 export class UpdateMerchantDto {
   @IsString()
   @IsOptional()
-  name: string;
+  name?: string;
 
   @IsString()
   @IsOptional()
-  website: string;
+  description?: string;
 
   @IsString()
   @IsOptional()
-  tel: string;
+  imageUrl?: string;
+
+  @IsInt()
+  @IsOptional()
+  points?: number;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsString()
+  @IsOptional()
+  website?: string;
+
+  @IsArray()
+  @IsOptional()
+  voucherIds?: string[];
+
+  @IsString()
+  @IsOptional()
+  tel?: string;
+
+  @IsString()
+  @IsOptional()
+  walletId?: string;
 }

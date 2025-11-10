@@ -79,8 +79,10 @@ export class GetPointsByMerchantId {
       if (Array.isArray(sortValue) && sortValue.length === 2) {
         const [field, order] = sortValue;
         if (typeof field === 'string' && field) {
+          const orderDirection =
+            order?.toLowerCase() === 'desc' ? 'desc' : 'asc';
           orderBy = {
-            [field]: order?.toLowerCase() === 'desc' ? 'desc' : 'asc',
+            [field]: orderDirection,
           } as Prisma.PointOrderByWithRelationInput;
         }
       }

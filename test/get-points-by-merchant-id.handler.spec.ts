@@ -34,34 +34,38 @@ describe('GetPointsByMerchantId', () => {
 
   it('should return points for a merchant successfully', async () => {
     const merchantId = 'merchant-123';
-    const mockPoints = [
-      {
-        id: '1',
-        name: 'Point 1',
-        contractAddress: Buffer.from(
-          '1234567890abcdef1234567890abcdef12345678',
-          'hex',
-        ),
-        merchantId: merchantId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: '2',
-        name: 'Point 2',
-        contractAddress: Buffer.from(
-          'abcdef1234567890abcdef1234567890abcdef12',
-          'hex',
-        ),
-        merchantId: merchantId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
+    const query = {};
+    const mockResult = {
+      points: [
+        {
+          id: '1',
+          name: 'Point 1',
+          contractAddress: Buffer.from(
+            '1234567890abcdef1234567890abcdef12345678',
+            'hex',
+          ),
+          merchantId: merchantId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: '2',
+          name: 'Point 2',
+          contractAddress: Buffer.from(
+            'abcdef1234567890abcdef1234567890abcdef12',
+            'hex',
+          ),
+          merchantId: merchantId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+      total: 2,
+    };
 
-    mockPointDBService.getPointsByMerchant.mockResolvedValue(mockPoints);
+    mockPointDBService.getPointsByMerchant.mockResolvedValue(mockResult);
 
-    const result = await handler.execute(merchantId);
+    const result = await handler.execute(merchantId, query);
 
     expect(result).toBeDefined();
     expect(result.points).toBeDefined();
@@ -69,32 +73,47 @@ describe('GetPointsByMerchantId', () => {
     expect(result.points.length).toBe(2);
     expect(mockPointDBService.getPointsByMerchant).toHaveBeenCalledWith(
       merchantId,
+      expect.objectContaining({
+        skip: undefined,
+        take: undefined,
+        orderBy: undefined,
+      }),
     );
   });
 
   it('should return empty array when no points found', async () => {
     const merchantId = 'merchant-without-points';
+    const query = {};
 
-    mockPointDBService.getPointsByMerchant.mockResolvedValue([]);
+    mockPointDBService.getPointsByMerchant.mockResolvedValue({
+      points: [],
+      total: 0,
+    });
 
-    const result = await handler.execute(merchantId);
+    const result = await handler.execute(merchantId, query);
 
     expect(result).toBeDefined();
     expect(result.points).toEqual([]);
     expect(result.counts).toBe(0);
     expect(mockPointDBService.getPointsByMerchant).toHaveBeenCalledWith(
       merchantId,
+      expect.objectContaining({
+        skip: undefined,
+        take: undefined,
+        orderBy: undefined,
+      }),
     );
   });
 
   it('should throw InternalServerErrorException on error', async () => {
     const merchantId = 'merchant-123';
+    const query = {};
 
     mockPointDBService.getPointsByMerchant.mockRejectedValue(
       new Error('Database error'),
     );
 
-    await expect(handler.execute(merchantId)).rejects.toThrow(
+    await expect(handler.execute(merchantId, query)).rejects.toThrow(
       InternalServerErrorException,
     );
   });

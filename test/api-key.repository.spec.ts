@@ -1,9 +1,7 @@
-jest.mock('prisma/prisma.service', () => {
-  return {
-    PrismaService: jest.fn().mockImplementation(() => ({
-      apiKey: {
-        findMany: jest.fn(),
-      },
-    })),
-  };
+import { ApiKeyRepository } from '../src/modules/api-key/api-key.repository';
+
+describe('ApiKeyRepository', () => {
+  it('should be defined', () => {
+    expect(ApiKeyRepository).toBeDefined();
+  });
 });

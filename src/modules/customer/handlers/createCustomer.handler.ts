@@ -11,7 +11,7 @@ import { Prisma } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { createWallet } from 'src/libs/createWallet';
-import { createBufferFromHex } from 'src/libs/createBufferFromHex';
+// import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 
 @Injectable()
 export class CreateCustomer {
@@ -38,7 +38,9 @@ export class CreateCustomer {
         merchantId,
         data.email,
       );
-
+      //TODO: Handle case customer already exists, should not; register more than once
+      //TODO:  verify if the customer already associated with the merchant <CAMARA PROJECT>
+      //TODO: should change identity with phone number
       if (customer) {
         const isUserAssociatedWithMerchant = customer.customerMerChant.some(
           (el) => el.merchantId === merchantId,
@@ -52,11 +54,7 @@ export class CreateCustomer {
           };
         } else {
           const updatedCustomer = await this.db.updateCustomer(customer.id, {
-            customerMerChant: {
-              create: {
-                merchantId,
-              },
-            },
+            customerMerChant: { create: { merchantId } },
           });
           return {
             ...updatedCustomer,
@@ -76,13 +74,12 @@ export class CreateCustomer {
 
       const newCustomer = await this.db.createCustomer({
         ...data,
-        walletAddress: createBufferFromHex(wallet.walletAddress),
+        walletAddress: Buffer.from(
+          wallet.walletAddress.replace(/^0x/, ''),
+          'hex',
+        ),
         privateKey: encryptedPrivateKey,
-        customerMerChant: {
-          create: {
-            merchantId,
-          },
-        },
+        customerMerChant: { create: { merchantId } },
       });
       return {
         ...newCustomer,

@@ -16,7 +16,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
-import { createBufferFromHex } from 'src/libs/createBufferFromHex';
+// import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { GetCustomerByEmailResponseType } from 'src/modules/customer/types';
 import {
   INTERNAL_SERVER_ERROR,
@@ -56,10 +56,7 @@ export class CreateTransactionC2C {
       | 'transactionTypeId'
       | 'receiverAddress'
       | 'senderAddress'
-    > & {
-      fromEmail: string;
-      toEmail: string;
-    },
+    > & { fromEmail: string; toEmail: string },
   ): Promise<CreateTransactionResponse> {
     try {
       const { fromEmail, toEmail, ...rest } = data;
@@ -88,34 +85,23 @@ export class CreateTransactionC2C {
 
       const transaction = await this.db.createTransaction({
         ...rest,
-        receiverAddress: createBufferFromHex(receiver.walletAddress),
-        senderAddress: createBufferFromHex(sender.walletAddress),
-        merchant: {
-          connect: {
-            id: merchantId,
-          },
-        },
-        point: {
-          connect: {
-            id: pointId,
-          },
-        },
-        receiver: {
-          connect: {
-            id: receiver.id,
-          },
-        },
-        sender: {
-          connect: {
-            id: sender.id,
-          },
-        },
-        transactionType: {
-          connect: {
-            id: 'transfer',
-          },
-        },
-        txHash: createBufferFromHex(txId),
+        // receiverAddress: createBufferFromHex(receiver.walletAddress),
+        // senderAddress: createBufferFromHex(sender.walletAddress),
+        senderAddress: Buffer.from(
+          sender.walletAddress.replace(/^0x/, ''),
+          'hex',
+        ),
+        receiverAddress: Buffer.from(
+          receiver.walletAddress.replace(/^0x/, ''),
+          'hex',
+        ),
+        merchant: { connect: { id: merchantId } },
+        point: { connect: { id: pointId } },
+        receiver: { connect: { id: receiver.id } },
+        sender: { connect: { id: sender.id } },
+        transactionType: { connect: { id: 'transfer' } },
+        // txHash: createBufferFromHex(txId),
+        txHash: Uint8Array.from(Buffer.from(txId.replace(/^0x/, ''), 'hex')),
       });
 
       await this.updateReceiverPoints(receiver, sender, point, data.amount);
@@ -165,9 +151,7 @@ export class CreateTransactionC2C {
       });
     } else {
       await this.updateCustomer.execute(receiver.id, {
-        customerPoints: {
-          create: { pointId: point.id, balances: amount },
-        },
+        customerPoints: { create: { pointId: point.id, balances: amount } },
       });
     }
 

@@ -58,9 +58,7 @@ export class BurnTransaction {
       | 'receiverAddress'
       | 'senderAddress'
       | 'toEmail'
-    > & {
-      fromEmail: string;
-    },
+    > & { fromEmail: string },
   ): Promise<CreateTransactionResponse> {
     try {
       const { fromEmail, ...rest } = data;
@@ -83,29 +81,20 @@ export class BurnTransaction {
 
       const transaction = await this.db.createTransaction({
         ...rest,
-        receiverAddress: createBufferFromHex(ADDRESS_ZERO),
-        senderAddress: createBufferFromHex(sender.walletAddress),
-        merchant: {
-          connect: {
-            id: merchantId,
-          },
-        },
-        point: {
-          connect: {
-            id: pointId,
-          },
-        },
-        sender: {
-          connect: {
-            id: sender.id,
-          },
-        },
-        transactionType: {
-          connect: {
-            id: 'transfer',
-          },
-        },
-        txHash: createBufferFromHex(txId),
+        // receiverAddress: createBufferFromHex(ADDRESS_ZERO),
+        receiverAddress: Buffer.from(ADDRESS_ZERO.replace(/^0x/, ''), 'hex'),
+
+        // senderAddress: createBufferFromHex(sender.walletAddress),
+        senderAddress: Buffer.from(
+          sender.walletAddress.replace(/^0x/, ''),
+          'hex',
+        ),
+        merchant: { connect: { id: merchantId } },
+        point: { connect: { id: pointId } },
+        sender: { connect: { id: sender.id } },
+        transactionType: { connect: { id: 'transfer' } },
+        // txHash: createBufferFromHex(txId),
+        txHash: new Uint8Array(createBufferFromHex(txId)),
       });
 
       await this.updateBalances(sender, point, data.amount);

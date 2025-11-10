@@ -9,7 +9,7 @@ import { GetCustomerByEmail } from './handlers/getCustomerByEmail.handler';
 import { UpdateCustomer } from './handlers/updateCustomer.handler';
 import { CreateCustomer } from './handlers/createCustomer.handler';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
-
+import { GetCustomerPhone } from './handlers/getCustomerByPhone.handler';
 @Module({
   imports: [TokenModule, BlockchainModule],
   controllers: [CustomerController],
@@ -21,6 +21,7 @@ import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
     GetCustomerByEmail,
     UpdateCustomer,
     CreateCustomer,
+    GetCustomerPhone,
   ],
   exports: [GetCustomerByEmail, UpdateCustomer],
 })

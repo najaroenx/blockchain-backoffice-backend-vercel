@@ -39,10 +39,7 @@ export class PointDBService {
 
   async getPointById(pointId: string, merchantId: string): Promise<Point> {
     const point = await this.repository.findUnique<Point>({
-      where: {
-        id: pointId,
-        merchantId,
-      },
+      where: { id: pointId, merchantId },
     });
     return point;
   }
@@ -52,9 +49,7 @@ export class PointDBService {
     data: Prisma.PointUpdateInput,
   ): Promise<Point> {
     const point = await this.repository.update<Point>({
-      where: {
-        id: pointId,
-      },
+      where: { id: pointId },
       data,
     });
     return point;
@@ -68,7 +63,8 @@ export class PointDBService {
     const point = await this.repository.create<Point>({
       data: {
         ...data,
-        contractAddress: pointContractAddress,
+        // contractAddress: pointContractAddress,
+        contractAddress: new Uint8Array(pointContractAddress),
         merchantId,
       },
     });
@@ -77,12 +73,7 @@ export class PointDBService {
   }
 
   async deletePoint(id: string, merchantId: string): Promise<Point> {
-    const point = await this.repository.delete({
-      where: {
-        id,
-        merchantId,
-      },
-    });
+    const point = await this.repository.delete({ where: { id, merchantId } });
 
     return point;
   }

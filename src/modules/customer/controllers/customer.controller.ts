@@ -10,6 +10,7 @@ import {
 import { CreateCustomerDto } from '../dtos';
 import { GetCustomersByMerchantId } from '../handlers/getCustomersByMerchantId.handler';
 import { GetCustomerById } from '../handlers/getCustomerById.handler';
+import { GetCustomerPhone } from '../handlers/getCustomerByPhone.handler';
 import { CreateCustomer } from '../handlers/createCustomer.handler';
 import { PageOptionsDto } from 'src/common/dtos';
 
@@ -19,6 +20,7 @@ export class CustomerController {
     private readonly getCustomersByMerchantIdHandler: GetCustomersByMerchantId,
     private readonly getCustomerDetialByIdHandler: GetCustomerById,
     private readonly createCustomerHandler: CreateCustomer,
+    private readonly GetCustomerByPhone: GetCustomerPhone,
   ) {}
 
   @Post('/')
@@ -49,5 +51,26 @@ export class CustomerController {
     @Param('merchantId') merchantId: string,
   ) {
     return this.getCustomerDetialByIdHandler.execute(merchantId, customerId);
+  }
+
+  @Get('/byphone/:phone')
+  @HttpCode(200)
+  async getCustomerByPhone(
+    @Param('phone') phone: string,
+    @Param('merchantId') merchantId: string,
+  ) {
+    console.log(
+      `Getting customer by phone for merchant ${merchantId} and phone ${phone}`,
+    );
+    return this.GetCustomerByPhone.execute(merchantId, phone);
+  }
+
+  @Get('/wallet/:phone')
+  @HttpCode(200)
+  async getWallet(
+    @Param('merchantId') merchantId: string,
+    @Param('phone') phone: string,
+  ) {
+    return this.GetCustomerByPhone.execute(merchantId, phone);
   }
 }

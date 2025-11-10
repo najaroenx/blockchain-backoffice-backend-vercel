@@ -5,7 +5,7 @@ import {
   CreateTransactionBodyDto,
   CreateTransactionC2CBodyDto,
 } from '../dtos';
-import { createBufferFromHex } from 'src/libs/createBufferFromHex';
+// import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { GetTransactionsByCustomerId } from '../handlers/getTransactionsByCustomerId.handler';
 import { GetTransactionsByMerchantId } from '../handlers/getTransactionsByMerchantId.handler';
 import { CreateTransactionB2C } from '../handlers/createTransactionB2C.handler';
@@ -47,7 +47,8 @@ export class TransactionController {
   ) {
     return this.createTransactionB2C.execute(merchantId, pointId, {
       ...body,
-      senderAddress: createBufferFromHex(body.senderAddress),
+      // senderAddress: createBufferFromHex(body.senderAddress),
+      senderAddress: Buffer.from(body.senderAddress.replace(/^0x/, ''), 'hex'),
     });
   }
 
@@ -58,9 +59,7 @@ export class TransactionController {
     @Param('pointId') pointId: string,
     @Body() body: CreateTransactionC2CBodyDto,
   ) {
-    return this.createTransactionC2C.execute(merchantId, pointId, {
-      ...body,
-    });
+    return this.createTransactionC2C.execute(merchantId, pointId, { ...body });
   }
 
   @Post('/:pointId/mint')
@@ -72,7 +71,8 @@ export class TransactionController {
   ) {
     return this.mintTransaction.execute(merchantId, pointId, {
       ...body,
-      senderAddress: createBufferFromHex(body.senderAddress),
+      // senderAddress: createBufferFromHex(body.senderAddress),
+      senderAddress: Buffer.from(body.senderAddress.replace(/^0x/, ''), 'hex'),
     });
   }
 
@@ -83,8 +83,6 @@ export class TransactionController {
     @Param('pointId') pointId: string,
     @Body() body: CreateBurnTransactionBodyDto,
   ) {
-    return this.burnTransaction.execute(merchantId, pointId, {
-      ...body,
-    });
+    return this.burnTransaction.execute(merchantId, pointId, { ...body });
   }
 }

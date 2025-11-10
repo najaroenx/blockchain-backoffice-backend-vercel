@@ -141,6 +141,64 @@ export class CustomerDBService {
     return customer;
   }
 
+  async getCustomersByPhone(
+    merchantId: string,
+    phone: string,
+  ): Promise<
+    Customer & {
+      customerPoints: Array<
+        CustomerPoint & {
+          point: Point;
+        }
+      >;
+      customerMerChant: CustomerMerChant[];
+    }
+  > {
+    const customer = await this.repository.findFirst<
+      Customer & {
+        customerPoints: Array<
+          CustomerPoint & {
+            point: Point;
+          }
+        >;
+        customerMerChant: CustomerMerChant[];
+      }
+    >({
+      where: {
+        tel: phone,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        walletAddress: true,
+        privateKey: true,
+        customerMerChant: {
+          select: {
+            id: true,
+            merchantId: true,
+            customerId: true,
+          },
+        },
+        customerPoints: {
+          where: {
+            customer: {
+              tel: phone,
+            },
+            point: {
+              merchant: {
+                id: merchantId,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return customer;
+  }
+
   async getCustomerById(
     merchantId: string,
     customerId: string,

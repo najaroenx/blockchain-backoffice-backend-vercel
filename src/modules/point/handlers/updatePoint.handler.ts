@@ -10,7 +10,7 @@ import {
 } from 'src/errors/error.constants';
 import { Prisma } from '@prisma/client';
 import { PointDBService } from '../services/point-db.service';
-import { createBufferFromHex } from 'src/libs/createBufferFromHex';
+// import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { UpdatePointResponseType } from '../types';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
@@ -29,7 +29,11 @@ export class UpdatePoint {
     try {
       const point = await this.db.updatePoint(pointId, {
         ...data,
-        contractAddress: createBufferFromHex(data?.contractAddress),
+        // contractAddress: createBufferFromHex(data?.contractAddress),
+        contractAddress: Buffer.from(
+          data?.contractAddress.replace(/^0x/, ''),
+          'hex',
+        ),
       });
 
       return {

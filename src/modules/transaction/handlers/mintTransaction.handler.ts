@@ -11,7 +11,7 @@ import {
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { Prisma } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
-import { createBufferFromHex } from 'src/libs/createBufferFromHex';
+// import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { CreateTransaction as CreateTransactionResponse } from '../types';
 import { GetCustomerByEmail } from 'src/modules/customer/handlers/getCustomerByEmail.handler';
 import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
@@ -48,10 +48,7 @@ export class MintTransaction {
       | 'receiver'
       | 'transactionTypeId'
       | 'receiverAddress'
-    > & {
-      transactionTypeId: string;
-      email: string;
-    },
+    > & { transactionTypeId: string; email: string },
   ): Promise<CreateTransactionResponse> {
     try {
       const { email, ...rest } = data;
@@ -74,37 +71,21 @@ export class MintTransaction {
 
       const transaction = await this.db.createTransaction({
         ...rest,
-        receiverAddress: createBufferFromHex(customer.walletAddress),
-        merchant: {
-          connect: {
-            id: merchantId,
-          },
-        },
-        point: {
-          connect: {
-            id: pointId,
-          },
-        },
-        receiver: {
-          connect: {
-            id: customer.id,
-          },
-        },
-        transactionType: {
-          connect: {
-            id: 'redeem',
-          },
-        },
-        txHash: createBufferFromHex(txId),
+        receiverAddress: Uint8Array.from(
+          Buffer.from(customer.walletAddress.replace(/^0x/, ''), 'hex'),
+        ),
+        merchant: { connect: { id: merchantId } },
+        point: { connect: { id: pointId } },
+        receiver: { connect: { id: customer.id } },
+        transactionType: { connect: { id: 'redeem' } },
+        // txHash: createBufferFromHex(txId),
+        txHash: Uint8Array.from(Buffer.from(txId.replace(/^0x/, ''), 'hex')),
       });
 
       if (customer.customerPoints.length === 0) {
         await this.updateCustomer.execute(customer.id, {
           customerPoints: {
-            create: {
-              pointId: point.id,
-              balances: data.amount,
-            },
+            create: { pointId: point.id, balances: data.amount },
           },
         });
       }
@@ -118,22 +99,15 @@ export class MintTransaction {
           await this.updateCustomer.execute(customer.id, {
             customerPoints: {
               update: {
-                where: {
-                  id: customerPoint.id,
-                },
-                data: {
-                  balances: customerPoint.balances + data.amount,
-                },
+                where: { id: customerPoint.id },
+                data: { balances: customerPoint.balances + data.amount },
               },
             },
           });
         } else {
           await this.updateCustomer.execute(customer.id, {
             customerPoints: {
-              create: {
-                pointId: point.id,
-                balances: data.amount,
-              },
+              create: { pointId: point.id, balances: data.amount },
             },
           });
         }

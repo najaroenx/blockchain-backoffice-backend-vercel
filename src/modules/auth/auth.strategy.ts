@@ -37,8 +37,8 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
 
       if (
         // If authentication is *not* a JWT
-        !authorizationKey.match(
-          /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$/,
+        !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+={0,2})?$/.test(
+          authorizationKey,
         )
       ) {
         try {
@@ -53,7 +53,7 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
             type: 'api-key',
             id: apiKeyDetails.id,
           });
-        } catch (error) {}
+        } catch {}
       }
     }
 
@@ -72,8 +72,12 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
         bearerToken,
       ) as AccessTokenClaims;
       return this.success(payload);
-    } catch (error) {}
-
-    return this.fail('Invalid token', 400);
+    } catch (err: any) {
+      console.error('Invalid token', err.toString());
+      return this.fail('Invalid token', 400);
+    }
   }
+
+  // PassportStrategy requires validate even when authenticate is overridden
+  async validate(): Promise<void> {}
 }

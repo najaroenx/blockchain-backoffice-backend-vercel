@@ -1,0 +1,39 @@
+name: CI/CD Staging
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  cicd:
+    permissions:
+      contents: write
+      actions: read
+      security-events: write
+    uses: corp-ais/next-actions-reusable-workflows/.github/workflows/cicd.yml@v2
+    with:
+      runs-on-group: next-myais2
+      runs-on-label: next-myais2-dind-dev
+      default-image: acricdplatform.azurecr.io/devops/base-runner:node20-jammy
+      runner-image-registry: acricdplatform.azurecr.io
+      runner-image-user: acricdplatform
+      registry: acricdplatform.azurecr.io
+      registry-user: acricdplatform
+      helm-repo: corp-ais/blockchain-helm-chart-backoffice-backend
+      helm-repo-ref: staging
+      helm-values-file: values.yaml
+      unit-test-node-version: 20
+      node-yarn-install: true
+      ignored-unit-test: true
+      sonarqube-url: https://sast.matador.ais.co.th/
+      sonarqube-args: |
+        -Dsonar.sources=src
+        -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+      bump-helm-no-git-tag: false
+    secrets:
+      runner-image-pass: ${{ secrets.NEXTDEVOPS_ACR_DEV }}
+      registry-token: ${{ secrets.NEXTDEVOPS_ACR_DEV }}
+      git-push-token: ${{ secrets.NEXTDEVOPS_GITHUB_TOKEN }}
+      sonarqube-token: ${{ secrets.NEXTDEVOPS_SONAR_TOKEN }}
+      git-rw-package-token: ${{ secrets.NEXTDEVOPS_GITHUB_TOKEN_RW_PACKAGE }}
+      git-rw-package-user: ${{ secrets.NEXTDEVOPS_GITHUB_USER_RW_PACKAGE }}

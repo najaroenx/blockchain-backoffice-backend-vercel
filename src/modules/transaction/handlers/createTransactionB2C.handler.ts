@@ -43,10 +43,7 @@ export class CreateTransactionB2C {
       | 'receiver'
       | 'transactionTypeId'
       | 'receiverAddress'
-    > & {
-      transactionTypeId: string;
-      email: string;
-    },
+    > & { transactionTypeId: string; email: string },
   ): Promise<CreateTransactionResponse> {
     try {
       const { transactionTypeId, email, ...rest } = data;
@@ -69,37 +66,23 @@ export class CreateTransactionB2C {
 
       const transaction = await this.db.createTransaction({
         ...rest,
-        receiverAddress: createBufferFromHex(customer.walletAddress),
-        merchant: {
-          connect: {
-            id: merchantId,
-          },
-        },
-        point: {
-          connect: {
-            id: pointId,
-          },
-        },
-        receiver: {
-          connect: {
-            id: customer.id,
-          },
-        },
-        transactionType: {
-          connect: {
-            id: 'redeem',
-          },
-        },
-        txHash: createBufferFromHex(txId),
+        // receiverAddress: createBufferFromHex(customer.walletAddress),
+        receiverAddress: Buffer.from(
+          customer.walletAddress.replace(/^0x/, ''),
+          'hex',
+        ),
+        merchant: { connect: { id: merchantId } },
+        point: { connect: { id: pointId } },
+        receiver: { connect: { id: customer.id } },
+        transactionType: { connect: { id: 'redeem' } },
+        // txHash: createBufferFromHex(txId),
+        txHash: new Uint8Array(createBufferFromHex(txId)),
       });
 
       if (customer.customerPoints.length === 0) {
         await this.updateCustomer.execute(customer.id, {
           customerPoints: {
-            create: {
-              pointId: point.id,
-              balances: data.amount,
-            },
+            create: { pointId: point.id, balances: data.amount },
           },
         });
       }
@@ -113,22 +96,15 @@ export class CreateTransactionB2C {
           await this.updateCustomer.execute(customer.id, {
             customerPoints: {
               update: {
-                where: {
-                  id: customerPoint.id,
-                },
-                data: {
-                  balances: customerPoint.balances + data.amount,
-                },
+                where: { id: customerPoint.id },
+                data: { balances: customerPoint.balances + data.amount },
               },
             },
           });
         } else {
           await this.updateCustomer.execute(customer.id, {
             customerPoints: {
-              create: {
-                pointId: point.id,
-                balances: data.amount,
-              },
+              create: { pointId: point.id, balances: data.amount },
             },
           });
         }

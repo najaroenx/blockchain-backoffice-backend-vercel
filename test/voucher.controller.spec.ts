@@ -120,6 +120,7 @@ describe('VoucherController', () => {
     it('should create a new voucher', async () => {
       const createDto = {
         id: 'voucher-1',
+        redeemCode: 'SAVE50',
         name: 'New Voucher',
         description: 'Test description',
         status: VoucherStatus.active,
@@ -153,6 +154,7 @@ describe('VoucherController', () => {
         ...createDto,
         startDate: new Date(createDto.startDate),
         endDate: new Date(createDto.endDate),
+        redeemCode: 'SAVE50',
       });
     });
   });

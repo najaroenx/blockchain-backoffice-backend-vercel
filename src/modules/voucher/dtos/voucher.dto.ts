@@ -13,6 +13,9 @@ export class CreateVoucherDto {
   id: string;
 
   @IsString()
+  redeemCode: string;
+
+  @IsString()
   name: string;
 
   @IsString()

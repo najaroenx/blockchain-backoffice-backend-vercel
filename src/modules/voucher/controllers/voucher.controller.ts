@@ -46,6 +46,7 @@ export class VoucherController {
       ...data,
       startDate: new Date(data.startDate),
       endDate: new Date(data.endDate),
+      redeemCode: data.redeemCode || '',
     });
   }
 

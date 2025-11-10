@@ -53,6 +53,7 @@ describe('VoucherDBService', () => {
         endDate: new Date('2025-12-31'),
         totalIssued: 100,
         totalRedeemed: 0,
+        redeemCode: 'SAVE50',
       };
 
       const mockVoucher = {
@@ -94,6 +95,7 @@ describe('VoucherDBService', () => {
         totalRedeemed: 10,
         imageUrl: null,
         limitPerMember: null,
+        redeemCode: 'TEST123',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -193,6 +195,7 @@ describe('VoucherDBService', () => {
         totalRedeemed: 0,
         imageUrl: null,
         limitPerMember: null,
+        redeemCode: 'UPDATE123',
         createdAt: new Date(),
         updatedAt: new Date(),
       };

@@ -76,7 +76,7 @@ export class GetPointsByMerchantId {
       );
 
       // Whitelist of allowed sortable fields to prevent prototype pollution
-      const ALLOWED_SORT_FIELDS = [
+      const ALLOWED_SORT_FIELDS: ReadonlySet<string> = new Set([
         'id',
         'name',
         'symbol',
@@ -86,7 +86,7 @@ export class GetPointsByMerchantId {
         'createdAt',
         'updatedAt',
         'imageUrl',
-      ] as const;
+      ]);
 
       let orderBy: Prisma.PointOrderByWithRelationInput | undefined;
       if (Array.isArray(sortValue) && sortValue.length === 2) {
@@ -94,11 +94,11 @@ export class GetPointsByMerchantId {
         if (
           typeof field === 'string' &&
           field &&
-          ALLOWED_SORT_FIELDS.includes(field as any)
+          ALLOWED_SORT_FIELDS.has(field)
         ) {
           const orderDirection = order.toUpperCase() === 'DESC' ? 'desc' : 'asc';
           orderBy = {
-            [field as typeof ALLOWED_SORT_FIELDS[number]]: orderDirection,
+            [field]: orderDirection,
           } as Prisma.PointOrderByWithRelationInput;
         }
       }

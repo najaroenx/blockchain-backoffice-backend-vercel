@@ -4,9 +4,12 @@ module.exports = {
   testEnvironment: 'node',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': ['ts-jest', {
-      tsconfig: 'tsconfig.spec.json',
-    }],
+    '^.+\\.(t|j)s$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.spec.json',
+      },
+    ],
   },
   transformIgnorePatterns: ['node_modules/(?!(nanoid|@babel/highlight)/)'],
   moduleNameMapper: {

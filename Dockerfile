@@ -15,6 +15,7 @@ WORKDIR /app
 # Copy package.json and install dependencies
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 RUN yarn install
 
@@ -23,6 +24,10 @@ COPY . .
 
 # Generate Prisma Client
 RUN npx prisma generate
+
+# Resolve failed migration and clean up
+RUN npx prisma migrate resolve --rolled-back 20251030084722_backoffice_content || true
+RUN rm -rf prisma/migrations/20251030084722_backoffice_content || true
 
 # Build the NestJS app
 RUN yarn run build
@@ -49,6 +54,7 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/node_modules ./node_
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma.config.ts ./
 
 # Workaround solution
 RUN mkdir -p /tmp && chmod -R 777 /tmp && chown -R merchant-backoffice:nodejs /tmp

@@ -63,7 +63,7 @@ EXPOSE 4000
 # CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
 CMD ["sh", "-c", "\
     echo '🚀 Running Prisma migrations...' && \
-    npx prisma migrate resolve --applied all || true && \
+    npx prisma migrate resolve --applied 20251030084722_backoffice_content || true && \
     npx prisma migrate deploy && \
     echo '✅ Migrations done. Starting app...' && \
     node dist/src/main \

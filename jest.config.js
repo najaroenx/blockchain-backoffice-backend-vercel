@@ -6,7 +6,7 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
-  transformIgnorePatterns: ['node_modules/(?!(nanoid)/)'],
+  transformIgnorePatterns: ['node_modules/(?!(nanoid|@babel/highlight)/)'],
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
     '^test/(.*)$': '<rootDir>/test/$1',

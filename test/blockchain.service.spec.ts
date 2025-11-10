@@ -88,10 +88,17 @@ describe('BlockchainService (Simple)', () => {
   });
 
   it('should throw InternalServerErrorException if something fails', async () => {
-    // Mock ให้ throw error ใน method transaction
-    (service as any).provider = null; // ทำให้ fail ทันที
+    // Create a new service instance with failing contract
+    const ethers = jest.requireMock('ethers');
+    ethers.Contract.mockImplementationOnce(() => ({
+      connect: jest.fn().mockReturnThis(),
+      transfer: jest.fn().mockRejectedValue(new Error('Transaction failed')),
+    }));
+
+    const newService = new BlockchainService(mockConfigService);
+
     await expect(
-      service.transaction({
+      newService.transaction({
         amount: 1,
         to: '0xReceiver',
         pointAddress: '0xPoint',

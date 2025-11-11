@@ -31,7 +31,6 @@ POST /voucher
   "endDate": "2025-12-31",
   "totalIssued": 1000,  // ← สร้าง 1000 codes
   "totalRedeemed": 0,
-  "redeemCode": "CENTRAL20"  // redeemCode หลักของ voucher
 }
 ```
 

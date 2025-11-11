@@ -29,7 +29,9 @@ export class CreateVoucherWithCodes {
         // 2. สร้าง unique codes (จำนวนเท่ากับ totalIssued)
         const codes = generateUniqueCodes(voucher.id, data.totalIssued);
 
-        // 3. เพิ่ม codes ลง database
+        // 3. implement code smart contract here trigger
+
+        // 4. เพิ่ม codes ลง database
         await tx.voucherCode.createMany({
           data: codes.map((code) => ({
             code,

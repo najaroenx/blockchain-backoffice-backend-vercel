@@ -123,7 +123,6 @@ export class UpdateVoucherDto {
   limitPerMember?: number;
 }
 
-
 // DTO for voucher sale creation
 export class CreateVoucherByDevDto {
   @IsString()
@@ -146,4 +145,3 @@ export class CreateVoucherByDevDto {
   @Type(() => CreateVoucherDto)
   coupon: CreateVoucherDto;
 }
-

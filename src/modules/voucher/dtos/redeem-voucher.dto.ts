@@ -7,5 +7,5 @@ export class RedeemVoucherDto {
 
   @IsString()
   @IsNotEmpty()
-  code: string;  // ← เปลี่ยนจาก redeemCode เป็น code จาก VoucherCode table
+  code: string; // ← เปลี่ยนจาก redeemCode เป็น code จาก VoucherCode table
 }

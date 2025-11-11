@@ -16,6 +16,7 @@ import { CustomerModule } from './modules/customer/customer.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { VoucherModule } from './modules/voucher/voucher.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -34,6 +35,7 @@ import { VoucherModule } from './modules/voucher/voucher.module';
     CustomerModule,
     DashboardModule,
     VoucherModule,
+    WalletModule,
   ],
   controllers: [],
   providers: [

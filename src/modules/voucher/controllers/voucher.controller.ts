@@ -81,6 +81,6 @@ export class VoucherController {
   @HttpCode(201)
   async createVoucherByDev(@Body() data: CreateVoucherByDevDto) {
     // สร้าง voucher พร้อมกับ codes ตามจำนวน amount
-    return data;
+    return this.voucherService.createVoucherByDev(data)
   }
 }

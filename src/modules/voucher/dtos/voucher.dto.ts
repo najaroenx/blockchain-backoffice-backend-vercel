@@ -5,15 +5,15 @@ import {
   IsOptional,
   IsInt,
   IsDateString,
+  ValidateNested,
+  IsNotEmpty,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { VoucherStatus, VoucherValueType } from '@prisma/client';
 
 export class CreateVoucherDto {
   @IsString()
   id: string;
-
-  @IsString()
-  redeemCode: string;
 
   @IsString()
   name: string;
@@ -122,3 +122,28 @@ export class UpdateVoucherDto {
   @IsOptional()
   limitPerMember?: number;
 }
+
+
+// DTO for voucher sale creation
+export class CreateVoucherByDevDto {
+  @IsString()
+  @IsNotEmpty()
+  sellerWalletAddress: string;
+
+  @IsString()
+  @IsNotEmpty()
+  merchantId: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  price: number;
+
+  @IsInt()
+  @IsNotEmpty()
+  amount: number;
+
+  @ValidateNested()
+  @Type(() => CreateVoucherDto)
+  coupon: CreateVoucherDto;
+}
+

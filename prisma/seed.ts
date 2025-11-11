@@ -89,7 +89,6 @@ async function seedMerchants() {
 
 async function seedVouchers() {
   for (const voucher of voucherSeeds) {
-    const redeemCode = voucher.redeemCode ?? `REDEEM-${voucher.id}`;
     await prisma.voucher.upsert({
       where: { id: voucher.id },
       update: {

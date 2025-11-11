@@ -202,16 +202,19 @@ model Voucher {
   limitPerMember Int?
   createdAt      DateTime        @default(now()) @map(name: "created_at")
   updatedAt      DateTime        @updatedAt @map(name: "updated_at")
-  voucherCodes   VoucherCode[]
+  voucherCodes   VoucherCode[]  // ← 1 voucher มีหลาย codes
 }
 
 model VoucherCode {
-  id        String    @id @default(cuid())
-  code      String    @unique
-  voucherId String
-  voucher   Voucher   @relation(fields: [voucherId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  isUsed    Boolean   @default(false)
-  usedBy    String?
-  usedAt    DateTime?
-  createdAt DateTime  @default(now()) @map(name: "created_at")
+  id          String    @id @default(cuid())
+  code        String    @unique        // ← Code ที่ไม่ซ้ำกัน
+  voucherId   String
+  voucher     Voucher   @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  isUsed      Boolean   @default(false)
+  usedBy      String?                  // ← Customer ID ที่ใช้
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now()) @map(name: "created_at")
+  
+  @@index([voucherId, isUsed])
+  @@index([code])
 }

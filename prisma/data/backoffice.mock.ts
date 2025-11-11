@@ -27,7 +27,6 @@ export type VoucherSeed = {
   totalIssued: number;
   totalRedeemed: number;
   limitPerMember?: number;
-  redeemCode?: string;
 };
 
 export type PointSeed = {

@@ -26,7 +26,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "seed": "tsc prisma/seed.ts --outDir dist/prisma && node dist/prisma/seed.js",
     "pre-commit": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "db:reset": "prisma migrate reset --force && prisma generate && prisma studio"
   },
   "dependencies": {
     "@babel/highlight": "^7.25.9",

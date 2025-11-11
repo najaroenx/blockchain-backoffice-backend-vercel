@@ -8,11 +8,7 @@ import { PrismaModule } from 'prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   controllers: [WalletController],
-  providers: [
-    WalletRepository,
-    WalletDBService,
-    GetWalletByPhoneOrEmail,
-  ],
+  providers: [WalletRepository, WalletDBService, GetWalletByPhoneOrEmail],
   exports: [WalletDBService],
 })
 export class WalletModule {}

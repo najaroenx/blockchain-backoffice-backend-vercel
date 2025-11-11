@@ -6,7 +6,8 @@ import { Merchant, Prisma } from '@prisma/client';
 export class MerchantDBService {
   constructor(private readonly repository: MerchantRepository) {}
 
-  async getMerchants(userId: string): Promise<any[]> {// refactor
+  async getMerchants(userId: string): Promise<any[]> {
+    // refactor
     const merchants = await this.repository.findMany<any>({
       where: {
         userMerchant: {

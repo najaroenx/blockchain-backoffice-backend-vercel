@@ -202,5 +202,16 @@ model Voucher {
   limitPerMember Int?
   createdAt      DateTime        @default(now()) @map(name: "created_at")
   updatedAt      DateTime        @updatedAt @map(name: "updated_at")
-  redeemCode     String
+  voucherCodes   VoucherCode[]
+}
+
+model VoucherCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  voucherId String
+  voucher   Voucher   @relation(fields: [voucherId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  isUsed    Boolean   @default(false)
+  usedBy    String?
+  usedAt    DateTime?
+  createdAt DateTime  @default(now()) @map(name: "created_at")
 }

@@ -108,7 +108,6 @@ async function seedVouchers() {
         totalRedeemed: voucher.totalRedeemed,
         imageUrl: voucher.imageUrl,
         limitPerMember: voucher.limitPerMember,
-        redeemCode,
       },
       create: {
         id: voucher.id,
@@ -127,7 +126,6 @@ async function seedVouchers() {
         totalRedeemed: voucher.totalRedeemed,
         imageUrl: voucher.imageUrl,
         limitPerMember: voucher.limitPerMember,
-        redeemCode,
       },
     });
   }

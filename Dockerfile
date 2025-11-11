@@ -73,19 +73,19 @@ EXPOSE 4000
 #     node dist/src/main \
 #     "]
 #STAGING
-# CMD ["sh", "-c", "\
-#   echo '🚀 Running Prisma migrations...' && \
-#   npx prisma migrate deploy && \
-#   echo '🌱 Running Prisma seed...' && \
-#   node dist/prisma/seed.js && \
-#   echo '✅ All migrations and seed completed. Starting app...' && \
-#   node dist/src/main \
-# "]
-# DEV
 CMD ["sh", "-c", "\
-    echo '🧹 Resetting dev database...' && \
-    npx prisma migrate reset --force && \
-    npx prisma generate && \
-    node dist/src/main \
-    "]
+  echo '🚀 Running Prisma migrations...' && \
+  npx prisma migrate deploy && \
+  echo '🌱 Running Prisma seed...' && \
+  node dist/prisma/seed.js && \
+  echo '✅ All migrations and seed completed. Starting app...' && \
+  node dist/src/main \
+"]
+# DEV
+# CMD ["sh", "-c", "\
+#     echo '🧹 Resetting dev database...' && \
+#     npx prisma migrate reset --force && \
+#     npx prisma generate && \
+#     node dist/src/main \
+#     "]
 

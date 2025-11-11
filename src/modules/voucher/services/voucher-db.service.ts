@@ -3,7 +3,7 @@ import { Voucher, Prisma, VoucherStatus } from '@prisma/client';
 import { VoucherRepository } from '../voucher.repository';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateVoucherWithCodes } from '../handlers/createVoucherWithCodes.handler';
-import { CreateVoucherDto } from '../dtos/voucher.dto';
+import { CreateVoucherByDevDto, CreateVoucherDto } from '../dtos/voucher.dto';
 
 @Injectable()
 export class VoucherDBService {
@@ -14,7 +14,6 @@ export class VoucherDBService {
   ) {}
 
   async createVoucher(data: Prisma.VoucherCreateInput): Promise<Voucher> {
-
     const voucher = await this.repository.create<Voucher>({
       data,
     });
@@ -22,9 +21,9 @@ export class VoucherDBService {
     return voucher;
   }
 
-  async createVoucherByDev(data: CreateVoucherDto): Promise<any> {
+  async createVoucherByDev(data: CreateVoucherByDevDto): Promise<any> {
     // ใช้ handler ที่สร้าง voucher พร้อม codes
-    return await this.createVoucherWithCodesHandler.execute(data);
+    return await this.createVoucherWithCodesHandler.execute(data.coupon);
   }
 
   async getVoucherById(voucherId: string): Promise<Voucher> {

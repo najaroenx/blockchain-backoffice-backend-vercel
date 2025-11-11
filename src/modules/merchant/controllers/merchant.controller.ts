@@ -16,6 +16,7 @@ import { CreateMerchant } from '../handlers/createMerchant.handler';
 import { UpdateMerchant } from '../handlers/updateMerchant.handler';
 import { GetMerchant } from '../handlers/getMerchantById.handler';
 import { DeleteMerchant } from '../handlers/deleteMerchant.handler';
+import { Public } from 'src/modules/auth/public.decorator';
 
 @Controller('merchant')
 export class MerchantController {
@@ -36,6 +37,7 @@ export class MerchantController {
 
   @Post('/')
   @HttpCode(201)
+  @Public()
   async createMerchant(@Body() body: CreateMerchantDto) {
     const {
       userId,
@@ -75,6 +77,7 @@ export class MerchantController {
   }
 
   @Get('/:merchantId')
+  @Public()
   @HttpCode(200)
   async getMerchant(@Param('merchantId') merchantId: string) {
     return this.getMerchantHandler.execute(merchantId);

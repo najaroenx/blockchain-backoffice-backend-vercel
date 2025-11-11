@@ -9,7 +9,11 @@ import {
   Delete,
 } from '@nestjs/common';
 import { VoucherDBService } from '../services/voucher-db.service';
-import { CreateVoucherByDevDto, CreateVoucherDto, UpdateVoucherDto } from '../dtos';
+import {
+  CreateVoucherByDevDto,
+  CreateVoucherDto,
+  UpdateVoucherDto,
+} from '../dtos';
 import { Public } from 'src/modules/auth/public.decorator';
 
 @Controller('voucher')
@@ -75,9 +79,8 @@ export class VoucherController {
   @Post('/dev/interim-seller')
   @Public()
   @HttpCode(201)
-  async createVoucherByDev(
-    @Body() data: CreateVoucherByDevDto){
+  async createVoucherByDev(@Body() data: CreateVoucherByDevDto) {
     // สร้าง voucher พร้อมกับ codes ตามจำนวน amount
-    return data
+    return data;
   }
 }

@@ -13,6 +13,7 @@ import { GetCustomerById } from '../handlers/getCustomerById.handler';
 import { GetCustomerPhone } from '../handlers/getCustomerByPhone.handler';
 import { CreateCustomer } from '../handlers/createCustomer.handler';
 import { PageOptionsDto } from 'src/common/dtos';
+import { Public } from 'src/modules/auth/public.decorator';
 
 @Controller('/:merchantId/customer')
 export class CustomerController {
@@ -23,6 +24,7 @@ export class CustomerController {
     private readonly GetCustomerByPhone: GetCustomerPhone,
   ) {}
 
+  @Public()
   @Post('/')
   @HttpCode(201)
   async createCustomer(

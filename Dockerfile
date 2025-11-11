@@ -61,14 +61,21 @@ EXPOSE 4000
 
 # Run Prisma migrations and seeds, then start the application
 # CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
+# CMD ["sh", "-c", "\
+#     echo '🚀 Resolving failed Prisma migrations...' && \
+#     for dir in $(ls prisma/migrations); do \
+#     echo '🧩 Resolving migration:' $dir && \
+#     npx prisma migrate resolve --applied $dir || true; \
+#     done && \
+#     echo '✅ All migrations resolved. Deploying...' && \
+#     npx prisma migrate deploy && \
+#     echo '✅ Migrations done. Starting app...' && \
+#     node dist/src/main \
+#     "]
 CMD ["sh", "-c", "\
-    echo '🚀 Resolving failed Prisma migrations...' && \
-    for dir in $(ls prisma/migrations); do \
-    echo '🧩 Resolving migration:' $dir && \
-    npx prisma migrate resolve --applied $dir || true; \
-    done && \
-    echo '✅ All migrations resolved. Deploying...' && \
-    npx prisma migrate deploy && \
-    echo '✅ Migrations done. Starting app...' && \
+    echo '🧹 Resetting dev database...' && \
+    npx prisma migrate reset --force && \
+    npx prisma generate && \
     node dist/src/main \
     "]
+

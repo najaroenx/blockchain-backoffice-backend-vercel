@@ -120,12 +120,23 @@ export class ManageCouponHandler {
   }
 
   /**
-   * อัปเดต pointsCost ของ VoucherCode ทั้งหมด (ไม่จำกัดจำนวน)
+   * อัปเดต pointsCost ของ VoucherCode ทั้งหมด และอัปเดตข้อมูล voucher
    * @param voucherId - ID ของ voucher
    * @param price - pointsCost ใหม่
+   * @param name - ชื่อ voucher (optional)
+   * @param description - คำอธิบาย (optional)
+   * @param value - มูลค่า (optional)
+   * @param endDate - วันหมดอายุ (optional)
    * @returns ข้อมูลการอัปเดต
    */
-  async updateAllVoucherCodesPointCost(voucherId: string, price: number) {
+  async updateAllVoucherCodesPointCost(
+    voucherId: string,
+    price: number,
+    name?: string,
+    description?: string,
+    value?: number,
+    endDate?: string,
+  ) {
     if (!voucherId) {
       throw new BadRequestException('voucherId is required');
     }
@@ -135,42 +146,73 @@ export class ManageCouponHandler {
     }
 
     try {
-      // ตรวจสอบว่า voucher มีอยู่จริง
-      const voucher = await this.prisma.voucher.findUnique({
-        where: { id: voucherId },
-        include: {
-          _count: {
-            select: {
-              voucherCodes: true,
+      // ใช้ transaction เพื่ออัปเดตทั้ง voucher และ voucher codes
+      const result = await this.prisma.$transaction(async (tx) => {
+        // ตรวจสอบว่า voucher มีอยู่จริง
+        const voucher = await tx.voucher.findUnique({
+          where: { id: voucherId },
+          include: {
+            _count: {
+              select: {
+                voucherCodes: true,
+              },
             },
           },
-        },
+        });
+
+        if (!voucher) {
+          throw new NotFoundException(
+            `Voucher with id '${voucherId}' not found`,
+          );
+        }
+
+        // 1. อัปเดตข้อมูล voucher (ถ้ามี)
+        const voucherUpdateData: any = {};
+
+        if (name !== undefined) voucherUpdateData.name = name;
+        if (description !== undefined)
+          voucherUpdateData.description = description;
+        if (value !== undefined) voucherUpdateData.value = value;
+        if (endDate !== undefined)
+          voucherUpdateData.endDate = new Date(endDate);
+
+        if (Object.keys(voucherUpdateData).length > 0) {
+          await tx.voucher.update({
+            where: { id: voucherId },
+            data: voucherUpdateData,
+          });
+
+          this.logger.log(
+            `Updated voucher '${voucherId}' with fields: ${Object.keys(voucherUpdateData).join(', ')}`,
+          );
+        }
+
+        // 2. อัปเดต pointsCost ของ codes ทั้งหมดที่ยังไม่ได้ใช้
+        const updateResult = await tx.voucherCode.updateMany({
+          where: {
+            voucherId,
+            isUsed: false,
+          },
+          data: {
+            pointsCost: price,
+          },
+        });
+
+        this.logger.log(
+          `Updated pointsCost to ${price} for all ${updateResult.count} unused voucher codes of voucher '${voucherId}'`,
+        );
+
+        return {
+          updateResult,
+          totalCodes: voucher._count.voucherCodes,
+        };
       });
-
-      if (!voucher) {
-        throw new NotFoundException(`Voucher with id '${voucherId}' not found`);
-      }
-
-      // อัปเดต pointsCost ของ codes ทั้งหมดที่ยังไม่ได้ใช้
-      const updateResult = await this.prisma.voucherCode.updateMany({
-        where: {
-          voucherId,
-          isUsed: false,
-        },
-        data: {
-          pointsCost: price,
-        },
-      });
-
-      this.logger.log(
-        `Updated pointsCost to ${price} for all ${updateResult.count} unused voucher codes of voucher '${voucherId}'`,
-      );
 
       return {
         success: true,
         voucherId,
-        updatedCount: updateResult.count,
-        totalCodes: voucher._count.voucherCodes,
+        updatedCount: result.updateResult.count,
+        totalCodes: result.totalCodes,
         newPointsCost: price,
       };
     } catch (error) {

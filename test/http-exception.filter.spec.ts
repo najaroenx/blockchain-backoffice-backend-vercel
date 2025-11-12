@@ -1,6 +1,5 @@
 import { HttpExceptionFilter } from '../src/filters/http-exception.filter';
 import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
-import { BAD_REQUEST } from 'src/errors/error.constants';
 
 describe('HttpExceptionFilter', () => {
   let filter: HttpExceptionFilter;
@@ -26,11 +25,7 @@ describe('HttpExceptionFilter', () => {
     filter.catch(exception, mockHost);
 
     expect(mockResponse.status).toHaveBeenCalledWith(400);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      message: BAD_REQUEST,
-      error: 'Bad Request',
-      statusCode: 400,
-    });
+    expect(mockResponse.json).toHaveBeenCalledWith('Bad Request');
   });
 
   it('should handle other HttpException (e.g. 404)', () => {

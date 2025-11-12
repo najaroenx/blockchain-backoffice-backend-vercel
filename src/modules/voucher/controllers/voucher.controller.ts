@@ -7,18 +7,25 @@ import {
   Put,
   Post,
   Delete,
+  Patch,
 } from '@nestjs/common';
 import { VoucherDBService } from '../services/voucher-db.service';
 import {
   CreateVoucherByDevDto,
   CreateVoucherDto,
   UpdateVoucherDto,
+  UpdateVoucherCodesPointCostDto,
+  UpdateAllVoucherCodesPointCostDto,
 } from '../dtos';
 import { Public } from 'src/modules/auth/public.decorator';
+import { ManageCouponHandler } from '../handlers/manageCoupon.handler';
 
 @Controller('coupon')
 export class VoucherController {
-  constructor(private readonly voucherService: VoucherDBService) {}
+  constructor(
+    private readonly voucherService: VoucherDBService,
+    private readonly manageCouponHandler: ManageCouponHandler,
+  ) {}
 
   @Get('/')
   @HttpCode(200)
@@ -81,5 +88,43 @@ export class VoucherController {
   async createVoucherByDev(@Body() data: CreateVoucherByDevDto) {
     // สร้าง voucher พร้อมกับ codes ตามจำนวน amount
     return this.voucherService.createVoucherByDev(data);
+  }
+
+  /**
+   * อัปเดต pointsCost ของ VoucherCode ตามจำนวนที่กำหนด
+   * POST /coupon/manage/update-price
+   * Body: { voucherId: string, amount: number, price: number }
+   */
+  @Patch('/manage/update-price')
+  @HttpCode(200)
+  async updateVoucherCodesPrice(@Body() data: UpdateVoucherCodesPointCostDto) {
+    return this.manageCouponHandler.updateVoucherCodesPointCost(data);
+  }
+
+  /**
+   * อัปเดต pointsCost ของ VoucherCode ทั้งหมด
+   * PATCH /coupon/manage/update-all-price/:voucherId
+   * Body: { price: number }
+   */
+  @Patch('/manage/update-all-price/:voucherId')
+  @HttpCode(200)
+  async updateAllVoucherCodesPrice(
+    @Param('voucherId') voucherId: string,
+    @Body() data: UpdateAllVoucherCodesPointCostDto,
+  ) {
+    return this.manageCouponHandler.updateAllVoucherCodesPointCost(
+      voucherId,
+      data.price,
+    );
+  }
+
+  /**
+   * ดึงสถิติของ VoucherCode
+   * GET /coupon/manage/statistics/:voucherId
+   */
+  @Get('/manage/statistics/:voucherId')
+  @HttpCode(200)
+  async getVoucherCodesStatistics(@Param('voucherId') voucherId: string) {
+    return this.manageCouponHandler.getVoucherCodesStatistics(voucherId);
   }
 }

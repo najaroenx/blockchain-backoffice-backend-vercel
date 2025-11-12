@@ -193,7 +193,6 @@ model Voucher {
   valueType      VoucherValueType
   value          Float
   currency       String?
-  pointsCost     Int
   startDate      DateTime
   endDate        DateTime
   totalIssued    Int
@@ -210,6 +209,7 @@ model VoucherCode {
   code        String    @unique        // ← Code ที่ไม่ซ้ำกัน
   voucherId   String
   voucher     Voucher   @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  pointsCost  Int                      // ← ย้ายมาจาก Voucher
   isUsed      Boolean   @default(false)
   usedBy      String?                  // ← Customer ID ที่ใช้
   usedAt      DateTime?

@@ -6,7 +6,6 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { BAD_REQUEST } from 'src/errors/error.constants';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -19,13 +18,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
     if (exception instanceof HttpException) {
-      if (status === 400) {
-        return response.status(status).json({
-          message: BAD_REQUEST,
-          error: 'Bad Request',
-          statusCode: 400,
-        });
-      }
+      // ส่ง response ตามที่ exception กำหนดไว้
       return response.status(status).json(exception.getResponse());
     }
 

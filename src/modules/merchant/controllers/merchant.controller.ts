@@ -83,8 +83,9 @@ export class MerchantController {
     return this.getMerchantHandler.execute(merchantId);
   }
 
+  @Public()
   @Delete('/:merchantId')
-  @HttpCode(201)
+  @HttpCode(200)
   async deleteMerchant(@Param('merchantId') merchantId: string) {
     return this.deleteMerchantHandler.execute(merchantId);
   }

@@ -18,7 +18,7 @@ export class GetWalletByPhoneOrEmail {
     }
 
     // ไม่ return privateKey ออกไป
-    const { privateKey, ...walletWithoutPrivateKey } = wallet;
+    const { ...walletWithoutPrivateKey } = wallet;
 
     return walletWithoutPrivateKey;
   }

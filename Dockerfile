@@ -73,25 +73,25 @@ EXPOSE 4000
 #     node dist/src/main \
 #     "]
 #STAGING VERSION 1
-# CMD ["sh", "-c", "\
-#   echo '🚀 Running Prisma migrations...' && \
-#   npx prisma migrate deploy && \
-#   echo '🌱 Running Prisma seed...' && \
-#   node dist/prisma/seed.js && \
-#   echo '✅ All migrations and seed completed. Starting app...' && \
-#   node dist/src/main \
-# "]
-#STAGING VERSION 2
 CMD ["sh", "-c", "\
-  echo '🚀 Generating Prisma client...' && \
-  npx prisma generate && \
-  echo '🚀 Applying Prisma migrations...' && \
+  echo '🚀 Running Prisma migrations...' && \
   npx prisma migrate deploy && \
-  echo '🌱 Seeding data...' && \
+  echo '🌱 Running Prisma seed...' && \
   node dist/prisma/seed.js && \
-  echo '✅ Starting app...' && \
+  echo '✅ All migrations and seed completed. Starting app...' && \
   node dist/src/main \
-  "]
+"]
+#STAGING VERSION 2
+# CMD ["sh", "-c", "\
+#   echo '🚀 Generating Prisma client...' && \
+#   npx prisma generate && \
+#   echo '🚀 Applying Prisma migrations...' && \
+#   npx prisma migrate deploy && \
+#   echo '🌱 Seeding data...' && \
+#   node dist/prisma/seed.js && \
+#   echo '✅ Starting app...' && \
+#   node dist/src/main \
+#   "]
 
 # DEV FOR RESETTING DB
 # CMD ["sh", "-c", "\

@@ -1,9 +1,13 @@
-import { IsString, IsNumber, IsPositive, Min } from 'class-validator';
+import {
+  IsNumber,
+  IsPositive,
+  Min,
+  IsString,
+  IsOptional,
+  IsDateString,
+} from 'class-validator';
 
 export class UpdateVoucherCodesPointCostDto {
-  @IsString()
-  voucherId: string;
-
   @IsNumber()
   @IsPositive()
   amount: number;
@@ -17,4 +21,20 @@ export class UpdateAllVoucherCodesPointCostDto {
   @IsNumber()
   @Min(0)
   price: number;
+
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsNumber()
+  @IsOptional()
+  value?: number;
+
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
 }

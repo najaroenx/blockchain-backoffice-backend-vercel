@@ -130,10 +130,6 @@ export class CreateVoucherByDevDto {
   @IsNotEmpty()
   price: number;
 
-  @IsInt()
-  @IsNotEmpty()
-  amount: number;
-
   @ValidateNested()
   @Type(() => CreateVoucherDto)
   coupon: CreateVoucherDto;

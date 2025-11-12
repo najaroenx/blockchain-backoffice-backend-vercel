@@ -3,7 +3,9 @@ import { Voucher, Prisma, VoucherStatus } from '@prisma/client';
 import { VoucherRepository } from '../voucher.repository';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateVoucherWithCodes } from '../handlers/createVoucherWithCodes.handler';
+import { ActivateVoucher } from '../handlers/activateVoucher.handler';
 import { CreateVoucherByDevDto, CreateVoucherDto } from '../dtos/voucher.dto';
+import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 
 export interface DeleteVoucherResponse {
   success: boolean;
@@ -18,6 +20,7 @@ export class VoucherDBService {
     private readonly repository: VoucherRepository,
     private readonly prisma: PrismaService,
     private readonly createVoucherWithCodesHandler: CreateVoucherWithCodes,
+    private readonly activateVoucherHandler: ActivateVoucher,
   ) {}
 
   async createVoucher(data: Prisma.VoucherCreateInput): Promise<Voucher> {
@@ -49,13 +52,28 @@ export class VoucherDBService {
     return voucher;
   }
 
-  async getVouchersByMerchant(merchantId: string): Promise<Voucher[]> {
-    const vouchers = await this.repository.findMany<Voucher>({
+  async getVouchersByMerchant(merchantId: string): Promise<any[]> {
+    const vouchers = await this.repository.findMany<any>({
       where: { merchantId },
-      include: { merchant: true },
+      include: {
+        merchant: true,
+        voucherCodes: {
+          take: 1, // ดึง code แรกมาเพื่อเอา pointsCost
+          select: {
+            pointsCost: true,
+          },
+        },
+      },
     });
 
-    return vouchers;
+    // Format response ให้มี pointsCost
+    return vouchers.map((voucher) => {
+      const { voucherCodes, ...voucherData } = voucher;
+      return {
+        ...voucherData,
+        pointsCost: voucherCodes[0]?.pointsCost || 0,
+      };
+    });
   }
 
   async getActiveVouchers(): Promise<Voucher[]> {
@@ -77,6 +95,17 @@ export class VoucherDBService {
     });
 
     return voucher;
+  }
+
+  async activateVoucher(
+    voucherId: string,
+    data: ActivateVoucherDto,
+  ): Promise<any> {
+    return this.activateVoucherHandler.execute(
+      voucherId,
+      data.amount,
+      data.pointsCost,
+    );
   }
 
   async deleteVoucher(voucherId: string): Promise<DeleteVoucherResponse> {

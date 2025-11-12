@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   Param,
-  Put,
   Post,
   Delete,
   Patch,
@@ -13,10 +12,10 @@ import { VoucherDBService } from '../services/voucher-db.service';
 import {
   CreateVoucherByDevDto,
   CreateVoucherDto,
-  UpdateVoucherDto,
   UpdateVoucherCodesPointCostDto,
   UpdateAllVoucherCodesPointCostDto,
 } from '../dtos';
+import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 import { Public } from 'src/modules/auth/public.decorator';
 import { ManageCouponHandler } from '../handlers/manageCoupon.handler';
 
@@ -60,26 +59,21 @@ export class VoucherController {
     return this.voucherService.createVoucherWithCodes(data);
   }
 
-  @Put('/:voucherId')
-  @HttpCode(200)
-  async updateVoucher(
-    @Param('voucherId') voucherId: string,
-    @Body() data: UpdateVoucherDto,
-  ) {
-    const updateData: any = { ...data };
-    if (data.startDate) {
-      updateData.startDate = new Date(data.startDate);
-    }
-    if (data.endDate) {
-      updateData.endDate = new Date(data.endDate);
-    }
-    return this.voucherService.updateVoucher(voucherId, updateData);
-  }
-
   @Delete('/:voucherId')
   @HttpCode(200)
   async deleteVoucher(@Param('voucherId') voucherId: string) {
     return this.voucherService.deleteVoucher(voucherId);
+  }
+
+  @Patch('/activate/:voucherId')
+  @Public()
+  @HttpCode(200)
+  async activateVoucher(
+    @Param('voucherId') voucherId: string,
+    @Body() data: ActivateVoucherDto,
+  ) {
+    console.log('start');
+    return this.voucherService.activateVoucher(voucherId, data);
   }
 
   @Post('/dev/interim-seller')
@@ -95,18 +89,24 @@ export class VoucherController {
    * POST /coupon/manage/update-price
    * Body: { voucherId: string, amount: number, price: number }
    */
-  @Patch('/manage/update-price')
+  @Patch('/set-up/:voucherId')
   @HttpCode(200)
-  async updateVoucherCodesPrice(@Body() data: UpdateVoucherCodesPointCostDto) {
-    return this.manageCouponHandler.updateVoucherCodesPointCost(data);
+  async updateVoucherCodesPrice(
+    @Param('voucherId') voucherId: string,
+    @Body() data: UpdateVoucherCodesPointCostDto,
+  ) {
+    return this.manageCouponHandler.updateVoucherCodesPointCost({
+      voucherId,
+      ...data,
+    });
   }
 
   /**
    * อัปเดต pointsCost ของ VoucherCode ทั้งหมด
    * PATCH /coupon/manage/update-all-price/:voucherId
-   * Body: { price: number }
+   * Body: { price: number, name?: string, description?: string, value?: number, endDate?: string }
    */
-  @Patch('/manage/update-all-price/:voucherId')
+  @Patch('/set-up-all/:voucherId')
   @HttpCode(200)
   async updateAllVoucherCodesPrice(
     @Param('voucherId') voucherId: string,
@@ -115,6 +115,10 @@ export class VoucherController {
     return this.manageCouponHandler.updateAllVoucherCodesPointCost(
       voucherId,
       data.price,
+      data.name,
+      data.description,
+      data.value,
+      data.endDate,
     );
   }
 
@@ -122,7 +126,8 @@ export class VoucherController {
    * ดึงสถิติของ VoucherCode
    * GET /coupon/manage/statistics/:voucherId
    */
-  @Get('/manage/statistics/:voucherId')
+  @Get('/statistics/:voucherId')
+  @Public()
   @HttpCode(200)
   async getVoucherCodesStatistics(@Param('voucherId') voucherId: string) {
     return this.manageCouponHandler.getVoucherCodesStatistics(voucherId);

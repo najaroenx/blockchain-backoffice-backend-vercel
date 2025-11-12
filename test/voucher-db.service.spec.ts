@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { VoucherDBService } from '../src/modules/voucher/services/voucher-db.service';
 import { VoucherRepository } from '../src/modules/voucher/voucher.repository';
 import { VoucherStatus, VoucherValueType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateVoucherWithCodes } from '../src/modules/voucher/handlers/createVoucherWithCodes.handler';
 
 describe('VoucherDBService', () => {
   let service: VoucherDBService;
@@ -14,6 +16,22 @@ describe('VoucherDBService', () => {
     delete: jest.fn(),
   };
 
+  const mockPrismaService = {
+    voucher: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    voucherCode: {
+      createMany: jest.fn(),
+    },
+    $transaction: jest.fn(),
+  };
+
+  const mockCreateVoucherWithCodes = {
+    execute: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -21,6 +39,14 @@ describe('VoucherDBService', () => {
         {
           provide: VoucherRepository,
           useValue: mockVoucherRepository,
+        },
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+        {
+          provide: CreateVoucherWithCodes,
+          useValue: mockCreateVoucherWithCodes,
         },
       ],
     }).compile();
@@ -216,20 +242,37 @@ describe('VoucherDBService', () => {
   describe('deleteVoucher', () => {
     it('should delete a voucher successfully', async () => {
       const voucherId = 'voucher-1';
-      const mockDeletedVoucher = {
-        id: voucherId,
-        name: 'Deleted Voucher',
+      const mockResult = {
+        voucher: {
+          id: voucherId,
+          name: 'Deleted Voucher',
+        },
+        deletedCodesCount: 10,
       };
 
-      mockVoucherRepository.delete.mockResolvedValue(mockDeletedVoucher);
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+        return callback({
+          voucherCode: {
+            count: jest.fn().mockResolvedValue(10),
+          },
+          voucher: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: voucherId,
+              name: 'Deleted Voucher',
+              _count: {
+                voucherCodes: 10,
+              },
+            }),
+            delete: jest.fn().mockResolvedValue(mockResult.voucher),
+          },
+        });
+      });
 
       const result = await service.deleteVoucher(voucherId);
 
       expect(result).toBeDefined();
-      expect(result.id).toBe(voucherId);
-      expect(mockVoucherRepository.delete).toHaveBeenCalledWith({
-        where: { id: voucherId },
-      });
+      expect(result.success).toBe(true);
+      expect(result.deletedCodesCount).toBe(10);
     });
   });
 

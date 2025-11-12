@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { VoucherController } from '../src/modules/voucher/controllers/voucher.controller';
 import { VoucherDBService } from '../src/modules/voucher/services/voucher-db.service';
 import { VoucherStatus, VoucherValueType } from '@prisma/client';
+import { ManageCouponHandler } from '../src/modules/voucher/handlers/manageCoupon.handler';
 
 describe('VoucherController', () => {
   let controller: VoucherController;
@@ -12,8 +13,15 @@ describe('VoucherController', () => {
     getVouchersByMerchant: jest.fn(),
     getVoucherById: jest.fn(),
     createVoucher: jest.fn(),
+    createVoucherWithCodes: jest.fn(),
     updateVoucher: jest.fn(),
     deleteVoucher: jest.fn(),
+  };
+
+  const mockManageCouponHandler = {
+    updateVoucherCodesPointCost: jest.fn(),
+    updateAllVoucherCodesPointCost: jest.fn(),
+    getVoucherCodesStatistics: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -23,6 +31,10 @@ describe('VoucherController', () => {
         {
           provide: VoucherDBService,
           useValue: mockVoucherDBService,
+        },
+        {
+          provide: ManageCouponHandler,
+          useValue: mockManageCouponHandler,
         },
       ],
     }).compile();
@@ -144,18 +156,16 @@ describe('VoucherController', () => {
         updatedAt: new Date(),
       };
 
-      mockVoucherDBService.createVoucher.mockResolvedValue(mockCreatedVoucher);
+      mockVoucherDBService.createVoucherWithCodes.mockResolvedValue(
+        mockCreatedVoucher,
+      );
 
       const result = await controller.createVoucher(createDto);
 
       expect(result).toBeDefined();
-      expect(result.name).toBe('New Voucher');
-      expect(mockVoucherDBService.createVoucher).toHaveBeenCalledWith({
-        ...createDto,
-        startDate: new Date(createDto.startDate),
-        endDate: new Date(createDto.endDate),
-        redeemCode: 'SAVE50',
-      });
+      expect(mockVoucherDBService.createVoucherWithCodes).toHaveBeenCalledWith(
+        createDto,
+      );
     });
   });
 
@@ -237,7 +247,6 @@ describe('VoucherController', () => {
       const result = await controller.deleteVoucher(voucherId);
 
       expect(result).toBeDefined();
-      expect(result.id).toBe(voucherId);
       expect(mockVoucherDBService.deleteVoucher).toHaveBeenCalledWith(
         voucherId,
       );

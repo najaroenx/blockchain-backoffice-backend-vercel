@@ -16,7 +16,7 @@ import {
 } from '../dtos';
 import { Public } from 'src/modules/auth/public.decorator';
 
-@Controller('voucher')
+@Controller('coupon')
 export class VoucherController {
   constructor(private readonly voucherService: VoucherDBService) {}
 
@@ -33,12 +33,14 @@ export class VoucherController {
   }
 
   @Get('/merchant/:merchantId')
+  @Public()
   @HttpCode(200)
   async getVouchersByMerchant(@Param('merchantId') merchantId: string) {
     return this.voucherService.getVouchersByMerchant(merchantId);
   }
 
   @Get('/:voucherId')
+  @Public()
   @HttpCode(200)
   async getVoucherById(@Param('voucherId') voucherId: string) {
     return this.voucherService.getVoucherById(voucherId);
@@ -47,11 +49,8 @@ export class VoucherController {
   @Post('/')
   @HttpCode(201)
   async createVoucher(@Body() data: CreateVoucherDto) {
-    return this.voucherService.createVoucher({
-      ...data,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
-    });
+    // ใช้ handler ที่สร้าง voucher พร้อม codes และ pointsCost
+    return this.voucherService.createVoucherWithCodes(data);
   }
 
   @Put('/:voucherId')

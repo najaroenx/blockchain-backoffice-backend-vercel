@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { MerchantDBService } from '../services/merchant-db.service';
-import { GetMerchantsResponseType } from '../types';
+import { Wallet } from 'ethers';
 
 @Injectable()
 export class GetMerchants {
@@ -43,9 +43,8 @@ export class GetMerchants {
     }
   }
 
-  private getAddressFromPrivateKey(privateKey: string): string {
+  private getAddressFromPrivateKey(privateKey: string): string | null {
     // ใช้ ethers เพื่อดึง address จาก private key
-    const { Wallet } = require('ethers');
     try {
       const wallet = new Wallet(privateKey);
       return wallet.address;

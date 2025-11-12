@@ -5,6 +5,13 @@ import { PrismaService } from 'prisma/prisma.service';
 import { CreateVoucherWithCodes } from '../handlers/createVoucherWithCodes.handler';
 import { CreateVoucherByDevDto, CreateVoucherDto } from '../dtos/voucher.dto';
 
+export interface DeleteVoucherResponse {
+  success: boolean;
+  message: string;
+  voucher: Voucher;
+  deletedCodesCount: number;
+}
+
 @Injectable()
 export class VoucherDBService {
   constructor(
@@ -21,8 +28,16 @@ export class VoucherDBService {
     return voucher;
   }
 
+  async createVoucherWithCodes(data: CreateVoucherDto): Promise<any> {
+    // ใช้ handler ที่สร้าง voucher พร้อม codes พร้อม pointsCost
+    const { ...voucherData } = data;
+    return await this.createVoucherWithCodesHandler.execute(
+      voucherData as CreateVoucherDto,
+    );
+  }
+
   async createVoucherByDev(data: CreateVoucherByDevDto): Promise<any> {
-    // ใช้ handler ที่สร้าง voucher พร้อม codes
+    // ใช้ handler ที่สร้าง voucher พร้อม codes พร้อม pointsCost
     return await this.createVoucherWithCodesHandler.execute(data.coupon);
   }
 
@@ -64,12 +79,39 @@ export class VoucherDBService {
     return voucher;
   }
 
-  async deleteVoucher(voucherId: string): Promise<Voucher> {
-    const voucher = await this.repository.delete({
-      where: { id: voucherId },
+  async deleteVoucher(voucherId: string): Promise<DeleteVoucherResponse> {
+    // ใช้ transaction เพื่อความปลอดภัย
+    const result = await this.prisma.$transaction(async (tx) => {
+      // ตรวจสอบว่า voucher มีอยู่จริง
+      const voucher = await tx.voucher.findUnique({
+        where: { id: voucherId },
+        include: {
+          _count: {
+            select: { voucherCodes: true },
+          },
+        },
+      });
+
+      if (!voucher) {
+        throw new Error(`Voucher with ID ${voucherId} not found`);
+      }
+
+      const codesCount = voucher._count.voucherCodes;
+
+      // ลบ voucher (cascade จะลบ codes ทั้งหมดอัตโนมัติ)
+      const deletedVoucher = await tx.voucher.delete({
+        where: { id: voucherId },
+      });
+
+      return { voucher: deletedVoucher, deletedCodesCount: codesCount };
     });
 
-    return voucher;
+    return {
+      success: true,
+      message: `Voucher deleted successfully with ${result.deletedCodesCount} codes`,
+      voucher: result.voucher,
+      deletedCodesCount: result.deletedCodesCount,
+    };
   }
 
   async getAllVouchers(): Promise<Voucher[]> {

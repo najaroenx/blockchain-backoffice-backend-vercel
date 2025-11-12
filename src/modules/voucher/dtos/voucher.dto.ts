@@ -13,9 +13,6 @@ import { VoucherStatus, VoucherValueType } from '@prisma/client';
 
 export class CreateVoucherDto {
   @IsString()
-  id: string;
-
-  @IsString()
   name: string;
 
   @IsString()
@@ -128,10 +125,6 @@ export class CreateVoucherByDevDto {
   @IsString()
   @IsNotEmpty()
   sellerWalletAddress: string;
-
-  @IsString()
-  @IsNotEmpty()
-  merchantId: string;
 
   @IsNumber()
   @IsNotEmpty()

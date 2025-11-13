@@ -205,16 +205,18 @@ model Voucher {
 }
 
 model VoucherCode {
-  id          String    @id @default(cuid())
-  code        String    @unique        // ← Code ที่ไม่ซ้ำกัน
-  voucherId   String
-  voucher     Voucher   @relation(fields: [voucherId], references: [id], onDelete: Cascade)
-  pointsCost  Int                      // ← ย้ายมาจาก Voucher
-  isUsed      Boolean   @default(false)
-  usedBy      String?                  // ← Customer ID ที่ใช้
-  usedAt      DateTime?
-  createdAt   DateTime  @default(now()) @map(name: "created_at")
+  id              String    @id @default(cuid())
+  code            String    @unique        // ← Code ที่ไม่ซ้ำกัน
+  voucherId       String
+  voucher         Voucher   @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  voucherGroupId  String?                  // ← Group ID สำหรับจัดกลุ่ม codes
+  pointsCost      Int                      // ← ย้ายมาจาก Voucher
+  isUsed          Boolean   @default(false)
+  usedBy          String?                  // ← Customer ID ที่ใช้
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now()) @map(name: "created_at")
   
   @@index([voucherId, isUsed])
   @@index([code])
+  @@index([voucherGroupId])
 }

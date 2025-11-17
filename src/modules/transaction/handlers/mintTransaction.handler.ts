@@ -17,6 +17,7 @@ import { GetCustomerByEmail } from 'src/modules/customer/handlers/getCustomerByE
 import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
 import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
 import { ConfigService } from '@nestjs/config';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 
 @Injectable()
 export class MintTransaction {
@@ -77,7 +78,7 @@ export class MintTransaction {
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
         receiver: { connect: { id: customer.id } },
-        transactionType: { connect: { id: 'redeem' } },
+        transactionType: { connect: { id: TransactionTypeId.MINT } },
         // txHash: createBufferFromHex(txId),
         txHash: Uint8Array.from(Buffer.from(txId.replace(/^0x/, ''), 'hex')),
       });

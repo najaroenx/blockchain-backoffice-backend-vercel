@@ -41,9 +41,48 @@ const toHashBuffer = (value: string) => toBuffer(value, 32);
 
 async function seedTransactionTypes() {
   const types = [
-    { id: 'redeem', name: 'Redeem', description: 'Redeem' },
-    { id: 'transfer', name: 'Transfer', description: 'Transfer' },
-    { id: 'earn', name: 'Earn', description: 'Earn' },
+    // Point-related transactions
+    {
+      id: 'MINT',
+      name: 'Mint',
+      description: 'Mint new points to customer',
+    },
+    {
+      id: 'TRANSFER',
+      name: 'Transfer',
+      description: 'Transfer points between customers',
+    },
+    {
+      id: 'BURN',
+      name: 'Burn',
+      description: 'Burn/destroy points',
+    },
+    {
+      id: 'EARN',
+      name: 'Earn',
+      description: 'Earn points from activity',
+    },
+    {
+      id: 'REDEEM',
+      name: 'Redeem',
+      description: 'Redeem points for rewards',
+    },
+    // Voucher-related transactions
+    {
+      id: 'MARKETPLACE_PURCHASE',
+      name: 'Marketplace Purchase',
+      description: 'Purchase voucher from marketplace',
+    },
+    {
+      id: 'VOUCHER_TRANSFER',
+      name: 'Voucher Transfer',
+      description: 'Transfer voucher to another customer',
+    },
+    {
+      id: 'VOUCHER_GIFT',
+      name: 'Voucher Gift',
+      description: 'Gift voucher to another customer',
+    },
   ];
 
   for (const type of types) {

@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateVoucherDto } from '../dtos/voucher.dto';
-import { generateUniqueCodes } from '../utils/generate-codes.util';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -17,7 +16,7 @@ export class CreateVoucherWithCodes {
 
   async execute(data: CreateVoucherDto) {
     try {
-      // สร้าง voucher พร้อม codes ในครั้งเดียว
+      // สร้างเฉพาะ voucher metadata (ไม่สร้าง codes)
       const result = await this.prisma.$transaction(async (tx) => {
         // 1. แยก pointsCost และ dates ออกจาก voucherData
         const { pointsCost, startDate, endDate, ...voucherData } = data;
@@ -25,7 +24,7 @@ export class CreateVoucherWithCodes {
         // 2. Generate coupon ID
         const couponId = `COUPON-${randomUUID()}`;
 
-        // 3. สร้าง voucher (ไม่รวม pointsCost และแปลง dates)
+        // 3. สร้าง voucher (metadata เท่านั้น)
         const voucher = await tx.voucher.create({
           data: {
             id: couponId,
@@ -35,31 +34,26 @@ export class CreateVoucherWithCodes {
           },
         });
 
-        // 4. สร้าง unique codes (จำนวนเท่ากับ totalIssued)
-        const codes = generateUniqueCodes(voucher.id, data.totalIssued);
+        // implement mint coupon
 
-        // 5. implement code smart contract here trigger
+        // implement mint thbs
 
-        // 6. เพิ่ม codes ลง database พร้อม pointsCost
-        await tx.voucherCode.createMany({
-          data: codes.map((code) => ({
-            code,
-            voucherId: voucher.id,
-            pointsCost, // ใช้ pointsCost จาก data
-          })),
-        });
+        // implement tranferfrom to vault
 
-        return voucher;
+        this.logger.log(`Created voucher metadata ${voucher.id}`);
+
+        return { voucher, pointsCost };
       });
 
       this.logger.log(
-        `Created voucher ${result.id} with ${data.totalIssued} unique codes`,
+        `Created voucher ${result.voucher.id} (metadata only, no codes created yet)`,
       );
 
       return {
         success: true,
-        voucher: result,
-        message: `Voucher created with ${data.totalIssued} unique redeem codes`,
+        voucher: result.voucher,
+        message: `Voucher created successfully. Use activate endpoint to create ${data.totalIssued} codes and activate.`,
+        note: 'Voucher codes will be created when activating the voucher',
       };
     } catch (error) {
       this.logger.error(

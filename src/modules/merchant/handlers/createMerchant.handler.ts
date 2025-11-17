@@ -28,6 +28,15 @@ export class CreateMerchant {
     try {
       const phoneNumber = (data as any).tel;
 
+      // Validate: ตรวจสอบว่า userId มีอยู่จริง
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new BadRequestException(`User with ID ${userId} not found`);
+      }
+
       // Validate: ตรวจสอบว่าเบอร์โทรศัพท์ซ้ำหรือไม่
       if (phoneNumber) {
         const existingWallet = await this.prisma.wallet.findFirst({

@@ -61,6 +61,7 @@ export class GetTransactionsByCustomerId {
             rest.receiverAddress,
             merchant.website,
           ),
+          voucherCodeId: rest.voucherCodeId || null,
           createdAt: rest.createdAt,
         };
       });

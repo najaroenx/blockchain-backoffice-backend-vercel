@@ -72,7 +72,7 @@ export type TransactionSeed = {
   senderAddress: string;
   receiverAddress: string;
   amount: number;
-  transactionTypeId: 'redeem' | 'transfer' | 'earn';
+  transactionTypeId: 'MINT' | 'BURN' | 'TRANSFER' | 'EARN' | 'REDEEM' | 'MARKETPLACE_PURCHASE' | 'VOUCHER_TRANSFER' | 'VOUCHER_GIFT';
   merchantId: string;
   pointId?: string;
   senderCustomerId?: string;
@@ -610,7 +610,7 @@ export const transactionSeeds: TransactionSeed[] = [
     senderAddress: '0xcccccccccccccccccccccccccccccccccccccccc',
     receiverAddress: '0x1111222233334444555566667777888899990000',
     amount: 450,
-    transactionTypeId: 'redeem',
+    transactionTypeId: 'REDEEM',
     merchantId: 'central-retail',
     // pointId: 'point-demo-1',
     receiverCustomerId: 'customer-demo-1',
@@ -623,7 +623,7 @@ export const transactionSeeds: TransactionSeed[] = [
     senderAddress: '0xaaaabbbbccccddddeeeeffff0000111122223333',
     receiverAddress: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
     amount: 200,
-    transactionTypeId: 'earn',
+    transactionTypeId: 'EARN',
     merchantId: 'the-mall-group',
     // pointId: 'point-demo-2',
     senderCustomerId: 'customer-demo-2',

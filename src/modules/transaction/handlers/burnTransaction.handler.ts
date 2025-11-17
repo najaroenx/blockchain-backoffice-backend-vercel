@@ -24,6 +24,7 @@ import {
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { ADDRESS_ZERO } from 'src/constants';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 
 @Injectable()
 export class BurnTransaction {
@@ -92,7 +93,7 @@ export class BurnTransaction {
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
         sender: { connect: { id: sender.id } },
-        transactionType: { connect: { id: 'transfer' } },
+        transactionType: { connect: { id: TransactionTypeId.BURN } },
         // txHash: createBufferFromHex(txId),
         txHash: new Uint8Array(createBufferFromHex(txId)),
       });

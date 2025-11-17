@@ -119,11 +119,15 @@ model Transaction {
   pointId           String?
   transactionType   TransactionType? @relation(fields: [transactionTypeId], references: [id])
   transactionTypeId String?
+  voucherCode       VoucherCode?     @relation(fields: [voucherCodeId], references: [id])
+  voucherCodeId     String?
 
   sender     Customer? @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   senderId   String?
   receiver   Customer? @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   receiverId String?
+
+  @@index([voucherCodeId])
 }
 
 model Customer {
@@ -141,6 +145,7 @@ model Customer {
 
   sentTxns     Transaction[] @relation("Sender")
   receivedTxns Transaction[] @relation("Receiver")
+  ownedVouchers VoucherCode[] @relation("OwnedVouchers")
 
   walletId         String?            @unique
   wallet           Wallet?            @relation(fields: [walletId], references: [id])
@@ -190,6 +195,7 @@ model Voucher {
   merchantName   String
   merchantId     String?
   merchant       Merchant?      @relation(fields: [merchantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  tokenId        String?        @unique // ← ERC-1155 Token ID on blockchain
   valueType      VoucherValueType
   value          Float
   currency       String?
@@ -205,18 +211,22 @@ model Voucher {
 }
 
 model VoucherCode {
-  id              String    @id @default(cuid())
-  code            String    @unique        // ← Code ที่ไม่ซ้ำกัน
+  id              String        @id @default(cuid())
+  code            String        @unique        // ← Code ที่ไม่ซ้ำกัน
   voucherId       String
-  voucher         Voucher   @relation(fields: [voucherId], references: [id], onDelete: Cascade)
-  voucherGroupId  String?                  // ← Group ID สำหรับจัดกลุ่ม codes
-  pointsCost      Int                      // ← ย้ายมาจาก Voucher
-  isUsed          Boolean   @default(false)
-  usedBy          String?                  // ← Customer ID ที่ใช้
+  voucher         Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  voucherGroupId  String?                      // ← Group ID สำหรับจัดกลุ่ม codes
+  pointsCost      Int                          // ← ย้ายมาจาก Voucher
+  isUsed          Boolean       @default(false)
+  usedBy          String?                      // ← Customer ID ที่ใช้
   usedAt          DateTime?
-  createdAt       DateTime  @default(now()) @map(name: "created_at")
-  
+  currentOwnerId  String?                      // ← Customer ID ของเจ้าของปัจจุบัน
+  currentOwner    Customer?     @relation("OwnedVouchers", fields: [currentOwnerId], references: [id])
+  transactions    Transaction[] // ← Transaction history
+  createdAt       DateTime      @default(now()) @map(name: "created_at")
+
   @@index([voucherId, isUsed])
   @@index([code])
   @@index([voucherGroupId])
+  @@index([currentOwnerId, isUsed])
 }

@@ -17,6 +17,7 @@ import { CreateTransaction as CreateTransactionResponse } from '../types';
 import { GetCustomerByEmail } from 'src/modules/customer/handlers/getCustomerByEmail.handler';
 import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
 import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 
 @Injectable()
 export class CreateTransactionB2C {
@@ -74,7 +75,7 @@ export class CreateTransactionB2C {
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
         receiver: { connect: { id: customer.id } },
-        transactionType: { connect: { id: 'redeem' } },
+        transactionType: { connect: { id: TransactionTypeId.EARN } },
         // txHash: createBufferFromHex(txId),
         txHash: new Uint8Array(createBufferFromHex(txId)),
       });

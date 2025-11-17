@@ -23,6 +23,7 @@ import {
   RPC_SERVER_ERROR,
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 
 @Injectable()
 export class CreateTransactionC2C {
@@ -99,7 +100,7 @@ export class CreateTransactionC2C {
         point: { connect: { id: pointId } },
         receiver: { connect: { id: receiver.id } },
         sender: { connect: { id: sender.id } },
-        transactionType: { connect: { id: 'transfer' } },
+        transactionType: { connect: { id: TransactionTypeId.TRANSFER } },
         // txHash: createBufferFromHex(txId),
         txHash: Uint8Array.from(Buffer.from(txId.replace(/^0x/, ''), 'hex')),
       });

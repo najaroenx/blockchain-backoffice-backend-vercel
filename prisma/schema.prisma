@@ -236,3 +236,18 @@ model VoucherCode {
   @@index([currentOwnerId, isUsed])
   @@index([pointId])
 }
+
+model TempLinkCreateUser {
+  id          String   @id @default(cuid())
+  uid         String   @unique
+  expire      DateTime
+  phoneNumber String
+  merchantId  String
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+
+  @@index([uid])
+  @@index([phoneNumber])
+  @@index([merchantId])
+  @@index([expire])
+}

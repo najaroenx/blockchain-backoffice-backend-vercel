@@ -9,6 +9,7 @@ import { UpdateMerchant } from './handlers/updateMerchant.handler';
 import { GetMerchant } from './handlers/getMerchantById.handler';
 import { DeleteMerchant } from './handlers/deleteMerchant.handler';
 import { PrismaModule } from 'prisma/prisma.module';
+import { TokenModule } from 'src/providers/token/token.module';
 
 @Module({
   controllers: [MerchantController],
@@ -21,6 +22,7 @@ import { PrismaModule } from 'prisma/prisma.module';
     GetMerchant,
     DeleteMerchant,
   ],
-  imports: [ApiKeyModule, PrismaModule],
+  imports: [ApiKeyModule, PrismaModule, TokenModule],
+  exports: [GetMerchant],
 })
 export class MerchantModule {}

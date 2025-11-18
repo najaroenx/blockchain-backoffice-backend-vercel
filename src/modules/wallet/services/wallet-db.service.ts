@@ -75,9 +75,53 @@ export class WalletDBService {
   }
 
   /**
+   * ดึง wallet จาก wallet address
+   */
+  async getWalletByAddress(walletAddress: string): Promise<Wallet | null> {
+    return await this.repository.findFirst<Wallet>({
+      where: { walletAddress },
+      include: {
+        customer: {
+          include: {
+            customerPoints: {
+              include: {
+                point: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * ดึง customer จาก wallet address
+   */
+  async getCustomerByWalletAddress(walletAddress: string) {
+    const wallet = await this.repository.findFirst<any>({
+      where: { walletAddress },
+      include: {
+        customer: {
+          include: {
+            customerPoints: {
+              include: {
+                point: true,
+              },
+            },
+            customerMerChant: true,
+          },
+        },
+      },
+    });
+
+    return wallet?.customer || null;
+  }
+
+  /**
    * สร้าง wallet ใหม่
    */
   async createWallet(data: {
+    walletAddress: string;
     privateKey: string;
     email: string;
     phoneNumber: string;

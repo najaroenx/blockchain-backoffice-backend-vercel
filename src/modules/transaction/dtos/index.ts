@@ -1,35 +1,41 @@
-import { IsEmail, IsNumber, IsString } from 'class-validator';
+import { IsNumber, IsString } from 'class-validator';
 
 export class CreateTransactionBodyDto {
   @IsString()
   transactionTypeId: string;
 
   @IsString()
-  senderAddress: string;
-
-  @IsEmail()
-  email: string;
+  phone: string;
 
   @IsNumber()
   amount: number;
 }
 
 export class CreateTransactionC2CBodyDto {
-  @IsEmail()
-  toEmail: string;
+  @IsString()
+  toPhone: string;
 
-  @IsEmail()
-  fromEmail: string;
+  @IsString()
+  fromPhone: string;
 
   @IsNumber()
   amount: number;
 }
 
-export class CreateMintTransactionBodyDto extends CreateTransactionBodyDto {}
+export class CreateMintTransactionBodyDto {
+  @IsString()
+  transactionTypeId: string;
+
+  @IsString()
+  phone: string;
+
+  @IsNumber()
+  amount: number;
+}
 
 export class CreateBurnTransactionBodyDto {
-  @IsEmail()
-  fromEmail: string;
+  @IsString()
+  fromPhone: string;
 
   @IsNumber()
   amount: number;

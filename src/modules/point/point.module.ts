@@ -3,6 +3,7 @@ import { PointController } from './controllers/point.controller';
 import { PointRepository } from './point.repository';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 import { PointDBService } from './services/point-db.service';
+import { MerchantModule } from '../merchant/merchant.module';
 import { GetPointsByMerchantId } from './handlers/getPointsByMerchantId.handler';
 import { GetPointById } from './handlers/getPointById.handler';
 import { UpdatePoint } from './handlers/updatePoint.handler';
@@ -20,7 +21,7 @@ import { DeletePoint } from './handlers/deletePoint.handler';
     CreatePoint,
     DeletePoint,
   ],
-  imports: [BlockchainModule],
+  imports: [BlockchainModule, MerchantModule],
   exports: [UpdatePoint, GetPointById],
 })
 export class PointModule {}

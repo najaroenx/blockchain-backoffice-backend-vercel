@@ -10,6 +10,8 @@ import { MerchantDBService } from '../services/merchant-db.service';
 import { CreateApiKey } from 'src/modules/api-key/handlers/createApiKey.handler';
 import { PrismaService } from 'prisma/prisma.service';
 import { createWallet } from 'src/libs/createWallet';
+import { TokenService } from 'src/providers/token/token.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class CreateMerchant {
@@ -19,6 +21,8 @@ export class CreateMerchant {
     private db: MerchantDBService,
     private createApiKey: CreateApiKey,
     private prisma: PrismaService,
+    private tokenService: TokenService,
+    private configService: ConfigService,
   ) {}
 
   async execute(
@@ -27,6 +31,15 @@ export class CreateMerchant {
   ): Promise<Merchant> {
     try {
       const phoneNumber = (data as any).tel;
+
+      // Validate: ตรวจสอบว่า userId มีอยู่จริง
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new BadRequestException(`User with ID ${userId} not found`);
+      }
 
       // Validate: ตรวจสอบว่าเบอร์โทรศัพท์ซ้ำหรือไม่
       if (phoneNumber) {
@@ -47,12 +60,22 @@ export class CreateMerchant {
       // ใช้ transaction เพื่อให้ rollback ทั้งหมดถ้ามีขั้นตอนใดล้มเหลว
       const result = await this.prisma.$transaction(async (tx) => {
         // 1. สร้าง wallet ก่อน
-        const { privateKey } = createWallet();
+        const { privateKey, walletAddress } = createWallet();
 
-        // 2. สร้าง wallet record ใน database
+        // 2. Encrypt private key ก่อนเก็บลง database
+        this.logger.log(`[CreateMerchant] Encrypting merchant private key`);
+        const salt = this.configService.get<string>('SALT');
+        const encryptedPrivateKey = this.tokenService.encryptKey(
+          salt,
+          privateKey,
+        );
+        this.logger.log(`[CreateMerchant] Private key encrypted successfully`);
+
+        // 3. สร้าง wallet record ใน database
         const wallet = await tx.wallet.create({
           data: {
-            privateKey,
+            walletAddress,
+            privateKey: encryptedPrivateKey,
             email: '', // merchant ไม่มี email
             phoneNumber: (data as any).tel || '',
             type: 'merchant',
@@ -60,7 +83,7 @@ export class CreateMerchant {
           },
         });
 
-        // 3. สร้าง merchant พร้อม walletId (ไม่ include wallet ใน response)
+        // 4. สร้าง merchant พร้อม walletId (ไม่ include wallet ใน response)
         const merchant = await tx.merchant.create({
           data: {
             ...(data as any),
@@ -76,12 +99,12 @@ export class CreateMerchant {
         return merchant;
       });
 
-      // 4. สร้าง default API key (นอก transaction)
+      // 5. สร้าง default API key (นอก transaction)
       await this.createApiKey.execute(result.id, {
         name: 'default api key',
       });
 
-      // 5. ลบ wallet field ออกจาก response (ถ้ามี)
+      // 6. ลบ wallet field ออกจาก response (ถ้ามี)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { wallet, ...merchantWithoutWallet } = result as any;
 

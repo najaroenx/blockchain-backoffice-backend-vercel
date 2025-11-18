@@ -2,11 +2,12 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
-import { GetCustomerByEmail } from 'src/modules/customer/handlers/getCustomerByEmail.handler';
+import { GetCustomerPhone } from 'src/modules/customer/handlers/getCustomerByPhone.handler';
 import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
 import {
   CreateTransaction as CreateTransactionResponse,
@@ -24,6 +25,7 @@ import {
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { ADDRESS_ZERO } from 'src/constants';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 
 @Injectable()
 export class BurnTransaction {
@@ -35,7 +37,7 @@ export class BurnTransaction {
     private readonly db: TransactionDBService,
     private readonly getPointByIdHandler: GetPointById,
     private readonly blockchainService: BlockchainService,
-    private readonly getCustomerByEmail: GetCustomerByEmail,
+    private readonly getCustomerByPhone: GetCustomerPhone,
     private readonly updateCustomer: UpdateCustomer,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
@@ -57,11 +59,11 @@ export class BurnTransaction {
       | 'transactionTypeId'
       | 'receiverAddress'
       | 'senderAddress'
-      | 'toEmail'
-    > & { fromEmail: string },
+      | 'toPhone'
+    > & { fromPhone: string },
   ): Promise<CreateTransactionResponse> {
     try {
-      const { fromEmail, ...rest } = data;
+      const { fromPhone, ...rest } = data;
 
       const { point } = await this.getPointByIdHandler.execute(
         pointId,
@@ -70,7 +72,7 @@ export class BurnTransaction {
 
       const { customer: sender } = await this.getCustomer(
         merchantId,
-        fromEmail,
+        fromPhone,
       );
 
       const txId = await this.performBlockchainTransaction(
@@ -84,15 +86,15 @@ export class BurnTransaction {
         // receiverAddress: createBufferFromHex(ADDRESS_ZERO),
         receiverAddress: Buffer.from(ADDRESS_ZERO.replace(/^0x/, ''), 'hex'),
 
-        // senderAddress: createBufferFromHex(sender.walletAddress),
+        // senderAddress: access from wallet relation
         senderAddress: Buffer.from(
-          sender.walletAddress.replace(/^0x/, ''),
+          ((sender as any).wallet?.walletAddress || '').replace(/^0x/, ''),
           'hex',
         ),
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
         sender: { connect: { id: sender.id } },
-        transactionType: { connect: { id: 'transfer' } },
+        transactionType: { connect: { id: TransactionTypeId.BURN } },
         // txHash: createBufferFromHex(txId),
         txHash: new Uint8Array(createBufferFromHex(txId)),
       });
@@ -139,13 +141,33 @@ export class BurnTransaction {
     });
   }
 
-  private async getCustomer(
-    merchantId: string,
-    email: string,
-  ): Promise<GetCustomerByEmailResponseType> {
-    const customer = await this.getCustomerByEmail.execute(merchantId, email);
+  private async getCustomer(merchantId: string, phone: string): Promise<any> {
+    const customerResponse = await this.getCustomerByPhone.execute(
+      merchantId,
+      phone,
+    );
 
-    return customer;
+    // Check if customer was found
+    if ('message' in customerResponse) {
+      throw new BadRequestException(
+        `Customer with phone ${phone} not found or not registered with this merchant`,
+      );
+    }
+
+    const { customer } = customerResponse;
+
+    // Check if customer is registered with this merchant
+    const isCustomerInMerchant = (customer as any).customerMerChant?.some(
+      (cm: any) => cm.merchantId === merchantId,
+    );
+
+    if (!isCustomerInMerchant) {
+      throw new BadRequestException(
+        `Customer with phone ${phone} is not registered with this merchant`,
+      );
+    }
+
+    return { customer };
   }
 
   private async performBlockchainTransaction(
@@ -155,7 +177,7 @@ export class BurnTransaction {
   ): Promise<string> {
     const senderPrivateKey = this.tokenService.decryptKey(
       this.salt,
-      sender.privateKey,
+      (sender as any).wallet?.privateKey || '',
     );
 
     const { txId } = await this.blockchainService.burn({

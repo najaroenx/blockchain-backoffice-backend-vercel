@@ -46,20 +46,22 @@ export class GetCustomerById {
         transactionTypeId: tx.transactionTypeId,
       }));
 
+      const customerWalletAddress = customer.wallet?.walletAddress || '';
+
       const formattedCustomerPoint = await Promise.all(
         customer.customerPoints.map(async ({ point }) => ({
           ...point,
           contractAddress: convertBufferToAddress(point.contractAddress),
           balances: await this.getPointBalance(
             convertBufferToAddress(point.contractAddress),
-            convertBufferToAddress(customer.walletAddress),
+            customerWalletAddress,
           ),
         })),
       );
 
       const formattedCustomer = {
         ...rest,
-        walletAddress: convertBufferToAddress(customer.walletAddress),
+        walletAddress: customerWalletAddress,
         transactions: formattedTransactions,
         customerPoints: formattedCustomerPoint,
       };

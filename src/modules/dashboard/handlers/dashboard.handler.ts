@@ -7,6 +7,7 @@ import { startOfDay, endOfDay, startOfYear, endOfYear } from 'date-fns';
 import { PrismaService } from 'prisma/prisma.service';
 import { GetTransactionsByMerchantId } from 'src/modules/transaction/handlers/getTransactionsByMerchantId.handler';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 @Injectable()
 export class DashboardService {
   private logger = new Logger(DashboardService.name);
@@ -51,7 +52,7 @@ export class DashboardService {
       const transactionsTodayRedeemPromise = this.prisma.transaction.count({
         where: {
           merchantId,
-          transactionTypeId: 'redeem',
+          transactionTypeId: TransactionTypeId.REDEEM,
           createdAt: { gte: startOfToday, lte: endOfToday },
         },
       });
@@ -59,7 +60,7 @@ export class DashboardService {
       const transactionsTodayTransferPromise = this.prisma.transaction.count({
         where: {
           merchantId,
-          transactionTypeId: 'transfer',
+          transactionTypeId: TransactionTypeId.TRANSFER,
           createdAt: { gte: startOfToday, lte: endOfToday },
         },
       });
@@ -93,10 +94,10 @@ export class DashboardService {
         (tx) => tx.createdAt >= startOfCurrentYear,
       );
       const txRedeemByMonthly = txMonthly.filter(
-        (tx) => tx.transactionTypeId === 'redeem',
+        (tx) => tx.transactionTypeId === TransactionTypeId.REDEEM,
       );
       const txTransferByMonthly = txMonthly.filter(
-        (tx) => tx.transactionTypeId === 'transfer',
+        (tx) => tx.transactionTypeId === TransactionTypeId.TRANSFER,
       );
 
       // Group transactions by month

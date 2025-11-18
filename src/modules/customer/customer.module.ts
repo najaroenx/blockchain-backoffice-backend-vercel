@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
-import { CustomerController } from './controllers/customer.controller';
+import {
+  CustomerController,
+  CustomerPhoneController,
+} from './controllers/customer.controller';
 import { CustomerRepository } from './customer.repository';
 import { TokenModule } from 'src/providers/token/token.module';
 import { CustomerDBService } from './services/customer-db.service';
@@ -10,9 +13,10 @@ import { UpdateCustomer } from './handlers/updateCustomer.handler';
 import { CreateCustomer } from './handlers/createCustomer.handler';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 import { GetCustomerPhone } from './handlers/getCustomerByPhone.handler';
+import { PrismaModule } from 'prisma/prisma.module';
 @Module({
-  imports: [TokenModule, BlockchainModule],
-  controllers: [CustomerController],
+  imports: [TokenModule, BlockchainModule, PrismaModule],
+  controllers: [CustomerController, CustomerPhoneController],
   providers: [
     CustomerRepository,
     CustomerDBService,
@@ -23,6 +27,6 @@ import { GetCustomerPhone } from './handlers/getCustomerByPhone.handler';
     CreateCustomer,
     GetCustomerPhone,
   ],
-  exports: [GetCustomerByEmail, UpdateCustomer],
+  exports: [GetCustomerByEmail, GetCustomerPhone, UpdateCustomer],
 })
 export class CustomerModule {}

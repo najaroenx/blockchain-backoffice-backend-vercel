@@ -12,6 +12,9 @@ import { CreateTransactionB2C } from '../handlers/createTransactionB2C.handler';
 import { CreateTransactionC2C } from '../handlers/createTransactionC2C.handler';
 import { MintTransaction } from '../handlers/mintTransaction.handler';
 import { BurnTransaction } from '../handlers/burnTransaction.handler';
+import { GetWalletBalance } from '../handlers/getMerchantBalance.handler';
+import { Public } from 'src/modules/auth/public.decorator';
+
 @Controller('/:merchantId/transaction')
 export class TransactionController {
   constructor(
@@ -21,6 +24,7 @@ export class TransactionController {
     private readonly createTransactionC2C: CreateTransactionC2C,
     private readonly mintTransaction: MintTransaction,
     private readonly burnTransaction: BurnTransaction,
+    private readonly getWalletBalance: GetWalletBalance,
   ) {}
 
   @Get('/')
@@ -38,18 +42,25 @@ export class TransactionController {
     return this.getTransactionsByCustomerId.execute(customerId, merchantId);
   }
 
+  @Get('/:walletAddress/:pointId/balance')
+  @Public()
+  @HttpCode(200)
+  async getWalletBalanceForPoint(
+    @Param('walletAddress') walletAddress: string,
+    @Param('pointId') pointId: string,
+  ) {
+    return this.getWalletBalance.execute(pointId, walletAddress);
+  }
+
   @Post('/:pointId')
+  @Public()
   @HttpCode(201)
   async transaction(
     @Param('merchantId') merchantId: string,
     @Param('pointId') pointId: string,
     @Body() body: CreateTransactionBodyDto,
   ) {
-    return this.createTransactionB2C.execute(merchantId, pointId, {
-      ...body,
-      // senderAddress: createBufferFromHex(body.senderAddress),
-      senderAddress: Buffer.from(body.senderAddress.replace(/^0x/, ''), 'hex'),
-    });
+    return this.createTransactionB2C.execute(merchantId, pointId, body);
   }
 
   @Post('/:pointId/customer')
@@ -69,11 +80,7 @@ export class TransactionController {
     @Param('pointId') pointId: string,
     @Body() body: CreateMintTransactionBodyDto,
   ) {
-    return this.mintTransaction.execute(merchantId, pointId, {
-      ...body,
-      // senderAddress: createBufferFromHex(body.senderAddress),
-      senderAddress: Buffer.from(body.senderAddress.replace(/^0x/, ''), 'hex'),
-    });
+    return this.mintTransaction.execute(merchantId, pointId, body);
   }
 
   @Post('/:pointId/burn')

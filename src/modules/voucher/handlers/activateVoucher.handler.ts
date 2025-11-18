@@ -5,7 +5,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { VoucherStatus } from '@prisma/client';
 
 @Injectable()
 export class ActivateVoucher {
@@ -13,10 +12,16 @@ export class ActivateVoucher {
 
   constructor(private prisma: PrismaService) {}
 
-  async execute(voucherId: string, amount: number, pointsCost: number) {
+  async execute(
+    voucherId: string,
+    amount: number,
+    pointsCost: number,
+    pointId: string,
+    currency: string,
+  ) {
     try {
       this.logger.log(
-        `[START] Activating voucher ${voucherId} with amount: ${amount}, pointsCost: ${pointsCost}`,
+        `[START] Activating voucher ${voucherId} with amount: ${amount}, pointsCost: ${pointsCost}, pointId: ${pointId}, currency: ${currency}`,
       );
 
       // 1. ตรวจสอบว่า voucher upstream มีอยู่จริง
@@ -39,176 +44,149 @@ export class ActivateVoucher {
         throw new NotFoundException(`Voucher with ID ${voucherId} not found`);
       }
 
-      if (upcomingVoucher.status !== VoucherStatus.upcoming) {
+      // 1.5. Validate Point exists and belongs to merchant
+      this.logger.log(`[STEP 1.5] Validating point ${pointId}`);
+      const point = await this.prisma.point.findUnique({
+        where: { id: pointId },
+        select: { id: true, symbol: true, merchantId: true, name: true },
+      });
+
+      if (!point) {
+        this.logger.error(`[ERROR] Point ${pointId} not found`);
+        throw new NotFoundException(`Point with ID ${pointId} not found`);
+      }
+
+      if (point.merchantId !== upcomingVoucher.merchantId) {
         this.logger.error(
-          `[ERROR] Voucher status is ${upcomingVoucher.status}, not upcoming`,
+          `[ERROR] Point belongs to different merchant. Point merchantId: ${point.merchantId}, Voucher merchantId: ${upcomingVoucher.merchantId}`,
         );
         throw new BadRequestException(
-          `Voucher must be in "upcoming" status to activate. Current status: ${upcomingVoucher.status}`,
+          `Point does not belong to this voucher's merchant`,
         );
       }
 
-      // 2. ตรวจสอบว่า amount ไม่เกิน totalIssued
+      if (point.symbol !== currency) {
+        this.logger.error(
+          `[ERROR] Currency mismatch. Expected: ${point.symbol}, Received: ${currency}`,
+        );
+        throw new BadRequestException(
+          `Currency mismatch: expected "${point.symbol}" but got "${currency}"`,
+        );
+      }
+
       this.logger.log(
-        `[STEP 2] Validating amount ${amount} <= totalIssued ${upcomingVoucher.totalIssued}`,
+        `[STEP 1.5] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
       );
+
+      // 2. นับจำนวน codes ที่มีอยู่แล้ว (codes ที่มี voucherGroupId)
+      this.logger.log(`[STEP 2] Counting existing codes`);
+      const activeCodesCount = await this.prisma.voucherCode.count({
+        where: { voucherId, voucherGroupId: { not: null } },
+      });
+
+      this.logger.log(
+        `[STEP 2] Current state: ${activeCodesCount} active codes, ${upcomingVoucher.totalIssued} remaining (upcoming)`,
+      );
+
+      // 3. ตรวจสอบว่า amount ไม่เกิน totalIssued ที่เหลือ
+      this.logger.log(
+        `[STEP 3] Validating amount ${amount} <= remaining totalIssued ${upcomingVoucher.totalIssued}`,
+      );
+
       if (amount > upcomingVoucher.totalIssued) {
         this.logger.error(
-          `[ERROR] Amount ${amount} exceeds totalIssued ${upcomingVoucher.totalIssued}`,
+          `[ERROR] Amount ${amount} exceeds remaining totalIssued ${upcomingVoucher.totalIssued}`,
         );
         throw new BadRequestException(
-          `Amount (${amount}) cannot exceed totalIssued (${upcomingVoucher.totalIssued})`,
+          `Cannot activate ${amount} codes. Only ${upcomingVoucher.totalIssued} remaining to be activated.`,
         );
       }
 
-      // 3. ตรวจสอบจำนวน codes ที่มีอยู่
-      const existingCodesCount = upcomingVoucher._count.voucherCodes;
-      this.logger.log(
-        `[STEP 3] Existing codes count: ${existingCodesCount}, requested: ${amount}`,
-      );
-
-      if (amount > existingCodesCount) {
-        this.logger.error(
-          `[ERROR] Not enough codes. Have ${existingCodesCount}, need ${amount}`,
-        );
-        throw new BadRequestException(
-          `Cannot activate ${amount} codes. Only ${existingCodesCount} codes available. Please create codes first or reduce amount.`,
-        );
-      }
-
-      // 4. ใช้ transaction เพื่อสร้าง voucher ใหม่และย้าย codes
+      // 4. ใช้ transaction เพื่อสร้าง codes และอัพเดท isActive
       this.logger.log(`[STEP 4] Starting transaction`);
       const result = await this.prisma.$transaction(async (tx) => {
-        // 4.1 สร้าง voucher ใหม่ที่เป็น active
-        this.logger.log(`[STEP 4.1] Preparing active voucher data`);
-
-        // Generate ID สำหรับ active voucher ใหม่
-        const { randomUUID } = await import('crypto');
-        const activeVoucherId = `COUPON-${randomUUID()}`;
-
-        const activeVoucherData: any = {
-          id: activeVoucherId,
-          name: upcomingVoucher.name,
-          description: upcomingVoucher.description,
-          status: VoucherStatus.active,
-          merchantName: upcomingVoucher.merchantName,
-          valueType: upcomingVoucher.valueType,
-          value: upcomingVoucher.value,
-          startDate: upcomingVoucher.startDate,
-          endDate: upcomingVoucher.endDate,
-          totalIssued: amount,
-          totalRedeemed: 0,
-        };
-
-        // เพิ่ม optional fields
-        if (upcomingVoucher.merchantId) {
-          activeVoucherData.merchantId = upcomingVoucher.merchantId;
-        }
-        if (upcomingVoucher.currency) {
-          activeVoucherData.currency = upcomingVoucher.currency;
-        }
-        if (upcomingVoucher.imageUrl) {
-          activeVoucherData.imageUrl = upcomingVoucher.imageUrl;
-        }
-        if (upcomingVoucher.limitPerMember) {
-          activeVoucherData.limitPerMember = upcomingVoucher.limitPerMember;
-        }
-
-        this.logger.log(
-          `[STEP 4.1] Creating active voucher with data: ${JSON.stringify(activeVoucherData)}`,
-        );
-
-        const activeVoucher = await tx.voucher.create({
-          data: activeVoucherData,
-        });
-
-        this.logger.log(
-          `[STEP 4.1] Created active voucher ${activeVoucher.id}`,
-        );
-
-        // 4.2 หา codes จาก upcoming voucher จำนวน amount
-        this.logger.log(
-          `[STEP 4.2] Finding ${amount} codes from voucher ${voucherId}`,
-        );
-        const codesToMove = await tx.voucherCode.findMany({
+        // 4.1 นับจำนวน codes ที่มีอยู่แล้วเพื่อเป็น starting number
+        const existingCodesCount = await tx.voucherCode.count({
           where: { voucherId },
-          take: amount,
-          select: { id: true },
         });
 
-        this.logger.log(`[STEP 4.2] Found ${codesToMove.length} codes to move`);
-
-        if (codesToMove.length < amount) {
-          this.logger.error(
-            `[ERROR] Not enough codes to move. Found ${codesToMove.length}, need ${amount}`,
-          );
-          throw new BadRequestException(
-            `Not enough codes to move. Found ${codesToMove.length}, need ${amount}`,
-          );
+        // 4.2 สร้าง sequential codes: voucherId-0001, voucherId-0002, ...
+        this.logger.log(
+          `[STEP 4.1] Generating ${amount} sequential codes starting from ${existingCodesCount + 1}`,
+        );
+        const codes: string[] = [];
+        for (let i = 1; i <= amount; i++) {
+          const sequenceNumber = existingCodesCount + i;
+          const code = `${voucherId}-${sequenceNumber.toString().padStart(4, '0')}`;
+          codes.push(code);
         }
 
-        // 4.3 ย้าย codes ไปยัง voucher ใหม่และอัพเดท pointsCost
-        this.logger.log(
-          `[STEP 4.3] Moving codes to active voucher ${activeVoucher.id}`,
-        );
-        const moveResult = await tx.voucherCode.updateMany({
-          where: {
-            id: {
-              in: codesToMove.map((c) => c.id),
-            },
-          },
-          data: {
-            voucherId: activeVoucher.id,
+        // 4.3 implement code smart contract here trigger (future)
+
+        // 4.4 เพิ่ม codes ลง database พร้อม voucherGroupId
+        this.logger.log(`[STEP 4.2] Creating ${amount} active voucher codes`);
+        const now = new Date();
+        const voucherGroupId = `${voucherId}-${now.getTime()}`;
+        await tx.voucherCode.createMany({
+          data: codes.map((code) => ({
+            code,
+            voucherId,
             pointsCost,
-          },
+            pointId,
+            currency,
+            voucherGroupId,
+            createdAt: now,
+          })),
         });
 
         this.logger.log(
-          `[STEP 4.3] Moved ${moveResult.count} codes successfully`,
+          `[STEP 4.2] Created ${amount} active codes successfully`,
         );
 
-        // 4.4 อัพเดท totalIssued ของ upcoming voucher
-        const remainingCodes = existingCodesCount - amount;
+        // 4.4 ลด totalIssued ของ voucher
+        const newTotalIssued = upcomingVoucher.totalIssued - amount;
         this.logger.log(
-          `[STEP 4.4] Updating upcoming voucher totalIssued to ${remainingCodes}`,
+          `[STEP 4.3] Updating voucher: totalIssued ${upcomingVoucher.totalIssued} -> ${newTotalIssued}`,
         );
+
         await tx.voucher.update({
           where: { id: voucherId },
           data: {
-            totalIssued: remainingCodes,
+            totalIssued: newTotalIssued,
           },
         });
 
-        this.logger.log(
-          `[STEP 4.4] Updated upcoming voucher totalIssued successfully`,
-        );
-
-        // 4.5 ดึงข้อมูล upcoming voucher ที่อัพเดทแล้ว
-        this.logger.log(`[STEP 4.5] Fetching updated upcoming voucher`);
-        const updatedUpcomingVoucher = await tx.voucher.findUnique({
-          where: { id: voucherId },
+        // 4.5 นับจำนวน codes ตามสถานะ (codes ที่มี voucherGroupId)
+        const activeCodesCount = await tx.voucherCode.count({
+          where: { voucherId, voucherGroupId: { not: null } },
         });
 
+        this.logger.log(
+          `[STEP 4.4] Active codes: ${activeCodesCount}, Upcoming: ${newTotalIssued}`,
+        );
+
         return {
-          activeVoucher,
-          upcomingVoucher: updatedUpcomingVoucher,
-          codesMoved: moveResult.count,
+          voucherId,
+          codesCreated: amount,
+          activeCodesCount,
+          upcomingCodesCount: newTotalIssued,
         };
       });
 
       this.logger.log(
-        `[SUCCESS] Activated ${amount} codes: Created active voucher ${result.activeVoucher.id}, ${existingCodesCount - amount} codes remaining in upcoming voucher ${voucherId}`,
+        `[SUCCESS] Activated ${amount} codes for voucher ${voucherId}. Active: ${result.activeCodesCount}, Upcoming: ${result.upcomingCodesCount}`,
       );
 
       return {
         success: true,
-        message: `Created active voucher with ${amount} codes. ${existingCodesCount - amount} codes remaining as upcoming.`,
-        activeVoucher: result.activeVoucher,
-        upcomingVoucher: result.upcomingVoucher,
-        codesMoved: result.codesMoved,
-        activeCodesCount: amount,
-        upcomingCodesCount: existingCodesCount - amount,
+        message: `Activated ${amount} codes successfully. Active: ${result.activeCodesCount}, Upcoming: ${result.upcomingCodesCount}`,
+        voucherId: result.voucherId,
+        codesCreated: result.codesCreated,
+        activeCodesCount: result.activeCodesCount,
+        upcomingCodesCount: result.upcomingCodesCount,
         pointsCost,
+        pointId,
+        currency,
       };
     } catch (error) {
       this.logger.error(

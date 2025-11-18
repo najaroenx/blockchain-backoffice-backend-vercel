@@ -41,9 +41,48 @@ const toHashBuffer = (value: string) => toBuffer(value, 32);
 
 async function seedTransactionTypes() {
   const types = [
-    { id: 'redeem', name: 'Redeem', description: 'Redeem' },
-    { id: 'transfer', name: 'Transfer', description: 'Transfer' },
-    { id: 'earn', name: 'Earn', description: 'Earn' },
+    // Point-related transactions
+    {
+      id: 'MINT',
+      name: 'Mint',
+      description: 'Mint new points to customer',
+    },
+    {
+      id: 'TRANSFER',
+      name: 'Transfer',
+      description: 'Transfer points between customers',
+    },
+    {
+      id: 'BURN',
+      name: 'Burn',
+      description: 'Burn/destroy points',
+    },
+    {
+      id: 'EARN',
+      name: 'Earn',
+      description: 'Earn points from activity',
+    },
+    {
+      id: 'REDEEM',
+      name: 'Redeem',
+      description: 'Redeem points for rewards',
+    },
+    // Voucher-related transactions
+    {
+      id: 'MARKETPLACE_PURCHASE',
+      name: 'Marketplace Purchase',
+      description: 'Purchase voucher from marketplace',
+    },
+    {
+      id: 'VOUCHER_TRANSFER',
+      name: 'Voucher Transfer',
+      description: 'Transfer voucher to another customer',
+    },
+    {
+      id: 'VOUCHER_GIFT',
+      name: 'Voucher Gift',
+      description: 'Gift voucher to another customer',
+    },
   ];
 
   for (const type of types) {
@@ -180,23 +219,44 @@ async function seedApiKeys() {
 
 async function seedCustomers() {
   for (const customer of customerSeeds) {
+    // Create or update wallet first
+    const wallet = await prisma.wallet.upsert({
+      where: { id: `wallet-${customer.id}` },
+      update: {
+        walletAddress: customer.walletAddress,
+        privateKey: `priv-key-${customer.id}`,
+        email: customer.email,
+        phoneNumber: customer.tel,
+        type: 'customer',
+        status: 'active',
+      },
+      create: {
+        id: `wallet-${customer.id}`,
+        walletAddress: customer.walletAddress,
+        privateKey: `priv-key-${customer.id}`,
+        email: customer.email,
+        phoneNumber: customer.tel,
+        type: 'customer',
+        status: 'active',
+      },
+    });
+
+    // Create or update customer with walletId
     await prisma.customer.upsert({
       where: { id: customer.id },
       update: {
         email: customer.email,
         firstName: customer.firstName,
         lastName: customer.lastName,
-        walletAddress: toAddressBuffer(customer.walletAddress),
-        privateKey: `priv-key-${customer.id}`,
+        walletId: wallet.id,
       },
       create: {
         id: customer.id,
         email: customer.email,
         firstName: customer.firstName,
         lastName: customer.lastName,
-        walletAddress: toAddressBuffer(customer.walletAddress),
-        privateKey: `priv-key-${customer.id}`,
         tel: customer.tel,
+        walletId: wallet.id,
       },
     });
 

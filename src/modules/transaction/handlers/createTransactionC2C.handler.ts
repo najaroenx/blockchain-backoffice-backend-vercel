@@ -2,11 +2,12 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
-import { GetCustomerByEmail } from 'src/modules/customer/handlers/getCustomerByEmail.handler';
+import { GetCustomerPhone } from 'src/modules/customer/handlers/getCustomerByPhone.handler';
 import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
 import {
   CreateTransaction as CreateTransactionResponse,
@@ -17,12 +18,13 @@ import { Prisma } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 // import { createBufferFromHex } from 'src/libs/createBufferFromHex';
-import { GetCustomerByEmailResponseType } from 'src/modules/customer/types';
+
 import {
   INTERNAL_SERVER_ERROR,
   RPC_SERVER_ERROR,
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 
 @Injectable()
 export class CreateTransactionC2C {
@@ -34,7 +36,7 @@ export class CreateTransactionC2C {
     private readonly db: TransactionDBService,
     private readonly getPointByIdHandler: GetPointById,
     private readonly blockchainService: BlockchainService,
-    private readonly getCustomerByEmail: GetCustomerByEmail,
+    private readonly getCustomerByPhone: GetCustomerPhone,
     private readonly updateCustomer: UpdateCustomer,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
@@ -56,10 +58,10 @@ export class CreateTransactionC2C {
       | 'transactionTypeId'
       | 'receiverAddress'
       | 'senderAddress'
-    > & { fromEmail: string; toEmail: string },
+    > & { fromPhone: string; toPhone: string },
   ): Promise<CreateTransactionResponse> {
     try {
-      const { fromEmail, toEmail, ...rest } = data;
+      const { fromPhone, toPhone, ...rest } = data;
 
       const { point } = await this.getPointByIdHandler.execute(
         pointId,
@@ -68,12 +70,12 @@ export class CreateTransactionC2C {
 
       const { customer: sender } = await this.getCustomer(
         merchantId,
-        fromEmail,
+        fromPhone,
       );
 
       const { customer: receiver } = await this.getCustomer(
         merchantId,
-        toEmail,
+        toPhone,
       );
 
       const txId = await this.performBlockchainTransaction(
@@ -85,21 +87,20 @@ export class CreateTransactionC2C {
 
       const transaction = await this.db.createTransaction({
         ...rest,
-        // receiverAddress: createBufferFromHex(receiver.walletAddress),
-        // senderAddress: createBufferFromHex(sender.walletAddress),
+        // Access wallet addresses from wallet relation
         senderAddress: Buffer.from(
-          sender.walletAddress.replace(/^0x/, ''),
+          ((sender as any).wallet?.walletAddress || '').replace(/^0x/, ''),
           'hex',
         ),
         receiverAddress: Buffer.from(
-          receiver.walletAddress.replace(/^0x/, ''),
+          ((receiver as any).wallet?.walletAddress || '').replace(/^0x/, ''),
           'hex',
         ),
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
         receiver: { connect: { id: receiver.id } },
         sender: { connect: { id: sender.id } },
-        transactionType: { connect: { id: 'transfer' } },
+        transactionType: { connect: { id: TransactionTypeId.TRANSFER } },
         // txHash: createBufferFromHex(txId),
         txHash: Uint8Array.from(Buffer.from(txId.replace(/^0x/, ''), 'hex')),
       });
@@ -167,13 +168,33 @@ export class CreateTransactionC2C {
     });
   }
 
-  private async getCustomer(
-    merchantId: string,
-    email: string,
-  ): Promise<GetCustomerByEmailResponseType> {
-    const customer = await this.getCustomerByEmail.execute(merchantId, email);
+  private async getCustomer(merchantId: string, phone: string): Promise<any> {
+    const customerResponse = await this.getCustomerByPhone.execute(
+      merchantId,
+      phone,
+    );
 
-    return customer;
+    // Check if customer was found
+    if ('message' in customerResponse) {
+      throw new BadRequestException(
+        `Customer with phone ${phone} not found or not registered with this merchant`,
+      );
+    }
+
+    const { customer } = customerResponse;
+
+    // Check if customer is registered with this merchant
+    const isCustomerInMerchant = (customer as any).customerMerChant?.some(
+      (cm: any) => cm.merchantId === merchantId,
+    );
+
+    if (!isCustomerInMerchant) {
+      throw new BadRequestException(
+        `Customer with phone ${phone} is not registered with this merchant`,
+      );
+    }
+
+    return { customer };
   }
 
   private async performBlockchainTransaction(
@@ -184,12 +205,12 @@ export class CreateTransactionC2C {
   ): Promise<string> {
     const senderPrivateKey = this.tokenService.decryptKey(
       this.salt,
-      sender.privateKey,
+      (sender as any).wallet?.privateKey || '',
     );
 
     const { txId } = await this.blockchainService.transactionC2C({
       amount,
-      to: receiver.walletAddress,
+      to: (receiver as any).wallet?.walletAddress || '',
       senderPrivateKey,
       pointAddress: point.contractAddress,
     });

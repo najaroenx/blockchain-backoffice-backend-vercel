@@ -8,6 +8,7 @@ import {
   Point,
   Prisma,
   Transaction,
+  Wallet,
 } from '@prisma/client';
 import { PageOptionsDto } from 'src/common/dtos';
 
@@ -36,7 +37,7 @@ export class CustomerDBService {
       },
       select: {
         id: true,
-        walletAddress: true,
+        walletId: true,
         email: true,
         firstName: true,
         lastName: true,
@@ -50,7 +51,10 @@ export class CustomerDBService {
   async getCustomersByMerchant(
     merchantId: string,
     pageOptionsDto: PageOptionsDto,
-  ): Promise<{ customers: Customer[]; count: number }> {
+  ): Promise<{
+    customers: (Customer & { wallet?: Wallet | null })[];
+    count: number;
+  }> {
     const count = await this.repository.count({
       where: {
         customerMerChant: {
@@ -76,7 +80,7 @@ export class CustomerDBService {
         email: true,
         firstName: true,
         lastName: true,
-        walletAddress: true,
+        wallet: true,
       },
     });
 
@@ -88,6 +92,7 @@ export class CustomerDBService {
     email: string,
   ): Promise<
     Customer & {
+      wallet?: Wallet | null;
       customerPoints: Array<
         CustomerPoint & {
           point: Point;
@@ -114,8 +119,7 @@ export class CustomerDBService {
         email: true,
         firstName: true,
         lastName: true,
-        walletAddress: true,
-        privateKey: true,
+        wallet: true,
         customerMerChant: {
           select: {
             id: true,
@@ -146,6 +150,7 @@ export class CustomerDBService {
     phone: string,
   ): Promise<
     Customer & {
+      wallet?: Wallet | null;
       customerPoints: Array<
         CustomerPoint & {
           point: Point;
@@ -172,8 +177,7 @@ export class CustomerDBService {
         email: true,
         firstName: true,
         lastName: true,
-        walletAddress: true,
-        privateKey: true,
+        wallet: true,
         customerMerChant: {
           select: {
             id: true,
@@ -204,6 +208,7 @@ export class CustomerDBService {
     customerId: string,
   ): Promise<
     Customer & {
+      wallet?: Wallet | null;
       receivedTxns: Array<
         Transaction & {
           sender: Customer;
@@ -258,7 +263,7 @@ export class CustomerDBService {
         email: true,
         firstName: true,
         lastName: true,
-        walletAddress: true,
+        wallet: true,
         sentTxns: {
           where: {
             merchantId,
@@ -271,13 +276,13 @@ export class CustomerDBService {
             receiver: {
               select: {
                 email: true,
-                walletAddress: true,
+                wallet: true,
               },
             },
             sender: {
               select: {
                 email: true,
-                walletAddress: true,
+                wallet: true,
               },
             },
             merchant: {
@@ -301,13 +306,13 @@ export class CustomerDBService {
             receiver: {
               select: {
                 email: true,
-                walletAddress: true,
+                wallet: true,
               },
             },
             sender: {
               select: {
                 email: true,
-                walletAddress: true,
+                wallet: true,
               },
             },
             merchant: {
@@ -336,6 +341,69 @@ export class CustomerDBService {
               },
             },
             balances: true,
+          },
+        },
+      },
+    });
+
+    return customer;
+  }
+
+  async getCustomerByPhoneDetailed(phone: string): Promise<any> {
+    const customer = await this.repository.findFirst({
+      where: {
+        tel: phone,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        tel: true,
+        createdAt: true,
+        updatedAt: true,
+        wallet: true,
+        customerMerChant: {
+          select: {
+            merchantId: true,
+            merchant: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+              },
+            },
+          },
+        },
+        customerPoints: {
+          select: {
+            balances: true,
+            point: {
+              select: {
+                id: true,
+                name: true,
+                merchantId: true,
+              },
+            },
+          },
+        },
+        ownedVouchers: {
+          select: {
+            id: true,
+            code: true,
+            voucherId: true,
+            pointsCost: true,
+            currency: true,
+            voucher: {
+              select: {
+                name: true,
+                description: true,
+                imageUrl: true,
+                value: true,
+                valueType: true,
+                merchantId: true,
+              },
+            },
           },
         },
       },

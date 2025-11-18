@@ -212,41 +212,42 @@ export class VoucherController {
 
   /**
    * Get customer redemption history
-   * GET /coupon/history/:customerId
+   * GET /coupon/history/:walletAddress
    */
-  @Get('/history/:customerId')
-  @Public()
-  @HttpCode(200)
-  async getRedemptionHistory(@Param('customerId') customerId: string) {
-    return this.voucherService.getRedemptionHistory(customerId);
-  }
+  // @Get('/history/:walletAddress')
+  // @Public()
+  // @HttpCode(200)
+  // async getRedemptionHistory(@Param('walletAddress') walletAddress: string) {
+  //   return this.voucherService.getRedemptionHistory(walletAddress);
+  // }
 
   /**
    * Buy coupon from marketplace (customer buying from marketplace)
    * POST /coupon/marketplace/buy
-   * Body: { voucherCodeId: string, address: string, customerId: string }
+   * Body: { voucherGroupId: string, pointId: string, address: string, customerId: string }
    */
   @Post('/marketplace/buy')
   @Public()
   @HttpCode(200)
   async buyCouponFromMarketplace(@Body() data: BuyCouponFromMarketplaceDto) {
     return this.voucherService.buyCouponFromMarketplace(
-      data.voucherCodeId,
+      data.voucherGroupId,
+      data.pointId,
       data.address,
-      data.customerId,
+      data.phone,
     );
   }
 
   /**
    * Get vouchers owned by customer
-   * GET /coupon/my-vouchers/:customerId
+   * GET /coupon/my-vouchers/:walletAddress
    * Query params: ?status=unused|used|all&page=1&limit=20
    */
-  @Get('/:customerId')
+  @Get('/my-coupons/:walletAddress')
   @Public()
   @HttpCode(200)
   async getCustomerOwnedVouchers(
-    @Param('customerId') customerId: string,
+    @Param('walletAddress') walletAddress: string,
     @Query('status') status?: 'unused' | 'used' | 'all',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -255,7 +256,7 @@ export class VoucherController {
     const limitNum = limit ? parseInt(limit, 10) : 20;
 
     return this.voucherService.getCustomerOwnedVouchers(
-      customerId,
+      walletAddress,
       status || 'all',
       pageNum,
       limitNum,

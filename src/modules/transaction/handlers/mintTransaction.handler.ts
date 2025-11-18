@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import {
@@ -13,11 +14,12 @@ import { Prisma } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 // import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { CreateTransaction as CreateTransactionResponse } from '../types';
-import { GetCustomerByEmail } from 'src/modules/customer/handlers/getCustomerByEmail.handler';
+import { GetCustomerPhone } from 'src/modules/customer/handlers/getCustomerByPhone.handler';
 import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
 import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
 import { ConfigService } from '@nestjs/config';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
+import { ADDRESS_ZERO } from 'src/constants';
 
 @Injectable()
 export class MintTransaction {
@@ -29,7 +31,7 @@ export class MintTransaction {
     private readonly db: TransactionDBService,
     private readonly getPointByIdHandler: GetPointById,
     private readonly blockchainService: BlockchainService,
-    private readonly getCustomerByEmail: GetCustomerByEmail,
+    private readonly getCustomerByPhone: GetCustomerPhone,
     private readonly updateCustomer: UpdateCustomer,
     private readonly configService: ConfigService,
   ) {
@@ -49,31 +51,54 @@ export class MintTransaction {
       | 'receiver'
       | 'transactionTypeId'
       | 'receiverAddress'
-    > & { transactionTypeId: string; email: string },
+      | 'senderAddress'
+    > & { transactionTypeId: string; phone: string },
   ): Promise<CreateTransactionResponse> {
     try {
-      const { email, ...rest } = data;
+      const { phone, ...rest } = data;
 
       const { point } = await this.getPointByIdHandler.execute(
         pointId,
         merchantId,
       );
 
-      const { customer } = await this.getCustomerByEmail.execute(
+      // Get customer by phone
+      const customerResponse = await this.getCustomerByPhone.execute(
         merchantId,
-        email,
+        phone,
       );
+
+      // Check if customer was found
+      if ('message' in customerResponse) {
+        throw new BadRequestException(
+          `Customer with phone ${phone} not found or not registered with this merchant`,
+        );
+      }
+
+      const { customer } = customerResponse;
+
+      // Check if customer is registered with this merchant
+      const isCustomerInMerchant = (customer as any).customerMerChant?.some(
+        (cm: any) => cm.merchantId === merchantId,
+      );
+
+      if (!isCustomerInMerchant) {
+        throw new BadRequestException(
+          `Customer with phone ${phone} is not registered with this merchant`,
+        );
+      }
 
       const { txId } = await this.blockchainService.mint({
         amount: data.amount,
-        to: customer.walletAddress,
+        to: (customer as any).wallet?.walletAddress || '',
         pointAddress: point.contractAddress,
       });
 
       const transaction = await this.db.createTransaction({
         ...rest,
+        senderAddress: Buffer.from(ADDRESS_ZERO.replace(/^0x/, ''), 'hex'),
         receiverAddress: Uint8Array.from(
-          Buffer.from(customer.walletAddress.replace(/^0x/, ''), 'hex'),
+          Buffer.from(((customer as any).wallet?.walletAddress || '').replace(/^0x/, ''), 'hex'),
         ),
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },

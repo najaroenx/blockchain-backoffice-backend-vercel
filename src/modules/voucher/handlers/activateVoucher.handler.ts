@@ -12,10 +12,16 @@ export class ActivateVoucher {
 
   constructor(private prisma: PrismaService) {}
 
-  async execute(voucherId: string, amount: number, pointsCost: number) {
+  async execute(
+    voucherId: string,
+    amount: number,
+    pointsCost: number,
+    pointId: string,
+    currency: string,
+  ) {
     try {
       this.logger.log(
-        `[START] Activating voucher ${voucherId} with amount: ${amount}, pointsCost: ${pointsCost}`,
+        `[START] Activating voucher ${voucherId} with amount: ${amount}, pointsCost: ${pointsCost}, pointId: ${pointId}, currency: ${currency}`,
       );
 
       // 1. ตรวจสอบว่า voucher upstream มีอยู่จริง
@@ -37,6 +43,40 @@ export class ActivateVoucher {
         this.logger.error(`[ERROR] Voucher ${voucherId} not found`);
         throw new NotFoundException(`Voucher with ID ${voucherId} not found`);
       }
+
+      // 1.5. Validate Point exists and belongs to merchant
+      this.logger.log(`[STEP 1.5] Validating point ${pointId}`);
+      const point = await this.prisma.point.findUnique({
+        where: { id: pointId },
+        select: { id: true, symbol: true, merchantId: true, name: true },
+      });
+
+      if (!point) {
+        this.logger.error(`[ERROR] Point ${pointId} not found`);
+        throw new NotFoundException(`Point with ID ${pointId} not found`);
+      }
+
+      if (point.merchantId !== upcomingVoucher.merchantId) {
+        this.logger.error(
+          `[ERROR] Point belongs to different merchant. Point merchantId: ${point.merchantId}, Voucher merchantId: ${upcomingVoucher.merchantId}`,
+        );
+        throw new BadRequestException(
+          `Point does not belong to this voucher's merchant`,
+        );
+      }
+
+      if (point.symbol !== currency) {
+        this.logger.error(
+          `[ERROR] Currency mismatch. Expected: ${point.symbol}, Received: ${currency}`,
+        );
+        throw new BadRequestException(
+          `Currency mismatch: expected "${point.symbol}" but got "${currency}"`,
+        );
+      }
+
+      this.logger.log(
+        `[STEP 1.5] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
+      );
 
       // 2. นับจำนวน codes ที่มีอยู่แล้ว (codes ที่มี voucherGroupId)
       this.logger.log(`[STEP 2] Counting existing codes`);
@@ -92,6 +132,8 @@ export class ActivateVoucher {
             code,
             voucherId,
             pointsCost,
+            pointId,
+            currency,
             voucherGroupId,
             createdAt: now,
           })),
@@ -143,6 +185,8 @@ export class ActivateVoucher {
         activeCodesCount: result.activeCodesCount,
         upcomingCodesCount: result.upcomingCodesCount,
         pointsCost,
+        pointId,
+        currency,
       };
     } catch (error) {
       this.logger.error(

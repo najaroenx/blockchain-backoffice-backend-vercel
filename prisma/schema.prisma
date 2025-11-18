@@ -29,6 +29,7 @@ model Point {
   merchantId      String?
   transactions    Transaction[]
   customerPoints  CustomerPoint[]
+  voucherCodes    VoucherCode[]   // ← Voucher codes that use this point currency
 }
 
 model User {
@@ -61,6 +62,7 @@ model UserMerchant {
 
 model Wallet{
   id          String    @id @default(cuid())
+  walletAddress String  @unique
   privateKey  String
   email       String
   phoneNumber String
@@ -136,8 +138,6 @@ model Customer {
   firstName        String?
   lastName         String?
   tel              String
-  walletAddress    Bytes
-  privateKey       String //TODO: move to key vault
   createdAt        DateTime           @default(now()) @map(name: "created_at")
   updatedAt        DateTime           @updatedAt @map(name: "updated_at")
   customerMerChant CustomerMerChant[]
@@ -166,6 +166,8 @@ model CustomerPoint {
   point      Point?    @relation(fields: [pointId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   pointId    String?
   balances   Int       @default(0)
+
+  @@unique([customerId, pointId])
 }
 
 model TransactionType {
@@ -216,7 +218,10 @@ model VoucherCode {
   voucherId       String
   voucher         Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
   voucherGroupId  String?                      // ← Group ID สำหรับจัดกลุ่ม codes
-  pointsCost      Int                          // ← ย้ายมาจาก Voucher
+  pointsCost      Int                          // ← ราคาเป็น points
+  pointId         String?                      // ← Point currency ที่ใช้ซื้อ (FK to Point)
+  point           Point?        @relation(fields: [pointId], references: [id], onDelete: SetNull)
+  currency        String?                      // ← Point.symbol (e.g., "GOLD", "SILVER") - denormalized for query performance
   isUsed          Boolean       @default(false)
   usedBy          String?                      // ← Customer ID ที่ใช้
   usedAt          DateTime?
@@ -229,4 +234,5 @@ model VoucherCode {
   @@index([code])
   @@index([voucherGroupId])
   @@index([currentOwnerId, isUsed])
+  @@index([pointId])
 }

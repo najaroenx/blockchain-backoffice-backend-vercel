@@ -17,24 +17,60 @@ export class BuyCouponFromMarketplace {
     private blockchainService: BlockchainService,
   ) {}
 
-  async execute(voucherCodeId: string, address: string, customerId: string) {
+  async execute(
+    voucherGroupId: string,
+    pointId: string,
+    address: string,
+    phone: string,
+  ) {
     try {
       this.logger.log(
-        `[START] Buying coupon from marketplace. CodeId: ${voucherCodeId}, Buyer: ${customerId}`,
+        `[START] Buying coupon from marketplace. GroupId: ${voucherGroupId}, PointId: ${pointId}, Buyer phone: ${phone}`,
       );
 
-      // 1. ตรวจสอบว่า voucher code มีอยู่จริง
-      this.logger.log(`[STEP 1] Finding voucher code: ${voucherCodeId}`);
-      const voucherCode = await this.prisma.voucherCode.findUnique({
-        where: { id: voucherCodeId },
+      // Find customer by phone (tel field)
+      const customer = await this.prisma.customer.findFirst({
+        where: { tel: phone },
+      });
+
+      if (!customer) {
+        this.logger.error(`[ERROR] Customer with phone ${phone} not found`);
+        throw new NotFoundException(`Customer with phone ${phone} not found`);
+      }
+
+      const customerId = customer.id;
+      this.logger.log(`[START] Customer found: ${customerId}`);
+
+      // 1. หา available voucher code จาก group และ validate point
+      this.logger.log(
+        `[STEP 1] Finding available voucher code in group: ${voucherGroupId} with pointId: ${pointId}`,
+      );
+      const voucherCode = await this.prisma.voucherCode.findFirst({
+        where: {
+          voucherGroupId,
+          pointId, // ต้อง match กับ point ที่เลือกจ่าย
+          isUsed: false,
+          currentOwnerId: null,
+        },
         select: {
           id: true,
           code: true,
           voucherId: true,
           voucherGroupId: true,
           pointsCost: true,
+          pointId: true,
+          currency: true,
           isUsed: true,
           currentOwnerId: true,
+          point: {
+            select: {
+              id: true,
+              name: true,
+              symbol: true,
+              contractAddress: true,
+              imageUrl: true,
+            },
+          },
           voucher: {
             select: {
               id: true,
@@ -62,14 +98,36 @@ export class BuyCouponFromMarketplace {
       });
 
       if (!voucherCode) {
-        this.logger.error(`[ERROR] Voucher code not found: ${voucherCodeId}`);
+        this.logger.error(
+          `[ERROR] No available voucher in group: ${voucherGroupId} for pointId: ${pointId}`,
+        );
         throw new NotFoundException(
-          `Voucher code with ID ${voucherCodeId} not found`,
+          `No available voucher in group ${voucherGroupId} that accepts point ${pointId}`,
         );
       }
 
-      // 2. ตรวจสอบว่า code ยังไม่ถูกใช้
-      this.logger.log(`[STEP 2] Checking if code is available`);
+      const voucherCodeId = voucherCode.id;
+      this.logger.log(
+        `[STEP 1] Found available code: ${voucherCodeId} in group ${voucherGroupId} for point ${pointId}`,
+      );
+
+      // 2. Backward Compatibility: ตรวจสอบ pointId
+      this.logger.log(`[STEP 2] Checking pointId setup`);
+      if (!voucherCode.pointId) {
+        this.logger.error(
+          `[ERROR] VoucherCode ${voucherCodeId} has no pointId configured`,
+        );
+        throw new BadRequestException(
+          'This voucher requires point currency setup. Please contact admin.',
+        );
+      }
+
+      this.logger.log(
+        `[STEP 2] Point currency validated: ${voucherCode.currency} (pointId: ${voucherCode.pointId})`,
+      );
+
+      // 3. ตรวจสอบว่า code ยังไม่ถูกใช้
+      this.logger.log(`[STEP 3] Checking if code is available`);
       if (voucherCode.isUsed) {
         this.logger.error(`[ERROR] Code already used`);
         throw new BadRequestException(
@@ -77,7 +135,7 @@ export class BuyCouponFromMarketplace {
         );
       }
 
-      // 3. ตรวจสอบว่า code ถูก activate แล้ว (มี voucherGroupId)
+      // 4. ตรวจสอบว่า code ถูก activate แล้ว (มี voucherGroupId)
       if (!voucherCode.voucherGroupId) {
         this.logger.error(`[ERROR] Code not yet activated`);
         throw new BadRequestException(
@@ -85,8 +143,8 @@ export class BuyCouponFromMarketplace {
         );
       }
 
-      // 4. ตรวจสอบว่า voucher ยังไม่หมดอายุ
-      this.logger.log(`[STEP 3] Checking voucher validity`);
+      // 5. ตรวจสอบว่า voucher ยังไม่หมดอายุ
+      this.logger.log(`[STEP 5] Checking voucher validity`);
       const now = new Date();
       const voucher = voucherCode.voucher;
 
@@ -104,10 +162,43 @@ export class BuyCouponFromMarketplace {
         );
       }
 
-      // 5. เรียก Smart Contract เพื่อซื้อ voucher จาก marketplace
+      // 6. Point Balance Validation
+      this.logger.log(
+        `[STEP 6] Checking customer point balance for ${voucherCode.currency}`,
+      );
+      const customerPoint = await this.prisma.customerPoint.findFirst({
+        where: {
+          customerId,
+          pointId: voucherCode.pointId,
+        },
+      });
+
+      if (!customerPoint) {
+        this.logger.error(
+          `[ERROR] Customer ${customerId} has no ${voucherCode.currency} points`,
+        );
+        throw new BadRequestException(
+          `You don't have any ${voucherCode.currency} points. Please earn points first.`,
+        );
+      }
+
+      if (customerPoint.balances < voucherCode.pointsCost) {
+        this.logger.error(
+          `[ERROR] Insufficient balance. Required: ${voucherCode.pointsCost}, Available: ${customerPoint.balances}`,
+        );
+        throw new BadRequestException(
+          `Insufficient ${voucherCode.currency} balance. Required: ${voucherCode.pointsCost}, Available: ${customerPoint.balances}`,
+        );
+      }
+
+      this.logger.log(
+        `[STEP 6] Balance check passed. Available: ${customerPoint.balances} ${voucherCode.currency}`,
+      );
+
+      // 7. เรียก Smart Contract เพื่อซื้อ voucher จาก marketplace
       let blockchainTx = null;
       this.logger.log(
-        `[STEP 4] Calling smart contract to buy voucher from marketplace`,
+        `[STEP 7] Calling smart contract to buy voucher from marketplace`,
       );
 
       try {
@@ -115,7 +206,7 @@ export class BuyCouponFromMarketplace {
         const tokenId = voucher.tokenId || voucher.id;
 
         this.logger.log(
-          `[STEP 4] Using tokenId: ${tokenId} for voucher ${voucher.id}`,
+          `[STEP 7] Using tokenId: ${tokenId} for voucher ${voucher.id}`,
         );
 
         blockchainTx = await this.blockchainService.buyVoucherFromMarketplace(
@@ -126,7 +217,7 @@ export class BuyCouponFromMarketplace {
         );
 
         this.logger.log(
-          `[STEP 4] Marketplace purchase successful. Tx: ${blockchainTx.hash}, TokenId: ${blockchainTx.tokenId}`,
+          `[STEP 7] Marketplace purchase successful. Tx: ${blockchainTx.hash}, TokenId: ${blockchainTx.tokenId}`,
         );
       } catch (error) {
         this.logger.error(
@@ -137,24 +228,26 @@ export class BuyCouponFromMarketplace {
         );
       }
 
-      // 6. Transfer ownership - อัพเดท database
-      this.logger.log(`[STEP 5] Updating database - transferring ownership`);
+      // 8. Transfer ownership - อัพเดท database
+      this.logger.log(`[STEP 8] Updating database - transferring ownership`);
 
       // บันทึก transaction ในระบบ (marketplace purchase)
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: customerId },
-      });
-
-      if (!customer) {
-        throw new NotFoundException(`Customer with ID ${customerId} not found`);
-      }
-
-      // Update ownership และสร้าง transaction record
-      const [, transaction] = await this.prisma.$transaction([
+      // Update ownership, deduct balance, และสร้าง transaction record
+      const [, , transaction] = await this.prisma.$transaction([
         // Update current owner
         this.prisma.voucherCode.update({
           where: { id: voucherCodeId },
           data: { currentOwnerId: customerId },
+        }),
+
+        // Deduct customer point balance
+        this.prisma.customerPoint.update({
+          where: { id: customerPoint.id },
+          data: {
+            balances: {
+              decrement: voucherCode.pointsCost,
+            },
+          },
         }),
 
         // Create transaction record (payment + ownership transfer)
@@ -164,6 +257,7 @@ export class BuyCouponFromMarketplace {
             senderAddress: Buffer.from(address.slice(2), 'hex'),
             receiverAddress: Buffer.from(address.slice(2), 'hex'),
             amount: voucherCode.pointsCost,
+            pointId: voucherCode.pointId,
             senderId: customerId,
             receiverId: customerId,
             voucherCodeId: voucherCodeId,

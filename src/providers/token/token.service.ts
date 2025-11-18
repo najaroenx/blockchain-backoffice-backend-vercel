@@ -55,6 +55,7 @@ export class TokenService {
       // TODO : add jwt secret
       return verify(token, this.jwtSecret, { ...options, subject }) as any as T;
     } catch (error) {
+      console.error('Error verifying token:', error);
       throw new UnauthorizedException('Invalid token');
     }
   }

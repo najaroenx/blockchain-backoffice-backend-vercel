@@ -20,7 +20,7 @@ export class GetPointById {
 
   async execute(
     pointId: string,
-    merchantId: string,
+    merchantId?: string,
   ): Promise<GetPointResponseType> {
     try {
       const point = await this.db.getPointById(pointId, merchantId);

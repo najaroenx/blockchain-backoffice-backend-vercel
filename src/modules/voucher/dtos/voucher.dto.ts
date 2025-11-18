@@ -41,6 +41,10 @@ export class CreateVoucherDto {
   @IsInt()
   pointsCost: number;
 
+  @IsString()
+  @IsNotEmpty()
+  pointId: string; // Point ID to specify which point currency to use
+
   @IsDateString()
   startDate: string;
 
@@ -94,6 +98,10 @@ export class UpdateVoucherDto {
   @IsInt()
   @IsOptional()
   pointsCost?: number;
+
+  @IsString()
+  @IsOptional()
+  pointId?: string; // Point ID to specify which point currency to use
 
   @IsDateString()
   @IsOptional()

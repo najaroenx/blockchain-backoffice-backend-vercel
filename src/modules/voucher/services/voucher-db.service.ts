@@ -340,6 +340,8 @@ export class VoucherDBService {
       voucherId,
       data.amount,
       data.pointsCost,
+      data.pointId,
+      data.currency,
     );
   }
 
@@ -604,6 +606,14 @@ export class VoucherDBService {
           voucherGroupId: true,
           createdAt: true,
           pointsCost: true,
+          point: {
+            select: {
+              id: true,
+              name: true,
+              symbol: true,
+              imageUrl: true,
+            },
+          },
         },
         distinct: ['voucherGroupId'],
         orderBy: {
@@ -639,9 +649,17 @@ export class VoucherDBService {
             imageUrl: voucher.imageUrl,
             limitPerMember: voucher.limitPerMember,
             merchant: {
-              id: voucher.merchant.id,
-              name: voucher.merchant.name,
+              id: (voucher as any).merchant.id,
+              name: (voucher as any).merchant.name,
             },
+            point: (group as any).point
+              ? {
+                  id: (group as any).point.id,
+                  name: (group as any).point.name,
+                  symbol: (group as any).point.symbol,
+                  imageUrl: (group as any).point.imageUrl,
+                }
+              : null,
           });
         }
       }
@@ -766,72 +784,94 @@ export class VoucherDBService {
   }
 
   /**
-   * Get redemption history for customer
+   * Get redemption history for customer by wallet address
    */
-  async getRedemptionHistory(customerId: string) {
-    const redeemedCodes = await this.prisma.voucherCode.findMany({
-      where: {
-        usedBy: customerId,
-        isUsed: true,
-      },
-      include: {
-        voucher: {
-          include: {
-            merchant: true,
-          },
-        },
-      },
-      orderBy: {
-        usedAt: 'desc',
-      },
-    });
+  // async getRedemptionHistory(walletAddress: string) {
+  //   // Find customer by wallet address
+  //   const wallet = await this.prisma.wallet.findUnique({
+  //     where: { walletAddress },
+  //     include: { customer: true },
+  //   });
 
-    return {
-      customerId,
-      totalRedeemed: redeemedCodes.length,
-      redemptions: redeemedCodes.map((code) => ({
-        code: code.code,
-        redeemedAt: code.usedAt,
-        pointsCost: code.pointsCost,
-        voucher: {
-          id: code.voucher.id,
-          name: code.voucher.name,
-          description: code.voucher.description,
-          valueType: code.voucher.valueType,
-          value: code.voucher.value,
-          merchantName:
-            code.voucher.merchant?.name || code.voucher.merchantName,
-        },
-      })),
-    };
-  }
+  //   const customer = wallet?.customer;
+
+  //   if (!customer) {
+  //     return {
+  //       walletAddress,
+  //       customerId: null,
+  //       totalRedeemed: 0,
+  //       redemptions: [],
+  //     };
+  //   }
+
+  //   const customerId = customer.id;
+
+  //   const redeemedCodes = await this.prisma.voucherCode.findMany({
+  //     where: {
+  //       usedBy: customerId,
+  //       isUsed: true,
+  //     },
+  //     include: {
+  //       voucher: {
+  //         include: {
+  //           merchant: true,
+  //         },
+  //       },
+  //     },
+  //     orderBy: {
+  //       usedAt: 'desc',
+  //     },
+  //   });
+
+  //   return {
+  //     walletAddress,
+  //     customerId,
+  //     totalRedeemed: redeemedCodes.length,
+  //     redemptions: redeemedCodes.map((code) => ({
+  //       code: code.code,
+  //       redeemedAt: code.usedAt,
+  //       pointsCost: code.pointsCost,
+  //       voucher: {
+  //         id: code.voucher.id,
+  //         name: code.voucher.name,
+  //         description: code.voucher.description,
+  //         valueType: code.voucher.valueType,
+  //         value: code.voucher.value,
+  //         merchantName:
+  //           code.voucher.merchant?.name || code.voucher.merchantName,
+  //       },
+  //     })),
+  //   };
+  // }
 
   /**
    * Buy coupon from marketplace
    */
   async buyCouponFromMarketplace(
-    voucherCodeId: string,
+    voucherGroupId: string,
+    pointId: string,
     address: string,
-    customerId: string,
+    phone: string,
   ) {
     return await this.buyCouponFromMarketplaceHandler.execute(
-      voucherCodeId,
+      voucherGroupId,
+      pointId,
       address,
-      customerId,
+      phone,
     );
   }
 
   /**
-   * Get vouchers owned by customer
+   * Get vouchers owned by customer by wallet address
    */
   async getCustomerOwnedVouchers(
-    customerId: string,
+    walletAddress: string,
     status?: 'unused' | 'used' | 'all',
     page?: number,
     limit?: number,
   ) {
     return await this.getCustomerOwnedVouchersHandler.execute(
-      customerId,
+      walletAddress,
       status,
       page,
       limit,

@@ -37,9 +37,12 @@ export class PointDBService {
     return { points, total };
   }
 
-  async getPointById(pointId: string, merchantId: string): Promise<Point> {
+  async getPointById(pointId: string, merchantId?: string): Promise<Point> {
+    const where: Prisma.PointWhereUniqueInput = merchantId
+      ? { id: pointId, merchantId }
+      : { id: pointId };
     const point = await this.repository.findUnique<Point>({
-      where: { id: pointId, merchantId },
+      where,
     });
     return point;
   }

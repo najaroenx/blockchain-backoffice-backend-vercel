@@ -16,10 +16,34 @@ export class CreateVoucherWithCodes {
 
   async execute(data: CreateVoucherDto) {
     try {
+      // Validate Point exists and belongs to merchant
+      this.logger.log(`[STEP 0] Validating point ${data.pointId}`);
+      const point = await this.prisma.point.findUnique({
+        where: { id: data.pointId },
+        select: { id: true, symbol: true, merchantId: true, name: true },
+      });
+
+      if (!point) {
+        this.logger.error(`[ERROR] Point ${data.pointId} not found`);
+        throw new ConflictException(`Point with ID ${data.pointId} not found`);
+      }
+
+      if (data.merchantId && point.merchantId !== data.merchantId) {
+        this.logger.error(
+          `[ERROR] Point belongs to different merchant. Point merchantId: ${point.merchantId}, Voucher merchantId: ${data.merchantId}`,
+        );
+        throw new ConflictException(`Point does not belong to this merchant`);
+      }
+
+      this.logger.log(
+        `[STEP 0] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
+      );
+
       // สร้างเฉพาะ voucher metadata (ไม่สร้าง codes)
       const result = await this.prisma.$transaction(async (tx) => {
-        // 1. แยก pointsCost และ dates ออกจาก voucherData
-        const { pointsCost, startDate, endDate, ...voucherData } = data;
+        // 1. แยก pointsCost, pointId และ dates ออกจาก voucherData
+        const { pointsCost, pointId, startDate, endDate, ...voucherData } =
+          data;
 
         // 2. Generate coupon ID
         const couponId = `COUPON-${randomUUID()}`;
@@ -42,7 +66,7 @@ export class CreateVoucherWithCodes {
 
         this.logger.log(`Created voucher metadata ${voucher.id}`);
 
-        return { voucher, pointsCost };
+        return { voucher, pointsCost, pointId };
       });
 
       this.logger.log(
@@ -52,7 +76,10 @@ export class CreateVoucherWithCodes {
       return {
         success: true,
         voucher: result.voucher,
-        message: `Voucher created successfully. Use activate endpoint to create ${data.totalIssued} codes and activate.`,
+        pointsCost: result.pointsCost,
+        pointId: result.pointId,
+        pointSymbol: point.symbol,
+        message: `Voucher created successfully. Use activate endpoint with pointId="${result.pointId}" and currency="${point.symbol}" to create ${data.totalIssued} codes.`,
         note: 'Voucher codes will be created when activating the voucher',
       };
     } catch (error) {

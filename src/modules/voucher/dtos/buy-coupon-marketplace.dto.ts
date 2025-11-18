@@ -3,7 +3,11 @@ import { IsNotEmpty, IsString } from 'class-validator';
 export class BuyCouponFromMarketplaceDto {
   @IsNotEmpty()
   @IsString()
-  voucherCodeId: string;
+  voucherGroupId: string;
+
+  @IsNotEmpty()
+  @IsString()
+  pointId: string;
 
   @IsNotEmpty()
   @IsString()
@@ -11,5 +15,5 @@ export class BuyCouponFromMarketplaceDto {
 
   @IsNotEmpty()
   @IsString()
-  customerId: string;
+  phone: string;
 }

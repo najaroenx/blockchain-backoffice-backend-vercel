@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 
 @Injectable()
 export class RedeemVoucher {
@@ -32,6 +33,8 @@ export class RedeemVoucher {
           voucherId: true,
           voucherGroupId: true,
           pointsCost: true,
+          pointId: true,
+          currency: true,
           isUsed: true,
           usedBy: true,
           usedAt: true,
@@ -101,7 +104,21 @@ export class RedeemVoucher {
         );
       }
 
-      // 4. ตรวจสอบว่า code ถูก activate แล้วหรือยัง (มี voucherGroupId)
+      // 4. ตรวจสอบ pointId configuration
+      if (!voucherCode.pointId) {
+        this.logger.error(
+          `[ERROR] VoucherCode ${code} has no pointId configured`,
+        );
+        throw new BadRequestException(
+          'This voucher requires point currency setup. Please contact admin.',
+        );
+      }
+
+      this.logger.log(
+        `[STEP 4] Point currency: ${voucherCode.currency} (pointId: ${voucherCode.pointId})`,
+      );
+
+      // 5. ตรวจสอบว่า code ถูก activate แล้วหรือยัง (มี voucherGroupId)
       if (!voucherCode.voucherGroupId) {
         this.logger.error(`[ERROR] Code not yet activated (no voucherGroupId)`);
         throw new BadRequestException(
@@ -109,9 +126,9 @@ export class RedeemVoucher {
         );
       }
 
-      // 5. ตรวจสอบ ownership (ถ้ามี currentOwnerId)
+      // 6. ตรวจสอบ ownership (ถ้ามี currentOwnerId)
       if (voucherCode.currentOwnerId) {
-        this.logger.log(`[STEP 4.5] Verifying ownership`);
+        this.logger.log(`[STEP 6] Verifying ownership`);
         if (voucherCode.currentOwnerId !== customerId) {
           this.logger.error(
             `[ERROR] Customer ${customerId} does not own this voucher. Owner: ${voucherCode.currentOwnerId}`,
@@ -120,33 +137,34 @@ export class RedeemVoucher {
             `You do not own this voucher. It belongs to another customer.`,
           );
         }
-        this.logger.log(`[STEP 4.5] Ownership verified ✓`);
+        this.logger.log(`[STEP 6] Ownership verified ✓`);
       }
 
-      // 5. เรียก Smart Contract เพื่อ redeem voucher NFT (Burn ERC-1155)
+      // 7. Get customer wallet address
+      this.logger.log(`[STEP 7] Getting customer wallet address`);
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: customerId },
+        include: { wallet: true },
+      });
+
+      if (!customer) {
+        throw new NotFoundException('Customer not found');
+      }
+
+      const customerAddress = customer.wallet?.walletAddress || '';
+
+      // 8. เรียก Smart Contract เพื่อ redeem voucher NFT (Burn ERC-1155)
       let blockchainTx = null;
       this.logger.log(
-        `[STEP 5] Calling smart contract to redeem voucher code: ${code}`,
+        `[STEP 8] Calling smart contract to redeem voucher code: ${code}`,
       );
 
       try {
-        // Get customer wallet address
-        const customer = await this.prisma.customer.findUnique({
-          where: { id: customerId },
-        });
-
-        if (!customer) {
-          throw new Error('Customer not found');
-        }
-
-        const customerAddress =
-          '0x' + Buffer.from(customer.walletAddress).toString('hex');
-
         // ใช้ tokenId จาก voucher (ERC-1155) หรือ fallback ไปใช้ voucherId
         const tokenId = voucher.tokenId || voucher.id;
 
         this.logger.log(
-          `[STEP 5] Redeeming tokenId: ${tokenId} for customer: ${customerAddress}`,
+          `[STEP 8] Redeeming tokenId: ${tokenId} for customer: ${customerAddress}`,
         );
 
         blockchainTx = await this.blockchainService.redeemVoucher(
@@ -155,7 +173,7 @@ export class RedeemVoucher {
         );
 
         this.logger.log(
-          `[STEP 5] Smart contract redeem successful. Tx: ${blockchainTx.hash}`,
+          `[STEP 8] Smart contract redeem successful. Tx: ${blockchainTx.hash}`,
         );
       } catch (error) {
         this.logger.error(
@@ -166,19 +184,84 @@ export class RedeemVoucher {
         );
       }
 
-      // 6. อัพเดท database - mark code เป็น used
-      this.logger.log(`[STEP 6] Updating database - marking code as used`);
-      const updatedCode = await this.prisma.voucherCode.update({
-        where: { id: voucherCode.id },
-        data: {
-          isUsed: true,
-          usedBy: customerId,
-          usedAt: new Date(),
-        },
-        include: {
-          voucher: true,
-        },
+      // 9. Get merchant wallet for transaction
+      this.logger.log(`[STEP 9] Getting merchant wallet address`);
+      if (!voucher.merchantId) {
+        throw new BadRequestException('Voucher has no merchant assigned');
+      }
+
+      const merchant = await this.prisma.merchant.findUnique({
+        where: { id: voucher.merchantId },
+        select: { walletId: true, wallet: true },
       });
+
+      if (!merchant?.wallet) {
+        throw new BadRequestException(
+          'Merchant wallet not configured. Cannot process redemption.',
+        );
+      }
+
+      const merchantAddress = merchant.wallet.walletAddress || '';
+
+      // 10. อัพเดท database - mark code เป็น used, สร้าง REDEEM transaction, transfer points
+      this.logger.log(
+        `[STEP 10] Updating database - marking code as used and creating REDEEM transaction`,
+      );
+      const [updatedCode, , redeemTransaction] = await this.prisma.$transaction(
+        [
+          // Mark code as used
+          this.prisma.voucherCode.update({
+            where: { id: voucherCode.id },
+            data: {
+              isUsed: true,
+              usedBy: customerId,
+              usedAt: new Date(),
+            },
+            include: {
+              voucher: true,
+            },
+          }),
+
+          // Increment merchant's point balance (customer -> merchant)
+          this.prisma.customerPoint.upsert({
+            where: {
+              customerId_pointId: {
+                customerId: voucher.merchantId,
+                pointId: voucherCode.pointId,
+              },
+            },
+            create: {
+              customerId: voucher.merchantId,
+              pointId: voucherCode.pointId,
+              balances: voucherCode.pointsCost,
+            },
+            update: {
+              balances: {
+                increment: voucherCode.pointsCost,
+              },
+            },
+          }),
+
+          // Create REDEEM transaction record
+          this.prisma.transaction.create({
+            data: {
+              txHash: Buffer.from(blockchainTx.hash.slice(2), 'hex'),
+              senderAddress: Buffer.from(customerAddress.slice(2), 'hex'),
+              receiverAddress: Buffer.from(merchantAddress.slice(2), 'hex'),
+              amount: voucherCode.pointsCost,
+              pointId: voucherCode.pointId,
+              senderId: customerId,
+              receiverId: voucher.merchantId,
+              voucherCodeId: voucherCode.id,
+              transactionTypeId: TransactionTypeId.REDEEM,
+            },
+          }),
+        ],
+      );
+
+      this.logger.log(
+        `[STEP 10] REDEEM transaction created. TxId: ${redeemTransaction.id}, Points transferred: ${voucherCode.pointsCost} ${voucherCode.currency}`,
+      );
 
       this.logger.log(
         `[SUCCESS] Voucher code redeemed successfully for customer: ${customerId}`,

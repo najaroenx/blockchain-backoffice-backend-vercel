@@ -6,7 +6,6 @@ import {
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
 import { GetCustomersByMerchantIdResponseType } from '../types';
-import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { PageOptionsDto } from 'src/common/dtos';
 
 @Injectable()
@@ -32,7 +31,7 @@ export class GetCustomersByMerchantId {
 
       const formattedCustomer = customers.map((customer) => ({
         ...customer,
-        walletAddress: convertBufferToAddress(customer.walletAddress),
+        walletAddress: customer.wallet?.walletAddress || '',
       }));
 
       return {

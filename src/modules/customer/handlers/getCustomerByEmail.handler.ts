@@ -9,7 +9,6 @@ import {
   INTERNAL_SERVER_ERROR,
 } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
-import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { GetCustomerByEmailResponseType } from '../types';
 
 @Injectable()
@@ -29,7 +28,7 @@ export class GetCustomerByEmail {
 
       const formattedCustomer = {
         ...customer,
-        walletAddress: convertBufferToAddress(customer.walletAddress),
+        walletAddress: customer.wallet?.walletAddress || '',
       };
 
       return {

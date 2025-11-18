@@ -6,12 +6,11 @@ import {
 } from '@nestjs/common';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
-import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { Prisma } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { createWallet } from 'src/libs/createWallet';
-// import { createBufferFromHex } from 'src/libs/createBufferFromHex';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class CreateCustomer {
@@ -22,6 +21,7 @@ export class CreateCustomer {
     private db: CustomerDBService,
     private tokenService: TokenService,
     private configService: ConfigService,
+    private prisma: PrismaService,
   ) {
     this.salt = this.configService.get<string>('SALT');
   }
@@ -30,7 +30,7 @@ export class CreateCustomer {
     merchantId: string,
     data: Omit<
       Prisma.CustomerCreateInput,
-      'customerMerChant' | 'transaction' | 'walletAddress' | 'privateKey'
+      'customerMerChant' | 'transaction' | 'wallet'
     >,
   ): Promise<any> {
     try {
@@ -50,40 +50,66 @@ export class CreateCustomer {
         if (isUserAssociatedWithMerchant) {
           return {
             ...customer,
-            walletAddress: convertBufferToAddress(customer.walletAddress),
+            walletAddress: customer.wallet?.walletAddress || '',
           };
         } else {
-          const updatedCustomer = await this.db.updateCustomer(customer.id, {
+          await this.db.updateCustomer(customer.id, {
             customerMerChant: { create: { merchantId } },
           });
+          // Re-fetch customer with wallet to get walletAddress
+          const updatedCustomer = await this.db.getCustomersByEmail(
+            merchantId,
+            data.email,
+          );
           return {
             ...updatedCustomer,
-            walletAddress: convertBufferToAddress(
-              updatedCustomer.walletAddress,
-            ),
+            walletAddress: (updatedCustomer as any).wallet?.walletAddress || '',
           };
         }
       }
 
-      const wallet = createWallet();
+      // Use transaction to create wallet and customer atomically
+      const result = await this.prisma.$transaction(async (tx) => {
+        const { privateKey, walletAddress } = createWallet();
 
-      const encryptedPrivateKey = this.tokenService.encryptKey(
-        this.salt,
-        wallet.privateKey,
-      );
+        const encryptedPrivateKey = this.tokenService.encryptKey(
+          this.salt,
+          privateKey,
+        );
 
-      const newCustomer = await this.db.createCustomer({
-        ...data,
-        walletAddress: Buffer.from(
-          wallet.walletAddress.replace(/^0x/, ''),
-          'hex',
-        ),
-        privateKey: encryptedPrivateKey,
-        customerMerChant: { create: { merchantId } },
+        // Create wallet first
+        const wallet = await tx.wallet.create({
+          data: {
+            walletAddress,
+            privateKey: encryptedPrivateKey,
+            email: data.email,
+            phoneNumber: data.tel,
+            type: 'customer',
+            status: 'active',
+          },
+        });
+
+        // Create customer with wallet reference
+        const newCustomer = await tx.customer.create({
+          data: {
+            ...data,
+            walletId: wallet.id,
+            customerMerChant: { create: { merchantId } },
+          },
+          include: {
+            wallet: true,
+          },
+        });
+
+        return {
+          customer: newCustomer,
+          walletAddress: wallet.walletAddress,
+        };
       });
+
       return {
-        ...newCustomer,
-        walletAddress: convertBufferToAddress(newCustomer.walletAddress),
+        ...result.customer,
+        walletAddress: result.walletAddress,
       };
     } catch (error) {
       this.logger.error(

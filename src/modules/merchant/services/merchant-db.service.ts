@@ -29,6 +29,9 @@ export class MerchantDBService {
       where: {
         id,
       },
+      include: {
+        wallet: true,
+      },
     });
 
     return merchant;

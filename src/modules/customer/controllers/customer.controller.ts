@@ -76,3 +76,15 @@ export class CustomerController {
     return this.GetCustomerByPhone.execute(merchantId, phone);
   }
 }
+
+@Controller('/customer')
+export class CustomerPhoneController {
+  constructor(private readonly getCustomerByPhone: GetCustomerPhone) {}
+
+  @Public()
+  @Get('/:phone')
+  @HttpCode(200)
+  async getCustomerByPhoneDetailed(@Param('phone') phone: string) {
+    return this.getCustomerByPhone.executeDetailed(phone);
+  }
+}

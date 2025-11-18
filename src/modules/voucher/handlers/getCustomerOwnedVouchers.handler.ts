@@ -8,15 +8,38 @@ export class GetCustomerOwnedVouchers {
   constructor(private prisma: PrismaService) {}
 
   async execute(
-    customerId: string,
+    walletAddress: string,
     status?: 'unused' | 'used' | 'all',
     page: number = 1,
     limit: number = 20,
   ) {
     try {
       this.logger.log(
-        `[START] Getting owned vouchers for customer: ${customerId}, status: ${status}`,
+        `[START] Getting owned vouchers for wallet: ${walletAddress}, status: ${status}`,
       );
+
+      // Find customer by wallet address
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { walletAddress },
+        include: { customer: true },
+      });
+
+      const customer = wallet?.customer;
+
+      if (!customer) {
+        this.logger.error(`[ERROR] Customer with wallet ${walletAddress} not found`);
+        return {
+          walletAddress,
+          customerId: null,
+          status: status || 'all',
+          pagination: { page, limit, total: 0, totalPages: 0 },
+          summary: { total: 0, unused: 0, used: 0 },
+          vouchers: [],
+        };
+      }
+
+      const customerId = customer.id;
+      this.logger.log(`[START] Customer found: ${customerId}`);
 
       // Build where clause based on status
       const where: any = {
@@ -75,10 +98,11 @@ export class GetCustomerOwnedVouchers {
       ]);
 
       this.logger.log(
-        `[SUCCESS] Found ${vouchers.length} vouchers for customer ${customerId}`,
+        `[SUCCESS] Found ${vouchers.length} vouchers for wallet ${walletAddress}`,
       );
 
       return {
+        walletAddress,
         customerId,
         status: status || 'all',
         pagination: {

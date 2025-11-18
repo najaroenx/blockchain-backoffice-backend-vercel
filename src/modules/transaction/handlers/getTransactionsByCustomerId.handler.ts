@@ -34,7 +34,7 @@ export class GetTransactionsByCustomerId {
         ) => ({
           id: customer?.id ?? merchantId,
           walletAddress: convertBufferToAddress(
-            customer?.walletAddress ?? walletAddress,
+            (customer as any)?.wallet?.walletAddress ? Buffer.from(((customer as any).wallet.walletAddress).replace(/^0x/, ''), 'hex') : walletAddress,
           ),
           emailOrWebsite: customer?.email ?? merchantWebsite,
         });

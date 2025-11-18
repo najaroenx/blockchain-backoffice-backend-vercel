@@ -36,15 +36,17 @@ export class BlockchainService {
     symbol,
     decimal,
     frameSize,
+    ownerAddress,
   }: createPoint) {
     console.log(
-      'Creating new point token on blockchain... by ',
-      this.pointFactoryAddress,
+      '[BlockchainService] Creating new point token on blockchain...',
     );
     console.log(
-      'Creating new point token on blockchain... by ',
-      this.privateKey,
+      '[BlockchainService] Factory address:',
+      this.pointFactoryAddress,
     );
+    console.log('[BlockchainService] Owner (merchant) address:', ownerAddress);
+    console.log('[BlockchainService] Initial supply:', initialSupply);
 
     const signer = new Wallet(this.privateKey, this.provider);
 
@@ -59,9 +61,11 @@ export class BlockchainService {
     const blockTime = await this.resolveBlockTime();
 
     const initialSupplyWeiFormat = ethers.parseEther(initialSupply.toString());
+
+    // Preview the contract address that will be created
     const result = await contract['createNewPointContract'].staticCallResult(
       initialSupplyWeiFormat,
-      signer.address,
+      ownerAddress,
       name,
       symbol,
       // decimal,
@@ -70,10 +74,18 @@ export class BlockchainService {
     );
 
     const pointAddress = result[0];
-    console.log('New point token address preview:', pointAddress);
+    console.log(
+      '[BlockchainService] New point token address preview:',
+      pointAddress,
+    );
+
+    // Create the point contract with merchant as owner
+    console.log(
+      '[BlockchainService] Minting initial supply to merchant wallet...',
+    );
     const tx = await contractWithSigner['createNewPointContract'](
       initialSupplyWeiFormat,
-      signer.address,
+      ownerAddress,
       name,
       symbol,
       // decimal,
@@ -120,24 +132,80 @@ export class BlockchainService {
     amount,
     to,
     pointAddress,
-  }: transaction): Promise<{ txId: string }> {
+    senderPrivateKey,
+  }: transaction & { senderPrivateKey?: string }): Promise<{ txId: string }> {
     try {
-      const signer = new Wallet(this.privateKey, this.provider);
+      const privateKeyToUse = senderPrivateKey || this.privateKey;
+      console.log('[BlockchainService] Starting transaction');
+      console.log(
+        '[BlockchainService] Using private key type:',
+        senderPrivateKey ? 'merchant' : 'admin',
+      );
+      console.log('[BlockchainService] Point address:', pointAddress);
+      console.log('[BlockchainService] Recipient address:', to);
+      console.log('[BlockchainService] Amount:', amount);
+
+      const signer = new Wallet(privateKeyToUse, this.provider);
+      console.log('[BlockchainService] Signer address:', signer.address);
 
       const contract = new Contract(pointAddress, PointERC20ABI, signer);
+
+      // Check sender balance before transfer
+      console.log('[BlockchainService] Checking sender balance...');
+      const balance = await contract['balanceOf'](signer.address);
+      const balanceFormatted = ethers.formatEther(balance);
+      console.log(
+        '[BlockchainService] Sender balance:',
+        balanceFormatted,
+        'points',
+      );
 
       const contractWithSigner = contract.connect(signer) as any;
 
       const amountWeiFormat = ethers.parseEther(amount.toString());
+      console.log(
+        '[BlockchainService] Amount in Wei format:',
+        amountWeiFormat.toString(),
+      );
+      console.log('[BlockchainService] Amount to transfer:', amount, 'points');
 
+      // Validate balance
+      if (balance < amountWeiFormat) {
+        console.error(
+          '[BlockchainService] Insufficient balance! Required:',
+          amount,
+          'Available:',
+          balanceFormatted,
+        );
+        throw new Error(
+          `Insufficient balance. Required: ${amount}, Available: ${balanceFormatted}`,
+        );
+      }
+
+      console.log('[BlockchainService] Calling contract transfer method...');
       const tx = await contractWithSigner['transfer'](to, amountWeiFormat);
+      console.log('[BlockchainService] Transaction hash:', tx.hash);
 
+      console.log(
+        '[BlockchainService] Waiting for transaction confirmation...',
+      );
       await tx.wait();
+      console.log('[BlockchainService] Transaction confirmed');
 
       return {
         txId: tx.hash,
       };
     } catch (error) {
+      console.error('[BlockchainService] Transaction failed:');
+      console.error('[BlockchainService] Error message:', error.message);
+      console.error('[BlockchainService] Error code:', error.code);
+      console.error(
+        '[BlockchainService] Error details:',
+        JSON.stringify(error, null, 2),
+      );
+      console.error('[BlockchainService] Point address:', pointAddress);
+      console.error('[BlockchainService] Recipient:', to);
+      console.error('[BlockchainService] Amount:', amount);
       throw new InternalServerErrorException(RPC_SERVER_ERROR);
     }
   }
@@ -188,6 +256,24 @@ export class BlockchainService {
       };
     } catch (error) {
       throw new InternalServerErrorException(RPC_SERVER_ERROR);
+    }
+  }
+
+  async getBalance({
+    walletAddress,
+    pointAddress,
+  }: {
+    walletAddress: string;
+    pointAddress: string;
+  }): Promise<string> {
+    try {
+      const contract = new Contract(pointAddress, PointERC20ABI, this.provider);
+      const balance = await contract['balanceOf'](walletAddress);
+      // Convert from Wei to Ether format
+      return ethers.formatEther(balance);
+    } catch (error) {
+      console.error('[BlockchainService] Get balance failed:', error.message);
+      throw new InternalServerErrorException('Failed to get balance');
     }
   }
 

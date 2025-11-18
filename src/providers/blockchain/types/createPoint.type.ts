@@ -4,4 +4,5 @@ export type createPoint = {
   symbol: string;
   decimal: number;
   frameSize: number;
+  ownerAddress: string; // Merchant wallet address to receive initial supply
 };

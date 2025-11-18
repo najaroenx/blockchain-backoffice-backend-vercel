@@ -243,23 +243,23 @@ export class VoucherController {
    * GET /coupon/my-vouchers/:walletAddress
    * Query params: ?status=unused|used|all&page=1&limit=20
    */
-  @Get('/my-coupons/:walletAddress')
-  @Public()
-  @HttpCode(200)
-  async getCustomerOwnedVouchers(
-    @Param('walletAddress') walletAddress: string,
-    @Query('status') status?: 'unused' | 'used' | 'all',
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 20;
+  // @Get('/my-coupons/:walletAddress')
+  // @Public()
+  // @HttpCode(200)
+  // async getCustomerOwnedVouchers(
+  //   @Param('walletAddress') walletAddress: string,
+  //   @Query('status') status?: 'unused' | 'used' | 'all',
+  //   @Query('page') page?: string,
+  //   @Query('limit') limit?: string,
+  // ) {
+  //   const pageNum = page ? parseInt(page, 10) : 1;
+  //   const limitNum = limit ? parseInt(limit, 10) : 20;
 
-    return this.voucherService.getCustomerOwnedVouchers(
-      walletAddress,
-      status || 'all',
-      pageNum,
-      limitNum,
-    );
-  }
+  //   return this.voucherService.getCustomerOwnedVouchers(
+  //     walletAddress,
+  //     status || 'all',
+  //     pageNum,
+  //     limitNum,
+  //   );
+  // }
 }

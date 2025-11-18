@@ -47,7 +47,7 @@ export class GetCustomerById {
       }));
 
       const customerWalletAddress = customer.wallet?.walletAddress || '';
-      
+
       const formattedCustomerPoint = await Promise.all(
         customer.customerPoints.map(async ({ point }) => ({
           ...point,

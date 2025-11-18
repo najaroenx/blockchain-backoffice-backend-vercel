@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
-import { CustomerController, CustomerPhoneController } from './controllers/customer.controller';
+import {
+  CustomerController,
+  CustomerPhoneController,
+} from './controllers/customer.controller';
 import { CustomerRepository } from './customer.repository';
 import { TokenModule } from 'src/providers/token/token.module';
 import { CustomerDBService } from './services/customer-db.service';

@@ -16,7 +16,13 @@ import { BurnTransaction } from './handlers/burnTransaction.handler';
 import { GetWalletBalance } from './handlers/getMerchantBalance.handler';
 
 @Module({
-  imports: [PointModule, BlockchainModule, CustomerModule, MerchantModule, TokenModule],
+  imports: [
+    PointModule,
+    BlockchainModule,
+    CustomerModule,
+    MerchantModule,
+    TokenModule,
+  ],
   providers: [
     TransactionRepository,
     TransactionDBService,

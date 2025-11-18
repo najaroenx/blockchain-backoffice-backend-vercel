@@ -51,7 +51,10 @@ export class CustomerDBService {
   async getCustomersByMerchant(
     merchantId: string,
     pageOptionsDto: PageOptionsDto,
-  ): Promise<{ customers: (Customer & { wallet?: Wallet | null })[]; count: number }> {
+  ): Promise<{
+    customers: (Customer & { wallet?: Wallet | null })[];
+    count: number;
+  }> {
     const count = await this.repository.count({
       where: {
         customerMerChant: {

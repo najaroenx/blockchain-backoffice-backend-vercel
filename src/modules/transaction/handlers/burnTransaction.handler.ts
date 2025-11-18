@@ -141,10 +141,7 @@ export class BurnTransaction {
     });
   }
 
-  private async getCustomer(
-    merchantId: string,
-    phone: string,
-  ): Promise<any> {
+  private async getCustomer(merchantId: string, phone: string): Promise<any> {
     const customerResponse = await this.getCustomerByPhone.execute(
       merchantId,
       phone,

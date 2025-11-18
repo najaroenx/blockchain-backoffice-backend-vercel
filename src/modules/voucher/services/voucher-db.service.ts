@@ -864,17 +864,17 @@ export class VoucherDBService {
   /**
    * Get vouchers owned by customer by wallet address
    */
-  async getCustomerOwnedVouchers(
-    walletAddress: string,
-    status?: 'unused' | 'used' | 'all',
-    page?: number,
-    limit?: number,
-  ) {
-    return await this.getCustomerOwnedVouchersHandler.execute(
-      walletAddress,
-      status,
-      page,
-      limit,
-    );
-  }
+  // async getCustomerOwnedVouchers(
+  //   walletAddress: string,
+  //   status?: 'unused' | 'used' | 'all',
+  //   page?: number,
+  //   limit?: number,
+  // ) {
+  //   return await this.getCustomerOwnedVouchersHandler.execute(
+  //     walletAddress,
+  //     status,
+  //     page,
+  //     limit,
+  //   );
+  // }
 }

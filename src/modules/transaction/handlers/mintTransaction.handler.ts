@@ -98,7 +98,10 @@ export class MintTransaction {
         ...rest,
         senderAddress: Buffer.from(ADDRESS_ZERO.replace(/^0x/, ''), 'hex'),
         receiverAddress: Uint8Array.from(
-          Buffer.from(((customer as any).wallet?.walletAddress || '').replace(/^0x/, ''), 'hex'),
+          Buffer.from(
+            ((customer as any).wallet?.walletAddress || '').replace(/^0x/, ''),
+            'hex',
+          ),
         ),
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },

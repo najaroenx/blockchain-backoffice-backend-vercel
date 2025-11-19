@@ -33,6 +33,10 @@ export class PrismaRepository<
     return (this.prisma[this.model].delete as any)(...args);
   }
 
+  deleteMany(...args: Parameters<PrismaClient[K]['deleteMany']>) {
+    return (this.prisma[this.model].deleteMany as any)(...args);
+  }
+
   findFirst<T>(...args: Parameters<PrismaClient[K]['findFirst']>): Promise<T> {
     return (this.prisma[this.model].findFirst as any)(...args);
   }

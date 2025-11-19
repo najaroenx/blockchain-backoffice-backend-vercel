@@ -4,6 +4,8 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import {
   // CUSTOMER_NOT_FOUND,
   INTERNAL_SERVER_ERROR,
@@ -13,12 +15,17 @@ import {
   GetCustomerByEmailResponseType,
   GetCustomerByPhoneResponseNotFoundType,
 } from '../types';
+import { TempLinkDBService } from 'src/modules/templink/service/templink-db.service';
 
 @Injectable()
 export class GetCustomerPhone {
   private logger = new Logger(GetCustomerPhone.name);
 
-  constructor(private db: CustomerDBService) {}
+  constructor(
+    private db: CustomerDBService,
+    private tempLinkDBService: TempLinkDBService,
+    private configService: ConfigService,
+  ) {}
 
   async execute(
     merchantId: string,
@@ -29,12 +36,56 @@ export class GetCustomerPhone {
     try {
       const customer = await this.db.getCustomersByPhone(merchantId, phone);
 
-      if (!customer)
+      if (!customer) {
+        const findRequest =
+          await this.tempLinkDBService.getTempLinkByPhoneNumber(phone);
+
+        if (findRequest) {
+          // Check if expired, update with new expiration
+          if (findRequest.expire < new Date()) {
+            const uuid = randomUUID();
+            await this.tempLinkDBService.updateTempLink(findRequest.uid, {
+              uid: uuid,
+              expire: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
+            });
+            return {
+              message: `Customer with phone ${phone} not found`,
+              error: 'NEW_OTP_GENERATED',
+              data: {
+                url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}`,
+                callbackUrl: 'http://localhost:4001/auth/verify',
+                merchantId: merchantId,
+              },
+            };
+          }
+
+          return {
+            message: `Customer with phone ${phone} not found`,
+            error: 'NEW_OTP_GENERATED',
+            data: {
+              url: `${this.configService.get('FRONT_URL')}/otp?requestid=${findRequest.uid}&merchantId=${merchantId}`,
+              callbackUrl: 'http://localhost:4001/auth/verify',
+              merchantId: merchantId,
+            },
+          };
+        }
+
+        const uuid = randomUUID();
+        await this.tempLinkDBService.createTempLink({
+          merchantId,
+          phoneNumber: phone,
+          uid: uuid,
+          expire: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
+        });
         return {
           message: `Customer with phone ${phone} not found`,
-          url: 'http://localhost:3000/otp?kid=dsadasdasdasd&cb=profile',
-          callbackUrl: 'http://localhost:4001/auth/verify',
+          data: {
+            url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}`,
+            callbackUrl: 'http://localhost:4001/auth/verify',
+            merchantId: merchantId,
+          },
         };
+      }
 
       const formattedCustomer = {
         ...customer,

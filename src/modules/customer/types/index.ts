@@ -40,6 +40,10 @@ export type GetCustomerByEmailResponseType = {
 
 export type GetCustomerByPhoneResponseNotFoundType = {
   message: string;
-  url: string;
-  callbackUrl: string;
+  error?: string;
+  data: {
+    url: string;
+    callbackUrl: string;
+    merchantId?: string;
+  } | null;
 };

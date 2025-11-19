@@ -16,16 +16,18 @@ const isHex = (value: string) => /^0x[0-9a-fA-F]+$/.test(value);
 const bufferFromHex = (value: string) =>
   Buffer.from(value.startsWith('0x') ? value.slice(2) : value, 'hex');
 
-const toBuffer = (value: string, length: number) => {
+const toBuffer = (value: string, length: number): Uint8Array => {
   if (isHex(value) && value.length % 2 === 0) {
     try {
       const buf = bufferFromHex(value);
-      if (buf.length === length || length === 0) return buf;
-      if (buf.length > length) return buf.subarray(buf.length - length);
+      if (buf.length === length || length === 0)
+        return new Uint8Array(buf) as Uint8Array;
+      if (buf.length > length)
+        return new Uint8Array(buf.subarray(buf.length - length)) as Uint8Array;
       if (buf.length < length) {
         const padded = Buffer.alloc(length);
         buf.copy(padded, length - buf.length);
-        return padded;
+        return new Uint8Array(padded) as Uint8Array;
       }
     } catch {
       // fall through to hash-based derivation
@@ -33,11 +35,13 @@ const toBuffer = (value: string, length: number) => {
   }
 
   const hashed = createHash('sha256').update(value).digest();
-  return hashed.subarray(0, length || hashed.length);
+  return new Uint8Array(
+    hashed.subarray(0, length || hashed.length),
+  ) as Uint8Array;
 };
 
-const toAddressBuffer = (value: string) => toBuffer(value, 20);
-const toHashBuffer = (value: string) => toBuffer(value, 32);
+const toAddressBuffer = (value: string): Uint8Array => toBuffer(value, 20);
+const toHashBuffer = (value: string): Uint8Array => toBuffer(value, 32);
 
 async function seedTransactionTypes() {
   const types = [
@@ -174,7 +178,7 @@ async function seedPoints() {
       update: {
         name: point.name,
         symbol: point.symbol,
-        contractAddress: toAddressBuffer(point.contractAddress),
+        contractAddress: toAddressBuffer(point.contractAddress) as any,
         initialSupply: point.initialSupply,
         decimal: point.decimal,
         frameSize: point.frameSize,
@@ -185,7 +189,7 @@ async function seedPoints() {
         id: point.id,
         name: point.name,
         symbol: point.symbol,
-        contractAddress: toAddressBuffer(point.contractAddress),
+        contractAddress: toAddressBuffer(point.contractAddress) as any,
         initialSupply: point.initialSupply,
         decimal: point.decimal,
         frameSize: point.frameSize,
@@ -297,9 +301,9 @@ async function seedTransactions() {
     await prisma.transaction.upsert({
       where: { id: txn.id },
       update: {
-        txHash: toHashBuffer(txn.txHash),
-        senderAddress: toAddressBuffer(txn.senderAddress),
-        receiverAddress: toAddressBuffer(txn.receiverAddress),
+        txHash: toHashBuffer(txn.txHash) as any,
+        senderAddress: toAddressBuffer(txn.senderAddress) as any,
+        receiverAddress: toAddressBuffer(txn.receiverAddress) as any,
         amount: txn.amount,
         merchantId: txn.merchantId,
         pointId: txn.pointId,
@@ -310,9 +314,9 @@ async function seedTransactions() {
       },
       create: {
         id: txn.id,
-        txHash: toHashBuffer(txn.txHash),
-        senderAddress: toAddressBuffer(txn.senderAddress),
-        receiverAddress: toAddressBuffer(txn.receiverAddress),
+        txHash: toHashBuffer(txn.txHash) as any,
+        senderAddress: toAddressBuffer(txn.senderAddress) as any,
+        receiverAddress: toAddressBuffer(txn.receiverAddress) as any,
         amount: txn.amount,
         merchantId: txn.merchantId,
         pointId: txn.pointId,

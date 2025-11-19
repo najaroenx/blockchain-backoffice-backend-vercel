@@ -17,6 +17,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { VoucherModule } from './modules/voucher/voucher.module';
 import { WalletModule } from './modules/wallet/wallet.module';
+import { TempLinkModule } from './modules/templink/templink.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -36,6 +37,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
     DashboardModule,
     VoucherModule,
     WalletModule,
+    TempLinkModule,
   ],
   controllers: [],
   providers: [

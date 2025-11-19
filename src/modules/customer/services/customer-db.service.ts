@@ -411,4 +411,31 @@ export class CustomerDBService {
 
     return customer;
   }
+
+  async getAllCustomers(pageOptionsDto: PageOptionsDto): Promise<{
+    customers: (Customer & { wallet?: Wallet | null })[];
+    count: number;
+  }> {
+    const count = await this.repository.count();
+
+    const customers = await this.repository.findMany<Customer>({
+      take: pageOptionsDto.take,
+      skip: pageOptionsDto.skip,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        tel: true,
+        createdAt: true,
+        updatedAt: true,
+        wallet: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return { customers, count };
+  }
 }

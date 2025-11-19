@@ -14,8 +14,10 @@ import { CreateCustomer } from './handlers/createCustomer.handler';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 import { GetCustomerPhone } from './handlers/getCustomerByPhone.handler';
 import { PrismaModule } from 'prisma/prisma.module';
+import { TempLinkModule } from '../templink/templink.module';
+import { GetCustomerListDev } from './handlers/getCustomerListDev.handler';
 @Module({
-  imports: [TokenModule, BlockchainModule, PrismaModule],
+  imports: [TokenModule, BlockchainModule, PrismaModule, TempLinkModule],
   controllers: [CustomerController, CustomerPhoneController],
   providers: [
     CustomerRepository,
@@ -26,6 +28,7 @@ import { PrismaModule } from 'prisma/prisma.module';
     UpdateCustomer,
     CreateCustomer,
     GetCustomerPhone,
+    GetCustomerListDev,
   ],
   exports: [GetCustomerByEmail, GetCustomerPhone, UpdateCustomer],
 })

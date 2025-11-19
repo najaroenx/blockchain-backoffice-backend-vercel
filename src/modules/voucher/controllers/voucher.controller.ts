@@ -190,13 +190,13 @@ export class VoucherController {
   /**
    * Redeem voucher code
    * POST /coupon/redeem
-   * Body: { code: string, customerId: string }
+   * Body: { code: string, phone: string }
    */
   @Post('/redeem')
   @Public()
   @HttpCode(200)
-  async redeemVoucher(@Body() data: { code: string; customerId: string }) {
-    return this.voucherService.redeemVoucher(data.code, data.customerId);
+  async redeemVoucher(@Body() data: { code: string; phone: string }) {
+    return this.voucherService.redeemVoucher(data.code, data.phone);
   }
 
   /**
@@ -214,12 +214,12 @@ export class VoucherController {
    * Get customer redemption history
    * GET /coupon/history/:walletAddress
    */
-  // @Get('/history/:walletAddress')
-  // @Public()
-  // @HttpCode(200)
-  // async getRedemptionHistory(@Param('walletAddress') walletAddress: string) {
-  //   return this.voucherService.getRedemptionHistory(walletAddress);
-  // }
+  @Get('/history/:walletAddress')
+  @Public()
+  @HttpCode(200)
+  async getRedemptionHistory(@Param('walletAddress') walletAddress: string) {
+    return this.voucherService.getRedemptionHistory(walletAddress);
+  }
 
   /**
    * Buy coupon from marketplace (customer buying from marketplace)
@@ -243,23 +243,23 @@ export class VoucherController {
    * GET /coupon/my-vouchers/:walletAddress
    * Query params: ?status=unused|used|all&page=1&limit=20
    */
-  // @Get('/my-coupons/:walletAddress')
-  // @Public()
-  // @HttpCode(200)
-  // async getCustomerOwnedVouchers(
-  //   @Param('walletAddress') walletAddress: string,
-  //   @Query('status') status?: 'unused' | 'used' | 'all',
-  //   @Query('page') page?: string,
-  //   @Query('limit') limit?: string,
-  // ) {
-  //   const pageNum = page ? parseInt(page, 10) : 1;
-  //   const limitNum = limit ? parseInt(limit, 10) : 20;
+  @Get('/my-coupons/:walletAddress')
+  @Public()
+  @HttpCode(200)
+  async getCustomerOwnedVouchers(
+    @Param('walletAddress') walletAddress: string,
+    @Query('status') status?: 'unused' | 'used' | 'all',
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
 
-  //   return this.voucherService.getCustomerOwnedVouchers(
-  //     walletAddress,
-  //     status || 'all',
-  //     pageNum,
-  //     limitNum,
-  //   );
-  // }
+    return this.voucherService.getCustomerOwnedVouchers(
+      walletAddress,
+      status || 'all',
+      pageNum,
+      limitNum,
+    );
+  }
 }

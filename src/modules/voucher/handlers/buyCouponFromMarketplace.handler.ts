@@ -195,10 +195,27 @@ export class BuyCouponFromMarketplace {
         `[STEP 6] Balance check passed. Available: ${customerPoint.balances} ${voucherCode.currency}`,
       );
 
-      // 7. เรียก Smart Contract เพื่อซื้อ voucher จาก marketplace
+      // 7. Get treasury wallet address
+      this.logger.log(`[STEP 7] Getting treasury wallet address`);
+      const treasury = await this.prisma.treasury.findUnique({
+        where: { type: 'burner' },
+      });
+
+      if (!treasury) {
+        this.logger.error(`[ERROR] Treasury burner address not configured`);
+        throw new BadRequestException(
+          'Treasury system not configured. Please contact admin.',
+        );
+      }
+
+      this.logger.log(
+        `[STEP 7] Treasury burner address: ${treasury.walletAddress}`,
+      );
+
+      // 8. เรียก Smart Contract เพื่อ transfer points to treasury และซื้อ voucher จาก marketplace
       let blockchainTx = null;
       this.logger.log(
-        `[STEP 7] Calling smart contract to buy voucher from marketplace`,
+        `[STEP 8] Calling smart contract to buy voucher from marketplace`,
       );
 
       try {
@@ -206,18 +223,20 @@ export class BuyCouponFromMarketplace {
         const tokenId = voucher.tokenId || voucher.id;
 
         this.logger.log(
-          `[STEP 7] Using tokenId: ${tokenId} for voucher ${voucher.id}`,
+          `[STEP 8] Using tokenId: ${tokenId} for voucher ${voucher.id}`,
         );
 
+        // Transfer points to treasury burner address
         blockchainTx = await this.blockchainService.buyVoucherFromMarketplace(
           tokenId,
           address,
           voucherCode.pointsCost,
           1, // ซื้อ 1 unit ของ ERC-1155
+          treasury.walletAddress, // Burner address to receive points
         );
 
         this.logger.log(
-          `[STEP 7] Marketplace purchase successful. Tx: ${blockchainTx.hash}, TokenId: ${blockchainTx.tokenId}`,
+          `[STEP 8] Marketplace purchase successful. Tx: ${blockchainTx.hash}, Points transferred to treasury: ${treasury.walletAddress}`,
         );
       } catch (error) {
         this.logger.error(
@@ -228,8 +247,8 @@ export class BuyCouponFromMarketplace {
         );
       }
 
-      // 8. Transfer ownership - อัพเดท database
-      this.logger.log(`[STEP 8] Updating database - transferring ownership`);
+      // 9. Transfer ownership - อัพเดท database
+      this.logger.log(`[STEP 9] Updating database - transferring ownership`);
 
       // บันทึก transaction ในระบบ (marketplace purchase)
       // Update ownership, deduct balance, และสร้าง transaction record

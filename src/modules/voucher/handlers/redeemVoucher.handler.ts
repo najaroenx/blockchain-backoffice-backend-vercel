@@ -17,11 +17,26 @@ export class RedeemVoucher {
     private blockchainService: BlockchainService,
   ) {}
 
-  async execute(code: string, customerId: string) {
+  async execute(code: string, phone: string) {
     try {
       this.logger.log(
-        `[START] Redeeming voucher code: ${code} for customer: ${customerId}`,
+        `[START] Redeeming voucher code: ${code} for customer phone: ${phone}`,
       );
+
+      // 0. Find customer by phone
+      this.logger.log(`[STEP 0] Finding customer by phone: ${phone}`);
+      const customer = await this.prisma.customer.findFirst({
+        where: { tel: phone },
+        include: { wallet: true },
+      });
+
+      if (!customer) {
+        this.logger.error(`[ERROR] Customer with phone ${phone} not found`);
+        throw new NotFoundException(`Customer with phone ${phone} not found`);
+      }
+
+      const customerId = customer.id;
+      this.logger.log(`[STEP 0] Customer found: ${customerId}`);
 
       // 1. ตรวจสอบว่า code มีอยู่จริง
       this.logger.log(`[STEP 1] Validating voucher code: ${code}`);
@@ -142,16 +157,11 @@ export class RedeemVoucher {
 
       // 7. Get customer wallet address
       this.logger.log(`[STEP 7] Getting customer wallet address`);
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: customerId },
-        include: { wallet: true },
-      });
-
-      if (!customer) {
-        throw new NotFoundException('Customer not found');
-      }
-
       const customerAddress = customer.wallet?.walletAddress || '';
+
+      if (!customerAddress) {
+        throw new NotFoundException('Customer wallet not configured');
+      }
 
       // 8. เรียก Smart Contract เพื่อ redeem voucher NFT (Burn ERC-1155)
       let blockchainTx = null;
@@ -207,60 +217,39 @@ export class RedeemVoucher {
       this.logger.log(
         `[STEP 10] Updating database - marking code as used and creating REDEEM transaction`,
       );
-      const [updatedCode, , redeemTransaction] = await this.prisma.$transaction(
-        [
-          // Mark code as used
-          this.prisma.voucherCode.update({
-            where: { id: voucherCode.id },
-            data: {
-              isUsed: true,
-              usedBy: customerId,
-              usedAt: new Date(),
-            },
-            include: {
-              voucher: true,
-            },
-          }),
+      const [updatedCode, redeemTransaction] = await this.prisma.$transaction([
+        // Mark code as used
+        this.prisma.voucherCode.update({
+          where: { id: voucherCode.id },
+          data: {
+            isUsed: true,
+            usedBy: customerId,
+            usedAt: new Date(),
+          },
+          include: {
+            voucher: true,
+          },
+        }),
 
-          // Increment merchant's point balance (customer -> merchant)
-          this.prisma.customerPoint.upsert({
-            where: {
-              customerId_pointId: {
-                customerId: voucher.merchantId,
-                pointId: voucherCode.pointId,
-              },
-            },
-            create: {
-              customerId: voucher.merchantId,
-              pointId: voucherCode.pointId,
-              balances: voucherCode.pointsCost,
-            },
-            update: {
-              balances: {
-                increment: voucherCode.pointsCost,
-              },
-            },
-          }),
-
-          // Create REDEEM transaction record
-          this.prisma.transaction.create({
-            data: {
-              txHash: Buffer.from(blockchainTx.hash.slice(2), 'hex'),
-              senderAddress: Buffer.from(customerAddress.slice(2), 'hex'),
-              receiverAddress: Buffer.from(merchantAddress.slice(2), 'hex'),
-              amount: voucherCode.pointsCost,
-              pointId: voucherCode.pointId,
-              senderId: customerId,
-              receiverId: voucher.merchantId,
-              voucherCodeId: voucherCode.id,
-              transactionTypeId: TransactionTypeId.REDEEM,
-            },
-          }),
-        ],
-      );
+        // Create REDEEM transaction record
+        this.prisma.transaction.create({
+          data: {
+            txHash: Buffer.from(blockchainTx.hash.slice(2), 'hex'),
+            senderAddress: Buffer.from(customerAddress.slice(2), 'hex'),
+            receiverAddress: Buffer.from(merchantAddress.slice(2), 'hex'),
+            amount: voucherCode.pointsCost,
+            pointId: voucherCode.pointId,
+            senderId: customerId,
+            receiverId: null, // No receiver - voucher is burned, not transferred
+            merchantId: voucher.merchantId, // Track which merchant's voucher was redeemed
+            voucherCodeId: voucherCode.id,
+            transactionTypeId: TransactionTypeId.REDEEM,
+          },
+        }),
+      ]);
 
       this.logger.log(
-        `[STEP 10] REDEEM transaction created. TxId: ${redeemTransaction.id}, Points transferred: ${voucherCode.pointsCost} ${voucherCode.currency}`,
+        `[STEP 10] REDEEM transaction created. TxId: ${redeemTransaction.id}`,
       );
 
       this.logger.log(

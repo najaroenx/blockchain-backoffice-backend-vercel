@@ -236,3 +236,11 @@ model VoucherCode {
   @@index([currentOwnerId, isUsed])
   @@index([pointId])
 }
+
+model Treasury {
+  id            String   @id @default(cuid())
+  walletAddress String   @unique
+  type          String   @unique // "burner", "reserve", "treasury"
+  createdAt     DateTime @default(now()) @map(name: "created_at")
+  updatedAt     DateTime @updatedAt @map(name: "updated_at")
+}

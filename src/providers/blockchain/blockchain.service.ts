@@ -317,10 +317,11 @@ export class BlockchainService {
     buyerAddress: string,
     priceInPoints: number,
     amount: number = 1,
+    treasuryAddress?: string,
   ) {
     try {
       console.log(
-        `[Blockchain] Buying ${amount}x voucher from marketplace. TokenId: ${tokenId}, Buyer: ${buyerAddress}, Price: ${priceInPoints}`,
+        `[Blockchain] Buying ${amount}x voucher from marketplace. TokenId: ${tokenId}, Buyer: ${buyerAddress}, Price: ${priceInPoints}, Treasury: ${treasuryAddress || 'N/A'}`,
       );
 
       // TODO: Implement real smart contract integration

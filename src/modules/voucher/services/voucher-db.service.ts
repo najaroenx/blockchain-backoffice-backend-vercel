@@ -466,8 +466,8 @@ export class VoucherDBService {
   /**
    * Redeem voucher code
    */
-  async redeemVoucher(code: string, customerId: string) {
-    return this.redeemVoucherHandler.execute(code, customerId);
+  async redeemVoucher(code: string, phone: string) {
+    return this.redeemVoucherHandler.execute(code, phone);
   }
 
   /**
@@ -786,63 +786,63 @@ export class VoucherDBService {
   /**
    * Get redemption history for customer by wallet address
    */
-  // async getRedemptionHistory(walletAddress: string) {
-  //   // Find customer by wallet address
-  //   const wallet = await this.prisma.wallet.findUnique({
-  //     where: { walletAddress },
-  //     include: { customer: true },
-  //   });
+  async getRedemptionHistory(walletAddress: string) {
+    // Find customer by wallet address
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { walletAddress },
+      include: { customer: true },
+    });
 
-  //   const customer = wallet?.customer;
+    const customer = wallet?.customer;
 
-  //   if (!customer) {
-  //     return {
-  //       walletAddress,
-  //       customerId: null,
-  //       totalRedeemed: 0,
-  //       redemptions: [],
-  //     };
-  //   }
+    if (!customer) {
+      return {
+        walletAddress,
+        customerId: null,
+        totalRedeemed: 0,
+        redemptions: [],
+      };
+    }
 
-  //   const customerId = customer.id;
+    const customerId = customer.id;
 
-  //   const redeemedCodes = await this.prisma.voucherCode.findMany({
-  //     where: {
-  //       usedBy: customerId,
-  //       isUsed: true,
-  //     },
-  //     include: {
-  //       voucher: {
-  //         include: {
-  //           merchant: true,
-  //         },
-  //       },
-  //     },
-  //     orderBy: {
-  //       usedAt: 'desc',
-  //     },
-  //   });
+    const redeemedCodes = await this.prisma.voucherCode.findMany({
+      where: {
+        usedBy: customerId,
+        isUsed: true,
+      },
+      include: {
+        voucher: {
+          include: {
+            merchant: true,
+          },
+        },
+      },
+      orderBy: {
+        usedAt: 'desc',
+      },
+    });
 
-  //   return {
-  //     walletAddress,
-  //     customerId,
-  //     totalRedeemed: redeemedCodes.length,
-  //     redemptions: redeemedCodes.map((code) => ({
-  //       code: code.code,
-  //       redeemedAt: code.usedAt,
-  //       pointsCost: code.pointsCost,
-  //       voucher: {
-  //         id: code.voucher.id,
-  //         name: code.voucher.name,
-  //         description: code.voucher.description,
-  //         valueType: code.voucher.valueType,
-  //         value: code.voucher.value,
-  //         merchantName:
-  //           code.voucher.merchant?.name || code.voucher.merchantName,
-  //       },
-  //     })),
-  //   };
-  // }
+    return {
+      walletAddress,
+      customerId,
+      totalRedeemed: redeemedCodes.length,
+      redemptions: redeemedCodes.map((code) => ({
+        code: code.code,
+        redeemedAt: code.usedAt,
+        pointsCost: code.pointsCost,
+        voucher: {
+          id: code.voucher.id,
+          name: code.voucher.name,
+          description: code.voucher.description,
+          valueType: code.voucher.valueType,
+          value: code.voucher.value,
+          merchantName:
+            code.voucher.merchant?.name || code.voucher.merchantName,
+        },
+      })),
+    };
+  }
 
   /**
    * Buy coupon from marketplace
@@ -864,17 +864,17 @@ export class VoucherDBService {
   /**
    * Get vouchers owned by customer by wallet address
    */
-  // async getCustomerOwnedVouchers(
-  //   walletAddress: string,
-  //   status?: 'unused' | 'used' | 'all',
-  //   page?: number,
-  //   limit?: number,
-  // ) {
-  //   return await this.getCustomerOwnedVouchersHandler.execute(
-  //     walletAddress,
-  //     status,
-  //     page,
-  //     limit,
-  //   );
-  // }
+  async getCustomerOwnedVouchers(
+    walletAddress: string,
+    status?: 'unused' | 'used' | 'all',
+    page?: number,
+    limit?: number,
+  ) {
+    return await this.getCustomerOwnedVouchersHandler.execute(
+      walletAddress,
+      status,
+      page,
+      limit,
+    );
+  }
 }

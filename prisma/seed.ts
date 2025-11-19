@@ -97,6 +97,25 @@ async function seedTransactionTypes() {
   }
 }
 
+async function seedTreasury() {
+  const treasuries = [
+    {
+      walletAddress: '0xf5e40ec8bFa4818278C04489b34a486281658E5C',
+      type: 'burner',
+    },
+  ];
+
+  for (const treasury of treasuries) {
+    await prisma.treasury.upsert({
+      where: { walletAddress: treasury.walletAddress },
+      update: {
+        type: treasury.type,
+      },
+      create: treasury,
+    });
+  }
+}
+
 async function seedMerchants() {
   for (const merchant of merchantSeeds) {
     await prisma.merchant.upsert({
@@ -326,6 +345,7 @@ async function seedTransactions() {
 }
 
 async function main() {
+  await seedTreasury();
   await seedMerchants();
   await seedVouchers();
   await seedPoints();

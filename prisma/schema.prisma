@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -29,7 +30,7 @@ model Point {
   merchantId      String?
   transactions    Transaction[]
   customerPoints  CustomerPoint[]
-  voucherCodes    VoucherCode[]   // ← Voucher codes that use this point currency
+  voucherCodes    VoucherCode[] // ← Voucher codes that use this point currency
 }
 
 model User {
@@ -60,17 +61,17 @@ model UserMerchant {
   merchantId String?
 }
 
-model Wallet{
-  id          String    @id @default(cuid())
-  walletAddress String  @unique
-  privateKey  String
-  email       String
-  phoneNumber String
-  type        String
-  status      String
+model Wallet {
+  id            String    @id @default(cuid())
+  walletAddress String    @unique
+  privateKey    String
+  email         String
+  phoneNumber   String
+  type          String
+  status        String
   // relations
-  customer    Customer?
-  merchant    Merchant?
+  customer      Customer?
+  merchant      Merchant?
 }
 
 model Merchant {
@@ -90,7 +91,7 @@ model Merchant {
   transactions     Transaction[]
   customerMerChant CustomerMerChant[]
   vouchers         Voucher[]
-  tel              String 
+  tel              String
   walletId         String?            @unique
   wallet           Wallet?            @relation(fields: [walletId], references: [id])
 }
@@ -105,7 +106,6 @@ model ApiKey {
   updatedAt   DateTime  @updatedAt @map(name: "updated_at")
   merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
-
 
 model Transaction {
   id                String           @id @default(cuid())
@@ -143,12 +143,12 @@ model Customer {
   customerMerChant CustomerMerChant[]
   customerPoints   CustomerPoint[]
 
-  sentTxns     Transaction[] @relation("Sender")
-  receivedTxns Transaction[] @relation("Receiver")
+  sentTxns      Transaction[] @relation("Sender")
+  receivedTxns  Transaction[] @relation("Receiver")
   ownedVouchers VoucherCode[] @relation("OwnedVouchers")
 
-  walletId         String?            @unique
-  wallet           Wallet?            @relation(fields: [walletId], references: [id])
+  walletId String? @unique
+  wallet   Wallet? @relation(fields: [walletId], references: [id])
 }
 
 model CustomerMerChant {
@@ -190,14 +190,14 @@ enum VoucherValueType {
 }
 
 model Voucher {
-  id             String         @id
+  id             String           @id
   name           String
   description    String
   status         VoucherStatus
   merchantName   String
   merchantId     String?
-  merchant       Merchant?      @relation(fields: [merchantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  tokenId        String?        @unique // ← ERC-1155 Token ID on blockchain
+  merchant       Merchant?        @relation(fields: [merchantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  tokenId        String?          @unique // ← ERC-1155 Coupon Type ID from smart contract createCouponType()
   valueType      VoucherValueType
   value          Float
   currency       String?
@@ -207,28 +207,28 @@ model Voucher {
   totalRedeemed  Int
   imageUrl       String?
   limitPerMember Int?
-  createdAt      DateTime        @default(now()) @map(name: "created_at")
-  updatedAt      DateTime        @updatedAt @map(name: "updated_at")
-  voucherCodes   VoucherCode[]  // ← 1 voucher มีหลาย codes
+  createdAt      DateTime         @default(now()) @map(name: "created_at")
+  updatedAt      DateTime         @updatedAt @map(name: "updated_at")
+  voucherCodes   VoucherCode[] // ← 1 voucher มีหลาย codes
 }
 
 model VoucherCode {
-  id              String        @id @default(cuid())
-  code            String        @unique        // ← Code ที่ไม่ซ้ำกัน
-  voucherId       String
-  voucher         Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
-  voucherGroupId  String?                      // ← Group ID สำหรับจัดกลุ่ม codes
-  pointsCost      Int                          // ← ราคาเป็น points
-  pointId         String?                      // ← Point currency ที่ใช้ซื้อ (FK to Point)
-  point           Point?        @relation(fields: [pointId], references: [id], onDelete: SetNull)
-  currency        String?                      // ← Point.symbol (e.g., "GOLD", "SILVER") - denormalized for query performance
-  isUsed          Boolean       @default(false)
-  usedBy          String?                      // ← Customer ID ที่ใช้
-  usedAt          DateTime?
-  currentOwnerId  String?                      // ← Customer ID ของเจ้าของปัจจุบัน
-  currentOwner    Customer?     @relation("OwnedVouchers", fields: [currentOwnerId], references: [id])
-  transactions    Transaction[] // ← Transaction history
-  createdAt       DateTime      @default(now()) @map(name: "created_at")
+  id             String        @id @default(cuid())
+  code           String        @unique // ← Code ที่ไม่ซ้ำกัน
+  voucherId      String
+  voucher        Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  voucherGroupId String? // ← Marketplace listing ID from listCoupon() - each activation batch has unique listingId
+  pointsCost     Int // ← ราคาเป็น points
+  pointId        String? // ← Point currency ที่ใช้ซื้อ (FK to Point)
+  point          Point?        @relation(fields: [pointId], references: [id], onDelete: SetNull)
+  currency       String? // ← Point.symbol (e.g., "GOLD", "SILVER") - denormalized for query performance
+  isUsed         Boolean       @default(false)
+  usedBy         String? // ← Customer ID ที่ใช้
+  usedAt         DateTime?
+  currentOwnerId String? // ← Customer ID ของเจ้าของปัจจุบัน
+  currentOwner   Customer?     @relation("OwnedVouchers", fields: [currentOwnerId], references: [id])
+  transactions   Transaction[] // ← Transaction history
+  createdAt      DateTime      @default(now()) @map(name: "created_at")
 
   @@index([voucherId, isUsed])
   @@index([code])
@@ -243,4 +243,19 @@ model Treasury {
   type          String   @unique // "burner", "reserve", "treasury"
   createdAt     DateTime @default(now()) @map(name: "created_at")
   updatedAt     DateTime @updatedAt @map(name: "updated_at")
+}
+
+model TempLinkCreateUser {
+  id          String   @id @default(cuid())
+  uid         String   @unique
+  expire      DateTime
+  phoneNumber String
+  merchantId  String
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+
+  @@index([uid])
+  @@index([phoneNumber])
+  @@index([merchantId])
+  @@index([expire])
 }

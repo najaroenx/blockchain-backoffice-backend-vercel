@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TransactionController } from './controllers/transaction.controller';
+import { TreasuryController } from './controllers/treasury.controller';
 import { TransactionRepository } from './transaction.repository';
 import { PointModule } from 'src/modules/point/point.module';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
@@ -14,9 +15,13 @@ import { TokenModule } from 'src/providers/token/token.module';
 import { MintTransaction } from './handlers/mintTransaction.handler';
 import { BurnTransaction } from './handlers/burnTransaction.handler';
 import { GetWalletBalance } from './handlers/getMerchantBalance.handler';
+import { GetTreasuryBalance } from './handlers/getTreasuryBalance.handler';
+import { ListTreasuries } from './handlers/listTreasuries.handler';
+import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
   imports: [
+    PrismaModule,
     PointModule,
     BlockchainModule,
     CustomerModule,
@@ -33,8 +38,10 @@ import { GetWalletBalance } from './handlers/getMerchantBalance.handler';
     MintTransaction,
     BurnTransaction,
     GetWalletBalance,
+    GetTreasuryBalance,
+    ListTreasuries,
   ],
   exports: [GetTransactionsByMerchantId],
-  controllers: [TransactionController],
+  controllers: [TransactionController, TreasuryController],
 })
 export class TransactionModule {}

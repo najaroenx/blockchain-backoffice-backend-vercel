@@ -212,28 +212,51 @@ export class BuyCouponFromMarketplace {
         `[STEP 7] Treasury burner address: ${treasury.walletAddress}`,
       );
 
-      // 8. เรียก Smart Contract เพื่อ transfer points to treasury และซื้อ voucher จาก marketplace
+      // 8. Buy coupon from marketplace using listingId
       let blockchainTx = null;
       this.logger.log(
-        `[STEP 8] Calling smart contract to buy voucher from marketplace`,
+        `[STEP 8] Calling smart contract to buy coupon from marketplace`,
       );
 
       try {
-        // ใช้ tokenId จาก voucher (ERC-1155) หรือ fallback ไปใช้ voucherId
-        const tokenId = voucher.tokenId || voucher.id;
+        // Check if voucherCode has voucherGroupId (listingId from marketplace)
+        if (!voucherCode.voucherGroupId) {
+          this.logger.warn(
+            `[WARN] VoucherCode ${voucherCode.code} has no voucherGroupId (listingId). This code may not be properly listed on marketplace.`,
+          );
+          // For backward compatibility, use old method
+          const tokenId = voucher.tokenId || voucher.id;
+          blockchainTx = await this.blockchainService.buyVoucherFromMarketplace(
+            tokenId,
+            address,
+            voucherCode.pointsCost,
+            1,
+            treasury.walletAddress,
+          );
+        } else {
+          // Use new marketplace flow with voucherGroupId as listingId
+          const listingId = voucherCode.voucherGroupId;
+          this.logger.log(
+            `[STEP 8] Using listingId: ${listingId} for voucherCode ${voucherCode.code}`,
+          );
 
-        this.logger.log(
-          `[STEP 8] Using tokenId: ${tokenId} for voucher ${voucher.id}`,
-        );
+          // Get customer wallet for signing
+          const customerWallet = await this.prisma.wallet.findUnique({
+            where: { id: customer.walletId },
+          });
 
-        // Transfer points to treasury burner address
-        blockchainTx = await this.blockchainService.buyVoucherFromMarketplace(
-          tokenId,
-          address,
-          voucherCode.pointsCost,
-          1, // ซื้อ 1 unit ของ ERC-1155
-          treasury.walletAddress, // Burner address to receive points
-        );
+          if (!customerWallet) {
+            throw new BadRequestException('Customer wallet not found');
+          }
+
+          // Buy coupon using marketplace's buyCoupon method
+          // This will automatically transfer points to treasury
+          blockchainTx = await this.blockchainService.buyCoupon(
+            listingId,
+            1, // Buy 1 unit
+            treasury.walletAddress, // Points go to treasury burner
+          );
+        }
 
         this.logger.log(
           `[STEP 8] Marketplace purchase successful. Tx: ${blockchainTx.hash}, Points transferred to treasury: ${treasury.walletAddress}`,

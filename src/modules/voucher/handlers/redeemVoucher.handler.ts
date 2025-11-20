@@ -170,15 +170,22 @@ export class RedeemVoucher {
       );
 
       try {
-        // ใช้ tokenId จาก voucher (ERC-1155) หรือ fallback ไปใช้ voucherId
-        const tokenId = voucher.tokenId || voucher.id;
+        // Use tokenId from voucher
+        if (!voucher.tokenId) {
+          throw new Error(
+            'Voucher does not have tokenId. Cannot redeem on blockchain.',
+          );
+        }
+
+        const typeId = voucher.tokenId;
 
         this.logger.log(
-          `[STEP 8] Redeeming tokenId: ${tokenId} for customer: ${customerAddress}`,
+          `[STEP 8] Redeeming typeId: ${typeId} for customer: ${customerAddress}`,
         );
 
         blockchainTx = await this.blockchainService.redeemVoucher(
-          tokenId,
+          typeId,
+          1, // Redeem 1 unit (ERC-1155)
           customerAddress,
         );
 

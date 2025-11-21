@@ -43,6 +43,7 @@ export class MintTransaction {
     pointId: string,
     data: Omit<
       Prisma.TransactionCreateInput,
+      | 'id'
       | 'merchant'
       | 'point'
       | 'transactionType'

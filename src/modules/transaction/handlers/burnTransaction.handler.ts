@@ -50,6 +50,7 @@ export class BurnTransaction {
     pointId: string,
     data: Omit<
       Prisma.TransactionCreateInput,
+      | 'id'
       | 'merchant'
       | 'point'
       | 'transactionType'

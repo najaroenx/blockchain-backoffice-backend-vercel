@@ -203,8 +203,7 @@ export class ActivateVoucher {
         this.logger.log(
           `[STEP 4.4] Creating ${amount} active voucher codes with listingId: ${listingId}`,
         );
-        const now = new Date();
-        await tx.voucherCode.createMany({
+        await (tx.voucherCode.createMany as any)({
           data: codes.map((code) => ({
             code,
             voucherId,
@@ -212,7 +211,6 @@ export class ActivateVoucher {
             pointId,
             currency,
             voucherGroupId: listingId, // Use listingId as voucherGroupId
-            createdAt: now,
           })),
         });
 

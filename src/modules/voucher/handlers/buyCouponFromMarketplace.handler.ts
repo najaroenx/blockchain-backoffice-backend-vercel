@@ -304,7 +304,7 @@ export class BuyCouponFromMarketplace {
             receiverId: customerId,
             voucherCodeId: voucherCodeId,
             transactionTypeId: TransactionTypeId.MARKETPLACE_PURCHASE,
-          },
+          } as any,
         }),
       ]);
 

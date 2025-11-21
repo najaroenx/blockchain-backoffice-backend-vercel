@@ -101,6 +101,8 @@ export class VoucherDBService {
         voucherCodes: {
           select: {
             pointsCost: true,
+            pointId: true,
+            currency: true,
             createdAt: true,
             voucherGroupId: true,
           },
@@ -133,19 +135,25 @@ export class VoucherDBService {
       // upcoming = totalIssued ที่ยังไม่ได้สร้าง codes
       const upcomingCodesCount = voucher.totalIssued;
 
-      // ดึง pointsCost จาก codes (ถ้ามี)
-      const pointsCost = voucher.voucherCodes[0]?.pointsCost || 0;
-
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { voucherCodes, ...voucherData } = voucher;
 
       // ถ้ามี active codes หรือ redeemed codes - หา voucherGroupId ที่ไม่ซ้ำกัน
       if (activeCodesCount > 0 || redeemedCodesCount > 0) {
-        // หา voucherGroupId ที่ไม่ซ้ำกันของ codes ที่มี voucherGroupId
+        // หา voucherGroupId ที่ไม่ซ้ำกันของ codes ที่มี voucherGroupId พร้อมข้อมูลที่ถูกต้อง
         const activatedCodes = await this.prisma.voucherCode.findMany({
           where: { voucherId: voucher.id, voucherGroupId: { not: null } },
-          select: { voucherGroupId: true, createdAt: true },
+          select: {
+            voucherGroupId: true,
+            createdAt: true,
+            pointsCost: true,
+            pointId: true,
+            currency: true,
+          },
           distinct: ['voucherGroupId'],
+          orderBy: {
+            createdAt: 'asc',
+          },
         });
 
         // แยกกลุ่มตาม voucherGroupId
@@ -173,7 +181,9 @@ export class VoucherDBService {
             groupedMap.set(activeGroupKey, {
               baseData: {
                 ...voucherData,
-                pointsCost,
+                pointsCost: codeGroup.pointsCost,
+                pointId: codeGroup.pointId,
+                currency: codeGroup.currency,
                 activatedAt: codeGroup.createdAt,
                 voucherGroupId: codeGroup.voucherGroupId,
               },
@@ -201,7 +211,7 @@ export class VoucherDBService {
           groupedMap.set(upcomingGroupKey, {
             baseData: {
               ...voucherData,
-              pointsCost,
+              // ไม่มี pointsCost, pointId, currency เพราะยังไม่ได้ activate
             },
             activeCount: 0,
             upcomingCount: 0,

@@ -43,14 +43,27 @@ export class CreateVoucherWithCodes {
         `[STEP 0] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
       );
 
+      // Get merchant information if merchantId is provided
+      let merchantName = 'Unknown';
+      if (data.merchantId) {
+        const merchant = await this.prisma.merchant.findUnique({
+          where: { id: data.merchantId },
+          select: { name: true },
+        });
+        if (merchant) {
+          merchantName = merchant.name;
+        }
+      }
+
       // สร้างเฉพาะ voucher metadata (ไม่สร้าง codes)
       const result = await this.prisma.$transaction(async (tx) => {
-        // 1. แยก pointsCost, pointId และ dates ออกจาก voucherData
+        // 1. แยก pointsCost, pointId, dates ออกจาก voucherData
         const { pointsCost, pointId, startDate, endDate, ...voucherData } =
           data;
 
-        // 2. Generate coupon ID
+        // 2. Generate coupon ID และ merchantRef
         const couponId = `COUPON-${randomUUID()}`;
+        const merchantRef = `REF-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
 
         // 3. Create coupon type on blockchain (ERC-1155)
         this.logger.log(`Creating coupon type on blockchain...`);
@@ -68,13 +81,17 @@ export class CreateVoucherWithCodes {
           `Coupon type created on blockchain. TypeId: ${onChainTypeId}, TxHash: ${blockchainResult.hash}`,
         );
 
-        // 4. สร้าง voucher (metadata พร้อม tokenId)
+        // 4. สร้าง voucher (metadata พร้อม tokenId, merchantName, currency)
         const voucher = await tx.voucher.create({
           data: {
             id: couponId,
             ...voucherData,
+            merchantName, // ← ดึงมาจาก Merchant.name
+            merchantRef, // ← สำหรับ verify ตอน redeem
+            currency: point.symbol, // ← ดึงมาจาก Point.symbol
             startDate: new Date(startDate),
             endDate: new Date(endDate),
+            totalRedeemed: 0, // ← เริ่มต้นที่ 0
             tokenId: onChainTypeId, // Save ERC-1155 typeId from smart contract
           },
         });

@@ -47,6 +47,9 @@ Contract Interface
     ) external returns (uint256);
 
     function mint(address to, uint256 typeId, uint256 amount) external;
+    // 1000 ใบ
+
+    // 1000 ใบ 10 ใบ
 
     function redeem(uint256 typeId, uint256 amount) external;
 
@@ -78,6 +81,10 @@ Contract Interface
     function burn(address from, uint256 typeId, uint256 amount) external;
 
     function isCouponActive(uint256 typeId) external view returns (bool);
+-> db -> smart contract 
+-> smart contract -> db
+-> sma
+
 
 ```
 

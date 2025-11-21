@@ -113,8 +113,11 @@ async function seedTreasury() {
       update: {
         walletAddress: treasury.walletAddress,
       },
-      create: treasury,
-    });
+      create: {
+        walletAddress: treasury.walletAddress,
+        type: treasury.type,
+      },
+    } as any);
   }
 }
 

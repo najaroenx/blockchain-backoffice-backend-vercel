@@ -33,7 +33,7 @@ export class ListTreasuries {
       this.logger.log(`[ListTreasuries] Found ${treasuries.length} treasuries`);
 
       return {
-        treasuries,
+        treasuries: treasuries as any,
       };
     } catch (error) {
       this.logger.error(

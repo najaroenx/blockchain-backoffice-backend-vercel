@@ -236,7 +236,9 @@ describe('VoucherDBService', () => {
         },
       ];
 
-      mockPrismaService.voucherCode.findMany.mockResolvedValue(mockActiveVoucherCodes);
+      mockPrismaService.voucherCode.findMany.mockResolvedValue(
+        mockActiveVoucherCodes,
+      );
       mockPrismaService.voucher.findMany.mockResolvedValue(mockActiveVouchers);
       mockPrismaService.voucherCode.count.mockResolvedValue(10);
 

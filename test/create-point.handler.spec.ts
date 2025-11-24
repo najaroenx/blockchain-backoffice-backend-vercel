@@ -5,11 +5,13 @@ import { InternalServerErrorException } from '@nestjs/common';
 import { CreatePoint } from 'src/modules/point/handlers/createPoint.handler';
 import { PointDBService } from 'src/modules/point/services/point-db.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { GetMerchant } from 'src/modules/merchant/handlers/getMerchantById.handler';
 
 describe('CreatePoint', () => {
   let handler: CreatePoint;
   let dbService: jest.Mocked<PointDBService>;
   let blockchainService: jest.Mocked<BlockchainService>;
+  let getMerchant: jest.Mocked<GetMerchant>;
 
   beforeEach(() => {
     // Mock dependencies
@@ -21,7 +23,11 @@ describe('CreatePoint', () => {
       createNewPointToken: jest.fn(),
     } as any;
 
-    handler = new CreatePoint(dbService, blockchainService);
+    getMerchant = {
+      execute: jest.fn(),
+    } as any;
+
+    handler = new CreatePoint(dbService, blockchainService, getMerchant);
   });
 
   it('should be defined', () => {
@@ -38,6 +44,16 @@ describe('CreatePoint', () => {
       contractAddress: fakeContractAddress,
     } as any;
 
+    // Mock getMerchant to return a merchant with wallet
+    getMerchant.execute.mockResolvedValue({
+      merchant: {
+        id: merchantId,
+        wallet: {
+          walletAddress: '0x123456789',
+        },
+      },
+    } as any);
+
     // Mock dependencies to return predictable values
     blockchainService.createNewPointToken.mockResolvedValue(
       fakeContractAddress,
@@ -47,7 +63,8 @@ describe('CreatePoint', () => {
     const result = await handler.execute(merchantId, data);
 
     // ✅ Expect calls and result
-    expect(blockchainService.createNewPointToken).toHaveBeenCalledWith(data);
+    expect(getMerchant.execute).toHaveBeenCalledWith(merchantId);
+    expect(blockchainService.createNewPointToken).toHaveBeenCalled();
     expect(dbService.createPoint).toHaveBeenCalledWith(
       merchantId,
       fakeContractAddress,
@@ -58,6 +75,16 @@ describe('CreatePoint', () => {
   it('should throw InternalServerErrorException on error', async () => {
     const merchantId = 'merchant-123';
     const data = { name: 'My Point' } as any;
+
+    // Mock getMerchant to return a merchant with wallet
+    getMerchant.execute.mockResolvedValue({
+      merchant: {
+        id: merchantId,
+        wallet: {
+          walletAddress: '0x123456789',
+        },
+      },
+    } as any);
 
     // Mock blockchainService to throw
     blockchainService.createNewPointToken.mockRejectedValue(

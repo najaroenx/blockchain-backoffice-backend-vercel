@@ -10,9 +10,12 @@ import {
   UpdateTempLink,
   DeleteTempLink,
 } from './handlers';
+import { CreateOTP } from './handlers/createOTP.handler';
+import { VerifyOTP } from './handlers/verifyOTP.handler';
+import { OTPModule } from 'src/providers/otp/otp.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, OTPModule],
   controllers: [TempLinkController],
   providers: [
     TempLinkRepository,
@@ -22,6 +25,8 @@ import {
     GetTempLinksByMerchant,
     UpdateTempLink,
     DeleteTempLink,
+    CreateOTP,
+    VerifyOTP,
   ],
   exports: [TempLinkDBService],
 })

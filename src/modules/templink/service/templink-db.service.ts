@@ -41,7 +41,6 @@ export class TempLinkDBService {
     });
     return tempLinks;
   }
-
   async deleteTempLink(uid: string): Promise<TempLinkCreateUser> {
     const deleted = await this.repository.delete({
       where: { uid },
@@ -66,6 +65,17 @@ export class TempLinkDBService {
   ): Promise<TempLinkCreateUser> {
     const updated = await this.repository.update<TempLinkCreateUser>({
       where: { uid },
+      data,
+    });
+    return updated;
+  }
+
+  async updateTempLinkById(
+    id: string,
+    data: Prisma.TempLinkCreateUserUpdateInput,
+  ): Promise<TempLinkCreateUser> {
+    const updated = await this.repository.update<TempLinkCreateUser>({
+      where: { id },
       data,
     });
     return updated;

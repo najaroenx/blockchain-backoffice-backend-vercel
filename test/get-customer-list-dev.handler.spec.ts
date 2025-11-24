@@ -34,10 +34,11 @@ describe('GetCustomerListDev', () => {
   });
 
   it('should return all customers successfully', async () => {
-    const pageOptionsDto = {
+    const pageOptionsDto = new PageOptionsDto();
+    Object.assign(pageOptionsDto, {
       take: 10,
       page: 1,
-    } as PageOptionsDto;
+    });
 
     const mockResult = {
       customers: [
@@ -85,10 +86,11 @@ describe('GetCustomerListDev', () => {
   });
 
   it('should return empty array when no customers found', async () => {
-    const pageOptionsDto = {
+    const pageOptionsDto = new PageOptionsDto();
+    Object.assign(pageOptionsDto, {
       take: 10,
       page: 1,
-    } as PageOptionsDto;
+    });
 
     mockCustomerDBService.getAllCustomers.mockResolvedValue({
       customers: [],
@@ -106,10 +108,11 @@ describe('GetCustomerListDev', () => {
   });
 
   it('should handle pagination correctly', async () => {
-    const pageOptionsDto = {
+    const pageOptionsDto = new PageOptionsDto();
+    Object.assign(pageOptionsDto, {
       take: 5,
       page: 3,
-    } as PageOptionsDto;
+    });
 
     const mockResult = {
       customers: [
@@ -142,10 +145,11 @@ describe('GetCustomerListDev', () => {
   });
 
   it('should throw InternalServerErrorException on error', async () => {
-    const pageOptionsDto = {
+    const pageOptionsDto = new PageOptionsDto();
+    Object.assign(pageOptionsDto, {
       take: 10,
       page: 1,
-    } as PageOptionsDto;
+    });
 
     mockCustomerDBService.getAllCustomers.mockRejectedValue(
       new Error('Database error'),

@@ -9,6 +9,7 @@ import { InternalServerErrorException } from '@nestjs/common';
 jest.mock('ethers', () => ({
   Contract: jest.fn().mockImplementation(() => ({
     connect: jest.fn().mockReturnThis(),
+    balanceOf: jest.fn().mockResolvedValue(BigInt(1000000)),
     transfer: jest.fn().mockResolvedValue({ hash: '0x123', wait: jest.fn() }),
     mint: jest.fn().mockResolvedValue({ hash: '0x123', wait: jest.fn() }),
     burn: jest.fn().mockResolvedValue({ hash: '0x123', wait: jest.fn() }),
@@ -20,6 +21,7 @@ jest.mock('ethers', () => ({
   JsonRpcProvider: jest.fn(),
   ethers: {
     parseEther: jest.fn().mockImplementation((v) => v),
+    formatEther: jest.fn().mockImplementation((v) => v.toString()),
   },
 }));
 

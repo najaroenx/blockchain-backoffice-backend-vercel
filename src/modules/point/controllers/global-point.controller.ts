@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, Query } from '@nestjs/common';
 import { PointFilterDto } from '../../../common/dtos/pagination.dto';
 import { Public } from 'src/modules/auth/public.decorator';
 import { PointDBService } from '../services/point-db.service';

@@ -93,7 +93,15 @@ export class MerchantDBService {
     limit: number;
     totalPages: number;
   }> {
-    const { page = 1, limit = 20, name, location, website, hasWallet, pointId } = options;
+    const {
+      page = 1,
+      limit = 20,
+      name,
+      location,
+      website,
+      hasWallet,
+      pointId,
+    } = options;
     const skip = (page - 1) * limit;
 
     // Build where clause with filters

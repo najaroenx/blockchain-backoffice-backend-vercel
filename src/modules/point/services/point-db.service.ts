@@ -96,7 +96,15 @@ export class PointDBService {
     limit: number;
     totalPages: number;
   }> {
-    const { page = 1, limit = 20, name, symbol, merchantId, merchantName, pointName } = options;
+    const {
+      page = 1,
+      limit = 20,
+      name,
+      symbol,
+      merchantId,
+      merchantName,
+      pointName,
+    } = options;
     const skip = (page - 1) * limit;
 
     // Build where clause with filters

@@ -187,6 +187,7 @@ enum VoucherValueType {
   cash
   gift
   multiplier
+  aispoint
 }
 
 model Voucher {

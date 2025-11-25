@@ -20,6 +20,7 @@ import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 import { BuyCouponFromMarketplaceDto } from '../dtos/buy-coupon-marketplace.dto';
 import { Public } from 'src/modules/auth/public.decorator';
 import { ManageCouponHandler } from '../handlers/manageCoupon.handler';
+import { VoucherValueType } from '@prisma/client';
 
 @Controller('coupon')
 export class VoucherController {
@@ -38,6 +39,26 @@ export class VoucherController {
   @HttpCode(200)
   async getActiveVouchers() {
     return this.voucherService.getActiveVouchers();
+  }
+
+  /**
+   * Get VoucherValueType enum values
+   * GET /coupon/value-types
+   */
+  @Get('/value-types')
+  @Public()
+  @HttpCode(200)
+  async getVoucherValueTypes() {
+    return {
+      values: Object.values(VoucherValueType),
+      description: {
+        percentage: 'Percentage discount (e.g., 10% off)',
+        cash: 'Cash discount (e.g., 100 THB off)',
+        gift: 'Free gift or item',
+        multiplier: 'Point multiplier (e.g., 2x points)',
+        aispoint: 'AIS Point redemption voucher',
+      },
+    };
   }
 
   @Get('/merchant/:merchantId')
@@ -190,13 +211,19 @@ export class VoucherController {
   /**
    * Redeem voucher code
    * POST /coupon/redeem
-   * Body: { code: string, phone: string }
+   * Body: { code: string, phone: string, merchantRef: string }
    */
   @Post('/redeem')
   @Public()
   @HttpCode(200)
-  async redeemVoucher(@Body() data: { code: string; phone: string }) {
-    return this.voucherService.redeemVoucher(data.code, data.phone);
+  async redeemVoucher(
+    @Body() data: { code: string; phone: string; merchantRef: string },
+  ) {
+    return this.voucherService.redeemVoucher(
+      data.code,
+      data.phone,
+      data.merchantRef,
+    );
   }
 
   /**

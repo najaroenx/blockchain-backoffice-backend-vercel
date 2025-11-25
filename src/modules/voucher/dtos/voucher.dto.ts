@@ -54,6 +54,10 @@ export class CreateVoucherDto {
   @IsInt()
   @IsOptional()
   limitPerMember?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  merchantRef: string; // ← Reference ID from merchant system for verification
 }
 
 export class UpdateVoucherDto {

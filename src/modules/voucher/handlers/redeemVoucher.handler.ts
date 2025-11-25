@@ -17,10 +17,10 @@ export class RedeemVoucher {
     private blockchainService: BlockchainService,
   ) {}
 
-  async execute(code: string, phone: string) {
+  async execute(code: string, phone: string, merchantRef: string) {
     try {
       this.logger.log(
-        `[START] Redeeming voucher code: ${code} for customer phone: ${phone}`,
+        `[START] Redeeming voucher code: ${code} for customer phone: ${phone} at merchant: ${merchantRef}`,
       );
 
       // 0. Find customer by phone
@@ -77,6 +77,7 @@ export class RedeemVoucher {
                   imageUrl: true,
                 },
               },
+              merchantRef: true,
             },
           },
         },
@@ -97,6 +98,21 @@ export class RedeemVoucher {
           `Voucher code has already been redeemed${voucherCode.usedBy ? ` by customer: ${voucherCode.usedBy}` : ''}`,
         );
       }
+
+      // 2.5 ตรวจสอบว่า merchantRef ตรงกับ voucher หรือไม่
+      this.logger.log(`[STEP 2.5] Verifying merchantRef: ${merchantRef}`);
+      if (
+        voucherCode.voucher.merchantRef &&
+        voucherCode.voucher.merchantRef !== merchantRef
+      ) {
+        this.logger.error(
+          `[ERROR] MerchantRef mismatch. Expected: ${voucherCode.voucher.merchantRef}, Got: ${merchantRef}`,
+        );
+        throw new BadRequestException(
+          `This voucher can only be redeemed at the issuing merchant`,
+        );
+      }
+      this.logger.log(`[STEP 2.5] MerchantRef verified ✓`);
 
       // 3. ตรวจสอบว่า voucher ยังไม่หมดอายุ
       this.logger.log(`[STEP 3] Checking voucher validity`);

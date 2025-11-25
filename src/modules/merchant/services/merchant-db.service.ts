@@ -77,4 +77,99 @@ export class MerchantDBService {
 
     return merchant;
   }
+
+  async getAllMerchants(options: {
+    page?: number;
+    limit?: number;
+    name?: string;
+    location?: string;
+    website?: string;
+    hasWallet?: boolean;
+    pointId?: string;
+  }): Promise<{
+    merchants: Merchant[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const { page = 1, limit = 20, name, location, website, hasWallet, pointId } = options;
+    const skip = (page - 1) * limit;
+
+    // Build where clause with filters
+    const where: Prisma.MerchantWhereInput = {};
+
+    if (name) {
+      where.name = {
+        contains: name,
+        mode: 'insensitive',
+      };
+    }
+
+    if (location) {
+      where.location = {
+        contains: location,
+        mode: 'insensitive',
+      };
+    }
+
+    if (website) {
+      where.website = {
+        contains: website,
+        mode: 'insensitive',
+      };
+    }
+
+    if (hasWallet !== undefined) {
+      where.walletId = hasWallet ? { not: null } : null;
+    }
+
+    if (pointId) {
+      where.point = {
+        some: {
+          id: pointId,
+        },
+      };
+    }
+
+    const [merchants, total] = await Promise.all([
+      this.repository.findMany<Merchant>({
+        where,
+        skip,
+        take: limit,
+        include: {
+          wallet: true,
+          point: {
+            select: {
+              id: true,
+              name: true,
+              symbol: true,
+            },
+          },
+          _count: {
+            select: {
+              vouchers: true,
+              customerMerChant: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.repository.count({
+        where,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      merchants,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
 }

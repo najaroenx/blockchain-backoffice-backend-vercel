@@ -476,8 +476,8 @@ export class VoucherDBService {
   /**
    * Redeem voucher code
    */
-  async redeemVoucher(code: string, phone: string) {
-    return this.redeemVoucherHandler.execute(code, phone);
+  async redeemVoucher(code: string, phone: string, merchantRef: string) {
+    return this.redeemVoucherHandler.execute(code, phone, merchantRef);
   }
 
   /**

@@ -57,13 +57,18 @@ export class CreateVoucherWithCodes {
 
       // สร้างเฉพาะ voucher metadata (ไม่สร้าง codes)
       const result = await this.prisma.$transaction(async (tx) => {
-        // 1. แยก pointsCost, pointId, dates ออกจาก voucherData
-        const { pointsCost, pointId, startDate, endDate, ...voucherData } =
-          data;
+        // 1. แยก pointsCost, pointId, dates, merchantRef ออกจาก voucherData
+        const {
+          pointsCost,
+          pointId,
+          startDate,
+          endDate,
+          merchantRef,
+          ...voucherData
+        } = data;
 
-        // 2. Generate coupon ID และ merchantRef
+        // 2. Generate coupon ID
         const couponId = `COUPON-${randomUUID()}`;
-        const merchantRef = `REF-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
 
         // 3. Create coupon type on blockchain (ERC-1155)
         this.logger.log(`Creating coupon type on blockchain...`);
@@ -87,7 +92,7 @@ export class CreateVoucherWithCodes {
             id: couponId,
             ...voucherData,
             merchantName, // ← ดึงมาจาก Merchant.name
-            merchantRef, // ← สำหรับ verify ตอน redeem
+            merchantRef, // ← ส่งมาจาก DTO สำหรับ verify ตอน redeem
             currency: point.symbol, // ← ดึงมาจาก Point.symbol
             startDate: new Date(startDate),
             endDate: new Date(endDate),

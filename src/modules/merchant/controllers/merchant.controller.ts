@@ -7,9 +7,11 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Req,
 } from '@nestjs/common';
 import { CreateMerchantDto, UpdateMerchantDto } from '../dtos';
+import { MerchantFilterDto } from '../../../common/dtos/pagination.dto';
 
 import { GetMerchants } from '../handlers/getMerchants.handler';
 import { CreateMerchant } from '../handlers/createMerchant.handler';
@@ -17,6 +19,7 @@ import { UpdateMerchant } from '../handlers/updateMerchant.handler';
 import { GetMerchant } from '../handlers/getMerchantById.handler';
 import { DeleteMerchant } from '../handlers/deleteMerchant.handler';
 import { Public } from 'src/modules/auth/public.decorator';
+import { MerchantDBService } from '../services/merchant-db.service';
 
 @Controller('merchant')
 export class MerchantController {
@@ -26,6 +29,7 @@ export class MerchantController {
     private readonly updateMerchantHandler: UpdateMerchant,
     private readonly getMerchantHandler: GetMerchant,
     private readonly deleteMerchantHandler: DeleteMerchant,
+    private readonly merchantDBService: MerchantDBService,
   ) {}
 
   @Get('/')
@@ -65,6 +69,17 @@ export class MerchantController {
     };
 
     return this.createMerchantHandler.execute(userId, data);
+  }
+
+  /**
+   * Get all merchants with pagination and filtering
+   * GET /merchant/all?page=1&limit=20&name=test&location=bangkok
+   */
+  @Get('/all')
+  @Public()
+  @HttpCode(200)
+  async getAllMerchants(@Query() filters: MerchantFilterDto) {
+    return this.merchantDBService.getAllMerchants(filters);
   }
 
   @Put('/:merchantId')

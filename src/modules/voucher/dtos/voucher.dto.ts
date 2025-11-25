@@ -22,9 +22,6 @@ export class CreateVoucherDto {
   status: VoucherStatus;
 
   @IsString()
-  merchantName: string;
-
-  @IsString()
   @IsOptional()
   merchantId?: string;
 
@@ -33,10 +30,6 @@ export class CreateVoucherDto {
 
   @IsNumber()
   value: number;
-
-  @IsString()
-  @IsOptional()
-  currency?: string;
 
   @IsInt()
   pointsCost: number;
@@ -54,9 +47,6 @@ export class CreateVoucherDto {
   @IsInt()
   totalIssued: number;
 
-  @IsInt()
-  totalRedeemed: number;
-
   @IsString()
   @IsOptional()
   imageUrl?: string;
@@ -64,6 +54,10 @@ export class CreateVoucherDto {
   @IsInt()
   @IsOptional()
   limitPerMember?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  merchantRef: string; // ← Reference ID from merchant system for verification
 }
 
 export class UpdateVoucherDto {
@@ -79,10 +73,6 @@ export class UpdateVoucherDto {
   @IsOptional()
   status?: VoucherStatus;
 
-  @IsString()
-  @IsOptional()
-  merchantName?: string;
-
   @IsEnum(VoucherValueType)
   @IsOptional()
   valueType?: VoucherValueType;
@@ -90,10 +80,6 @@ export class UpdateVoucherDto {
   @IsNumber()
   @IsOptional()
   value?: number;
-
-  @IsString()
-  @IsOptional()
-  currency?: string;
 
   @IsInt()
   @IsOptional()
@@ -115,10 +101,6 @@ export class UpdateVoucherDto {
   @IsOptional()
   totalIssued?: number;
 
-  @IsInt()
-  @IsOptional()
-  totalRedeemed?: number;
-
   @IsString()
   @IsOptional()
   imageUrl?: string;
@@ -126,6 +108,10 @@ export class UpdateVoucherDto {
   @IsInt()
   @IsOptional()
   limitPerMember?: number;
+
+  @IsString()
+  @IsOptional()
+  merchantRef?: string; // ร้านที่เป็นเจ้าของคูปองที่นำไปแลก
 }
 
 // DTO for voucher sale creation

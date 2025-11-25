@@ -5,12 +5,16 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
+import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 
 @Injectable()
 export class ActivateVoucher {
   private logger = new Logger(ActivateVoucher.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private blockchainService: BlockchainService,
+  ) {}
 
   async execute(
     voucherId: string,
@@ -123,30 +127,101 @@ export class ActivateVoucher {
 
         // 4.3 implement code smart contract here trigger (future)
 
-        // 4.4 เพิ่ม codes ลง database พร้อม voucherGroupId
-        this.logger.log(`[STEP 4.2] Creating ${amount} active voucher codes`);
-        const now = new Date();
-        const voucherGroupId = `${voucherId}-${now.getTime()}`;
-        await tx.voucherCode.createMany({
+        // 4.2 Mint NFTs to merchant wallet
+        this.logger.log(
+          `[STEP 4.2] Minting ${amount} NFT coupons to merchant wallet`,
+        );
+        try {
+          const merchant = await tx.merchant.findUnique({
+            where: { id: upcomingVoucher.merchantId },
+            include: { wallet: true },
+          });
+
+          if (!merchant?.wallet?.walletAddress) {
+            throw new Error('Merchant wallet not configured');
+          }
+
+          // Get tokenId from voucher
+          if (!upcomingVoucher.tokenId) {
+            throw new Error(
+              'Voucher does not have tokenId. Please create voucher with blockchain integration first.',
+            );
+          }
+
+          // Batch mint: mint all units to merchant at once
+          // For ERC-1155, we can mint multiple units of same type to one address
+          await this.blockchainService.mintCoupon(
+            merchant.wallet.walletAddress,
+            upcomingVoucher.tokenId,
+            amount,
+          );
+
+          this.logger.log(
+            `[STEP 4.2] Minted ${amount} units of typeId ${upcomingVoucher.tokenId} to merchant ${merchant.wallet.walletAddress}`,
+          );
+        } catch (error) {
+          this.logger.error(`[ERROR] Failed to mint coupons: ${error.message}`);
+          throw new BadRequestException(
+            `Failed to mint coupons on blockchain: ${error.message}`,
+          );
+        }
+
+        // 4.3 List on marketplace
+        this.logger.log(
+          `[STEP 4.3] Listing ${amount} coupons on marketplace at price ${pointsCost} per unit`,
+        );
+        let listingId = null;
+        try {
+          // Get THB token address from environment
+          const thbTokenAddress = process.env.THB_TOKEN_ADDRESS;
+
+          if (!thbTokenAddress) {
+            throw new Error('THB_TOKEN_ADDRESS not configured');
+          }
+
+          const listResult = await this.blockchainService.listCoupon(
+            upcomingVoucher.tokenId,
+            amount,
+            pointsCost,
+            thbTokenAddress,
+          );
+
+          listingId = listResult.listingId;
+
+          this.logger.log(
+            `[STEP 4.3] Listed on marketplace with listingId: ${listingId}`,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `[WARN] Failed to list on marketplace: ${error.message}. Continuing without marketplace listing...`,
+          );
+          // If listing fails, generate fallback groupId
+          listingId = `${voucherId}-${Date.now()}`;
+        }
+
+        // 4.4 Create voucher codes with listingId as voucherGroupId
+        this.logger.log(
+          `[STEP 4.4] Creating ${amount} active voucher codes with listingId: ${listingId}`,
+        );
+        await (tx.voucherCode.createMany as any)({
           data: codes.map((code) => ({
             code,
             voucherId,
             pointsCost,
             pointId,
             currency,
-            voucherGroupId,
-            createdAt: now,
+            voucherGroupId: listingId, // Use listingId as voucherGroupId
           })),
         });
 
         this.logger.log(
-          `[STEP 4.2] Created ${amount} active codes successfully`,
+          `[STEP 4.4] Created ${amount} codes with voucherGroupId (listingId): ${listingId}`,
         );
 
-        // 4.4 ลด totalIssued ของ voucher
+        // 4.5 ลด totalIssued ของ voucher
         const newTotalIssued = upcomingVoucher.totalIssued - amount;
         this.logger.log(
-          `[STEP 4.3] Updating voucher: totalIssued ${upcomingVoucher.totalIssued} -> ${newTotalIssued}`,
+          `[STEP 4.6] Updating voucher: totalIssued ${upcomingVoucher.totalIssued} -> ${newTotalIssued}`,
         );
 
         await tx.voucher.update({
@@ -156,13 +231,13 @@ export class ActivateVoucher {
           },
         });
 
-        // 4.5 นับจำนวน codes ตามสถานะ (codes ที่มี voucherGroupId)
+        // 4.6 นับจำนวน codes ตามสถานะ (codes ที่มี voucherGroupId)
         const activeCodesCount = await tx.voucherCode.count({
           where: { voucherId, voucherGroupId: { not: null } },
         });
 
         this.logger.log(
-          `[STEP 4.4] Active codes: ${activeCodesCount}, Upcoming: ${newTotalIssued}`,
+          `[STEP 4.7] Active codes: ${activeCodesCount}, Upcoming: ${newTotalIssued}`,
         );
 
         return {

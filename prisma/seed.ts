@@ -1,16 +1,17 @@
 import { PrismaClient } from '@prisma/client';
-import {
-  merchantSeeds,
-  voucherSeeds,
-  pointSeeds,
-  apiKeySeeds,
-  customerSeeds,
-  transactionSeeds,
-} from './data/backoffice.mock';
-import { createHash } from 'crypto';
+// import {
+//   merchantSeeds,
+//   voucherSeeds,
+//   pointSeeds,
+//   apiKeySeeds,
+//   customerSeeds,
+//   transactionSeeds,
+// } from './data/backoffice.mock';
+// import { createHash } from 'crypto';
 
 const prisma = new PrismaClient();
 
+/*
 const isHex = (value: string) => /^0x[0-9a-fA-F]+$/.test(value);
 
 const bufferFromHex = (value: string) =>
@@ -40,8 +41,9 @@ const toBuffer = (value: string, length: number): Uint8Array => {
   ) as Uint8Array;
 };
 
-const toAddressBuffer = (value: string): Uint8Array => toBuffer(value, 20);
-const toHashBuffer = (value: string): Uint8Array => toBuffer(value, 32);
+const toAddressBuffer = (value: string) => toBuffer(value, 20);
+const toHashBuffer = (value: string) => toBuffer(value, 32);
+*/
 
 async function seedTransactionTypes() {
   const types = [
@@ -101,6 +103,29 @@ async function seedTransactionTypes() {
   }
 }
 
+async function seedTreasury() {
+  const treasuries = [
+    {
+      walletAddress: '0xf5e40ec8bFa4818278C04489b34a486281658E5C',
+      type: 'burner',
+    },
+  ];
+
+  for (const treasury of treasuries) {
+    await prisma.treasury.upsert({
+      where: { type: treasury.type },
+      update: {
+        walletAddress: treasury.walletAddress,
+      },
+      create: {
+        walletAddress: treasury.walletAddress,
+        type: treasury.type,
+      },
+    } as any);
+  }
+}
+
+/*
 async function seedMerchants() {
   for (const merchant of merchantSeeds) {
     await prisma.merchant.upsert({
@@ -171,7 +196,7 @@ async function seedVouchers() {
   }
 }
 
-async function seedPoints() {
+// async function seedPoints() {
   for (const point of pointSeeds) {
     await prisma.point.upsert({
       where: { id: point.id },
@@ -200,7 +225,7 @@ async function seedPoints() {
   }
 }
 
-async function seedApiKeys() {
+// async function seedApiKeys() {
   for (const apiKey of apiKeySeeds) {
     await prisma.apiKey.upsert({
       where: { id: apiKey.id },
@@ -221,7 +246,7 @@ async function seedApiKeys() {
   }
 }
 
-async function seedCustomers() {
+// async function seedCustomers() {
   for (const customer of customerSeeds) {
     // Create or update wallet first
     const wallet = await prisma.wallet.upsert({
@@ -296,7 +321,7 @@ async function seedCustomers() {
   }
 }
 
-async function seedTransactions() {
+// async function seedTransactions() {
   for (const txn of transactionSeeds) {
     await prisma.transaction.upsert({
       where: { id: txn.id },
@@ -328,15 +353,17 @@ async function seedTransactions() {
     });
   }
 }
+*/
 
 async function main() {
-  await seedMerchants();
-  await seedVouchers();
-  await seedPoints();
-  await seedApiKeys();
-  await seedCustomers();
+  await seedTreasury();
   await seedTransactionTypes();
-  await seedTransactions();
+  // await seedMerchants();
+  // await seedVouchers();
+  // await seedPoints();
+  // await seedApiKeys();
+  // await seedCustomers();
+  // await seedTransactions();
 }
 
 main()

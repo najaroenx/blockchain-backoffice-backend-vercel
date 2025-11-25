@@ -30,7 +30,7 @@ export class CreateCustomer {
     merchantId: string,
     data: Omit<
       Prisma.CustomerCreateInput,
-      'customerMerChant' | 'transaction' | 'wallet'
+      'id' | 'customerMerChant' | 'transaction' | 'wallet'
     >,
   ): Promise<any> {
     try {

@@ -20,6 +20,7 @@ import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 import { BuyCouponFromMarketplaceDto } from '../dtos/buy-coupon-marketplace.dto';
 import { Public } from 'src/modules/auth/public.decorator';
 import { ManageCouponHandler } from '../handlers/manageCoupon.handler';
+import { VoucherValueType } from '@prisma/client';
 
 @Controller('coupon')
 export class VoucherController {
@@ -38,6 +39,26 @@ export class VoucherController {
   @HttpCode(200)
   async getActiveVouchers() {
     return this.voucherService.getActiveVouchers();
+  }
+
+  /**
+   * Get VoucherValueType enum values
+   * GET /coupon/value-types
+   */
+  @Get('/value-types')
+  @Public()
+  @HttpCode(200)
+  async getVoucherValueTypes() {
+    return {
+      values: Object.values(VoucherValueType),
+      description: {
+        percentage: 'Percentage discount (e.g., 10% off)',
+        cash: 'Cash discount (e.g., 100 THB off)',
+        gift: 'Free gift or item',
+        multiplier: 'Point multiplier (e.g., 2x points)',
+        aispoint: 'AIS Point redemption voucher',
+      },
+    };
   }
 
   @Get('/merchant/:merchantId')
@@ -190,13 +211,19 @@ export class VoucherController {
   /**
    * Redeem voucher code
    * POST /coupon/redeem
-   * Body: { code: string, customerId: string }
+   * Body: { code: string, phone: string, merchantRef: string }
    */
   @Post('/redeem')
   @Public()
   @HttpCode(200)
-  async redeemVoucher(@Body() data: { code: string; customerId: string }) {
-    return this.voucherService.redeemVoucher(data.code, data.customerId);
+  async redeemVoucher(
+    @Body() data: { code: string; phone: string; merchantRef: string },
+  ) {
+    return this.voucherService.redeemVoucher(
+      data.code,
+      data.phone,
+      data.merchantRef,
+    );
   }
 
   /**
@@ -214,12 +241,12 @@ export class VoucherController {
    * Get customer redemption history
    * GET /coupon/history/:walletAddress
    */
-  // @Get('/history/:walletAddress')
-  // @Public()
-  // @HttpCode(200)
-  // async getRedemptionHistory(@Param('walletAddress') walletAddress: string) {
-  //   return this.voucherService.getRedemptionHistory(walletAddress);
-  // }
+  @Get('/history/:walletAddress')
+  @Public()
+  @HttpCode(200)
+  async getRedemptionHistory(@Param('walletAddress') walletAddress: string) {
+    return this.voucherService.getRedemptionHistory(walletAddress);
+  }
 
   /**
    * Buy coupon from marketplace (customer buying from marketplace)
@@ -243,23 +270,23 @@ export class VoucherController {
    * GET /coupon/my-vouchers/:walletAddress
    * Query params: ?status=unused|used|all&page=1&limit=20
    */
-  // @Get('/my-coupons/:walletAddress')
-  // @Public()
-  // @HttpCode(200)
-  // async getCustomerOwnedVouchers(
-  //   @Param('walletAddress') walletAddress: string,
-  //   @Query('status') status?: 'unused' | 'used' | 'all',
-  //   @Query('page') page?: string,
-  //   @Query('limit') limit?: string,
-  // ) {
-  //   const pageNum = page ? parseInt(page, 10) : 1;
-  //   const limitNum = limit ? parseInt(limit, 10) : 20;
+  @Get('/my-coupons/:walletAddress')
+  @Public()
+  @HttpCode(200)
+  async getCustomerOwnedVouchers(
+    @Param('walletAddress') walletAddress: string,
+    @Query('status') status?: 'unused' | 'used' | 'all',
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
 
-  //   return this.voucherService.getCustomerOwnedVouchers(
-  //     walletAddress,
-  //     status || 'all',
-  //     pageNum,
-  //     limitNum,
-  //   );
-  // }
+    return this.voucherService.getCustomerOwnedVouchers(
+      walletAddress,
+      status || 'all',
+      pageNum,
+      limitNum,
+    );
+  }
 }

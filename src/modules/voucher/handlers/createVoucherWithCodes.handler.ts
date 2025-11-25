@@ -5,6 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
+import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { CreateVoucherDto } from '../dtos/voucher.dto';
 import { randomUUID } from 'crypto';
 
@@ -12,7 +13,10 @@ import { randomUUID } from 'crypto';
 export class CreateVoucherWithCodes {
   private logger = new Logger(CreateVoucherWithCodes.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private blockchainService: BlockchainService,
+  ) {}
 
   async execute(data: CreateVoucherDto) {
     try {
@@ -39,32 +43,67 @@ export class CreateVoucherWithCodes {
         `[STEP 0] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
       );
 
+      // Get merchant information if merchantId is provided
+      let merchantName = 'Unknown';
+      if (data.merchantId) {
+        const merchant = await this.prisma.merchant.findUnique({
+          where: { id: data.merchantId },
+          select: { name: true },
+        });
+        if (merchant) {
+          merchantName = merchant.name;
+        }
+      }
+
       // สร้างเฉพาะ voucher metadata (ไม่สร้าง codes)
       const result = await this.prisma.$transaction(async (tx) => {
-        // 1. แยก pointsCost, pointId และ dates ออกจาก voucherData
-        const { pointsCost, pointId, startDate, endDate, ...voucherData } =
-          data;
+        // 1. แยก pointsCost, pointId, dates, merchantRef ออกจาก voucherData
+        const {
+          pointsCost,
+          pointId,
+          startDate,
+          endDate,
+          merchantRef,
+          ...voucherData
+        } = data;
 
         // 2. Generate coupon ID
         const couponId = `COUPON-${randomUUID()}`;
 
-        // 3. สร้าง voucher (metadata เท่านั้น)
+        // 3. Create coupon type on blockchain (ERC-1155)
+        this.logger.log(`Creating coupon type on blockchain...`);
+        const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
+        const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
+
+        const blockchainResult = await this.blockchainService.createCouponType(
+          voucherData.name,
+          startTimestamp,
+          endTimestamp,
+        );
+
+        const onChainTypeId = blockchainResult.typeId;
+        this.logger.log(
+          `Coupon type created on blockchain. TypeId: ${onChainTypeId}, TxHash: ${blockchainResult.hash}`,
+        );
+
+        // 4. สร้าง voucher (metadata พร้อม tokenId, merchantName, currency)
         const voucher = await tx.voucher.create({
           data: {
             id: couponId,
             ...voucherData,
+            merchantName, // ← ดึงมาจาก Merchant.name
+            merchantRef, // ← ส่งมาจาก DTO สำหรับ verify ตอน redeem
+            currency: point.symbol, // ← ดึงมาจาก Point.symbol
             startDate: new Date(startDate),
             endDate: new Date(endDate),
+            totalRedeemed: 0, // ← เริ่มต้นที่ 0
+            tokenId: onChainTypeId, // Save ERC-1155 typeId from smart contract
           },
         });
 
-        // implement mint coupon
-
-        // implement mint thbs
-
-        // implement tranferfrom to vault
-
-        this.logger.log(`Created voucher metadata ${voucher.id}`);
+        this.logger.log(
+          `Created voucher metadata ${voucher.id} with tokenId: ${onChainTypeId}`,
+        );
 
         return { voucher, pointsCost, pointId };
       });

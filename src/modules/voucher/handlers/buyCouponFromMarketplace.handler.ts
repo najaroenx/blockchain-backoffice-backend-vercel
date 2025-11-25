@@ -195,29 +195,71 @@ export class BuyCouponFromMarketplace {
         `[STEP 6] Balance check passed. Available: ${customerPoint.balances} ${voucherCode.currency}`,
       );
 
-      // 7. เรียก Smart Contract เพื่อซื้อ voucher จาก marketplace
+      // 7. Get treasury wallet address
+      this.logger.log(`[STEP 7] Getting treasury wallet address`);
+      const treasury = await this.prisma.treasury.findUnique({
+        where: { type: 'burner' },
+      });
+
+      if (!treasury) {
+        this.logger.error(`[ERROR] Treasury burner address not configured`);
+        throw new BadRequestException(
+          'Treasury system not configured. Please contact admin.',
+        );
+      }
+
+      this.logger.log(
+        `[STEP 7] Treasury burner address: ${treasury.walletAddress}`,
+      );
+
+      // 8. Buy coupon from marketplace using listingId
       let blockchainTx = null;
       this.logger.log(
-        `[STEP 7] Calling smart contract to buy voucher from marketplace`,
+        `[STEP 8] Calling smart contract to buy coupon from marketplace`,
       );
 
       try {
-        // ใช้ tokenId จาก voucher (ERC-1155) หรือ fallback ไปใช้ voucherId
-        const tokenId = voucher.tokenId || voucher.id;
+        // Check if voucherCode has voucherGroupId (listingId from marketplace)
+        if (!voucherCode.voucherGroupId) {
+          this.logger.warn(
+            `[WARN] VoucherCode ${voucherCode.code} has no voucherGroupId (listingId). This code may not be properly listed on marketplace.`,
+          );
+          // For backward compatibility, use old method
+          const tokenId = voucher.tokenId || voucher.id;
+          blockchainTx = await this.blockchainService.buyVoucherFromMarketplace(
+            tokenId,
+            address,
+            voucherCode.pointsCost,
+            1,
+            treasury.walletAddress,
+          );
+        } else {
+          // Use new marketplace flow with voucherGroupId as listingId
+          const listingId = voucherCode.voucherGroupId;
+          this.logger.log(
+            `[STEP 8] Using listingId: ${listingId} for voucherCode ${voucherCode.code}`,
+          );
+
+          // Get customer wallet for signing
+          const customerWallet = await this.prisma.wallet.findUnique({
+            where: { id: customer.walletId },
+          });
+
+          if (!customerWallet) {
+            throw new BadRequestException('Customer wallet not found');
+          }
+
+          // Buy coupon using marketplace's buyCoupon method
+          // This will automatically transfer points to treasury
+          blockchainTx = await this.blockchainService.buyCoupon(
+            listingId,
+            1, // Buy 1 unit
+            treasury.walletAddress, // Points go to treasury burner
+          );
+        }
 
         this.logger.log(
-          `[STEP 7] Using tokenId: ${tokenId} for voucher ${voucher.id}`,
-        );
-
-        blockchainTx = await this.blockchainService.buyVoucherFromMarketplace(
-          tokenId,
-          address,
-          voucherCode.pointsCost,
-          1, // ซื้อ 1 unit ของ ERC-1155
-        );
-
-        this.logger.log(
-          `[STEP 7] Marketplace purchase successful. Tx: ${blockchainTx.hash}, TokenId: ${blockchainTx.tokenId}`,
+          `[STEP 8] Marketplace purchase successful. Tx: ${blockchainTx.hash}, Points transferred to treasury: ${treasury.walletAddress}`,
         );
       } catch (error) {
         this.logger.error(
@@ -228,8 +270,8 @@ export class BuyCouponFromMarketplace {
         );
       }
 
-      // 8. Transfer ownership - อัพเดท database
-      this.logger.log(`[STEP 8] Updating database - transferring ownership`);
+      // 9. Transfer ownership - อัพเดท database
+      this.logger.log(`[STEP 9] Updating database - transferring ownership`);
 
       // บันทึก transaction ในระบบ (marketplace purchase)
       // Update ownership, deduct balance, และสร้าง transaction record
@@ -262,7 +304,7 @@ export class BuyCouponFromMarketplace {
             receiverId: customerId,
             voucherCodeId: voucherCodeId,
             transactionTypeId: TransactionTypeId.MARKETPLACE_PURCHASE,
-          },
+          } as any,
         }),
       ]);
 

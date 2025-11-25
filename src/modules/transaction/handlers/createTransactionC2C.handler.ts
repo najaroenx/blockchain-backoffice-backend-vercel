@@ -49,6 +49,7 @@ export class CreateTransactionC2C {
     pointId: string,
     data: Omit<
       Prisma.TransactionCreateInput,
+      | 'id'
       | 'merchant'
       | 'point'
       | 'transactionType'

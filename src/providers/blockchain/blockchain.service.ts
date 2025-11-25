@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { transaction, transactionC2C } from './types/transaction.type';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { RPC_SERVER_ERROR } from 'src/errors/error.constants';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class BlockchainService {
@@ -247,7 +248,11 @@ export class BlockchainService {
       const contractWithSigner = contract.connect(signer) as any;
       const amountWeiFormat = ethers.parseEther(amount.toString());
 
-      const tx = await contractWithSigner['burn'](amountWeiFormat);
+      // THB Token burn(address from, uint256 amount)
+      const tx = await contractWithSigner['burn'](
+        signer.address,
+        amountWeiFormat,
+      );
 
       await tx.wait();
 
@@ -317,10 +322,11 @@ export class BlockchainService {
     buyerAddress: string,
     priceInPoints: number,
     amount: number = 1,
+    treasuryAddress?: string,
   ) {
     try {
       console.log(
-        `[Blockchain] Buying ${amount}x voucher from marketplace. TokenId: ${tokenId}, Buyer: ${buyerAddress}, Price: ${priceInPoints}`,
+        `[Blockchain] Buying ${amount}x voucher from marketplace. TokenId: ${tokenId}, Buyer: ${buyerAddress}, Price: ${priceInPoints}, Treasury: ${treasuryAddress || 'N/A'}`,
       );
 
       // TODO: Implement real smart contract integration
@@ -493,15 +499,16 @@ export class BlockchainService {
   }
 
   /**
-   * Redeem voucher NFT on blockchain (Burn 1 unit of ERC-1155)
-   * @param tokenId - The NFT token ID to redeem
-   * @param ownerAddress - Address of the owner
+   * Redeem coupon on blockchain (ERC-1155)
+   * @param typeId - The coupon type ID to redeem
+   * @param amount - Amount to redeem (typically 1)
+   * @param ownerAddress - Address of the coupon owner
    * @returns Transaction receipt
    */
-  async redeemVoucher(tokenId: string, ownerAddress: string) {
+  async redeemVoucher(typeId: string, amount: number, ownerAddress: string) {
     try {
       console.log(
-        `[Blockchain] Redeeming voucher tokenId: ${tokenId}, owner: ${ownerAddress}`,
+        `[Blockchain] Redeeming coupon typeId: ${typeId}, amount: ${amount}, owner: ${ownerAddress}`,
       );
 
       // TODO: Implement real smart contract integration
@@ -516,7 +523,7 @@ export class BlockchainService {
       };
 
       console.log(
-        `[Blockchain] Voucher redeemed successfully (MOCK). Tx: ${mockReceipt.hash}`,
+        `[Blockchain] Coupon redeemed successfully (MOCK). Tx: ${mockReceipt.hash}`,
       );
 
       return {
@@ -526,28 +533,28 @@ export class BlockchainService {
       };
 
       /* Real implementation (uncomment when contract is ready):
-      const voucherContractAddress =
-        this.configService.get<string>('VOUCHER_CONTRACT_ADDRESS');
+      const couponContractAddress =
+        this.configService.get<string>('COUPON_NFT_CONTRACT_ADDRESS');
 
-      if (!voucherContractAddress) {
-        throw new Error('VOUCHER_CONTRACT_ADDRESS not configured');
+      if (!couponContractAddress) {
+        throw new Error('COUPON_NFT_CONTRACT_ADDRESS not configured');
       }
 
       const signer = new Wallet(this.privateKey, this.provider);
 
-      const voucherABI = [
-        'function redeem(uint256 tokenId) external returns (bool)',
-        'function getVoucherData(uint256 tokenId) external view returns (string redeemCode, bool isRedeemed)',
-        'function ownerOf(uint256 tokenId) external view returns (address)',
+      const couponABI = [
+        'function redeem(uint256 typeId, uint256 amount) external',
+        'function redeemFrom(address from, uint256 typeId, uint256 amount) external',
       ];
 
       const contract = new Contract(
-        voucherContractAddress,
-        voucherABI,
+        couponContractAddress,
+        couponABI,
         signer,
       );
 
-      const tx = await contract.redeem(tokenId);
+      // Use redeem (burns from caller) or redeemFrom (burns from specified address)
+      const tx = await contract.redeem(typeId, amount);
       const receipt = await tx.wait();
 
       return {
@@ -557,9 +564,9 @@ export class BlockchainService {
       };
       */
     } catch (error) {
-      console.error(`[Blockchain] Failed to redeem voucher: ${error.message}`);
+      console.error(`[Blockchain] Failed to redeem coupon: ${error.message}`);
       throw new InternalServerErrorException(
-        `Failed to redeem voucher on blockchain: ${error.message}`,
+        `Failed to redeem coupon on blockchain: ${error.message}`,
       );
     }
   }
@@ -717,6 +724,402 @@ export class BlockchainService {
       );
       throw new InternalServerErrorException(
         `Failed to batch mint vouchers on blockchain: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Create coupon type on ERC-1155 Coupon NFT contract
+   * @param name - Coupon name
+   * @param startDate - Start date (Unix timestamp in seconds)
+   * @param expireDate - Expiry date (Unix timestamp in seconds)
+   * @returns typeId from smart contract
+   */
+  async createCouponType(
+    name: string,
+    startDate: number,
+    expireDate: number,
+  ): Promise<{ typeId: string; hash: string; blockNumber: number }> {
+    // MOCK IMPLEMENTATION - Returns UUID as typeId
+    console.log(
+      `[Blockchain] (MOCK) Creating coupon type: ${name}, start: ${startDate}, expire: ${expireDate}`,
+    );
+
+    const mockTypeId = randomUUID();
+    const mockHash = `0x${Math.random().toString(16).substring(2)}${Math.random().toString(16).substring(2)}`;
+    const mockBlockNumber = Math.floor(Math.random() * 1000000);
+
+    console.log(
+      `[Blockchain] (MOCK) Coupon type created successfully. TypeId: ${mockTypeId}, Tx: ${mockHash}`,
+    );
+
+    return {
+      typeId: mockTypeId,
+      hash: mockHash,
+      blockNumber: mockBlockNumber,
+    };
+
+    /* REAL IMPLEMENTATION - Uncomment when smart contract is ready
+    try {
+      console.log(
+        `[Blockchain] Creating coupon type: ${name}, start: ${startDate}, expire: ${expireDate}`,
+      );
+
+      const couponContractAddress = this.configService.get<string>(
+        'COUPON_NFT_CONTRACT_ADDRESS',
+      );
+
+      if (!couponContractAddress) {
+        throw new Error('COUPON_NFT_CONTRACT_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(this.privateKey, this.provider);
+
+      const couponABI = [
+        'function createCouponType(string memory name, uint256 startDate, uint256 expireDate) external returns (uint256)',
+        'event CouponTypeCreated(uint256 indexed typeId, string name, uint256 startDate, uint256 expireDate)',
+      ];
+
+      const contract = new Contract(couponContractAddress, couponABI, signer);
+
+      const tx = await contract.createCouponType(name, startDate, expireDate);
+      const receipt = await tx.wait();
+
+      // Extract typeId from CouponTypeCreated event
+      const event = receipt.logs.find((log: any) => {
+        try {
+          const parsedLog = contract.interface.parseLog(log);
+          return parsedLog?.name === 'CouponTypeCreated';
+        } catch {
+          return false;
+        }
+      });
+
+      let typeId = null;
+      if (event) {
+        const parsedLog = contract.interface.parseLog(event);
+        typeId = parsedLog?.args?.typeId?.toString();
+      }
+
+      console.log(
+        `[Blockchain] Coupon type created successfully. TypeId: ${typeId}, Tx: ${receipt.hash}`,
+      );
+
+      return {
+        typeId,
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to create coupon type: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to create coupon type on blockchain: ${error.message}`,
+      );
+    }
+    */
+  }
+
+  /**
+   * Mint coupon NFTs (ERC-1155)
+   * @param toAddress - Recipient address
+   * @param typeId - Coupon type ID
+   * @param amount - Amount to mint
+   * @returns Transaction receipt
+   */
+  async mintCoupon(
+    toAddress: string,
+    typeId: string,
+    amount: number,
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log(
+        `[Blockchain] Minting coupon (MOCK) - to: ${toAddress}, typeId: ${typeId}, amount: ${amount}`,
+      );
+
+      // TODO: Replace with real smart contract integration
+      // Mock response matching the interface
+      const mockReceipt = {
+        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
+        blockNumber: Math.floor(Math.random() * 1000000),
+      };
+
+      console.log(
+        `[Blockchain] Coupon minted successfully (MOCK). Tx: ${mockReceipt.hash}`,
+      );
+
+      return mockReceipt;
+
+      /* Real implementation (uncomment when contract is ready):
+      const couponContractAddress = this.configService.get<string>(
+        'COUPON_NFT_CONTRACT_ADDRESS',
+      );
+
+      if (!couponContractAddress) {
+        throw new Error('COUPON_NFT_CONTRACT_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(this.privateKey, this.provider);
+
+      const couponABI = [
+        'function mint(address to, uint256 typeId, uint256 amount) external',
+      ];
+
+      const contract = new Contract(couponContractAddress, couponABI, signer);
+
+      const tx = await contract.mint(toAddress, typeId, amount);
+      const receipt = await tx.wait();
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+      */
+    } catch (error) {
+      console.error(`[Blockchain] Failed to mint coupon: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to mint coupon on blockchain: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Batch mint coupons (ERC-1155)
+   * @param recipients - Array of recipient addresses
+   * @param typeIds - Array of coupon type IDs
+   * @param amounts - Array of amounts to mint
+   * @returns Transaction receipt
+   */
+  async batchMintCoupons(
+    recipients: string[],
+    typeIds: string[],
+    amounts: number[],
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log(
+        `[Blockchain] Batch minting coupons (MOCK) - recipients: ${recipients.length}, typeIds: ${typeIds.length}, amounts: ${amounts.length}`,
+      );
+
+      if (
+        recipients.length !== typeIds.length ||
+        recipients.length !== amounts.length
+      ) {
+        throw new Error(
+          'Recipients, typeIds, and amounts arrays must have the same length',
+        );
+      }
+
+      // TODO: Replace with real smart contract integration
+      // Mock response matching the interface
+      const mockReceipt = {
+        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
+        blockNumber: Math.floor(Math.random() * 1000000),
+      };
+
+      console.log(
+        `[Blockchain] Batch mint successful (MOCK). Tx: ${mockReceipt.hash}, Minted ${recipients.length} coupons`,
+      );
+
+      return mockReceipt;
+
+      /* Real implementation (uncomment when contract is ready):
+      const couponContractAddress = this.configService.get<string>(
+        'COUPON_NFT_CONTRACT_ADDRESS',
+      );
+
+      if (!couponContractAddress) {
+        throw new Error('COUPON_NFT_CONTRACT_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(this.privateKey, this.provider);
+
+      const couponABI = [
+        'function batchMint(address[] calldata recipients, uint256[] calldata typeIds, uint256[] calldata amounts) external',
+      ];
+
+      const contract = new Contract(couponContractAddress, couponABI, signer);
+
+      const tx = await contract.batchMint(recipients, typeIds, amounts);
+      const receipt = await tx.wait();
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+      */
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to batch mint coupons: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to batch mint coupons on blockchain: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * List coupon on marketplace
+   * @param typeId - Coupon type ID
+   * @param amount - Amount to list
+   * @param pricePerUnit - Price per unit in payment token
+   * @param paymentToken - Payment token address (e.g., THB token)
+   * @returns listingId from marketplace
+   */
+  async listCoupon(
+    typeId: string,
+    amount: number,
+    pricePerUnit: number,
+    paymentToken: string,
+  ): Promise<{ listingId: string; hash: string; blockNumber: number }> {
+    try {
+      console.log(
+        `[Blockchain] Listing coupon (MOCK) - typeId: ${typeId}, amount: ${amount}, price: ${pricePerUnit}`,
+      );
+
+      // TODO: Replace with real smart contract integration
+      // Mock response matching the interface: returns uint256 listingId
+      const mockListingId = Math.floor(Math.random() * 1000000).toString();
+      const mockReceipt = {
+        listingId: mockListingId,
+        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
+        blockNumber: Math.floor(Math.random() * 1000000),
+      };
+
+      console.log(
+        `[Blockchain] Coupon listed successfully (MOCK). ListingId: ${mockListingId}, Tx: ${mockReceipt.hash}`,
+      );
+
+      return mockReceipt;
+
+      /* Real implementation (uncomment when contract is ready):
+      const marketplaceAddress = this.configService.get<string>(
+        'MARKETPLACE_CONTRACT_ADDRESS',
+      );
+
+      if (!marketplaceAddress) {
+        throw new Error('MARKETPLACE_CONTRACT_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(this.privateKey, this.provider);
+
+      const marketplaceABI = [
+        'function listCoupon(uint256 typeId, uint256 amount, uint256 pricePerUnit, address paymentToken) external returns (uint256)',
+        'event CouponListed(uint256 indexed listingId, address indexed seller, uint256 typeId, uint256 amount, uint256 pricePerUnit)',
+      ];
+
+      const contract = new Contract(marketplaceAddress, marketplaceABI, signer);
+
+      const tx = await contract.listCoupon(
+        typeId,
+        amount,
+        pricePerUnit,
+        paymentToken,
+      );
+      const receipt = await tx.wait();
+
+      // Extract listingId from CouponListed event
+      const event = receipt.logs.find((log: any) => {
+        try {
+          const parsedLog = contract.interface.parseLog(log);
+          return parsedLog?.name === 'CouponListed';
+        } catch {
+          return false;
+        }
+      });
+
+      let listingId = null;
+      if (event) {
+        const parsedLog = contract.interface.parseLog(event);
+        listingId = parsedLog?.args?.listingId?.toString();
+      }
+
+      return {
+        listingId,
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+      */
+    } catch (error) {
+      console.error(`[Blockchain] Failed to list coupon: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to list coupon on marketplace: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Buy coupon from marketplace using listingId
+   * @param listingId - Listing ID from marketplace
+   * @param amount - Amount to buy
+   * @param buyerPrivateKey - Buyer's private key for signing
+   * @param treasuryAddress - Treasury address to receive points (optional)
+   * @returns Transaction receipt
+   */
+  async buyCoupon(
+    listingId: string,
+    amount: number,
+    treasuryAddress?: string,
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log(
+        `[Blockchain] Buying coupon (MOCK) - listingId: ${listingId}, amount: ${amount}, treasury: ${treasuryAddress || 'N/A'}`,
+      );
+
+      // TODO: Replace with real smart contract integration
+      // Mock response matching the interface
+      const mockReceipt = {
+        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
+        blockNumber: Math.floor(Math.random() * 1000000),
+      };
+
+      console.log(
+        `[Blockchain] Coupon purchased successfully (MOCK). Tx: ${mockReceipt.hash}`,
+      );
+
+      return mockReceipt;
+
+      /* Real implementation (uncomment when contract is ready):
+      const marketplaceAddress = this.configService.get<string>(
+        'MARKETPLACE_CONTRACT_ADDRESS',
+      );
+      const thbTokenAddress =
+        this.configService.get<string>('THB_TOKEN_ADDRESS');
+
+      if (!marketplaceAddress) {
+        throw new Error('MARKETPLACE_CONTRACT_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(buyerPrivateKey, this.provider);
+
+      const marketplaceABI = [
+        'function buyCoupon(uint256 listingId, uint256 amount) external',
+        'function buyCouponWithToken(uint256 listingId, uint256 amount) external',
+      ];
+
+      const contract = new Contract(marketplaceAddress, marketplaceABI, signer);
+
+      // If treasury address is provided, transfer points there first
+      if (treasuryAddress && thbTokenAddress) {
+        console.log(
+          `[Blockchain] Points will be transferred to treasury: ${treasuryAddress}`,
+        );
+        // Treasury transfer will be handled by the smart contract
+      }
+
+      // Use buyCouponWithToken which handles ERC-20 payment
+      const tx = await contract.buyCouponWithToken(listingId, amount);
+      const receipt = await tx.wait();
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+      */
+    } catch (error) {
+      console.error(`[Blockchain] Failed to buy coupon: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to buy coupon from marketplace: ${error.message}`,
       );
     }
   }

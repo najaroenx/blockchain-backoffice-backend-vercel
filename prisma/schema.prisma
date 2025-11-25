@@ -187,6 +187,7 @@ enum VoucherValueType {
   cash
   gift
   multiplier
+  aispoint
 }
 
 model Voucher {
@@ -197,7 +198,8 @@ model Voucher {
   merchantName   String
   merchantId     String?
   merchant       Merchant?        @relation(fields: [merchantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  tokenId        String?          @unique // ← ERC-1155 Token ID on blockchain
+  merchantRef    String? // ← Reference ID from merchant system for verification
+  tokenId        String?          @unique // ← ERC-1155 Coupon Type ID from smart contract createCouponType()
   valueType      VoucherValueType
   value          Float
   currency       String?
@@ -217,7 +219,7 @@ model VoucherCode {
   code           String        @unique // ← Code ที่ไม่ซ้ำกัน
   voucherId      String
   voucher        Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
-  voucherGroupId String? // ← Group ID สำหรับจัดกลุ่ม codes
+  voucherGroupId String? // ← Marketplace listing ID from listCoupon() - each activation batch has unique listingId
   pointsCost     Int // ← ราคาเป็น points
   pointId        String? // ← Point currency ที่ใช้ซื้อ (FK to Point)
   point          Point?        @relation(fields: [pointId], references: [id], onDelete: SetNull)
@@ -235,6 +237,14 @@ model VoucherCode {
   @@index([voucherGroupId])
   @@index([currentOwnerId, isUsed])
   @@index([pointId])
+}
+
+model Treasury {
+  id            String   @id @default(cuid())
+  walletAddress String   @unique
+  type          String   @unique // "burner", "reserve", "treasury"
+  createdAt     DateTime @default(now()) @map(name: "created_at")
+  updatedAt     DateTime @updatedAt @map(name: "updated_at")
 }
 
 model TempLinkCreateUser {

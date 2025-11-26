@@ -14,7 +14,16 @@ export class CreatePointDto {
   decimal: number;
 
   @IsNumber()
-  frameSize: number;
+  @IsOptional()
+  startDate?: number; // Unix timestamp วันเริ่มต้น (optional)
+
+  @IsNumber()
+  @IsOptional()
+  endDate?: number; // Unix timestamp วันหมดอายุ - กำหนดวันเอง
+
+  @IsNumber()
+  @IsOptional()
+  expiryMonths?: number; // จำนวนเดือน (3, 6, 9, 12, 24) - เลือกระยะเวลา
 
   @IsString()
   @IsOptional()
@@ -46,11 +55,19 @@ export class RedeemPointBodyDto {
 export class UpdatePointDto {
   @IsNumber()
   @IsOptional()
-  frameSize?: number;
+  startDate?: number; // Unix timestamp วันเริ่มต้น
 
   @IsNumber()
   @IsOptional()
-  slotSize?: number;
+  endDate?: number; // Unix timestamp วันหมดอายุ
+
+  @IsNumber()
+  @IsOptional()
+  expiryMonths?: number; // จำนวนเดือน (3, 6, 9, 12, 24)
+
+  @IsString()
+  @IsOptional()
+  imageUrl?: string; // URL รูปภาพ
 
   @IsString()
   @IsOptional()

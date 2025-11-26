@@ -127,11 +127,20 @@ export class CreateTransactionB2C {
       let merchantPrivateKey: string;
       try {
         const salt = this.configService.get<string>('SALT');
+
+        // Detailed SALT checking
+        this.logger.log(`[CreateTransactionB2C] SALT exists: ${!!salt}`);
         this.logger.log(
-          `[CreateTransactionB2C] Salt retrieved: ${salt ? 'Yes' : 'No'}`,
+          `[CreateTransactionB2C] SALT length: ${salt?.length || 0}`,
+        );
+        this.logger.log(
+          `[CreateTransactionB2C] SALT (first 10 chars): ${salt?.substring(0, 10)}...`,
         );
         this.logger.log(
           `[CreateTransactionB2C] Encrypted key length: ${merchantEncryptedPrivateKey?.length || 0}`,
+        );
+        this.logger.log(
+          `[CreateTransactionB2C] Full encrypted key: ${merchantEncryptedPrivateKey}`,
         );
 
         merchantPrivateKey = this.tokenService.decryptKey(
@@ -139,12 +148,83 @@ export class CreateTransactionB2C {
           merchantEncryptedPrivateKey,
         );
 
+        // Detailed decryption result checking
         this.logger.log(
-          `[CreateTransactionB2C] Merchant private key decrypted successfully`,
+          `[CreateTransactionB2C] Decryption result type: ${typeof merchantPrivateKey}`,
+        );
+        this.logger.log(
+          `[CreateTransactionB2C] Decryption result: "${merchantPrivateKey}"`,
+        );
+        this.logger.log(
+          `[CreateTransactionB2C] Is null: ${merchantPrivateKey === null}`,
+        );
+        this.logger.log(
+          `[CreateTransactionB2C] Is undefined: ${merchantPrivateKey === undefined}`,
+        );
+        this.logger.log(
+          `[CreateTransactionB2C] Is empty string: ${merchantPrivateKey === ''}`,
         );
         this.logger.log(
           `[CreateTransactionB2C] Decrypted key length: ${merchantPrivateKey?.length || 0}`,
         );
+
+        // Validate decryption result
+        if (!merchantPrivateKey || merchantPrivateKey.length === 0) {
+          this.logger.error(
+            `[CreateTransactionB2C] Decryption returned empty value!`,
+          );
+          this.logger.error(
+            `[CreateTransactionB2C] This means either: 1) SALT is wrong, 2) Encrypted key is corrupted, 3) Wallet was never properly encrypted`,
+          );
+          throw new Error('Decryption returned empty value');
+        }
+
+        this.logger.log(
+          `[CreateTransactionB2C] Merchant private key decrypted successfully`,
+        );
+        this.logger.log(
+          `[CreateTransactionB2C] Decrypted private key (first 10 chars): ${merchantPrivateKey?.substring(0, 10)}...`,
+        );
+
+        // Verify that private key matches merchant wallet address
+        this.logger.log(
+          `[CreateTransactionB2C] Verifying private key matches merchant wallet...`,
+        );
+        try {
+          const { Wallet } = await import('ethers');
+          const verifyWallet = new Wallet(merchantPrivateKey);
+          const derivedAddress = verifyWallet.address;
+
+          this.logger.log(
+            `[CreateTransactionB2C] Address derived from private key: ${derivedAddress}`,
+          );
+          this.logger.log(
+            `[CreateTransactionB2C] Merchant wallet address from DB: ${merchantWalletAddress}`,
+          );
+
+          if (
+            derivedAddress.toLowerCase() !== merchantWalletAddress.toLowerCase()
+          ) {
+            this.logger.error(
+              `[CreateTransactionB2C] ❌ Private key doesn't match merchant wallet!`,
+            );
+            this.logger.error(
+              `[CreateTransactionB2C] This merchant wallet was encrypted with wrong private key`,
+            );
+            throw new Error(
+              'Private key verification failed - address mismatch',
+            );
+          }
+
+          this.logger.log(
+            `[CreateTransactionB2C] ✅ Private key verified - matches merchant wallet address`,
+          );
+        } catch (verifyError) {
+          this.logger.error(
+            `[CreateTransactionB2C] Private key verification failed: ${verifyError.message}`,
+          );
+          throw verifyError;
+        }
       } catch (error) {
         this.logger.error(
           `[CreateTransactionB2C] Failed to decrypt merchant private key: ${error.message}`,
@@ -156,8 +236,17 @@ export class CreateTransactionB2C {
         this.logger.error(
           `[CreateTransactionB2C] Encrypted key (first 20 chars): ${merchantEncryptedPrivateKey?.substring(0, 20)}...`,
         );
+
+        // REMOVED FALLBACK: Merchant must use their own wallet, no backend wallet fallback
+        // This ensures proper merchant wallet configuration and SALT environment setup
+        this.logger.error(
+          `[CreateTransactionB2C] ❌ Cannot proceed with transaction - merchant wallet decryption failed`,
+        );
+        this.logger.error(
+          `[CreateTransactionB2C] Please verify: 1) SALT is correctly loaded (should be 28 chars), 2) Merchant wallet was encrypted properly`,
+        );
         throw new InternalServerErrorException(
-          'Failed to decrypt merchant wallet credentials',
+          'Failed to decrypt merchant wallet credentials. Please check SALT configuration.',
         );
       }
 
@@ -206,6 +295,22 @@ export class CreateTransactionB2C {
         );
       }
 
+      // Log transaction input parameters
+      this.logger.log(`[CreateTransactionB2C] Transaction input parameters:`);
+      this.logger.log(`[CreateTransactionB2C] - amount: ${data.amount}`);
+      this.logger.log(
+        `[CreateTransactionB2C] - to: ${(customer as any).wallet?.walletAddress || ''}`,
+      );
+      this.logger.log(
+        `[CreateTransactionB2C] - pointAddress: ${point.contractAddress}`,
+      );
+      this.logger.log(
+        `[CreateTransactionB2C] - senderPrivateKey length: ${merchantPrivateKey?.length || 0}`,
+      );
+      this.logger.log(
+        `[CreateTransactionB2C] - senderPrivateKey (first 10 chars): ${merchantPrivateKey?.substring(0, 10)}...`,
+      );
+
       const { txId } = await this.blockchainService.transaction({
         amount: data.amount,
         to: (customer as any).wallet?.walletAddress || '',
@@ -232,7 +337,7 @@ export class CreateTransactionB2C {
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
         receiver: { connect: { id: customer.id } },
-        transactionType: { connect: { id: TransactionTypeId.EARN } },
+        transactionType: { connect: { id: TransactionTypeId.TRANSFER } },
         txHash: new Uint8Array(createBufferFromHex(txId)),
       });
 

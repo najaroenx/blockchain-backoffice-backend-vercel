@@ -21,9 +21,10 @@ model Point {
   contractAddress Bytes
   initialSupply   Int
   decimal         Int
-  frameSize       Int
+  startDate       DateTime?       // วันเริ่มต้น (optional)
+  endDate         DateTime        // วันหมดอายุ (required)
+  epochDuration   Int             @default(259200) // ระยะเวลา 1 epoch (seconds) - default 3 วัน, แต่ configurable
   imageUrl        String?
-  slotSize        Int?
   createdAt       DateTime        @default(now()) @map(name: "created_at")
   updatedAt       DateTime        @updatedAt @map(name: "updated_at")
   merchant        Merchant?       @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)

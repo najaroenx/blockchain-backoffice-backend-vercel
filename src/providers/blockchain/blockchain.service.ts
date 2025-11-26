@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { createPoint } from './types';
-import * as PointFactoryABI from './abis/PointFactoryABI.json';
-import * as PointERC20ABI from './abis/PointTokenABI.json';
+import * as PointFactoryArtifact from './abis/PointTokenFactory.json';
+import * as PointTokenArtifact from './abis/PointToken.json';
+import * as MarketplaceArtifact from './abis/Marketplace.json';
+import * as THBArtifact from './abis/THB.json';
+import * as CouponArtifact from './abis/Coupon.json';
 
 import { Contract, JsonRpcProvider, Wallet, ethers } from 'ethers';
 import { ConfigService } from '@nestjs/config';
@@ -21,6 +24,12 @@ export class BlockchainService {
 
   private readonly DEFAULT_BLOCK_TIME = 12;
 
+  private marketplaceAddress: string;
+
+  private thbAddress: string;
+
+  private couponAddress: string;
+
   constructor(private configService: ConfigService) {
     this.pointFactoryAddress = this.configService.get<string>(
       'POINT_FACTORY_ADDRESS',
@@ -29,6 +38,11 @@ export class BlockchainService {
     this.provider = new JsonRpcProvider(
       this.configService.get<string>('RPC_URL'),
     );
+    this.marketplaceAddress = this.configService.get<string>(
+      'Marketplace_ADDRESS',
+    );
+    this.thbAddress = this.configService.get<string>('THB_ADDRESS');
+    this.couponAddress = this.configService.get<string>('Coupon_ADDRESS');
   }
 
   async createNewPointToken({
@@ -36,42 +50,182 @@ export class BlockchainService {
     name,
     symbol,
     decimal,
-    frameSize,
+    startDate,
+    endDate,
+    expiryMonths,
     ownerAddress,
   }: createPoint) {
+    console.log('[BlockchainService] ========================================');
     console.log(
       '[BlockchainService] Creating new point token on blockchain...',
     );
+    console.log('[BlockchainService] INPUT PARAMETERS:');
+    console.log('[BlockchainService] - name:', name);
+    console.log('[BlockchainService] - symbol:', symbol);
+    console.log('[BlockchainService] - initialSupply:', initialSupply);
+    console.log('[BlockchainService] - decimal:', decimal);
+    console.log('[BlockchainService] - startDate:', startDate);
+    console.log('[BlockchainService] - endDate:', endDate);
+    console.log('[BlockchainService] - expiryMonths:', expiryMonths);
+    console.log('[BlockchainService] - ownerAddress:', ownerAddress);
     console.log(
       '[BlockchainService] Factory address:',
       this.pointFactoryAddress,
     );
-    console.log('[BlockchainService] Owner (merchant) address:', ownerAddress);
-    console.log('[BlockchainService] Initial supply:', initialSupply);
 
     const signer = new Wallet(this.privateKey, this.provider);
 
     const contract = new Contract(
       this.pointFactoryAddress,
-      PointFactoryABI,
+      PointFactoryArtifact.abi,
       signer,
     );
 
     const contractWithSigner = contract.connect(signer) as any;
 
-    const blockTime = await this.resolveBlockTime();
+    // คำนวณ finalExpiryTimestamp ตามลำดับความสำคัญ:
+    // 1. ถ้ามี endDate ใช้ endDate (กำหนดวันเอง)
+    // 2. ถ้าไม่มี endDate แต่มี expiryMonths ใช้ expiryMonths (เลือกระยะเวลา)
+    // 3. ถ้าไม่มีทั้งสอง error
+    let finalExpiryTimestamp: number;
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const effectiveStartDate = startDate || currentTimestamp;
+
+    if (endDate) {
+      // กรณีที่ 1: กำหนดวันเอง
+      finalExpiryTimestamp = endDate;
+
+      // Validate: endDate ต้องมากกว่า startDate
+      if (startDate && endDate <= startDate) {
+        throw new Error('endDate must be greater than startDate');
+      }
+
+      // Validate: endDate ต้องอยู่ในอนาคต
+      if (endDate <= currentTimestamp) {
+        throw new Error('endDate must be in the future');
+      }
+
+      console.log('[BlockchainService] Using custom date range');
+      if (startDate) {
+        console.log('[BlockchainService] Start date:', startDate);
+      }
+      console.log('[BlockchainService] End date:', endDate);
+    } else if (expiryMonths) {
+      // กรณีที่ 2: เลือกระยะเวลา
+      const validMonths = [3, 6, 9, 12, 24];
+      if (!validMonths.includes(expiryMonths)) {
+        throw new Error(
+          `Invalid expiryMonths. Must be one of: ${validMonths.join(', ')}`,
+        );
+      }
+
+      // คำนวณ timestamp จากจำนวนเดือน (1 เดือน = ~30.44 วัน)
+      const secondsPerMonth = 30.44 * 24 * 60 * 60; // ~2,629,743 seconds
+      finalExpiryTimestamp =
+        effectiveStartDate + Math.floor(expiryMonths * secondsPerMonth);
+
+      console.log('[BlockchainService] Using predefined duration');
+      console.log('[BlockchainService] Expiry months:', expiryMonths, 'months');
+      if (startDate) {
+        console.log('[BlockchainService] Start date:', startDate);
+      }
+      console.log(
+        '[BlockchainService] Calculated end date:',
+        finalExpiryTimestamp,
+      );
+    } else {
+      // กรณีที่ 3: ไม่มีทั้งสอง
+      throw new Error('Either endDate or expiryMonths must be provided');
+    }
+
+    // คำนวณ epochDuration ที่เหมาะสมตามระยะเวลา
+    const remainingTime = finalExpiryTimestamp - currentTimestamp;
+    const daysRemaining = remainingTime / 86400;
+
+    let epochDuration: number;
+    if (daysRemaining <= 1) {
+      // <= 1 วัน: ใช้ 1 ชั่วโมง (3600 seconds)
+      epochDuration = 3600;
+    } else if (daysRemaining <= 7) {
+      // 1-7 วัน: ใช้ 12 ชั่วโมง (43200 seconds)
+      epochDuration = 43200;
+    } else if (daysRemaining <= 30) {
+      // 7-30 วัน: ใช้ 1 วัน (86400 seconds)
+      epochDuration = 86400;
+    } else if (daysRemaining <= 90) {
+      // 1-3 เดือน: ใช้ 3 วัน (259200 seconds)
+      epochDuration = 259200;
+    } else {
+      // > 3 เดือน: ใช้ 7 วัน (604800 seconds)
+      epochDuration = 604800;
+    }
+
+    // คำนวณ windowSize จาก epochDuration
+    const windowSize = Math.ceil(remainingTime / epochDuration);
+
+    // Validate contract parameter limits
+    // uint40 max = 1,099,511,627,775 (more than enough for epoch duration)
+    // uint8 max = 255
+    if (windowSize > 255) {
+      throw new Error(
+        `Window size ${windowSize} exceeds uint8 maximum (255). Please use shorter epoch duration or expiry period.`,
+      );
+    }
+
+    console.log('[BlockchainService] CALCULATED VALUES:');
+    console.log('[BlockchainService] - Current timestamp:', currentTimestamp);
+    console.log(
+      '[BlockchainService] - Effective start date:',
+      effectiveStartDate,
+    );
+    console.log(
+      '[BlockchainService] - Final expiry timestamp:',
+      finalExpiryTimestamp,
+    );
+    console.log(
+      '[BlockchainService] - Remaining time:',
+      remainingTime,
+      'seconds (~',
+      Math.floor(daysRemaining),
+      'days)',
+    );
+    console.log(
+      '[BlockchainService] - Epoch duration:',
+      epochDuration,
+      'seconds (~',
+      Math.floor(epochDuration / 3600),
+      'hours)',
+    );
+    console.log('[BlockchainService] - Window size:', windowSize, 'epochs');
 
     const initialSupplyWeiFormat = ethers.parseEther(initialSupply.toString());
 
+    // Convert to BigInt for uint40 and uint8
+    const epochDurationBigInt = BigInt(epochDuration);
+    const windowSizeBigInt = BigInt(windowSize);
+
+    console.log('[BlockchainService] CONTRACT CALL PARAMETERS:');
+    console.log('[BlockchainService] - name:', name);
+    console.log('[BlockchainService] - symbol:', symbol);
+    console.log(
+      '[BlockchainService] - epochDuration (BigInt):',
+      epochDurationBigInt.toString(),
+    );
+    console.log(
+      '[BlockchainService] - windowSize (BigInt):',
+      windowSizeBigInt.toString(),
+    );
+    console.log(
+      '[BlockchainService] - initialSupply (Wei):',
+      initialSupplyWeiFormat.toString(),
+    );
+
     // Preview the contract address that will be created
-    const result = await contract['createNewPointContract'].staticCallResult(
-      initialSupplyWeiFormat,
-      ownerAddress,
+    const result = await contract['deployPointToken'].staticCallResult(
       name,
       symbol,
-      // decimal,
-      blockTime,
-      frameSize,
+      epochDurationBigInt,
+      windowSizeBigInt,
     );
 
     const pointAddress = result[0];
@@ -80,25 +234,63 @@ export class BlockchainService {
       pointAddress,
     );
 
-    // Create the point contract with merchant as owner
-    console.log(
-      '[BlockchainService] Minting initial supply to merchant wallet...',
-    );
-    const tx = await contractWithSigner['createNewPointContract'](
-      initialSupplyWeiFormat,
-      ownerAddress,
+    // Deploy the point contract
+    console.log('[BlockchainService] Deploying point token contract...');
+    const tx = await contractWithSigner['deployPointToken'](
       name,
       symbol,
-      // decimal,
-      blockTime,
-      frameSize,
+      epochDurationBigInt,
+      windowSizeBigInt,
+      {
+        gasLimit: 15000000, // 15M gas limit
+      },
     );
 
     await tx.wait();
 
+    console.log(
+      '[BlockchainService] Point token deployed successfully at:',
+      pointAddress,
+    );
+
+    // Mint initial supply to owner (after deployment)
+    console.log(
+      '[BlockchainService] Minting initial supply to merchant wallet...',
+    );
+
+    const pointContract = new Contract(
+      pointAddress,
+      PointTokenArtifact.abi,
+      signer,
+    );
+
+    const pointContractWithSigner = pointContract.connect(signer) as any;
+    const mintTx = await pointContractWithSigner['mint'](
+      ownerAddress,
+      initialSupplyWeiFormat,
+      {
+        gasLimit: 15000000, // 15M gas limit
+      },
+    );
+
+    await mintTx.wait();
+
+    console.log(
+      '[BlockchainService] Initial supply',
+      initialSupply,
+      'minted to:',
+      ownerAddress,
+    );
+
     const pointBuffer = createBufferFromHex(pointAddress);
 
-    return pointBuffer;
+    // Return deployment details including calculated values
+    return {
+      contractAddress: pointBuffer,
+      startDate: effectiveStartDate,
+      endDate: finalExpiryTimestamp,
+      epochDuration: epochDuration,
+    };
   }
 
   private async resolveBlockTime(): Promise<number> {
@@ -149,7 +341,11 @@ export class BlockchainService {
       const signer = new Wallet(privateKeyToUse, this.provider);
       console.log('[BlockchainService] Signer address:', signer.address);
 
-      const contract = new Contract(pointAddress, PointERC20ABI, signer);
+      const contract = new Contract(
+        pointAddress,
+        PointTokenArtifact.abi,
+        signer,
+      );
 
       // Check sender balance before transfer
       console.log('[BlockchainService] Checking sender balance...');
@@ -200,14 +396,32 @@ export class BlockchainService {
       console.error('[BlockchainService] Transaction failed:');
       console.error('[BlockchainService] Error message:', error.message);
       console.error('[BlockchainService] Error code:', error.code);
+      console.error('[BlockchainService] Error reason:', error.reason);
+      console.error('[BlockchainService] Error info:', error.info);
+      console.error('[BlockchainService] Error data:', error.data);
+      console.error('[BlockchainService] Error stack:', error.stack);
       console.error(
-        '[BlockchainService] Error details:',
-        JSON.stringify(error, null, 2),
+        '[BlockchainService] Error shortMessage:',
+        error.shortMessage,
       );
       console.error('[BlockchainService] Point address:', pointAddress);
       console.error('[BlockchainService] Recipient:', to);
       console.error('[BlockchainService] Amount:', amount);
-      throw new InternalServerErrorException(RPC_SERVER_ERROR);
+
+      // Re-throw with more specific error message if available
+      if (error.reason) {
+        throw new InternalServerErrorException(
+          `Blockchain error: ${error.reason}`,
+        );
+      }
+      if (error.shortMessage) {
+        throw new InternalServerErrorException(
+          `Blockchain error: ${error.shortMessage}`,
+        );
+      }
+      throw new InternalServerErrorException(
+        `${RPC_SERVER_ERROR}: ${error.message}`,
+      );
     }
   }
 
@@ -219,7 +433,11 @@ export class BlockchainService {
     try {
       const signer = new Wallet(this.privateKey, this.provider);
 
-      const contract = new Contract(pointAddress, PointERC20ABI, signer);
+      const contract = new Contract(
+        pointAddress,
+        PointTokenArtifact.abi,
+        signer,
+      );
 
       const contractWithSigner = contract.connect(signer) as any;
 
@@ -244,7 +462,11 @@ export class BlockchainService {
   }: Omit<transactionC2C, 'to'>): Promise<{ txId: string }> {
     try {
       const signer = new Wallet(senderPrivateKey, this.provider);
-      const contract = new Contract(pointAddress, PointERC20ABI, signer);
+      const contract = new Contract(
+        pointAddress,
+        PointTokenArtifact.abi,
+        signer,
+      );
       const contractWithSigner = contract.connect(signer) as any;
       const amountWeiFormat = ethers.parseEther(amount.toString());
 
@@ -272,7 +494,11 @@ export class BlockchainService {
     pointAddress: string;
   }): Promise<string> {
     try {
-      const contract = new Contract(pointAddress, PointERC20ABI, this.provider);
+      const contract = new Contract(
+        pointAddress,
+        PointTokenArtifact.abi,
+        this.provider,
+      );
       const balance = await contract['balanceOf'](walletAddress);
       // Convert from Wei to Ether format
       return ethers.formatEther(balance);
@@ -291,7 +517,11 @@ export class BlockchainService {
     try {
       const signer = new Wallet(senderPrivateKey, this.provider);
 
-      const contract = new Contract(pointAddress, PointERC20ABI, signer);
+      const contract = new Contract(
+        pointAddress,
+        PointTokenArtifact.abi,
+        signer,
+      );
 
       const contractWithSigner = contract.connect(signer) as any;
 
@@ -310,7 +540,8 @@ export class BlockchainService {
   }
 
   /**
-   * Buy voucher from marketplace (ERC-1155)
+   * @deprecated This method is deprecated. Use buyCoupon() with proper listingId instead.
+   * Buy voucher from marketplace (ERC-1155) - DEPRECATED
    * @param tokenId - The ERC-1155 token ID to buy
    * @param buyerAddress - Address of the buyer
    * @param priceInPoints - Price in points (THB token)
@@ -324,107 +555,18 @@ export class BlockchainService {
     amount: number = 1,
     treasuryAddress?: string,
   ) {
-    try {
-      console.log(
-        `[Blockchain] Buying ${amount}x voucher from marketplace. TokenId: ${tokenId}, Buyer: ${buyerAddress}, Price: ${priceInPoints}, Treasury: ${treasuryAddress || 'N/A'}`,
-      );
+    console.error(
+      `[Blockchain] DEPRECATED: buyVoucherFromMarketplace called. This method requires proper listingId setup.`,
+    );
+    console.error(
+      `TokenId: ${tokenId}, Buyer: ${buyerAddress}, Price: ${priceInPoints}, Amount: ${amount}`,
+    );
 
-      // TODO: Implement real smart contract integration
-      // For now, return mock response
-      const mockReceipt = {
-        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        blockNumber: Math.floor(Math.random() * 1000000),
-        status: 1, // success
-        transactionIndex: 0,
-        gasUsed: BigInt(150000), // Higher gas for marketplace transaction
-        effectiveGasPrice: BigInt(1000000000),
-        tokenId, // Return tokenId for reference
-        amount, // Return amount purchased
-      };
-
-      console.log(
-        `[Blockchain] Voucher purchased from marketplace successfully (MOCK). Tx: ${mockReceipt.hash}, TokenId: ${tokenId}, Amount: ${amount}`,
-      );
-
-      return {
-        hash: mockReceipt.hash,
-        blockNumber: mockReceipt.blockNumber,
-        status: mockReceipt.status,
-        tokenId: mockReceipt.tokenId,
-        amount: mockReceipt.amount,
-      };
-
-      /* Real implementation (uncomment when contracts are ready):
-      
-      const marketplaceAddress = this.configService.get<string>('MARKETPLACE_CONTRACT_ADDRESS');
-      const thbTokenAddress = this.configService.get<string>('THB_TOKEN_ADDRESS');
-      
-      if (!marketplaceAddress || !thbTokenAddress) {
-        throw new Error('MARKETPLACE_CONTRACT_ADDRESS or THB_TOKEN_ADDRESS not configured');
-      }
-
-      const signer = new Wallet(this.privateKey, this.provider);
-
-      // Marketplace ABI
-      const marketplaceABI = [
-        'function buyVoucher(uint256 tokenId) external',
-        'function getListing(uint256 tokenId) external view returns (address seller, uint256 price, bool active, uint256 listedAt)',
-      ];
-
-      // THB Token ABI (ERC20)
-      const thbTokenABI = [
-        'function approve(address spender, uint256 amount) external returns (bool)',
-        'function allowance(address owner, address spender) external view returns (uint256)',
-        'function balanceOf(address account) external view returns (uint256)',
-      ];
-
-      const marketplaceContract = new Contract(marketplaceAddress, marketplaceABI, signer);
-      const thbContract = new Contract(thbTokenAddress, thbTokenABI, signer);
-
-      // Step 1: Get listing details to verify price
-      const listing = await marketplaceContract.getListing(tokenId);
-      
-      if (!listing.active) {
-        throw new Error('Voucher is not listed for sale');
-      }
-
-      // Step 2: Check buyer's THB balance
-      const balance = await thbContract.balanceOf(buyerAddress);
-      if (balance < listing.price) {
-        throw new Error('Insufficient THB token balance');
-      }
-
-      // Step 3: Approve THB token spending (if needed)
-      const currentAllowance = await thbContract.allowance(buyerAddress, marketplaceAddress);
-      
-      if (currentAllowance < listing.price) {
-        console.log('[Blockchain] Approving THB token spending...');
-        const approveTx = await thbContract.approve(marketplaceAddress, listing.price);
-        await approveTx.wait();
-        console.log('[Blockchain] THB token approved');
-      }
-
-      // Step 4: Buy voucher from marketplace
-      console.log('[Blockchain] Calling buyVoucher on marketplace...');
-      const tx = await marketplaceContract.buyVoucher(tokenId);
-      const receipt = await tx.wait();
-
-      console.log('[Blockchain] Voucher purchased successfully');
-
-      return {
-        hash: receipt.hash,
-        blockNumber: receipt.blockNumber,
-        status: receipt.status,
-      };
-      */
-    } catch (error) {
-      console.error(
-        `[Blockchain] Failed to buy voucher from marketplace: ${error.message}`,
-      );
-      throw new InternalServerErrorException(
-        `Failed to buy voucher from marketplace: ${error.message}`,
-      );
-    }
+    throw new InternalServerErrorException(
+      'This voucher code is not properly configured for marketplace. ' +
+        'Please ensure voucherGroupId (listingId) is set. ' +
+        'Contact administrator to migrate to new marketplace system.',
+    );
   }
 
   /**
@@ -439,15 +581,24 @@ export class BlockchainService {
         `[Blockchain] Getting voucher balance for tokenId: ${tokenId}, address: ${address}`,
       );
 
-      // TODO: Implement real ERC-1155 balanceOf call
-      // For now, return mock balance
-      const mockBalance = 0; // Mock: no balance in development
+      if (!this.couponAddress) {
+        throw new Error('Coupon_ADDRESS not configured');
+      }
 
-      console.log(
-        `[Blockchain] Balance (MOCK): ${mockBalance} for tokenId ${tokenId}`,
+      const contract = new Contract(
+        this.couponAddress,
+        CouponArtifact.abi,
+        this.provider,
       );
 
-      return mockBalance;
+      const balance = await contract.balanceOf(address, tokenId);
+      const balanceNumber = Number(balance);
+
+      console.log(
+        `[Blockchain] Balance: ${balanceNumber} for tokenId ${tokenId}`,
+      );
+
+      return balanceNumber;
 
       /* Real implementation (uncomment when contract is ready):
       const voucherNFTAddress = this.configService.get<string>('VOUCHER_NFT_CONTRACT_ADDRESS');
@@ -511,58 +662,32 @@ export class BlockchainService {
         `[Blockchain] Redeeming coupon typeId: ${typeId}, amount: ${amount}, owner: ${ownerAddress}`,
       );
 
-      // TODO: Implement real smart contract integration
-      // For now, return mock response
-      const mockReceipt = {
-        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        blockNumber: Math.floor(Math.random() * 1000000),
-        status: 1, // success
-        transactionIndex: 0,
-        gasUsed: BigInt(21000),
-        effectiveGasPrice: BigInt(1000000000),
-      };
-
-      console.log(
-        `[Blockchain] Coupon redeemed successfully (MOCK). Tx: ${mockReceipt.hash}`,
-      );
-
-      return {
-        hash: mockReceipt.hash,
-        blockNumber: mockReceipt.blockNumber,
-        status: mockReceipt.status,
-      };
-
-      /* Real implementation (uncomment when contract is ready):
-      const couponContractAddress =
-        this.configService.get<string>('COUPON_NFT_CONTRACT_ADDRESS');
-
-      if (!couponContractAddress) {
-        throw new Error('COUPON_NFT_CONTRACT_ADDRESS not configured');
+      if (!this.couponAddress) {
+        throw new Error('Coupon_ADDRESS not configured');
       }
 
       const signer = new Wallet(this.privateKey, this.provider);
-
-      const couponABI = [
-        'function redeem(uint256 typeId, uint256 amount) external',
-        'function redeemFrom(address from, uint256 typeId, uint256 amount) external',
-      ];
-
       const contract = new Contract(
-        couponContractAddress,
-        couponABI,
+        this.couponAddress,
+        CouponArtifact.abi,
         signer,
       );
 
       // Use redeem (burns from caller) or redeemFrom (burns from specified address)
-      const tx = await contract.redeem(typeId, amount);
+      const tx = await contract.redeem(typeId, amount, {
+        gasLimit: 15000000,
+      });
       const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] Coupon redeemed successfully. Tx: ${receipt.hash}`,
+      );
 
       return {
         hash: receipt.hash,
         blockNumber: receipt.blockNumber,
         status: receipt.status,
       };
-      */
     } catch (error) {
       console.error(`[Blockchain] Failed to redeem coupon: ${error.message}`);
       throw new InternalServerErrorException(
@@ -740,49 +865,25 @@ export class BlockchainService {
     startDate: number,
     expireDate: number,
   ): Promise<{ typeId: string; hash: string; blockNumber: number }> {
-    // MOCK IMPLEMENTATION - Returns UUID as typeId
-    console.log(
-      `[Blockchain] (MOCK) Creating coupon type: ${name}, start: ${startDate}, expire: ${expireDate}`,
-    );
-
-    const mockTypeId = randomUUID();
-    const mockHash = `0x${Math.random().toString(16).substring(2)}${Math.random().toString(16).substring(2)}`;
-    const mockBlockNumber = Math.floor(Math.random() * 1000000);
-
-    console.log(
-      `[Blockchain] (MOCK) Coupon type created successfully. TypeId: ${mockTypeId}, Tx: ${mockHash}`,
-    );
-
-    return {
-      typeId: mockTypeId,
-      hash: mockHash,
-      blockNumber: mockBlockNumber,
-    };
-
-    /* REAL IMPLEMENTATION - Uncomment when smart contract is ready
     try {
       console.log(
         `[Blockchain] Creating coupon type: ${name}, start: ${startDate}, expire: ${expireDate}`,
       );
 
-      const couponContractAddress = this.configService.get<string>(
-        'COUPON_NFT_CONTRACT_ADDRESS',
-      );
-
-      if (!couponContractAddress) {
-        throw new Error('COUPON_NFT_CONTRACT_ADDRESS not configured');
+      if (!this.couponAddress) {
+        throw new Error('Coupon_ADDRESS not configured');
       }
 
       const signer = new Wallet(this.privateKey, this.provider);
+      const contract = new Contract(
+        this.couponAddress,
+        CouponArtifact.abi,
+        signer,
+      );
 
-      const couponABI = [
-        'function createCouponType(string memory name, uint256 startDate, uint256 expireDate) external returns (uint256)',
-        'event CouponTypeCreated(uint256 indexed typeId, string name, uint256 startDate, uint256 expireDate)',
-      ];
-
-      const contract = new Contract(couponContractAddress, couponABI, signer);
-
-      const tx = await contract.createCouponType(name, startDate, expireDate);
+      const tx = await contract.createCouponType(name, startDate, expireDate, {
+        gasLimit: 15000000,
+      });
       const receipt = await tx.wait();
 
       // Extract typeId from CouponTypeCreated event
@@ -818,7 +919,6 @@ export class BlockchainService {
         `Failed to create coupon type on blockchain: ${error.message}`,
       );
     }
-    */
   }
 
   /**
@@ -835,47 +935,33 @@ export class BlockchainService {
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
       console.log(
-        `[Blockchain] Minting coupon (MOCK) - to: ${toAddress}, typeId: ${typeId}, amount: ${amount}`,
+        `[Blockchain] Minting coupon - to: ${toAddress}, typeId: ${typeId}, amount: ${amount}`,
       );
 
-      // TODO: Replace with real smart contract integration
-      // Mock response matching the interface
-      const mockReceipt = {
-        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        blockNumber: Math.floor(Math.random() * 1000000),
-      };
-
-      console.log(
-        `[Blockchain] Coupon minted successfully (MOCK). Tx: ${mockReceipt.hash}`,
-      );
-
-      return mockReceipt;
-
-      /* Real implementation (uncomment when contract is ready):
-      const couponContractAddress = this.configService.get<string>(
-        'COUPON_NFT_CONTRACT_ADDRESS',
-      );
-
-      if (!couponContractAddress) {
-        throw new Error('COUPON_NFT_CONTRACT_ADDRESS not configured');
+      if (!this.couponAddress) {
+        throw new Error('Coupon_ADDRESS not configured');
       }
 
       const signer = new Wallet(this.privateKey, this.provider);
+      const contract = new Contract(
+        this.couponAddress,
+        CouponArtifact.abi,
+        signer,
+      );
 
-      const couponABI = [
-        'function mint(address to, uint256 typeId, uint256 amount) external',
-      ];
-
-      const contract = new Contract(couponContractAddress, couponABI, signer);
-
-      const tx = await contract.mint(toAddress, typeId, amount);
+      const tx = await contract.mint(toAddress, typeId, amount, {
+        gasLimit: 15000000,
+      });
       const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] Coupon minted successfully. Tx: ${receipt.hash}`,
+      );
 
       return {
         hash: receipt.hash,
         blockNumber: receipt.blockNumber,
       };
-      */
     } catch (error) {
       console.error(`[Blockchain] Failed to mint coupon: ${error.message}`);
       throw new InternalServerErrorException(
@@ -898,7 +984,7 @@ export class BlockchainService {
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
       console.log(
-        `[Blockchain] Batch minting coupons (MOCK) - recipients: ${recipients.length}, typeIds: ${typeIds.length}, amounts: ${amounts.length}`,
+        `[Blockchain] Batch minting coupons - recipients: ${recipients.length}, typeIds: ${typeIds.length}, amounts: ${amounts.length}`,
       );
 
       if (
@@ -910,50 +996,178 @@ export class BlockchainService {
         );
       }
 
-      // TODO: Replace with real smart contract integration
-      // Mock response matching the interface
-      const mockReceipt = {
-        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        blockNumber: Math.floor(Math.random() * 1000000),
-      };
-
-      console.log(
-        `[Blockchain] Batch mint successful (MOCK). Tx: ${mockReceipt.hash}, Minted ${recipients.length} coupons`,
-      );
-
-      return mockReceipt;
-
-      /* Real implementation (uncomment when contract is ready):
-      const couponContractAddress = this.configService.get<string>(
-        'COUPON_NFT_CONTRACT_ADDRESS',
-      );
-
-      if (!couponContractAddress) {
-        throw new Error('COUPON_NFT_CONTRACT_ADDRESS not configured');
+      if (!this.couponAddress) {
+        throw new Error('Coupon_ADDRESS not configured');
       }
 
       const signer = new Wallet(this.privateKey, this.provider);
+      const contract = new Contract(
+        this.couponAddress,
+        CouponArtifact.abi,
+        signer,
+      );
 
-      const couponABI = [
-        'function batchMint(address[] calldata recipients, uint256[] calldata typeIds, uint256[] calldata amounts) external',
-      ];
-
-      const contract = new Contract(couponContractAddress, couponABI, signer);
-
-      const tx = await contract.batchMint(recipients, typeIds, amounts);
+      const tx = await contract.batchMint(recipients, typeIds, amounts, {
+        gasLimit: 15000000,
+      });
       const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] Batch mint successful. Tx: ${receipt.hash}, Minted ${recipients.length} coupons`,
+      );
 
       return {
         hash: receipt.hash,
         blockNumber: receipt.blockNumber,
       };
-      */
     } catch (error) {
       console.error(
         `[Blockchain] Failed to batch mint coupons: ${error.message}`,
       );
       throw new InternalServerErrorException(
         `Failed to batch mint coupons on blockchain: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Get marketplace listing details
+   * @param listingId - Listing ID
+   * @returns Listing details
+   */
+  async getMarketplaceListing(listingId: string) {
+    try {
+      console.log('[Blockchain] Fetching listing:', listingId);
+
+      const marketplaceContract = new Contract(
+        this.marketplaceAddress,
+        MarketplaceArtifact.abi,
+        this.provider,
+      );
+
+      const listing = await marketplaceContract.getListing(listingId);
+
+      return {
+        seller: listing.seller,
+        typeId: listing.typeId.toString(),
+        amount: listing.amount.toString(),
+        pricePerUnit: ethers.formatEther(listing.pricePerUnit),
+        paymentToken: listing.paymentToken,
+        isActive: listing.active,
+        listedAt: Number(listing.listedAt),
+      };
+    } catch (error) {
+      console.error(`[Blockchain] Failed to get listing: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to get listing: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Get all active marketplace listings
+   * @returns Array of active listings
+   */
+  async getAllActiveMarketplaceListings() {
+    try {
+      console.log('[Blockchain] Fetching all active listings...');
+
+      const marketplaceContract = new Contract(
+        this.marketplaceAddress,
+        MarketplaceArtifact.abi,
+        this.provider,
+      );
+
+      const listingIds = await marketplaceContract.getActiveListings();
+
+      const listings = await Promise.all(
+        listingIds.map(async (id: bigint) => {
+          const listing = await marketplaceContract.getListing(id);
+          return {
+            listingId: id.toString(),
+            seller: listing.seller,
+            typeId: listing.typeId.toString(),
+            amount: listing.amount.toString(),
+            pricePerUnit: ethers.formatEther(listing.pricePerUnit),
+            paymentToken: listing.paymentToken,
+            isActive: listing.active,
+            listedAt: Number(listing.listedAt),
+          };
+        }),
+      );
+
+      console.log('[Blockchain] Found', listings.length, 'active listings');
+
+      return listings;
+    } catch (error) {
+      console.error(`[Blockchain] Failed to get listings: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to get listings: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Get user THB balance
+   * @param userAddress - User wallet address
+   * @returns THB balance
+   */
+  async getUserTHBBalance(userAddress: string) {
+    try {
+      console.log('[Blockchain] Checking THB balance for:', userAddress);
+
+      const thbContract = new Contract(
+        this.thbAddress,
+        THBArtifact.abi,
+        this.provider,
+      );
+
+      const balance = await thbContract.balanceOf(userAddress);
+
+      return {
+        address: userAddress,
+        balance: ethers.formatEther(balance),
+        balanceWei: balance.toString(),
+      };
+    } catch (error) {
+      console.error(`[Blockchain] Failed to get THB balance: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to get THB balance: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Get user coupon balance
+   * @param userAddress - User wallet address
+   * @param typeId - Coupon type ID
+   * @returns Coupon balance
+   */
+  async getUserCouponBalance(userAddress: string, typeId: number) {
+    try {
+      console.log('[Blockchain] Checking coupon balance...');
+      console.log('[Blockchain] - Address:', userAddress);
+      console.log('[Blockchain] - Type ID:', typeId);
+
+      const couponContract = new Contract(
+        this.couponAddress,
+        CouponArtifact.abi,
+        this.provider,
+      );
+
+      const balance = await couponContract.balanceOf(userAddress, typeId);
+
+      return {
+        address: userAddress,
+        typeId: typeId.toString(),
+        balance: balance.toString(),
+      };
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to get coupon balance: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to get coupon balance: ${error.message}`,
       );
     }
   }
@@ -969,81 +1183,74 @@ export class BlockchainService {
   async listCoupon(
     typeId: string,
     amount: number,
-    pricePerUnit: number,
-    paymentToken: string,
+    pricePerUnitTHB: string,
+    sellerPrivateKey?: string,
   ): Promise<{ listingId: string; hash: string; blockNumber: number }> {
     try {
-      console.log(
-        `[Blockchain] Listing coupon (MOCK) - typeId: ${typeId}, amount: ${amount}, price: ${pricePerUnit}`,
+      console.log('[Blockchain] Listing coupon on marketplace...');
+      console.log('[Blockchain] - TypeId:', typeId);
+      console.log('[Blockchain] - Amount:', amount);
+      console.log('[Blockchain] - Price per unit:', pricePerUnitTHB, 'THB');
+
+      const signer = sellerPrivateKey
+        ? new Wallet(sellerPrivateKey, this.provider)
+        : new Wallet(this.privateKey, this.provider);
+
+      // 1. Approve marketplace to transfer coupons
+      const couponContract = new Contract(
+        this.couponAddress,
+        CouponArtifact.abi,
+        signer,
       );
 
-      // TODO: Replace with real smart contract integration
-      // Mock response matching the interface: returns uint256 listingId
-      const mockListingId = Math.floor(Math.random() * 1000000).toString();
-      const mockReceipt = {
-        listingId: mockListingId,
-        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        blockNumber: Math.floor(Math.random() * 1000000),
-      };
+      console.log('[Blockchain] Approving marketplace for coupon transfer...');
+      const approveTx = await couponContract.setApprovalForAll(
+        this.marketplaceAddress,
+        true,
+        { gasLimit: 15000000 },
+      );
+      await approveTx.wait();
 
-      console.log(
-        `[Blockchain] Coupon listed successfully (MOCK). ListingId: ${mockListingId}, Tx: ${mockReceipt.hash}`,
+      // 2. Create listing on marketplace
+      const marketplaceContract = new Contract(
+        this.marketplaceAddress,
+        MarketplaceArtifact.abi,
+        signer,
       );
 
-      return mockReceipt;
+      const pricePerUnit = ethers.parseEther(pricePerUnitTHB);
 
-      /* Real implementation (uncomment when contract is ready):
-      const marketplaceAddress = this.configService.get<string>(
-        'MARKETPLACE_CONTRACT_ADDRESS',
-      );
-
-      if (!marketplaceAddress) {
-        throw new Error('MARKETPLACE_CONTRACT_ADDRESS not configured');
-      }
-
-      const signer = new Wallet(this.privateKey, this.provider);
-
-      const marketplaceABI = [
-        'function listCoupon(uint256 typeId, uint256 amount, uint256 pricePerUnit, address paymentToken) external returns (uint256)',
-        'event CouponListed(uint256 indexed listingId, address indexed seller, uint256 typeId, uint256 amount, uint256 pricePerUnit)',
-      ];
-
-      const contract = new Contract(marketplaceAddress, marketplaceABI, signer);
-
-      const tx = await contract.listCoupon(
+      console.log('[Blockchain] Creating listing on marketplace...');
+      const tx = await marketplaceContract.listCoupon(
         typeId,
         amount,
         pricePerUnit,
-        paymentToken,
+        this.thbAddress,
+        { gasLimit: 15000000 },
       );
+
       const receipt = await tx.wait();
 
-      // Extract listingId from CouponListed event
-      const event = receipt.logs.find((log: any) => {
-        try {
-          const parsedLog = contract.interface.parseLog(log);
-          return parsedLog?.name === 'CouponListed';
-        } catch {
-          return false;
-        }
-      });
+      // Parse ListingCreated event
+      const event = receipt.logs.find(
+        (log: any) => log.fragment?.name === 'ListingCreated',
+      );
 
-      let listingId = null;
-      if (event) {
-        const parsedLog = contract.interface.parseLog(event);
-        listingId = parsedLog?.args?.listingId?.toString();
-      }
+      const listingId = event?.args[0]?.toString() || '0';
+
+      console.log('[Blockchain] Listing created successfully');
+      console.log('[Blockchain] - Listing ID:', listingId);
+      console.log('[Blockchain] - Tx Hash:', receipt.hash);
 
       return {
         listingId,
         hash: receipt.hash,
         blockNumber: receipt.blockNumber,
       };
-      */
     } catch (error) {
       console.error(`[Blockchain] Failed to list coupon: ${error.message}`);
       throw new InternalServerErrorException(
-        `Failed to list coupon on marketplace: ${error.message}`,
+        `Failed to list coupon: ${error.message}`,
       );
     }
   }
@@ -1059,67 +1266,85 @@ export class BlockchainService {
   async buyCoupon(
     listingId: string,
     amount: number,
+    buyerPrivateKey: string,
     treasuryAddress?: string,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log(
-        `[Blockchain] Buying coupon (MOCK) - listingId: ${listingId}, amount: ${amount}, treasury: ${treasuryAddress || 'N/A'}`,
-      );
-
-      // TODO: Replace with real smart contract integration
-      // Mock response matching the interface
-      const mockReceipt = {
-        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        blockNumber: Math.floor(Math.random() * 1000000),
-      };
-
-      console.log(
-        `[Blockchain] Coupon purchased successfully (MOCK). Tx: ${mockReceipt.hash}`,
-      );
-
-      return mockReceipt;
-
-      /* Real implementation (uncomment when contract is ready):
-      const marketplaceAddress = this.configService.get<string>(
-        'MARKETPLACE_CONTRACT_ADDRESS',
-      );
-      const thbTokenAddress =
-        this.configService.get<string>('THB_TOKEN_ADDRESS');
-
-      if (!marketplaceAddress) {
-        throw new Error('MARKETPLACE_CONTRACT_ADDRESS not configured');
-      }
+      console.log('[Blockchain] Buying coupon from marketplace...');
+      console.log('[Blockchain] - Listing ID:', listingId);
+      console.log('[Blockchain] - Amount:', amount);
+      console.log('[Blockchain] - Treasury:', treasuryAddress || 'N/A');
 
       const signer = new Wallet(buyerPrivateKey, this.provider);
 
-      const marketplaceABI = [
-        'function buyCoupon(uint256 listingId, uint256 amount) external',
-        'function buyCouponWithToken(uint256 listingId, uint256 amount) external',
-      ];
+      // 1. Get listing details
+      const marketplaceContract = new Contract(
+        this.marketplaceAddress,
+        MarketplaceArtifact.abi,
+        signer,
+      );
 
-      const contract = new Contract(marketplaceAddress, marketplaceABI, signer);
+      console.log('[Blockchain] Fetching listing details...');
+      const listing = await marketplaceContract.getListing(listingId);
 
-      // If treasury address is provided, transfer points there first
-      if (treasuryAddress && thbTokenAddress) {
-        console.log(
-          `[Blockchain] Points will be transferred to treasury: ${treasuryAddress}`,
-        );
-        // Treasury transfer will be handled by the smart contract
+      if (!listing.active) {
+        throw new Error('Listing is not active');
       }
 
-      // Use buyCouponWithToken which handles ERC-20 payment
-      const tx = await contract.buyCouponWithToken(listingId, amount);
+      const totalPrice = listing.pricePerUnit * BigInt(amount);
+
+      console.log(
+        '[Blockchain] Total price:',
+        ethers.formatEther(totalPrice),
+        'THB',
+      );
+
+      // 2. Check THB balance
+      const thbContract = new Contract(
+        this.thbAddress,
+        THBArtifact.abi,
+        signer,
+      );
+
+      const balance = await thbContract.balanceOf(signer.address);
+
+      if (balance < totalPrice) {
+        throw new Error(
+          `Insufficient THB balance. Required: ${ethers.formatEther(totalPrice)}, Available: ${ethers.formatEther(balance)}`,
+        );
+      }
+
+      console.log('[Blockchain] Balance check passed');
+
+      // 3. Approve THB spending
+      console.log('[Blockchain] Approving THB for marketplace...');
+      const approveTx = await thbContract.approve(
+        this.marketplaceAddress,
+        totalPrice,
+        { gasLimit: 15000000 },
+      );
+      await approveTx.wait();
+
+      // 4. Buy coupon
+      console.log('[Blockchain] Executing buy transaction...');
+      const tx = await marketplaceContract.buyCoupon(listingId, amount, {
+        gasLimit: 15000000,
+      });
+
       const receipt = await tx.wait();
+
+      console.log('[Blockchain] Coupon purchased successfully');
+      console.log('[Blockchain] - Tx Hash:', receipt.hash);
+      console.log('[Blockchain] - Block:', receipt.blockNumber);
 
       return {
         hash: receipt.hash,
         blockNumber: receipt.blockNumber,
       };
-      */
     } catch (error) {
       console.error(`[Blockchain] Failed to buy coupon: ${error.message}`);
       throw new InternalServerErrorException(
-        `Failed to buy coupon from marketplace: ${error.message}`,
+        `Failed to buy coupon: ${error.message}`,
       );
     }
   }

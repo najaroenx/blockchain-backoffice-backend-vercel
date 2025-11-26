@@ -6,4 +6,8 @@ export const configSchema = Joi.object({
   RPC_URL: Joi.string(),
   JWT_SECRET: Joi.string(),
   SALT: Joi.string(),
+  THB_ADDRESS: Joi.string(),
+  Coupon_ADDRESS: Joi.string(),
+  Vault_ADDRESS: Joi.string(),
+  Marketplace_ADDRESS: Joi.string(),
 });

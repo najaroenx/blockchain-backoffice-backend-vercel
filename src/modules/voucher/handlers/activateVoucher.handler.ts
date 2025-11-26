@@ -182,7 +182,7 @@ export class ActivateVoucher {
           const listResult = await this.blockchainService.listCoupon(
             upcomingVoucher.tokenId,
             amount,
-            pointsCost,
+            pointsCost.toString(),
             thbTokenAddress,
           );
 

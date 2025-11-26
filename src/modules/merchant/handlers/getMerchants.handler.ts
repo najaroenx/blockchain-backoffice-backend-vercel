@@ -44,6 +44,7 @@ export class GetMerchants {
   }
 
   private getAddressFromPrivateKey(privateKey: string): string | null {
+    console.log('privateKey', privateKey);
     // ใช้ ethers เพื่อดึง address จาก private key
     try {
       const wallet = new Wallet(privateKey);

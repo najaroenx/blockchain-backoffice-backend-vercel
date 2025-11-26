@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Point" ADD COLUMN IF NOT EXISTS "startDate" TIMESTAMP(3);

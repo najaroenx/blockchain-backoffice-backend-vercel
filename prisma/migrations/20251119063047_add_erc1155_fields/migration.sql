@@ -1,9 +1,9 @@
 -- AlterTable
-ALTER TABLE "Voucher" ADD COLUMN     "listingId" TEXT,
-ADD COLUMN     "onChainTypeId" TEXT;
+ALTER TABLE "Voucher" ADD COLUMN IF NOT EXISTS "listingId" TEXT,
+ADD COLUMN IF NOT EXISTS "onChainTypeId" TEXT;
 
--- CreateTable
-CREATE TABLE "TempLinkCreateUser" (
+-- CreateTable (skip if already exists from previous migration)
+CREATE TABLE IF NOT EXISTS "TempLinkCreateUser" (
     "id" TEXT NOT NULL,
     "uid" TEXT NOT NULL,
     "expire" TIMESTAMP(3) NOT NULL,
@@ -15,17 +15,17 @@ CREATE TABLE "TempLinkCreateUser" (
     CONSTRAINT "TempLinkCreateUser_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "TempLinkCreateUser_uid_key" ON "TempLinkCreateUser"("uid");
+-- CreateIndex (skip if already exists)
+CREATE UNIQUE INDEX IF NOT EXISTS "TempLinkCreateUser_uid_key" ON "TempLinkCreateUser"("uid");
 
 -- CreateIndex
-CREATE INDEX "TempLinkCreateUser_uid_idx" ON "TempLinkCreateUser"("uid");
+CREATE INDEX IF NOT EXISTS "TempLinkCreateUser_uid_idx" ON "TempLinkCreateUser"("uid");
 
 -- CreateIndex
-CREATE INDEX "TempLinkCreateUser_phoneNumber_idx" ON "TempLinkCreateUser"("phoneNumber");
+CREATE INDEX IF NOT EXISTS "TempLinkCreateUser_phoneNumber_idx" ON "TempLinkCreateUser"("phoneNumber");
 
 -- CreateIndex
-CREATE INDEX "TempLinkCreateUser_merchantId_idx" ON "TempLinkCreateUser"("merchantId");
+CREATE INDEX IF NOT EXISTS "TempLinkCreateUser_merchantId_idx" ON "TempLinkCreateUser"("merchantId");
 
 -- CreateIndex
-CREATE INDEX "TempLinkCreateUser_expire_idx" ON "TempLinkCreateUser"("expire");
+CREATE INDEX IF NOT EXISTS "TempLinkCreateUser_expire_idx" ON "TempLinkCreateUser"("expire");

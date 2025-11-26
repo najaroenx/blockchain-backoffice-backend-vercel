@@ -30,3 +30,13 @@ export class GetTempLinksByMerchantParams {
   @IsNotEmpty()
   merchantId: string;
 }
+
+export class VerifyOtpDto {
+  @IsString()
+  @IsNotEmpty()
+  phoneNumber: string;
+
+  @IsString()
+  @IsNotEmpty()
+  otpCode: string;
+}

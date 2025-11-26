@@ -16,6 +16,7 @@ import { GetCustomerPhone } from './handlers/getCustomerByPhone.handler';
 import { PrismaModule } from 'prisma/prisma.module';
 import { TempLinkModule } from '../templink/templink.module';
 import { GetCustomerListDev } from './handlers/getCustomerListDev.handler';
+import { OTPService } from 'src/providers/otp/otp.service';
 @Module({
   imports: [TokenModule, BlockchainModule, PrismaModule, TempLinkModule],
   controllers: [CustomerController, CustomerPhoneController],
@@ -29,6 +30,7 @@ import { GetCustomerListDev } from './handlers/getCustomerListDev.handler';
     CreateCustomer,
     GetCustomerPhone,
     GetCustomerListDev,
+    OTPService,
   ],
   exports: [GetCustomerByEmail, GetCustomerPhone, UpdateCustomer],
 })

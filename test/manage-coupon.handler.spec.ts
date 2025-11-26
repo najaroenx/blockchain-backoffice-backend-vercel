@@ -9,12 +9,14 @@ describe('ManageCouponHandler', () => {
   const mockPrismaService = {
     voucher: {
       findUnique: jest.fn(),
+      update: jest.fn(),
     },
     voucherCode: {
       findMany: jest.fn(),
       updateMany: jest.fn(),
       count: jest.fn(),
     },
+    $transaction: jest.fn((callback) => callback(mockPrismaService)),
   };
 
   beforeEach(async () => {

@@ -16,6 +16,7 @@ import {
   GetCustomerByPhoneResponseNotFoundType,
 } from '../types';
 import { TempLinkDBService } from 'src/modules/templink/service/templink-db.service';
+import { OTPService } from 'src/providers/otp/otp.service';
 
 @Injectable()
 export class GetCustomerPhone {
@@ -25,6 +26,7 @@ export class GetCustomerPhone {
     private db: CustomerDBService,
     private tempLinkDBService: TempLinkDBService,
     private configService: ConfigService,
+    private otpService: OTPService,
   ) {}
 
   async execute(
@@ -35,7 +37,8 @@ export class GetCustomerPhone {
   > {
     try {
       const customer = await this.db.getCustomersByPhone(merchantId, phone);
-
+      const otp = this.otpService.generateOTP(6);
+      this.logger.log(`Generated OTP ${otp} for phone ${phone}`);
       if (!customer) {
         const findRequest =
           await this.tempLinkDBService.getTempLinkByPhoneNumber(phone);
@@ -47,6 +50,7 @@ export class GetCustomerPhone {
             await this.tempLinkDBService.updateTempLink(findRequest.uid, {
               uid: uuid,
               expire: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
+              otp: otp,
             });
             return {
               message: `Customer with phone ${phone} not found`,
@@ -75,6 +79,7 @@ export class GetCustomerPhone {
           merchantId,
           phoneNumber: phone,
           uid: uuid,
+          otp: otp,
           expire: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
         });
         return {

@@ -10,4 +10,7 @@ export const configSchema = Joi.object({
   Coupon_ADDRESS: Joi.string(),
   Vault_ADDRESS: Joi.string(),
   Marketplace_ADDRESS: Joi.string(),
+  OTP_API_URL: Joi.string(),
+  OTP_API_USERNAME: Joi.string(),
+  OTP_API_PASSWORD: Joi.string(),
 });

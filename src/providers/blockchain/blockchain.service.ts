@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { createPoint } from './types';
-import * as PointFactoryArtifact from './abis/PointTokenFactory.json';
-import * as PointTokenArtifact from './abis/PointToken.json';
+import * as PointFactoryArtifact from './abis/NewPointTokenFactory.json';
+import * as PointTokenArtifact from './abis/NewPointToken.json';
 import * as MarketplaceArtifact from './abis/Marketplace.json';
 import * as THBArtifact from './abis/THB.json';
 import * as CouponArtifact from './abis/Coupon.json';
@@ -226,6 +226,8 @@ export class BlockchainService {
       symbol,
       epochDurationBigInt,
       windowSizeBigInt,
+      initialSupplyWeiFormat,
+      ownerAddress,
     );
 
     const pointAddress = result[0];
@@ -234,13 +236,17 @@ export class BlockchainService {
       pointAddress,
     );
 
-    // Deploy the point contract
-    console.log('[BlockchainService] Deploying point token contract...');
+    // Deploy the point contract with initial supply
+    console.log(
+      '[BlockchainService] Deploying point token contract with initial supply...',
+    );
     const tx = await contractWithSigner['deployPointToken'](
       name,
       symbol,
       epochDurationBigInt,
       windowSizeBigInt,
+      initialSupplyWeiFormat,
+      ownerAddress,
       {
         gasLimit: 15000000, // 15M gas limit
       },
@@ -252,33 +258,10 @@ export class BlockchainService {
       '[BlockchainService] Point token deployed successfully at:',
       pointAddress,
     );
-
-    // Mint initial supply to owner (after deployment)
-    console.log(
-      '[BlockchainService] Minting initial supply to merchant wallet...',
-    );
-
-    const pointContract = new Contract(
-      pointAddress,
-      PointTokenArtifact.abi,
-      signer,
-    );
-
-    const pointContractWithSigner = pointContract.connect(signer) as any;
-    const mintTx = await pointContractWithSigner['mint'](
-      ownerAddress,
-      initialSupplyWeiFormat,
-      {
-        gasLimit: 15000000, // 15M gas limit
-      },
-    );
-
-    await mintTx.wait();
-
     console.log(
       '[BlockchainService] Initial supply',
       initialSupply,
-      'minted to:',
+      'automatically minted to:',
       ownerAddress,
     );
 

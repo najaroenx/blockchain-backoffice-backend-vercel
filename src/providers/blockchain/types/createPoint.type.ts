@@ -3,6 +3,8 @@ export type createPoint = {
   name: string;
   symbol: string;
   decimal: number;
-  frameSize: number;
-  ownerAddress: string; // Merchant wallet address to receive initial supply
+  startDate?: number; // Unix timestamp วันเริ่มต้น (seconds) - optional
+  endDate?: number; // Unix timestamp วันหมดอายุ (seconds) - กำหนดวันเอง
+  expiryMonths?: number; // จำนวนเดือน (3, 6, 9, 12, 24) - เลือกระยะเวลา
+  ownerAddress: string; // Merchant wallet address
 };

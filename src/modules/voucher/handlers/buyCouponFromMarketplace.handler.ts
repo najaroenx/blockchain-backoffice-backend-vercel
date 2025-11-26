@@ -254,6 +254,7 @@ export class BuyCouponFromMarketplace {
           blockchainTx = await this.blockchainService.buyCoupon(
             listingId,
             1, // Buy 1 unit
+            customerWallet.privateKey, // Buyer's private key for signing
             treasury.walletAddress, // Points go to treasury burner
           );
         }

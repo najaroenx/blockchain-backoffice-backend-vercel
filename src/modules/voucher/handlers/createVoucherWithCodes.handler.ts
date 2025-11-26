@@ -56,57 +56,65 @@ export class CreateVoucherWithCodes {
       }
 
       // สร้างเฉพาะ voucher metadata (ไม่สร้าง codes)
-      const result = await this.prisma.$transaction(async (tx) => {
-        // 1. แยก pointsCost, pointId, dates, merchantRef ออกจาก voucherData
-        const {
-          pointsCost,
-          pointId,
-          startDate,
-          endDate,
-          merchantRef,
-          ...voucherData
-        } = data;
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          // 1. แยก pointsCost, pointId, dates, merchantRef ออกจาก voucherData
+          const {
+            pointsCost,
+            pointId,
+            startDate,
+            endDate,
+            merchantRef,
+            ...voucherData
+          } = data;
 
-        // 2. Generate coupon ID
-        const couponId = `COUPON-${randomUUID()}`;
+          // 2. Generate coupon ID
+          const couponId = `COUPON-${randomUUID()}`;
 
-        // 3. Create coupon type on blockchain (ERC-1155)
-        this.logger.log(`Creating coupon type on blockchain...`);
-        const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
-        const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
+          // 3. Create coupon type on blockchain (ERC-1155)
+          this.logger.log(`Creating coupon type on blockchain...`);
+          const startTimestamp = Math.floor(
+            new Date(startDate).getTime() / 1000,
+          );
+          const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
 
-        const blockchainResult = await this.blockchainService.createCouponType(
-          voucherData.name,
-          startTimestamp,
-          endTimestamp,
-        );
+          const blockchainResult =
+            await this.blockchainService.createCouponType(
+              voucherData.name,
+              startTimestamp,
+              endTimestamp,
+            );
 
-        const onChainTypeId = blockchainResult.typeId;
-        this.logger.log(
-          `Coupon type created on blockchain. TypeId: ${onChainTypeId}, TxHash: ${blockchainResult.hash}`,
-        );
+          const onChainTypeId = blockchainResult.typeId;
+          this.logger.log(
+            `Coupon type created on blockchain. TypeId: ${onChainTypeId}, TxHash: ${blockchainResult.hash}`,
+          );
 
-        // 4. สร้าง voucher (metadata พร้อม tokenId, merchantName, currency)
-        const voucher = await tx.voucher.create({
-          data: {
-            id: couponId,
-            ...voucherData,
-            merchantName, // ← ดึงมาจาก Merchant.name
-            merchantRef, // ← ส่งมาจาก DTO สำหรับ verify ตอน redeem
-            currency: point.symbol, // ← ดึงมาจาก Point.symbol
-            startDate: new Date(startDate),
-            endDate: new Date(endDate),
-            totalRedeemed: 0, // ← เริ่มต้นที่ 0
-            tokenId: onChainTypeId, // Save ERC-1155 typeId from smart contract
-          },
-        });
+          // 4. สร้าง voucher (metadata พร้อม tokenId, merchantName, currency)
+          const voucher = await tx.voucher.create({
+            data: {
+              id: couponId,
+              ...voucherData,
+              merchantName, // ← ดึงมาจาก Merchant.name
+              merchantRef, // ← ส่งมาจาก DTO สำหรับ verify ตอน redeem
+              currency: point.symbol, // ← ดึงมาจาก Point.symbol
+              startDate: new Date(startDate),
+              endDate: new Date(endDate),
+              totalRedeemed: 0, // ← เริ่มต้นที่ 0
+              tokenId: onChainTypeId, // Save ERC-1155 typeId from smart contract
+            },
+          });
 
-        this.logger.log(
-          `Created voucher metadata ${voucher.id} with tokenId: ${onChainTypeId}`,
-        );
+          this.logger.log(
+            `Created voucher metadata ${voucher.id} with tokenId: ${onChainTypeId}`,
+          );
 
-        return { voucher, pointsCost, pointId };
-      });
+          return { voucher, pointsCost, pointId };
+        },
+        {
+          timeout: 30000, // Increase timeout to 30 seconds for blockchain operations
+        },
+      );
 
       this.logger.log(
         `Created voucher ${result.voucher.id} (metadata only, no codes created yet)`,

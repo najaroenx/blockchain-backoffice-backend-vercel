@@ -62,7 +62,14 @@ export class PointController {
     @Body() data: UpdatePointDto,
     @Param('pointId') pointId: string,
   ) {
-    return this.updatePointHandler.execute(pointId, data);
+    // Convert Unix timestamps to Date objects
+    const prismaData: any = {
+      ...data,
+      ...(data.startDate ? { startDate: new Date(data.startDate * 1000) } : {}),
+      ...(data.endDate ? { endDate: new Date(data.endDate * 1000) } : {}),
+    };
+
+    return this.updatePointHandler.execute(pointId, prismaData);
   }
 
   @Delete('/:id')

@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
-import { Point, Prisma } from '@prisma/client';
+import { Point } from '@prisma/client';
 import { PointDBService } from '../services/point-db.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { CreatePointDto } from '../dtos';
@@ -47,27 +47,34 @@ export class CreatePoint {
         `[CreatePoint] Creating point contract with initial supply: ${data.initialSupply}`,
       );
 
-      const pointContractAddress =
-        await this.blockchainService.createNewPointToken({
+      const deploymentResult = await this.blockchainService.createNewPointToken(
+        {
           ...rawPointData,
           ownerAddress: merchantWalletAddress,
-        });
-
-      this.logger.log(
-        `[CreatePoint] Point contract created: ${pointContractAddress}`,
+        },
       );
 
-      const prismaPayload: Omit<
-        Omit<Prisma.PointCreateInput, 'contractAddress'>,
-        'merchant'
-      > = {
-        ...rawPointData,
+      this.logger.log(
+        `[CreatePoint] Point contract created: ${deploymentResult.contractAddress}`,
+      );
+
+      // Convert Unix timestamps to Date objects for Prisma
+      const prismaPayload: any = {
+        name: data.name,
+        symbol: data.symbol,
+        initialSupply: data.initialSupply,
+        decimal: data.decimal,
+        ...(deploymentResult.startDate
+          ? { startDate: new Date(deploymentResult.startDate * 1000) }
+          : {}),
+        endDate: new Date(deploymentResult.endDate * 1000),
+        epochDuration: deploymentResult.epochDuration,
         ...(imageUrl ? { imageUrl } : {}),
       };
 
       const point = await this.db.createPoint(
         merchantId,
-        pointContractAddress,
+        deploymentResult.contractAddress,
         prismaPayload,
       );
 

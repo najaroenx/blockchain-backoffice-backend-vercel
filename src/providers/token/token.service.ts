@@ -61,17 +61,37 @@ export class TokenService {
   }
 
   encryptKey = (salt, privateKey) => {
+    // Strip surrounding quotes from SALT if present
+    const cleanSalt = this.stripQuotes(salt);
     const encryptedPrivateKey = CryptoJS.AES.encrypt(
       privateKey,
-      salt,
+      cleanSalt,
     ).toString();
     return encryptedPrivateKey;
   };
 
   decryptKey = (salt, encryptedData) => {
-    const bytes = CryptoJS.AES.decrypt(encryptedData, salt);
+    // Strip surrounding quotes from SALT if present
+    const cleanSalt = this.stripQuotes(salt);
+    const bytes = CryptoJS.AES.decrypt(encryptedData, cleanSalt);
     const decryptedMnemonic = bytes.toString(CryptoJS.enc.Utf8);
 
     return decryptedMnemonic;
   };
+
+  /**
+   * Strip surrounding quotes from a string value
+   * @param value - String that may have surrounding quotes
+   */
+  private stripQuotes(value: string): string {
+    if (!value) return value;
+    const trimmed = value.trim();
+    if (
+      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+      return trimmed.slice(1, -1);
+    }
+    return trimmed;
+  }
 }

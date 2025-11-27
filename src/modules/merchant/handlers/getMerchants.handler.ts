@@ -21,16 +21,12 @@ export class GetMerchants {
       // Format response เพื่อดึง wallet address และ privateKey ออกจาก wallet
       const formattedMerchants = merchants.map((merchant) => {
         const { wallet, tel, ...merchantData } = merchant;
-
         return {
           ...merchantData,
-          walletAddress: wallet?.privateKey
-            ? this.getAddressFromPrivateKey(wallet.privateKey)
-            : null,
+          walletAddress: wallet?.walletAddress || '',
           phoneNumber: tel,
         };
       });
-
       return {
         merchants: formattedMerchants,
         counts: formattedMerchants.length,

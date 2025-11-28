@@ -206,6 +206,7 @@ export class CustomerDBService {
                 name: true,
                 symbol: true,
                 merchantId: true,
+                imageUrl: true,
               },
             },
           },

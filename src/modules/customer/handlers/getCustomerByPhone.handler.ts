@@ -92,15 +92,64 @@ export class GetCustomerPhone {
         };
       }
 
+
+      // Add mock vouchers if customer has no owned vouchers
+      const ownedVouchers: any[] = customer.ownedVouchers || [];
+      if (ownedVouchers.length === 0) {
+        // Add mock vouchers for demonstration
+        ownedVouchers.push({
+          id: 'mock-voucher-1',
+          code: 'WELCOME2024',
+          voucherId: 'voucher-mock-1',
+          pointsCost: 100,
+          currency: 'POINTS',
+          isUsed: false,
+          usedAt: null,
+          voucher: {
+            id: 'voucher-mock-1',
+            name: 'Welcome Discount 20%',
+            description: 'Get 20% off on your first purchase',
+            imageUrl: 'https://via.placeholder.com/300x200?text=Welcome+Discount',
+            value: 20,
+            valueType: 'percentage',
+            status: 'active',
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          },
+        });
+        ownedVouchers.push({
+          id: 'mock-voucher-2',
+          code: 'FREESHIP50',
+          voucherId: 'voucher-mock-2',
+          pointsCost: 50,
+          currency: 'POINTS',
+          isUsed: false,
+          usedAt: null,
+          voucher: {
+            id: 'voucher-mock-2',
+            name: 'Free Shipping',
+            description: 'Free shipping on orders over $50',
+            imageUrl: 'https://via.placeholder.com/300x200?text=Free+Shipping',
+            value: 0,
+            valueType: 'gift',
+            status: 'active',
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days from now
+          },
+        });
+      }
+
       const formattedCustomer = {
         ...customer,
         phone: phone,
         walletAddress: customer.wallet?.walletAddress || '',
+        ownedVouchers: ownedVouchers,
       };
 
       return {
         customer: formattedCustomer,
       };
+
     } catch (error) {
       this.logger.error(
         `Error message : ${error.message}, \n Error detail : ${error}`,

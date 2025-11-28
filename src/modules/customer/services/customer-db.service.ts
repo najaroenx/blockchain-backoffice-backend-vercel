@@ -8,6 +8,7 @@ import {
   Point,
   Prisma,
   Transaction,
+  VoucherCode,
   Wallet,
 } from '@prisma/client';
 import { PageOptionsDto } from 'src/common/dtos';
@@ -157,6 +158,7 @@ export class CustomerDBService {
         }
       >;
       customerMerChant: CustomerMerChant[];
+      ownedVouchers: VoucherCode[];
     }
   > {
     const customer = await this.repository.findFirst<
@@ -167,6 +169,7 @@ export class CustomerDBService {
           }
         >;
         customerMerChant: CustomerMerChant[];
+        ownedVouchers: VoucherCode[];
       }
     >({
       where: {
@@ -207,6 +210,30 @@ export class CustomerDBService {
                 symbol: true,
                 merchantId: true,
                 imageUrl: true,
+              },
+            },
+          },
+        },
+        ownedVouchers: {
+          select: {
+            id: true,
+            code: true,
+            voucherId: true,
+            pointsCost: true,
+            currency: true,
+            isUsed: true,
+            usedAt: true,
+            voucher: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                imageUrl: true,
+                value: true,
+                valueType: true,
+                status: true,
+                startDate: true,
+                endDate: true,
               },
             },
           },

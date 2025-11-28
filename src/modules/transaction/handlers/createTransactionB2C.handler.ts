@@ -118,9 +118,6 @@ export class CreateTransactionB2C {
       this.logger.log(
         `[CreateTransactionB2C] Merchant wallet address: ${merchantWalletAddress}`,
       );
-      this.logger.log(
-        `[CreateTransactionB2C] Customer wallet address: ${(customer as any).wallet?.walletAddress}`,
-      );
 
       // Decrypt merchant private key
       this.logger.log(`[CreateTransactionB2C] Decrypting merchant private key`);

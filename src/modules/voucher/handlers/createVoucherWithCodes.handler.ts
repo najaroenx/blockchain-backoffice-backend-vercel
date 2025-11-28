@@ -77,7 +77,7 @@ export class CreateVoucherWithCodes {
             new Date(startDate).getTime() / 1000,
           );
           const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
-
+          // Call blockchain service to create coupon type
           const blockchainResult =
             await this.blockchainService.createCouponType(
               voucherData.name,
@@ -112,7 +112,7 @@ export class CreateVoucherWithCodes {
           return { voucher, pointsCost, pointId };
         },
         {
-          timeout: 30000, // Increase timeout to 30 seconds for blockchain operations
+          timeout: 60000, // Increase timeout to 60 seconds for blockchain operations
         },
       );
 

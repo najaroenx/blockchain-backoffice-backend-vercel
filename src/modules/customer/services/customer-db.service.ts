@@ -196,6 +196,18 @@ export class CustomerDBService {
               },
             },
           },
+          select: {
+            id: true,
+            pointId: true,
+            point: {
+              select: {
+                id: true,
+                name: true,
+                symbol: true,
+                merchantId: true,
+              },
+            },
+          },
         },
       },
     });

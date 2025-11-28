@@ -7,6 +7,7 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
+import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
 export class BuyCouponFromMarketplace {
@@ -17,12 +18,7 @@ export class BuyCouponFromMarketplace {
     private blockchainService: BlockchainService,
   ) {}
 
-  async execute(
-    voucherGroupId: string,
-    pointId: string,
-    address: string,
-    phone: string,
-  ) {
+  async execute(voucherGroupId: string, pointId: string, phone: string) {
     try {
       this.logger.log(
         `[START] Buying coupon from marketplace. GroupId: ${voucherGroupId}, PointId: ${pointId}, Buyer phone: ${phone}`,
@@ -31,6 +27,10 @@ export class BuyCouponFromMarketplace {
       // Find customer by phone (tel field)
       const customer = await this.prisma.customer.findFirst({
         where: { tel: phone },
+        select: {
+          id: true,
+          walletId: true,
+        },
       });
 
       if (!customer) {
@@ -195,72 +195,58 @@ export class BuyCouponFromMarketplace {
         `[STEP 6] Balance check passed. Available: ${customerPoint.balances} ${voucherCode.currency}`,
       );
 
-      // 7. Get treasury wallet address
-      this.logger.log(`[STEP 7] Getting treasury wallet address`);
-      const treasury = await this.prisma.treasury.findUnique({
-        where: { type: 'burner' },
+      // 7. Get customer wallet (address + privateKey) for signing and payments
+      const customerWallet = await this.prisma.wallet.findUnique({
+        where: { id: customer.walletId },
       });
 
-      if (!treasury) {
-        this.logger.error(`[ERROR] Treasury burner address not configured`);
-        throw new BadRequestException(
-          'Treasury system not configured. Please contact admin.',
-        );
+      if (!customerWallet?.walletAddress || !customerWallet?.privateKey) {
+        throw new BadRequestException('Customer wallet not configured');
       }
+      const walletAddress = customerWallet.walletAddress;
 
+      // 8. On-chain purchase using ERC-20 (point) via marketplace
       this.logger.log(
-        `[STEP 7] Treasury burner address: ${treasury.walletAddress}`,
+        `[STEP 8] Calling smart contract buyCoupon on marketplace`,
       );
-
-      // 8. Buy coupon from marketplace using listingId
       let blockchainTx = null;
-      this.logger.log(
-        `[STEP 8] Calling smart contract to buy coupon from marketplace`,
-      );
 
       try {
-        // Check if voucherCode has voucherGroupId (listingId from marketplace)
+        // Get listing details from marketplace to validate payment token
         if (!voucherCode.voucherGroupId) {
-          this.logger.warn(
-            `[WARN] VoucherCode ${voucherCode.code} has no voucherGroupId (listingId). This code may not be properly listed on marketplace.`,
-          );
-          // For backward compatibility, use old method
-          const tokenId = voucher.tokenId || voucher.id;
-          blockchainTx = await this.blockchainService.buyVoucherFromMarketplace(
-            tokenId,
-            address,
-            voucherCode.pointsCost,
-            1,
-            treasury.walletAddress,
-          );
-        } else {
-          // Use new marketplace flow with voucherGroupId as listingId
-          const listingId = voucherCode.voucherGroupId;
-          this.logger.log(
-            `[STEP 8] Using listingId: ${listingId} for voucherCode ${voucherCode.code}`,
-          );
-
-          // Get customer wallet for signing
-          const customerWallet = await this.prisma.wallet.findUnique({
-            where: { id: customer.walletId },
-          });
-
-          if (!customerWallet) {
-            throw new BadRequestException('Customer wallet not found');
-          }
-
-          // Buy coupon using marketplace's buyCoupon method
-          // This will automatically transfer points to treasury
-          blockchainTx = await this.blockchainService.buyCoupon(
-            listingId,
-            1, // Buy 1 unit
-            customerWallet.privateKey, // Buyer's private key for signing
-            treasury.walletAddress, // Points go to treasury burner
+          throw new BadRequestException(
+            'Voucher is not listed on marketplace (missing listingId)',
           );
         }
 
+        const listingId = voucherCode.voucherGroupId;
+        const listing =
+          await this.blockchainService.getMarketplaceListing(listingId);
+
+        if (!listing.isActive) {
+          throw new BadRequestException('Listing is not active');
+        }
+
+        // Optional: validate payment token matches point contract (if available)
+        if (voucherCode.point?.contractAddress) {
+          const expected = convertBufferToAddress(
+            voucherCode.point.contractAddress as any,
+          ).toLowerCase();
+          if (listing.paymentToken.toLowerCase() !== expected) {
+            throw new BadRequestException(
+              `Listing payment token mismatch. Expected: ${expected}, got: ${listing.paymentToken}`,
+            );
+          }
+        }
+
+        blockchainTx = await this.blockchainService.buyCoupon(
+          listingId,
+          1, // Buy 1 unit
+          customerWallet.privateKey, // Buyer signs
+        );
+
         this.logger.log(
-          `[STEP 8] Marketplace purchase successful. Tx: ${blockchainTx.hash}, Points transferred to treasury: ${treasury.walletAddress}`,
+          `[STEP 8] Marketplace purchase successful. Tx: ${blockchainTx.hash}`,
         );
       } catch (error) {
         this.logger.error(
@@ -271,11 +257,9 @@ export class BuyCouponFromMarketplace {
         );
       }
 
-      // 9. Transfer ownership - อัพเดท database
+      // 9. Transfer ownership - อัพเดท database และหัก balance off-chain ให้สอดคล้อง
       this.logger.log(`[STEP 9] Updating database - transferring ownership`);
 
-      // บันทึก transaction ในระบบ (marketplace purchase)
-      // Update ownership, deduct balance, และสร้าง transaction record
       const [, , transaction] = await this.prisma.$transaction([
         // Update current owner
         this.prisma.voucherCode.update({
@@ -283,7 +267,7 @@ export class BuyCouponFromMarketplace {
           data: { currentOwnerId: customerId },
         }),
 
-        // Deduct customer point balance
+        // Deduct customer point balance (off-chain ledger to mirror on-chain spend)
         this.prisma.customerPoint.update({
           where: { id: customerPoint.id },
           data: {
@@ -297,8 +281,8 @@ export class BuyCouponFromMarketplace {
         this.prisma.transaction.create({
           data: {
             txHash: Buffer.from(blockchainTx.hash.slice(2), 'hex'),
-            senderAddress: Buffer.from(address.slice(2), 'hex'),
-            receiverAddress: Buffer.from(address.slice(2), 'hex'),
+            senderAddress: Buffer.from(walletAddress.slice(2), 'hex'),
+            receiverAddress: Buffer.from(walletAddress.slice(2), 'hex'),
             amount: voucherCode.pointsCost,
             pointId: voucherCode.pointId,
             senderId: customerId,
@@ -313,14 +297,14 @@ export class BuyCouponFromMarketplace {
         `[SUCCESS] Coupon purchased successfully from marketplace. Transaction ID: ${transaction.id}`,
       );
 
-      // 7. Return response
+      // Return response
       return {
         success: true,
         message: 'Voucher purchased successfully from marketplace',
         purchase: {
           voucherCodeId: voucherCode.id,
           code: voucherCode.code,
-          address,
+          address: walletAddress,
           customerId,
           purchasePrice: voucherCode.pointsCost,
           transactionId: transaction.id,
@@ -336,10 +320,12 @@ export class BuyCouponFromMarketplace {
           startDate: voucher.startDate,
           endDate: voucher.endDate,
         },
-        blockchain: {
-          transactionHash: blockchainTx.hash,
-          blockNumber: blockchainTx.blockNumber,
-        },
+        blockchain: blockchainTx
+          ? {
+              transactionHash: blockchainTx.hash,
+              blockNumber: blockchainTx.blockNumber,
+            }
+          : null,
       };
     } catch (error) {
       this.logger.error(

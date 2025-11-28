@@ -11,9 +11,5 @@ export class BuyCouponFromMarketplaceDto {
 
   @IsNotEmpty()
   @IsString()
-  address: string;
-
-  @IsNotEmpty()
-  @IsString()
   phone: string;
 }

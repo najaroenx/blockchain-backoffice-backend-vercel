@@ -251,7 +251,7 @@ export class VoucherController {
   /**
    * Buy coupon from marketplace (customer buying from marketplace)
    * POST /coupon/marketplace/buy
-   * Body: { voucherGroupId: string, pointId: string, address: string, customerId: string }
+   * Body: { voucherGroupId: string, pointId: string, phone: string }
    */
   @Post('/marketplace/buy')
   @Public()
@@ -260,21 +260,20 @@ export class VoucherController {
     return this.voucherService.buyCouponFromMarketplace(
       data.voucherGroupId,
       data.pointId,
-      data.address,
       data.phone,
     );
   }
 
   /**
-   * Get vouchers owned by customer
-   * GET /coupon/my-vouchers/:walletAddress
+   * Get vouchers owned by customer (lookup by phone -> wallet)
+   * GET /coupon/my-coupons/:phone
    * Query params: ?status=unused|used|all&page=1&limit=20
    */
-  @Get('/my-coupons/:walletAddress')
+  @Get('/my-coupons/:phone')
   @Public()
   @HttpCode(200)
   async getCustomerOwnedVouchers(
-    @Param('walletAddress') walletAddress: string,
+    @Param('phone') phone: string,
     @Query('status') status?: 'unused' | 'used' | 'all',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -283,7 +282,7 @@ export class VoucherController {
     const limitNum = limit ? parseInt(limit, 10) : 20;
 
     return this.voucherService.getCustomerOwnedVouchers(
-      walletAddress,
+      phone,
       status || 'all',
       pageNum,
       limitNum,

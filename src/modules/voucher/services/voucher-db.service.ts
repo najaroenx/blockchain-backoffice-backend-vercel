@@ -860,13 +860,11 @@ export class VoucherDBService {
   async buyCouponFromMarketplace(
     voucherGroupId: string,
     pointId: string,
-    address: string,
     phone: string,
   ) {
     return await this.buyCouponFromMarketplaceHandler.execute(
       voucherGroupId,
       pointId,
-      address,
       phone,
     );
   }
@@ -875,13 +873,13 @@ export class VoucherDBService {
    * Get vouchers owned by customer by wallet address
    */
   async getCustomerOwnedVouchers(
-    walletAddress: string,
+    phone: string,
     status?: 'unused' | 'used' | 'all',
     page?: number,
     limit?: number,
   ) {
     return await this.getCustomerOwnedVouchersHandler.execute(
-      walletAddress,
+      phone,
       status,
       page,
       limit,

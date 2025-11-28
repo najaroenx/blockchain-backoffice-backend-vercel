@@ -147,7 +147,9 @@ export class GetCustomerPhone {
       };
 
       return {
-        customer: formattedCustomer,
+        message: 'Customer found successfully',
+        statusCode: 200,
+        data: formattedCustomer,
       };
     } catch (error) {
       this.logger.error(

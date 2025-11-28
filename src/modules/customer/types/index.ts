@@ -28,13 +28,17 @@ export type GetCustomersIdResponseType = {
 };
 
 export type GetCustomerByEmailResponseType = {
-  customer: Omit<Customer, 'walletAddress'> & {
+  message: string;
+  statusCode: number;
+  data: Omit<Customer, 'walletAddress'> & {
+    phone: string;
     walletAddress: string;
     customerPoints: Array<
       CustomerPoint & {
         point: Point;
       }
     >;
+    ownedVouchers?: any[];
   };
 };
 

@@ -39,10 +39,10 @@ export class BlockchainService {
       this.configService.get<string>('RPC_URL'),
     );
     this.marketplaceAddress = this.configService.get<string>(
-      'Marketplace_ADDRESS',
+      'MARKETPLACE_ADDRESS',
     );
     this.thbAddress = this.configService.get<string>('THB_ADDRESS');
-    this.couponAddress = this.configService.get<string>('Coupon_ADDRESS');
+    this.couponAddress = this.configService.get<string>('COUPON_ADDRESS');
   }
 
   async createNewPointToken({
@@ -565,7 +565,7 @@ export class BlockchainService {
       );
 
       if (!this.couponAddress) {
-        throw new Error('Coupon_ADDRESS not configured');
+        throw new Error('COUPON_ADDRESS not configured');
       }
 
       const contract = new Contract(
@@ -646,7 +646,7 @@ export class BlockchainService {
       );
 
       if (!this.couponAddress) {
-        throw new Error('Coupon_ADDRESS not configured');
+        throw new Error('COUPON_ADDRESS not configured');
       }
 
       const signer = new Wallet(this.privateKey, this.provider);
@@ -854,7 +854,7 @@ export class BlockchainService {
       );
 
       if (!this.couponAddress) {
-        throw new Error('Coupon_ADDRESS not configured');
+        throw new Error('COUPON_ADDRESS not configured');
       }
 
       const signer = new Wallet(this.privateKey, this.provider);
@@ -922,7 +922,7 @@ export class BlockchainService {
       );
 
       if (!this.couponAddress) {
-        throw new Error('Coupon_ADDRESS not configured');
+        throw new Error('COUPON_ADDRESS not configured');
       }
 
       const signer = new Wallet(this.privateKey, this.provider);
@@ -980,7 +980,7 @@ export class BlockchainService {
       }
 
       if (!this.couponAddress) {
-        throw new Error('Coupon_ADDRESS not configured');
+        throw new Error('COUPON_ADDRESS not configured');
       }
 
       const signer = new Wallet(this.privateKey, this.provider);

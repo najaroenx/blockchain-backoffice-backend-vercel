@@ -181,10 +181,12 @@ export class RedeemVoucher {
 
       // 8. เรียก Smart Contract เพื่อ redeem voucher NFT (Burn ERC-1155)
       let blockchainTx = null;
+      let vaultReleaseTx = null;
       this.logger.log(
         `[STEP 8] Calling smart contract to redeem voucher code: ${code}`,
       );
 
+      // 8a. Redeem on-chain
       try {
         // Use tokenId from voucher
         if (!voucher.tokenId) {
@@ -214,6 +216,36 @@ export class RedeemVoucher {
         );
         throw new BadRequestException(
           `Failed to redeem voucher on blockchain: ${error.message}`,
+        );
+      }
+
+      // 8b. Release vault funds if escrow is active
+      try {
+        const typeId = voucher.tokenId as string;
+        this.logger.log(
+          `[STEP 8.5] Checking vault escrow for typeId: ${typeId}`,
+        );
+        const hasEscrow =
+          await this.blockchainService.hasActiveVaultEscrow(typeId);
+
+        if (hasEscrow) {
+          this.logger.log(
+            `[STEP 8.5] Active escrow found. Releasing funds for 1 coupon`,
+          );
+          vaultReleaseTx =
+            await this.blockchainService.releaseVaultFundsPartial(typeId, 1);
+          this.logger.log(
+            `[STEP 8.5] Vault release successful. Tx: ${vaultReleaseTx.hash}`,
+          );
+        } else {
+          this.logger.warn(
+            `[STEP 8.5] No active vault escrow for typeId ${typeId}. Skipping release.`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(`[ERROR] Vault release failed: ${error.message}`);
+        throw new BadRequestException(
+          `Failed to release vault funds: ${error.message}`,
         );
       }
 
@@ -303,6 +335,12 @@ export class RedeemVoucher {
           ? {
               transactionHash: blockchainTx.hash,
               blockNumber: blockchainTx.blockNumber,
+            }
+          : null,
+        vaultRelease: vaultReleaseTx
+          ? {
+              transactionHash: vaultReleaseTx.hash,
+              blockNumber: vaultReleaseTx.blockNumber,
             }
           : null,
       };

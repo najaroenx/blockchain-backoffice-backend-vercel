@@ -6,6 +6,7 @@ import * as PointTokenArtifact from './abis/NewPointToken.json';
 import * as MarketplaceArtifact from './abis/Marketplace.json';
 import * as THBArtifact from './abis/THB.json';
 import * as CouponArtifact from './abis/Coupon.json';
+import * as VaultArtifact from './abis/Vault.json';
 
 import { Contract, JsonRpcProvider, Wallet, ethers } from 'ethers';
 import { ConfigService } from '@nestjs/config';
@@ -30,6 +31,8 @@ export class BlockchainService {
 
   private couponAddress: string;
 
+  private vaultAddress: string;
+
   constructor(private configService: ConfigService) {
     this.pointFactoryAddress = this.configService.get<string>(
       'POINT_FACTORY_ADDRESS',
@@ -43,6 +46,7 @@ export class BlockchainService {
     );
     this.thbAddress = this.configService.get<string>('THB_ADDRESS');
     this.couponAddress = this.configService.get<string>('COUPON_ADDRESS');
+    this.vaultAddress = this.configService.get<string>('VAULT_ADDRESS');
   }
 
   async createNewPointToken({
@@ -1022,6 +1026,10 @@ export class BlockchainService {
     try {
       console.log('[Blockchain] Fetching listing:', listingId);
 
+      if (!this.marketplaceAddress) {
+        throw new Error('MARKETPLACE_ADDRESS not configured');
+      }
+
       const marketplaceContract = new Contract(
         this.marketplaceAddress,
         MarketplaceArtifact.abi,
@@ -1054,6 +1062,10 @@ export class BlockchainService {
   async getAllActiveMarketplaceListings() {
     try {
       console.log('[Blockchain] Fetching all active listings...');
+
+      if (!this.marketplaceAddress) {
+        throw new Error('MARKETPLACE_ADDRESS not configured');
+      }
 
       const marketplaceContract = new Contract(
         this.marketplaceAddress,
@@ -1121,6 +1133,333 @@ export class BlockchainService {
   }
 
   /**
+   * Mint THB token to target address
+   */
+  async mintTHB(
+    toAddress: string,
+    amountWei: bigint,
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log('[Blockchain] Minting THB...');
+      if (!this.thbAddress) {
+        throw new Error('THB_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(this.privateKey, this.provider);
+      const contract = new Contract(this.thbAddress, THBArtifact.abi, signer);
+
+      const tx = await contract.mint(toAddress, amountWei, {
+        gasLimit: 15000000,
+      });
+      const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] THB minted. To: ${toAddress}, Amount: ${amountWei.toString()}, Tx: ${receipt.hash}`,
+      );
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+    } catch (error) {
+      console.error(`[Blockchain] Failed to mint THB: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to mint THB: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Approve THB spending
+   */
+  async approveTHB(
+    spenderAddress: string,
+    amountWei: bigint,
+    ownerPrivateKey?: string,
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log(
+        `[Blockchain] Approving THB for ${spenderAddress}. Amount: ${amountWei.toString()}`,
+      );
+      if (!this.thbAddress) {
+        throw new Error('THB_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(
+        ownerPrivateKey || this.privateKey,
+        this.provider,
+      );
+      const contract = new Contract(this.thbAddress, THBArtifact.abi, signer);
+
+      const tx = await contract.approve(spenderAddress, amountWei, {
+        gasLimit: 15000000,
+      });
+      const receipt = await tx.wait();
+
+      console.log(`[Blockchain] THB approval tx: ${receipt.hash}`);
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+    } catch (error) {
+      console.error(`[Blockchain] Failed to approve THB: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to approve THB: ${error.message}`,
+      );
+    }
+  }
+
+  private getVaultContract(signerOrProvider?: any) {
+    if (!this.vaultAddress) {
+      throw new Error('VAULT_ADDRESS not configured');
+    }
+
+    console.log(
+      `[Blockchain] Using vault contract at ${this.vaultAddress} with ${signerOrProvider ? 'signer/provider' : 'default provider'}`,
+    );
+
+    return new Contract(
+      this.vaultAddress,
+      VaultArtifact.abi,
+      signerOrProvider || this.provider,
+    );
+  }
+
+  /**
+   * Lock funds for a coupon type in the vault
+   */
+  async lockFundsForCouponType(
+    tokenId: string,
+    sellerAddress: string,
+    pricePerUnitTHB: number,
+    totalIssued: number,
+    buyerPrivateKey?: string,
+  ): Promise<{
+    hash: string;
+    blockNumber: number;
+    amountWei: bigint;
+    buyerAddress: string;
+    sellerAddress: string;
+  }> {
+    try {
+      console.log('[Blockchain] Locking funds in vault...');
+      if (!tokenId) {
+        throw new Error('tokenId is required to lock funds');
+      }
+      if (!sellerAddress) {
+        throw new Error('sellerAddress is required to lock funds');
+      }
+      if (pricePerUnitTHB <= 0) {
+        throw new Error('pricePerUnitTHB must be greater than 0');
+      }
+      if (totalIssued <= 0) {
+        throw new Error('totalIssued must be greater than 0');
+      }
+      if (!this.vaultAddress) {
+        throw new Error('VAULT_ADDRESS not configured');
+      }
+
+      const buyerSigner = new Wallet(
+        buyerPrivateKey || this.privateKey,
+        this.provider,
+      );
+
+      // Calculate total amount = price * totalIssued (in Wei)
+      const unitPriceWei = ethers.parseEther(pricePerUnitTHB.toString());
+      const totalAmountWei = unitPriceWei * BigInt(totalIssued);
+
+      // Mint THB to buyer signer, approve vault, then lock
+      await this.mintTHB(buyerSigner.address, totalAmountWei);
+      await this.approveTHB(this.vaultAddress, totalAmountWei, buyerPrivateKey);
+
+      const vaultContract = this.getVaultContract(buyerSigner);
+      const tx = await vaultContract.lockFunds(
+        tokenId,
+        sellerAddress,
+        buyerSigner.address,
+        totalAmountWei,
+        BigInt(totalIssued),
+        { gasLimit: 15000000 },
+      );
+      const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] Funds locked. Tx: ${receipt.hash}, Amount: ${totalAmountWei.toString()}`,
+      );
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        amountWei: totalAmountWei,
+        buyerAddress: buyerSigner.address,
+        sellerAddress,
+      };
+    } catch (error) {
+      console.error(`[Blockchain] Failed to lock funds: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to lock funds in vault: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Check if vault has active escrow for tokenId
+   */
+  async hasActiveVaultEscrow(tokenId: string): Promise<boolean> {
+    try {
+      if (!this.vaultAddress) {
+        console.warn(
+          '[Blockchain] VAULT_ADDRESS not configured. Skipping vault escrow check.',
+        );
+        return false;
+      }
+
+      const vaultContract = this.getVaultContract(this.provider);
+      const result = await vaultContract.hasActiveEscrow(tokenId);
+      return Boolean(result);
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to check vault escrow: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to check vault escrow: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Release vault funds for redeemed coupons
+   */
+  async releaseVaultFundsPartial(
+    tokenId: string,
+    couponsToRedeem: number,
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log(
+        `[Blockchain] Releasing vault funds - tokenId: ${tokenId}, coupons: ${couponsToRedeem}`,
+      );
+
+      const signer = new Wallet(this.privateKey, this.provider);
+      const vaultContract = this.getVaultContract(signer);
+      const tx = await vaultContract.releaseFundsPartial(
+        tokenId,
+        BigInt(couponsToRedeem),
+        { gasLimit: 15000000 },
+      );
+      const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] Vault funds released. Tx: ${receipt.hash}, Coupons: ${couponsToRedeem}`,
+      );
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to release vault funds: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to release vault funds: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Lock escrow by performing a marketplace THB purchase (Vault expects calls from marketplace)
+   */
+  async lockEscrowThroughMarketplace(
+    listingId: string,
+    amount: number,
+    buyerPrivateKey?: string,
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log(
+        `[Blockchain] Locking escrow via marketplace purchase. Listing: ${listingId}, Amount: ${amount}`,
+      );
+
+      if (!this.marketplaceAddress) {
+        throw new Error('MARKETPLACE_ADDRESS not configured');
+      }
+      if (!this.vaultAddress) {
+        throw new Error('VAULT_ADDRESS not configured');
+      }
+      if (!this.thbAddress) {
+        throw new Error('THB_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(
+        buyerPrivateKey || this.privateKey,
+        this.provider,
+      );
+
+      const marketplaceContract = new Contract(
+        this.marketplaceAddress,
+        MarketplaceArtifact.abi,
+        signer,
+      );
+
+      const thbContract = new Contract(
+        this.thbAddress,
+        THBArtifact.abi,
+        signer,
+      );
+
+      const listing = await marketplaceContract.getListing(listingId);
+      if (!listing.active) {
+        throw new Error('Listing is not active');
+      }
+      if (
+        listing.paymentToken.toLowerCase() !== this.thbAddress.toLowerCase()
+      ) {
+        throw new Error('Listing payment token is not THB');
+      }
+      if (listing.amount < BigInt(amount)) {
+        throw new Error('Not enough amount in listing to lock escrow');
+      }
+
+      const totalPrice = listing.pricePerUnit * BigInt(amount);
+
+      // Ensure buyer has enough THB (mint shortfall)
+      const balance = await thbContract.balanceOf(signer.address);
+      if (balance < totalPrice) {
+        const shortfall = totalPrice - balance;
+        console.log(
+          `[Blockchain] Minting THB to cover shortfall: ${shortfall.toString()}`,
+        );
+        await this.mintTHB(signer.address, shortfall);
+      }
+
+      // Approve vault for total price
+      await this.approveTHB(this.vaultAddress, totalPrice, buyerPrivateKey);
+
+      // Buy to create escrow
+      const tx = await marketplaceContract.buyCoupon(listingId, amount, {
+        gasLimit: 15000000,
+      });
+      const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] Escrow locked via marketplace purchase. Tx: ${receipt.hash}`,
+      );
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to lock escrow via marketplace: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to lock escrow via marketplace: ${error.message}`,
+      );
+    }
+  }
+
+  /**
    * Get user coupon balance
    * @param userAddress - User wallet address
    * @param typeId - Coupon type ID
@@ -1174,6 +1513,10 @@ export class BlockchainService {
       console.log('[Blockchain] - TypeId:', typeId);
       console.log('[Blockchain] - Amount:', amount);
       console.log('[Blockchain] - Price per unit:', pricePerUnitTHB, 'THB');
+
+      if (!this.marketplaceAddress) {
+        throw new Error('MARKETPLACE_ADDRESS not configured');
+      }
 
       const signer = sellerPrivateKey
         ? new Wallet(sellerPrivateKey, this.provider)
@@ -1258,6 +1601,13 @@ export class BlockchainService {
       console.log('[Blockchain] - Amount:', amount);
       console.log('[Blockchain] - Treasury:', treasuryAddress || 'N/A');
 
+      if (!this.marketplaceAddress) {
+        throw new Error('MARKETPLACE_ADDRESS not configured');
+      }
+      if (!this.vaultAddress) {
+        throw new Error('VAULT_ADDRESS not configured');
+      }
+
       const signer = new Wallet(buyerPrivateKey, this.provider);
 
       // 1. Get listing details
@@ -1300,11 +1650,14 @@ export class BlockchainService {
       console.log('[Blockchain] Balance check passed');
 
       // 3. Approve THB spending
-      console.log('[Blockchain] Approving THB for marketplace...');
+      // Approve vault when paying with THB (Marketplace expects vault allowance)
+      console.log('[Blockchain] Approving THB for vault...');
       const approveTx = await thbContract.approve(
-        this.marketplaceAddress,
+        this.vaultAddress,
         totalPrice,
-        { gasLimit: 15000000 },
+        {
+          gasLimit: 15000000,
+        },
       );
       await approveTx.wait();
 

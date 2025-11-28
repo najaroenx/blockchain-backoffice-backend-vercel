@@ -203,17 +203,24 @@ export class ActivateVoucher {
         this.logger.log(
           `[STEP 4.4] Creating ${amount} active voucher codes with listingId: ${listingId}`,
         );
-        await (tx.voucherCode.createMany as any)({
-          data: codes.map((code) => ({
-            code,
-            voucherId,
-            pointsCost,
-            pointId,
-            currency,
-            voucherGroupId: listingId, // Use listingId as voucherGroupId
-          })),
-        });
-
+        const chunkSize: number = 300;
+        const chuck = [];
+        for (let i = 0; i < codes.length; i += chunkSize) {
+          const chunk = codes.slice(i, i + chunkSize);
+          chuck.push(
+            tx.voucherCode.createMany({
+              data: chunk.map((code) => ({
+                code,
+                voucherId,
+                pointsCost,
+                pointId,
+                currency,
+                voucherGroupId: listingId,
+              })),
+            }),
+          );
+        }
+        await Promise.all(chuck);
         this.logger.log(
           `[STEP 4.4] Created ${amount} codes with voucherGroupId (listingId): ${listingId}`,
         );

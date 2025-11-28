@@ -197,6 +197,7 @@ export class CustomerDBService {
             },
           },
           select: {
+            balances: true,
             id: true,
             pointId: true,
             point: {

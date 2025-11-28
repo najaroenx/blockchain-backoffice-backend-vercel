@@ -92,7 +92,6 @@ export class GetCustomerPhone {
         };
       }
 
-
       // Add mock vouchers if customer has no owned vouchers
       const ownedVouchers: any[] = customer.ownedVouchers || [];
       if (ownedVouchers.length === 0) {
@@ -109,7 +108,8 @@ export class GetCustomerPhone {
             id: 'voucher-mock-1',
             name: 'Welcome Discount 20%',
             description: 'Get 20% off on your first purchase',
-            imageUrl: 'https://via.placeholder.com/300x200?text=Welcome+Discount',
+            imageUrl:
+              'https://via.placeholder.com/300x200?text=Welcome+Discount',
             value: 20,
             valueType: 'percentage',
             status: 'active',
@@ -149,7 +149,6 @@ export class GetCustomerPhone {
       return {
         customer: formattedCustomer,
       };
-
     } catch (error) {
       this.logger.error(
         `Error message : ${error.message}, \n Error detail : ${error}`,

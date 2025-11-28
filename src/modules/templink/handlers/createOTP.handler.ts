@@ -27,7 +27,7 @@ export class CreateOTP {
 
       // Check if expired
       if (tempLink.expire < new Date()) {
-        throw new Error(`Temp link has expired`);
+        throw new Error(`Temp link has expired!`);
       }
       console.log(uid);
 

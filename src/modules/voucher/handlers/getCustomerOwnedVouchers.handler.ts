@@ -1,37 +1,40 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
+import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 
 @Injectable()
 export class GetCustomerOwnedVouchers {
   private logger = new Logger(GetCustomerOwnedVouchers.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private blockchainService: BlockchainService,
+  ) {}
 
   async execute(
-    walletAddress: string,
+    phone: string,
     status?: 'unused' | 'used' | 'all',
     page: number = 1,
     limit: number = 20,
   ) {
     try {
       this.logger.log(
-        `[START] Getting owned vouchers for wallet: ${walletAddress}, status: ${status}`,
+        `[START] Getting owned vouchers for phone: ${phone}, status: ${status}`,
       );
 
-      // Find customer by wallet address
-      const wallet = await this.prisma.wallet.findUnique({
-        where: { walletAddress },
+      // Find wallet by phone and type customer
+      const wallet = await this.prisma.wallet.findFirst({
+        where: { phoneNumber: phone, type: 'customer' },
         include: { customer: true },
       });
 
-      const customer = wallet?.customer;
-
-      if (!customer) {
+      if (!wallet || !wallet.customer) {
         this.logger.error(
-          `[ERROR] Customer with wallet ${walletAddress} not found`,
+          `[ERROR] Customer wallet with phone ${phone} not found`,
         );
         return {
-          walletAddress,
+          phone,
+          walletAddress: null,
           customerId: null,
           status: status || 'all',
           pagination: { page, limit, total: 0, totalPages: 0 },
@@ -40,8 +43,11 @@ export class GetCustomerOwnedVouchers {
         };
       }
 
-      const customerId = customer.id;
-      this.logger.log(`[START] Customer found: ${customerId}`);
+      const customerId = wallet.customer.id;
+      const walletAddress = wallet.walletAddress;
+      this.logger.log(
+        `[START] Customer found: ${customerId} with wallet ${walletAddress}`,
+      );
 
       // Build where clause based on status
       const where: any = {
@@ -100,10 +106,37 @@ export class GetCustomerOwnedVouchers {
       ]);
 
       this.logger.log(
-        `[SUCCESS] Found ${vouchers.length} vouchers for wallet ${walletAddress}`,
+        `[SUCCESS] Found ${vouchers.length} vouchers for phone ${phone}`,
       );
 
+      // Fetch on-chain balances for unique tokenIds
+      const tokenIds = Array.from(
+        new Set(
+          vouchers
+            .map((vc) => vc.voucher?.tokenId)
+            .filter((tid): tid is string => Boolean(tid)),
+        ),
+      );
+
+      const onChainBalanceMap = new Map<string, string | null>();
+
+      for (const tokenId of tokenIds) {
+        try {
+          const balance = await this.blockchainService.getUserCouponBalance(
+            walletAddress,
+            Number(tokenId),
+          );
+          onChainBalanceMap.set(tokenId, balance.balance);
+        } catch (err) {
+          this.logger.warn(
+            `[WARN] Failed to fetch on-chain balance for tokenId ${tokenId}: ${err.message}`,
+          );
+          onChainBalanceMap.set(tokenId, null);
+        }
+      }
+
       return {
+        phone,
         walletAddress,
         customerId,
         status: status || 'all',
@@ -120,6 +153,7 @@ export class GetCustomerOwnedVouchers {
         },
         vouchers: vouchers.map((vc) => {
           const purchaseTransaction = vc.transactions[0];
+          const tokenId = vc.voucher?.tokenId;
 
           return {
             codeId: vc.id,
@@ -130,6 +164,10 @@ export class GetCustomerOwnedVouchers {
             purchasedAt: purchaseTransaction?.createdAt || vc.createdAt,
             purchaseType:
               purchaseTransaction?.transactionType?.name || 'Unknown',
+            onChainBalance:
+              tokenId && onChainBalanceMap.has(tokenId)
+                ? onChainBalanceMap.get(tokenId)
+                : null,
             voucher: {
               id: vc.voucher.id,
               name: vc.voucher.name,
@@ -140,6 +178,7 @@ export class GetCustomerOwnedVouchers {
               imageUrl: vc.voucher.imageUrl,
               startDate: vc.voucher.startDate,
               endDate: vc.voucher.endDate,
+              merchantRef: vc.voucher.merchantRef,
               merchant: {
                 id: vc.voucher.merchant?.id,
                 name: vc.voucher.merchant?.name || vc.voucher.merchantName,

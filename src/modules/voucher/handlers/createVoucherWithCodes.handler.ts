@@ -20,28 +20,37 @@ export class CreateVoucherWithCodes {
 
   async execute(data: CreateVoucherDto) {
     try {
-      // Validate Point exists and belongs to merchant
-      this.logger.log(`[STEP 0] Validating point ${data.pointId}`);
-      const point = await this.prisma.point.findUnique({
-        where: { id: data.pointId },
-        select: { id: true, symbol: true, merchantId: true, name: true },
-      });
+      // Validate Point exists and belongs to merchant (if provided)
+      let point = null;
+      if (data.pointId) {
+        this.logger.log(`[STEP 0] Validating point ${data.pointId}`);
+        point = await this.prisma.point.findUnique({
+          where: { id: data.pointId },
+          select: { id: true, symbol: true, merchantId: true, name: true },
+        });
 
-      if (!point) {
-        this.logger.error(`[ERROR] Point ${data.pointId} not found`);
-        throw new ConflictException(`Point with ID ${data.pointId} not found`);
-      }
+        if (!point) {
+          this.logger.error(`[ERROR] Point ${data.pointId} not found`);
+          throw new ConflictException(
+            `Point with ID ${data.pointId} not found`,
+          );
+        }
 
-      if (data.merchantId && point.merchantId !== data.merchantId) {
-        this.logger.error(
-          `[ERROR] Point belongs to different merchant. Point merchantId: ${point.merchantId}, Voucher merchantId: ${data.merchantId}`,
+        if (data.merchantId && point.merchantId !== data.merchantId) {
+          this.logger.error(
+            `[ERROR] Point belongs to different merchant. Point merchantId: ${point.merchantId}, Voucher merchantId: ${data.merchantId}`,
+          );
+          throw new ConflictException(`Point does not belong to this merchant`);
+        }
+
+        this.logger.log(
+          `[STEP 0] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
         );
-        throw new ConflictException(`Point does not belong to this merchant`);
+      } else {
+        this.logger.log(
+          `[STEP 0] No pointId provided - will be set during activation`,
+        );
       }
-
-      this.logger.log(
-        `[STEP 0] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
-      );
 
       // Get merchant information if merchantId is provided
       let merchantName = 'Unknown';
@@ -97,7 +106,7 @@ export class CreateVoucherWithCodes {
               ...voucherData,
               merchantName, // ← ดึงมาจาก Merchant.name
               merchantRef, // ← ส่งมาจาก DTO สำหรับ verify ตอน redeem
-              currency: point.symbol, // ← ดึงมาจาก Point.symbol
+              currency: point?.symbol || null, // ← ดึงมาจาก Point.symbol (null ถ้ายังไม่ได้กำหนด)
               startDate: new Date(startDate),
               endDate: new Date(endDate),
               totalRedeemed: 0, // ← เริ่มต้นที่ 0
@@ -125,8 +134,10 @@ export class CreateVoucherWithCodes {
         voucher: result.voucher,
         pointsCost: result.pointsCost,
         pointId: result.pointId,
-        pointSymbol: point.symbol,
-        message: `Voucher created successfully. Use activate endpoint with pointId="${result.pointId}" and currency="${point.symbol}" to create ${data.totalIssued} codes.`,
+        pointSymbol: point?.symbol || null,
+        message: point
+          ? `Voucher created successfully. Use activate endpoint with pointId="${result.pointId}" and currency="${point.symbol}" to create ${data.totalIssued} codes.`
+          : `Voucher created successfully. Merchant will set point currency during activation to create ${data.totalIssued} codes.`,
         note: 'Voucher codes will be created when activating the voucher',
       };
     } catch (error) {

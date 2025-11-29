@@ -34,6 +34,11 @@ import { GetCustomerPhoneDevForResp } from './handlers/getCustomerPhoneDevForRes
     OTPService,
     GetCustomerPhoneDevForResp,
   ],
-  exports: [/* GetCustomerByEmail, */ GetCustomerPhone, UpdateCustomer],
+  exports: [
+    // GetCustomerByEmail,
+    GetCustomerPhone,
+    UpdateCustomer,
+    CreateCustomer,
+  ],
 })
 export class CustomerModule {}

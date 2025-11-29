@@ -18,6 +18,7 @@ import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { VoucherModule } from './modules/voucher/voucher.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { TempLinkModule } from './modules/templink/templink.module';
+import { AdminModule } from './modules/admin/admin.module'; // PHASE 1: Optional - for manual THB operations
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -38,6 +39,7 @@ import { TempLinkModule } from './modules/templink/templink.module';
     VoucherModule,
     WalletModule,
     TempLinkModule,
+    AdminModule, // PHASE 1: Optional - provides manual mint endpoint if needed
   ],
   controllers: [],
   providers: [

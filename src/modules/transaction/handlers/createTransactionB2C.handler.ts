@@ -17,6 +17,7 @@ import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { CreateTransaction as CreateTransactionResponse } from '../types';
 import { GetCustomerPhone } from 'src/modules/customer/handlers/getCustomerByPhone.handler';
 import { UpdateCustomer } from 'src/modules/customer/handlers/updateCustomer.handler';
+import { CreateCustomer } from 'src/modules/customer/handlers/createCustomer.handler';
 import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
 import { GetMerchant } from 'src/modules/merchant/handlers/getMerchantById.handler';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
@@ -33,6 +34,7 @@ export class CreateTransactionB2C {
     private readonly blockchainService: BlockchainService,
     private readonly getCustomerByPhone: GetCustomerPhone,
     private readonly updateCustomer: UpdateCustomer,
+    private readonly createCustomer: CreateCustomer,
     private readonly getMerchant: GetMerchant,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
@@ -64,29 +66,80 @@ export class CreateTransactionB2C {
       );
 
       // Get customer by phone
-      const customerResponse = await this.getCustomerByPhone.execute(
+      let customerResponse = await this.getCustomerByPhone.execute(
         merchantId,
         phone,
       );
 
-      // Check if customer was found
+      let customer: any;
+
+      // If customer not found or not registered with merchant, create/register them
       if ('message' in customerResponse) {
-        throw new BadRequestException(
-          `Customer with phone ${phone} not found or not registered with this merchant`,
+        this.logger.log(
+          `[CreateTransactionB2C] Customer with phone ${phone} not found. Creating new customer...`,
         );
-      }
 
-      const { customer } = customerResponse;
+        // Create new customer with phone number
+        // Generate email from phone if not provided
+        const customerEmail = `${phone}@customer.generated`;
 
-      // Check if customer is registered with this merchant
-      const isCustomerInMerchant = (customer as any).customerMerChant?.some(
-        (cm: any) => cm.merchantId === merchantId,
-      );
+        try {
+          const newCustomer = await this.createCustomer.execute(merchantId, {
+            email: customerEmail,
+            tel: phone,
+            firstName: '', // Can be updated later
+            lastName: '',
+          });
 
-      if (!isCustomerInMerchant) {
-        throw new BadRequestException(
-          `Customer with phone ${phone} is not registered with this merchant`,
+          customer = newCustomer;
+          this.logger.log(
+            `[CreateTransactionB2C] New customer created successfully. ID: ${customer.id}`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `[CreateTransactionB2C] Failed to create customer: ${error.message}`,
+          );
+          throw new BadRequestException(
+            `Failed to create customer with phone ${phone}: ${error.message}`,
+          );
+        }
+      } else {
+        customer = customerResponse.customer;
+
+        // Check if customer is registered with this merchant
+        const isCustomerInMerchant = (customer as any).customerMerChant?.some(
+          (cm: any) => cm.merchantId === merchantId,
         );
+
+        if (!isCustomerInMerchant) {
+          this.logger.log(
+            `[CreateTransactionB2C] Customer ${customer.id} found but not associated with merchant ${merchantId}. Adding association...`,
+          );
+
+          try {
+            await this.updateCustomer.execute(customer.id, {
+              customerMerChant: { create: { merchantId } },
+            });
+
+            // Re-fetch customer to get updated associations
+            customerResponse = await this.getCustomerByPhone.execute(
+              merchantId,
+              phone,
+            );
+            customer = (customerResponse as any).customer;
+
+            this.logger.log(
+              `[CreateTransactionB2C] Customer ${customer.id} successfully associated with merchant ${merchantId}`,
+            );
+          } catch (error) {
+            this.logger.error(
+              `[CreateTransactionB2C] Failed to associate customer with merchant: ${error.message}`,
+            );
+            throw new BadRequestException(
+              `Failed to register customer with merchant: ${error.message}`,
+            );
+          }
+        }
       }
 
       // Get merchant wallet for sender address

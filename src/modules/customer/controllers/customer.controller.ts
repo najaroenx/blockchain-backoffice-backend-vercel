@@ -16,6 +16,7 @@ import { CreateCustomer } from '../handlers/createCustomer.handler';
 import { GetCustomerListDev } from '../handlers/getCustomerListDev.handler';
 import { PageOptionsDto } from 'src/common/dtos';
 import { UpdateCustomer } from '../handlers/updateCustomer.handler';
+import { GetCustomerPhoneDevForResp } from '../handlers/getCustomerPhoneDevForResp.handler';
 import { Public } from 'src/modules/auth/public.decorator';
 
 @Controller('/:merchantId/customer')
@@ -27,6 +28,7 @@ export class CustomerController {
     private readonly GetCustomerByPhone: GetCustomerPhone,
     private readonly getCustomerListDev: GetCustomerListDev,
     private readonly updateCustomerHandler: UpdateCustomer,
+    private readonly getCustomerPhoneDevForResp: GetCustomerPhoneDevForResp,
   ) {}
 
   @Public()
@@ -70,7 +72,7 @@ export class CustomerController {
     console.log(
       `Getting customer by phone for merchant ${merchantId} and phone ${phone}`,
     );
-    return this.GetCustomerByPhone.execute(merchantId, phone);
+    return this.getCustomerPhoneDevForResp.execute(merchantId, phone);
   }
 
   @Public()

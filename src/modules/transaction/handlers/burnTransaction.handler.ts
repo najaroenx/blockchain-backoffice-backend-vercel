@@ -18,7 +18,7 @@ import { Prisma } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
-import { GetCustomerByEmailResponseType } from 'src/modules/customer/types';
+// import { GetCustomerByEmailResponseType } from 'src/modules/customer/types';
 import {
   INTERNAL_SERVER_ERROR,
   RPC_SERVER_ERROR,

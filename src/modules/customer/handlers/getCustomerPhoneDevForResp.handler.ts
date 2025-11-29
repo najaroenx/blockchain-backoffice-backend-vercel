@@ -8,13 +8,13 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
-import { GetCustomerByEmailResponseType } from '../types';
+import { GetCustomerPhoneDevForRespType } from '../types';
 import { TempLinkDBService } from 'src/modules/templink/service/templink-db.service';
 import { OTPService } from 'src/providers/otp/otp.service';
 
 @Injectable()
-export class GetCustomerPhone {
-  private logger = new Logger(GetCustomerPhone.name);
+export class GetCustomerPhoneDevForResp {
+  private logger = new Logger(GetCustomerPhoneDevForResp.name);
 
   constructor(
     private db: CustomerDBService,
@@ -26,7 +26,7 @@ export class GetCustomerPhone {
   async execute(
     merchantId: string,
     phone: string,
-  ): Promise<GetCustomerByEmailResponseType> {
+  ): Promise<GetCustomerPhoneDevForRespType> {
     try {
       const customer = await this.db.getCustomersByPhone(merchantId, phone);
       const otp = this.otpService.generateOTP(6);
@@ -142,7 +142,9 @@ export class GetCustomerPhone {
       };
 
       return {
-        customer: formattedCustomer,
+        message: 'Customer found successfully',
+        statusCode: 200,
+        data: formattedCustomer,
       };
     } catch (error) {
       this.logger.error(

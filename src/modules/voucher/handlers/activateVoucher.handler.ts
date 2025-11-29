@@ -4,8 +4,11 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { TokenService } from 'src/providers/token/token.service';
+import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
 export class ActivateVoucher {
@@ -14,6 +17,8 @@ export class ActivateVoucher {
   constructor(
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
+    private tokenService: TokenService,
+    private configService: ConfigService,
   ) {}
 
   async execute(
@@ -52,7 +57,13 @@ export class ActivateVoucher {
       this.logger.log(`[STEP 1.5] Validating point ${pointId}`);
       const point = await this.prisma.point.findUnique({
         where: { id: pointId },
-        select: { id: true, symbol: true, merchantId: true, name: true },
+        select: {
+          id: true,
+          symbol: true,
+          merchantId: true,
+          name: true,
+          contractAddress: true,
+        },
       });
 
       if (!point) {
@@ -128,104 +139,160 @@ export class ActivateVoucher {
 
           // 4.3 implement code smart contract here trigger (future)
 
-          // 4.2 Mint NFTs to merchant wallet
+          // Get merchant wallet for blockchain operations
+          const merchant = await tx.merchant.findUnique({
+            where: { id: upcomingVoucher.merchantId },
+            include: { wallet: true },
+          });
+
+          if (
+            !merchant?.wallet?.walletAddress ||
+            !merchant?.wallet?.privateKey
+          ) {
+            throw new Error('Merchant wallet not configured');
+          }
+
+          // Get tokenId from voucher
+          if (!upcomingVoucher.tokenId) {
+            throw new Error(
+              'Voucher does not have tokenId. Please create voucher with blockchain integration first.',
+            );
+          }
+
+          // 4.2 Check merchant NFT balance (merchant already owns NFTs from purchase)
           this.logger.log(
-            `[STEP 4.2] Minting ${amount} NFT coupons to merchant wallet`,
+            `[STEP 4.2] Checking merchant NFT balance for typeId ${upcomingVoucher.tokenId}`,
           );
+
           try {
-            const merchant = await tx.merchant.findUnique({
-              where: { id: upcomingVoucher.merchantId },
-              include: { wallet: true },
-            });
+            const merchantNFTBalance =
+              await this.blockchainService.getUserCouponBalance(
+                merchant.wallet.walletAddress,
+                parseInt(upcomingVoucher.tokenId),
+              );
 
-            if (!merchant?.wallet?.walletAddress) {
-              throw new Error('Merchant wallet not configured');
-            }
+            this.logger.log(
+              `[STEP 4.2] Merchant NFT balance: ${merchantNFTBalance.balance} (activating ${amount})`,
+            );
 
-            // Get tokenId from voucher
-            if (!upcomingVoucher.tokenId) {
-              throw new Error(
-                'Voucher does not have tokenId. Please create voucher with blockchain integration first.',
+            if (parseInt(merchantNFTBalance.balance) < amount) {
+              this.logger.error(
+                `[ERROR] Insufficient NFT balance. Required: ${amount}, Available: ${merchantNFTBalance.balance}`,
+              );
+              throw new BadRequestException(
+                `Merchant has insufficient NFT balance. Required: ${amount}, Available: ${merchantNFTBalance.balance}. ` +
+                  `Please ensure merchant has purchased enough vouchers from seller first.`,
               );
             }
 
-            // Batch mint: mint all units to merchant at once
-            // For ERC-1155, we can mint multiple units of same type to one address
-            await this.blockchainService.mintCoupon(
-              merchant.wallet.walletAddress,
-              upcomingVoucher.tokenId,
-              amount,
-            );
-
-            this.logger.log(
-              `[STEP 4.2] Minted ${amount} units of typeId ${upcomingVoucher.tokenId} to merchant ${merchant.wallet.walletAddress}`,
-            );
+            this.logger.log(`[STEP 4.2] Merchant has sufficient NFT balance ✓`);
           } catch (error) {
             this.logger.error(
-              `[ERROR] Failed to mint coupons: ${error.message}`,
+              `[ERROR] Failed to check NFT balance: ${error.message}`,
             );
             throw new BadRequestException(
-              `Failed to mint coupons on blockchain: ${error.message}`,
+              `Failed to verify merchant NFT balance: ${error.message}`,
             );
+          }
+
+          // 4.2.5 ตรวจสอบและ whitelist merchant ใน marketplace
+          this.logger.log(
+            `[STEP 4.2.5] Checking marketplace whitelist for merchant wallet`,
+          );
+          const isWhitelisted = await this.blockchainService.isWhitelisted(
+            merchant.wallet.walletAddress,
+          );
+
+          if (!isWhitelisted) {
+            this.logger.log(
+              `[STEP 4.2.5] Merchant ยังไม่ได้ whitelist กำลังเพิ่มเข้า whitelist...`,
+            );
+            await this.blockchainService.addToMarketplaceWhitelist(
+              merchant.wallet.walletAddress,
+            );
+            this.logger.log(`[STEP 4.2.5] Merchant whitelist สำเร็จ ✓`);
+          } else {
+            this.logger.log(`[STEP 4.2.5] Merchant ถูก whitelist แล้ว ✓`);
           }
 
           // 4.3 List on marketplace
           this.logger.log(
             `[STEP 4.3] Listing ${amount} coupons on marketplace at price ${pointsCost} per unit`,
           );
-          let listingId = null;
-          let listingSucceeded = false;
-          try {
-            // Get THB token address from environment
-            const thbTokenAddress = process.env.THB_ADDRESS;
 
-            if (!thbTokenAddress) {
-              throw new Error('THB_TOKEN_ADDRESS not configured');
-            }
+          // Decrypt merchant private key before blockchain operations
+          const salt = this.configService.get<string>('SALT');
+          const decryptedPrivateKey = this.tokenService.decryptKey(
+            salt,
+            merchant.wallet.privateKey,
+          );
 
-            const listResult = await this.blockchainService.listCoupon(
-              upcomingVoucher.tokenId,
-              amount,
-              pointsCost.toString(),
-              thbTokenAddress,
-            );
-
-            listingId = listResult.listingId;
-            listingSucceeded = true;
-
-            this.logger.log(
-              `[STEP 4.3] Listed on marketplace with listingId: ${listingId}`,
-            );
-          } catch (error) {
-            this.logger.warn(
-              `[WARN] Failed to list on marketplace: ${error.message}. Continuing without marketplace listing...`,
-            );
-            // If listing fails, generate fallback groupId
-            listingId = `${voucherId}-${Date.now()}`;
+          if (!decryptedPrivateKey) {
+            throw new Error('Failed to decrypt merchant private key');
           }
 
-          // 4.3.1 Lock funds via marketplace purchase to create escrow
-          if (listingSucceeded && listingId) {
-            this.logger.log(
-              `[STEP 4.3.1] Locking funds via marketplace purchase for listingId: ${listingId}`,
+          // Get point token address for payment token
+          const pointTokenAddress = convertBufferToAddress(
+            point.contractAddress as any,
+          );
+
+          this.logger.log(
+            `[STEP 4.3] Using point token ${pointTokenAddress} as payment token`,
+          );
+
+          const listResult = await this.blockchainService.listCoupon(
+            upcomingVoucher.tokenId,
+            amount,
+            pointsCost.toString(),
+            decryptedPrivateKey,
+            pointTokenAddress, // Customer pays with point token
+          );
+
+          const listingId = listResult.listingId;
+
+          this.logger.log(
+            `[STEP 4.3] Listed on marketplace with listingId: ${listingId}`,
+          );
+
+          // 4.3.1 Verify listing is active before proceeding
+          this.logger.log(
+            `[STEP 4.3.1] Verifying listing ${listingId} is active...`,
+          );
+
+          // Wait briefly for blockchain state to sync
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          const listing =
+            await this.blockchainService.getMarketplaceListing(listingId);
+
+          this.logger.log(
+            `[STEP 4.3.1] Listing details: ${JSON.stringify({
+              listingId,
+              isActive: listing.isActive,
+              seller: listing.seller,
+              amount: listing.amount,
+              typeId: listing.typeId,
+              pricePerUnit: listing.pricePerUnit,
+            })}`,
+          );
+
+          if (!listing.isActive) {
+            this.logger.error(
+              `[ERROR] Listing ${listingId} is not active. Full listing: ${JSON.stringify(listing)}`,
             );
-            try {
-              await this.blockchainService.lockEscrowThroughMarketplace(
-                listingId,
-                amount,
-              );
-              this.logger.log(
-                `[STEP 4.3.1] Escrow locked via marketplace for listingId: ${listingId}`,
-              );
-            } catch (lockErr) {
-              this.logger.error(
-                `[ERROR] Failed to lock escrow via marketplace: ${lockErr.message}`,
-              );
-              throw new BadRequestException(
-                `Failed to lock escrow via marketplace: ${lockErr.message}`,
-              );
-            }
+            throw new Error(
+              `Listing ${listingId} was created but is not active. Please verify merchant has sufficient coupon balance and approval.`,
+            );
           }
+
+          this.logger.log(`[STEP 4.3.1] Listing verified as active ✓`);
+
+          // Skip Step 4.3.2 - Do not lock escrow automatically
+          // Listing will remain active for customers to purchase from marketplace
+          // Escrow will be created when customers buy via buyCoupon()
+          this.logger.log(
+            `[STEP 4.3.2] Skipping automatic escrow lock - listing remains active for customer purchases`,
+          );
 
           // 4.4 Create voucher codes with listingId as voucherGroupId
           this.logger.log(

@@ -643,7 +643,12 @@ export class BlockchainService {
    * @param ownerAddress - Address of the coupon owner
    * @returns Transaction receipt
    */
-  async redeemVoucher(typeId: string, amount: number, ownerAddress: string) {
+  async redeemVoucher(
+    typeId: string,
+    amount: number,
+    ownerAddress: string,
+    ownerPrivateKey?: string,
+  ) {
     try {
       console.log(
         `[Blockchain] Redeeming coupon typeId: ${typeId}, amount: ${amount}, owner: ${ownerAddress}`,
@@ -653,7 +658,10 @@ export class BlockchainService {
         throw new Error('COUPON_ADDRESS not configured');
       }
 
-      const signer = new Wallet(this.privateKey, this.provider);
+      const signer = new Wallet(
+        ownerPrivateKey || this.privateKey,
+        this.provider,
+      );
       const contract = new Contract(
         this.couponAddress,
         CouponArtifact.abi,
@@ -1075,9 +1083,24 @@ export class BlockchainService {
 
       const listingIds = await marketplaceContract.getActiveListings();
 
+      console.log(
+        '[Blockchain] getActiveListings() returned:',
+        listingIds.length,
+        'IDs',
+      );
+      console.log(
+        '[Blockchain] Listing IDs:',
+        listingIds.map((id: bigint) => id.toString()).join(', '),
+      );
+
       const listings = await Promise.all(
         listingIds.map(async (id: bigint) => {
           const listing = await marketplaceContract.getListing(id);
+          console.log(
+            `[Blockchain] Listing ${id.toString()}: seller=${listing.seller}, ` +
+              `typeId=${listing.typeId.toString()}, amount=${listing.amount.toString()}, ` +
+              `price=${ethers.formatEther(listing.pricePerUnit)}, active=${listing.active}`,
+          );
           return {
             listingId: id.toString(),
             seller: listing.seller,
@@ -1092,6 +1115,10 @@ export class BlockchainService {
       );
 
       console.log('[Blockchain] Found', listings.length, 'active listings');
+      console.log(
+        '[Blockchain] Active status:',
+        listings.map((l) => `${l.listingId}=${l.isActive}`).join(', '),
+      );
 
       return listings;
     } catch (error) {
@@ -1499,20 +1526,25 @@ export class BlockchainService {
    * @param typeId - Coupon type ID
    * @param amount - Amount to list
    * @param pricePerUnit - Price per unit in payment token
-   * @param paymentToken - Payment token address (e.g., THB token)
+   * @param sellerPrivateKey - Seller's private key for signing
+   * @param paymentTokenAddress - Payment token address (Point Token for customer purchases)
    * @returns listingId from marketplace
    */
   async listCoupon(
     typeId: string,
     amount: number,
-    pricePerUnitTHB: string,
+    pricePerUnit: string,
     sellerPrivateKey?: string,
+    paymentTokenAddress?: string,
   ): Promise<{ listingId: string; hash: string; blockNumber: number }> {
     try {
+      const paymentToken = paymentTokenAddress || this.thbAddress;
+
       console.log('[Blockchain] Listing coupon on marketplace...');
       console.log('[Blockchain] - TypeId:', typeId);
       console.log('[Blockchain] - Amount:', amount);
-      console.log('[Blockchain] - Price per unit:', pricePerUnitTHB, 'THB');
+      console.log('[Blockchain] - Price per unit:', pricePerUnit);
+      console.log('[Blockchain] - Payment token:', paymentToken);
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');
@@ -1529,13 +1561,29 @@ export class BlockchainService {
         signer,
       );
 
-      console.log('[Blockchain] Approving marketplace for coupon transfer...');
-      const approveTx = await couponContract.setApprovalForAll(
+      console.log('[Blockchain] Checking current approval status...');
+      const sellerAddress = signer.address;
+      const isCurrentlyApproved = await couponContract.isApprovedForAll(
+        sellerAddress,
         this.marketplaceAddress,
-        true,
-        { gasLimit: 15000000 },
       );
-      await approveTx.wait();
+      console.log('[Blockchain] - Seller address:', sellerAddress);
+      console.log('[Blockchain] - Currently approved:', isCurrentlyApproved);
+
+      if (!isCurrentlyApproved) {
+        console.log(
+          '[Blockchain] Approving marketplace for coupon transfer...',
+        );
+        const approveTx = await couponContract.setApprovalForAll(
+          this.marketplaceAddress,
+          true,
+          { gasLimit: 15000000 },
+        );
+        const approveReceipt = await approveTx.wait();
+        console.log('[Blockchain] - Approval tx:', approveReceipt.hash);
+      } else {
+        console.log('[Blockchain] Marketplace already approved ✓');
+      }
 
       // 2. Create listing on marketplace
       const marketplaceContract = new Contract(
@@ -1544,25 +1592,120 @@ export class BlockchainService {
         signer,
       );
 
-      const pricePerUnit = ethers.parseEther(pricePerUnitTHB);
+      const pricePerUnitWei = ethers.parseEther(pricePerUnit);
 
       console.log('[Blockchain] Creating listing on marketplace...');
       const tx = await marketplaceContract.listCoupon(
         typeId,
         amount,
-        pricePerUnit,
-        this.thbAddress,
+        pricePerUnitWei,
+        paymentToken,
         { gasLimit: 15000000 },
       );
 
       const receipt = await tx.wait();
 
-      // Parse ListingCreated event
-      const event = receipt.logs.find(
-        (log: any) => log.fragment?.name === 'ListingCreated',
-      );
+      console.log(`[Blockchain] Transaction status: ${receipt.status}`);
+      console.log(`[Blockchain] Total logs: ${receipt.logs.length}`);
 
-      const listingId = event?.args[0]?.toString() || '0';
+      // Parse CouponListed event with multiple fallback methods
+      let listingId = '0';
+
+      // Method 1: Direct extraction from topics (fastest - listingId is indexed parameter in topics[1])
+      try {
+        const COUPON_LISTED_EVENT_SIGNATURE =
+          '0xe694c172c6060c783e16922da96667b80fac2b705fc5972a8712212db8fe0b70';
+
+        for (const log of receipt.logs) {
+          // Filter by marketplace address and event signature
+          if (
+            log.address.toLowerCase() ===
+              this.marketplaceAddress.toLowerCase() &&
+            log.topics[0] === COUPON_LISTED_EVENT_SIGNATURE
+          ) {
+            // listingId is the first indexed parameter (topics[1])
+            listingId = BigInt(log.topics[1]).toString();
+            console.log(
+              `[Blockchain] Found CouponListed event via direct topic extraction. ListingId: ${listingId}`,
+            );
+            break;
+          }
+        }
+      } catch (error) {
+        console.error(
+          `[Blockchain] Error extracting listingId from topics: ${error.message}`,
+        );
+      }
+
+      // Method 2: Parse using contract interface (ethers v6)
+      if (listingId === '0') {
+        try {
+          for (const log of receipt.logs) {
+            try {
+              const parsedLog = marketplaceContract.interface.parseLog({
+                topics: log.topics,
+                data: log.data,
+              });
+
+              if (parsedLog && parsedLog.name === 'CouponListed') {
+                listingId = parsedLog.args.listingId?.toString();
+                console.log(
+                  `[Blockchain] Found CouponListed event via parseLog. ListingId: ${listingId}`,
+                );
+                break;
+              }
+            } catch (e) {
+              // Skip logs that don't match this event
+              continue;
+            }
+          }
+        } catch (error) {
+          console.error(
+            `[Blockchain] Error parsing logs with interface: ${error.message}`,
+          );
+        }
+      }
+
+      // Method 3: Get latest listing ID from getActiveListings as fallback
+      if (listingId === '0') {
+        console.log(
+          '[Blockchain] Event parsing failed. Fetching latest listing ID from getActiveListings()...',
+        );
+        try {
+          const activeListings = await marketplaceContract.getActiveListings();
+          if (activeListings.length > 0) {
+            // Get the last listing ID (most recently created)
+            listingId = activeListings[activeListings.length - 1].toString();
+            console.log(
+              `[Blockchain] Retrieved latest listing ID from getActiveListings: ${listingId}`,
+            );
+          }
+        } catch (error) {
+          console.error(
+            `[Blockchain] Failed to get active listings: ${error.message}`,
+          );
+        }
+      }
+
+      // Final validation
+      if (listingId === '0' || !listingId) {
+        console.error('[Blockchain] ERROR: Unable to determine listing ID!');
+        console.error(
+          '[Blockchain] Receipt logs:',
+          JSON.stringify(
+            receipt.logs.map((log) => ({
+              address: log.address,
+              topics: log.topics,
+              data: log.data,
+            })),
+            null,
+            2,
+          ),
+        );
+        throw new Error(
+          'Failed to create listing: Unable to extract listing ID from transaction receipt. The transaction may have reverted.',
+        );
+      }
 
       console.log('[Blockchain] Listing created successfully');
       console.log('[Blockchain] - Listing ID:', listingId);
@@ -1609,6 +1752,7 @@ export class BlockchainService {
       }
 
       const signer = new Wallet(buyerPrivateKey, this.provider);
+      const buyerAddress = signer.address;
 
       // 1. Get listing details
       const marketplaceContract = new Contract(
@@ -1624,45 +1768,149 @@ export class BlockchainService {
         throw new Error('Listing is not active');
       }
 
+      // Check listing quantity
+      console.log('[Blockchain] Listing details:');
+      console.log('[Blockchain] - Type ID:', listing.typeId.toString());
+      console.log('[Blockchain] - Seller:', listing.seller);
+      console.log(
+        '[Blockchain] - Price per unit:',
+        ethers.formatEther(listing.pricePerUnit),
+      );
+      console.log(
+        '[Blockchain] - Amount available:',
+        listing.amount.toString(),
+      );
+      console.log('[Blockchain] - Amount requesting:', amount);
+      console.log('[Blockchain] - Active:', listing.active);
+
+      if (Number(listing.amount) < amount) {
+        throw new Error(
+          `Insufficient listing quantity. Available: ${listing.amount.toString()}, Requested: ${amount}`,
+        );
+      }
+
       const totalPrice = listing.pricePerUnit * BigInt(amount);
+      const paymentTokenAddress = listing.paymentToken;
 
       console.log(
         '[Blockchain] Total price:',
         ethers.formatEther(totalPrice),
-        'THB',
+        'tokens',
       );
+      console.log('[Blockchain] Payment token:', paymentTokenAddress);
 
-      // 2. Check THB balance
-      const thbContract = new Contract(
-        this.thbAddress,
-        THBArtifact.abi,
+      // 2. Check payment token balance (dynamic: THB or Point)
+      const paymentTokenContract = new Contract(
+        paymentTokenAddress,
+        THBArtifact.abi, // Generic ERC-20 ABI works for both THB and Point tokens
         signer,
       );
 
-      const balance = await thbContract.balanceOf(signer.address);
+      const balance = await paymentTokenContract.balanceOf(signer.address);
 
       if (balance < totalPrice) {
         throw new Error(
-          `Insufficient THB balance. Required: ${ethers.formatEther(totalPrice)}, Available: ${ethers.formatEther(balance)}`,
+          `Insufficient payment token balance. Required: ${ethers.formatEther(totalPrice)}, Available: ${ethers.formatEther(balance)}`,
         );
       }
 
       console.log('[Blockchain] Balance check passed');
 
-      // 3. Approve THB spending
-      // Approve vault when paying with THB (Marketplace expects vault allowance)
-      console.log('[Blockchain] Approving THB for vault...');
-      const approveTx = await thbContract.approve(
-        this.vaultAddress,
+      // 2.5. Check buyer whitelist status
+      console.log('[Blockchain] Checking buyer whitelist status...');
+      const isWhitelisted = await marketplaceContract.whitelist(buyerAddress);
+      console.log('[Blockchain] - Buyer whitelisted:', isWhitelisted);
+
+      if (!isWhitelisted) {
+        throw new Error(
+          `Buyer ${buyerAddress} is not whitelisted on marketplace`,
+        );
+      }
+
+      // 2.6. Check listing seller
+      console.log('[Blockchain] Checking listing seller...');
+      console.log('[Blockchain] - Listing seller:', listing.seller);
+      console.log('[Blockchain] - Buyer address:', buyerAddress);
+
+      if (listing.seller.toLowerCase() === buyerAddress.toLowerCase()) {
+        throw new Error('Buyer cannot purchase their own listing');
+      }
+
+      // 2.7. Check marketplace's NFT balance (NFTs are held in escrow by marketplace)
+      console.log('[Blockchain] Checking marketplace NFT balance...');
+      const couponContract = new Contract(
+        this.couponAddress,
+        CouponArtifact.abi,
+        this.provider,
+      );
+
+      const marketplaceBalance = await couponContract.balanceOf(
+        this.marketplaceAddress,
+        listing.typeId,
+      );
+      console.log(
+        '[Blockchain] - Marketplace NFT balance:',
+        marketplaceBalance.toString(),
+      );
+      console.log('[Blockchain] - Amount requesting:', amount);
+
+      if (marketplaceBalance < amount) {
+        throw new Error(
+          `Marketplace has insufficient NFT balance. Required: ${amount}, Available: ${marketplaceBalance.toString()}`,
+        );
+      }
+
+      // 3. Approve payment token spending
+      // THB: approve vault (escrow), Point: approve marketplace (direct payment)
+      const isTHBPayment =
+        paymentTokenAddress.toLowerCase() === this.thbAddress.toLowerCase();
+      const approveTarget = isTHBPayment
+        ? this.vaultAddress
+        : this.marketplaceAddress;
+      const approveTargetName = isTHBPayment ? 'vault' : 'marketplace';
+
+      console.log(
+        `[Blockchain] Approving payment token for ${approveTargetName}...`,
+      );
+      console.log('[Blockchain] - Payment token:', paymentTokenAddress);
+      console.log('[Blockchain] - Approve target:', approveTarget);
+      console.log('[Blockchain] - Amount to approve:', totalPrice.toString());
+
+      const approveTx = await paymentTokenContract.approve(
+        approveTarget,
         totalPrice,
         {
           gasLimit: 15000000,
         },
       );
-      await approveTx.wait();
+      const approveReceipt = await approveTx.wait();
+      console.log('[Blockchain] - Approve tx:', approveReceipt.hash);
+
+      // 3.5. Verify allowance
+      console.log('[Blockchain] Verifying allowance...');
+      const allowance = await paymentTokenContract.allowance(
+        buyerAddress,
+        approveTarget,
+      );
+      console.log('[Blockchain] - Current allowance:', allowance.toString());
+      console.log('[Blockchain] - Required amount:', totalPrice.toString());
+
+      if (allowance < totalPrice) {
+        throw new Error(
+          `Insufficient allowance for ${approveTargetName}. Required: ${totalPrice.toString()}, Got: ${allowance.toString()}`,
+        );
+      }
 
       // 4. Buy coupon
       console.log('[Blockchain] Executing buy transaction...');
+      console.log(
+        '[Blockchain] - Marketplace contract:',
+        this.marketplaceAddress,
+      );
+      console.log('[Blockchain] - Listing ID:', listingId);
+      console.log('[Blockchain] - Amount:', amount);
+      console.log('[Blockchain] - Buyer:', buyerAddress);
+
       const tx = await marketplaceContract.buyCoupon(listingId, amount, {
         gasLimit: 15000000,
       });
@@ -1681,6 +1929,134 @@ export class BlockchainService {
       console.error(`[Blockchain] Failed to buy coupon: ${error.message}`);
       throw new InternalServerErrorException(
         `Failed to buy coupon: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * เพิ่ม address เข้า marketplace whitelist
+   * @param address - Address ที่ต้องการ whitelist
+   * @returns Transaction receipt
+   */
+  async addToMarketplaceWhitelist(
+    address: string,
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log(`[Blockchain] Adding ${address} to marketplace whitelist...`);
+
+      if (!this.marketplaceAddress) {
+        throw new Error('MARKETPLACE_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(this.privateKey, this.provider);
+      const marketplaceContract = new Contract(
+        this.marketplaceAddress,
+        MarketplaceArtifact.abi,
+        signer,
+      );
+
+      const tx = await marketplaceContract.addToWhitelist(address, {
+        gasLimit: 15000000,
+      });
+      const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] Address ${address} whitelisted. Tx: ${receipt.hash}`,
+      );
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to whitelist address: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to whitelist address: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * ตรวจสอบว่า address ถูก whitelist หรือยัง
+   * @param address - Address ที่ต้องการตรวจสอบ
+   * @returns Boolean บอกสถานะ whitelist
+   */
+  async isWhitelisted(address: string): Promise<boolean> {
+    try {
+      console.log(`[Blockchain] Checking whitelist status for ${address}...`);
+
+      if (!this.marketplaceAddress) {
+        throw new Error('MARKETPLACE_ADDRESS not configured');
+      }
+
+      const marketplaceContract = new Contract(
+        this.marketplaceAddress,
+        MarketplaceArtifact.abi,
+        this.provider,
+      );
+
+      const isWhitelisted = await marketplaceContract.whitelist(address);
+
+      console.log(
+        `[Blockchain] Address ${address} whitelist status: ${isWhitelisted}`,
+      );
+
+      return isWhitelisted;
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to check whitelist status: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to check whitelist status: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * เพิ่มหลาย addresses เข้า whitelist พร้อมกัน
+   * @param addresses - Array ของ addresses ที่ต้องการ whitelist
+   * @returns Transaction receipt
+   */
+  async batchAddToMarketplaceWhitelist(
+    addresses: string[],
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log(
+        `[Blockchain] Batch adding ${addresses.length} addresses to marketplace whitelist...`,
+      );
+
+      if (!this.marketplaceAddress) {
+        throw new Error('MARKETPLACE_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(this.privateKey, this.provider);
+      const marketplaceContract = new Contract(
+        this.marketplaceAddress,
+        MarketplaceArtifact.abi,
+        signer,
+      );
+
+      const tx = await marketplaceContract.batchAddToWhitelist(addresses, {
+        gasLimit: 15000000,
+      });
+      const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] Batch whitelisted ${addresses.length} addresses. Tx: ${receipt.hash}`,
+      );
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to batch whitelist addresses: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to batch whitelist addresses: ${error.message}`,
       );
     }
   }

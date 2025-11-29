@@ -80,6 +80,11 @@ async function seedTransactionTypes() {
       description: 'Purchase voucher from marketplace',
     },
     {
+      id: 'MERCHANT_PURCHASE_FROM_SELLER',
+      name: 'Merchant Purchase From Seller',
+      description: 'Merchant purchases vouchers from seller using THB token',
+    },
+    {
       id: 'VOUCHER_TRANSFER',
       name: 'Voucher Transfer',
       description: 'Transfer voucher to another customer',
@@ -123,6 +128,38 @@ async function seedTreasury() {
       },
     } as any);
   }
+}
+
+async function seedSellerWallets() {
+  const sellerWallets = [
+    {
+      id: 'seller-wallet-1',
+      walletAddress: '0xf5e40ec8bfa4818278c04489b34a486281658e5c',
+      privateKey:
+        '0x232c5e59c09fc77a909d6a03d8aff5968eb952844ffcfaa3431b8b5ccbaee39a',
+      email: 'seller1@example.com',
+      phoneNumber: '0809760234',
+      type: 'seller',
+      status: 'active',
+    },
+  ];
+
+  for (const wallet of sellerWallets) {
+    await prisma.wallet.upsert({
+      where: { id: wallet.id },
+      update: {
+        walletAddress: wallet.walletAddress,
+        privateKey: wallet.privateKey,
+        email: wallet.email,
+        phoneNumber: wallet.phoneNumber,
+        type: wallet.type,
+        status: wallet.status,
+      },
+      create: wallet,
+    });
+  }
+
+  console.log('✅ Seeded seller wallets');
 }
 
 /*
@@ -358,6 +395,7 @@ async function seedVouchers() {
 async function main() {
   await seedTreasury();
   await seedTransactionTypes();
+  await seedSellerWallets();
   // await seedMerchants();
   // await seedVouchers();
   // await seedPoints();

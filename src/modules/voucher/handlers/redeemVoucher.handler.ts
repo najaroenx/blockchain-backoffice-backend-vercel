@@ -7,15 +7,22 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
+import { TokenService } from 'src/providers/token/token.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class RedeemVoucher {
   private logger = new Logger(RedeemVoucher.name);
+  private salt: string;
 
   constructor(
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
-  ) {}
+    private tokenService: TokenService,
+    private configService: ConfigService,
+  ) {
+    this.salt = this.configService.get<string>('SALT');
+  }
 
   async execute(code: string, phone: string, merchantRef: string) {
     try {
@@ -174,9 +181,37 @@ export class RedeemVoucher {
       // 7. Get customer wallet address
       this.logger.log(`[STEP 7] Getting customer wallet address`);
       const customerAddress = customer.wallet?.walletAddress || '';
+      const encryptedPrivateKey = customer.wallet?.privateKey || '';
+      const customerPrivateKey = this.tokenService.decryptKey(
+        this.salt,
+        encryptedPrivateKey,
+      );
 
       if (!customerAddress) {
         throw new NotFoundException('Customer wallet not configured');
+      }
+      if (!customerPrivateKey) {
+        throw new NotFoundException(
+          'Customer private key not configured or decryption failed',
+        );
+      }
+
+      // 7.5 ตรวจสอบ on-chain balance ของลูกค้าก่อน redeem เพื่อเลี่ยง revert จากสัญญา
+      this.logger.log(
+        `[STEP 7.5] Checking on-chain coupon balance for typeId: ${voucher.tokenId} and owner: ${customerAddress}`,
+      );
+      const onChainBalance = await this.blockchainService.getUserCouponBalance(
+        customerAddress,
+        Number(voucher.tokenId),
+      );
+
+      if (!onChainBalance || Number(onChainBalance.balance) < 1) {
+        this.logger.error(
+          `[ERROR] On-chain balance insufficient. Balance: ${onChainBalance?.balance || 0}`,
+        );
+        throw new BadRequestException(
+          'Insufficient on-chain coupon balance for redemption',
+        );
       }
 
       // 8. เรียก Smart Contract เพื่อ redeem voucher NFT (Burn ERC-1155)
@@ -205,6 +240,7 @@ export class RedeemVoucher {
           typeId,
           1, // Redeem 1 unit (ERC-1155)
           customerAddress,
+          customerPrivateKey, // Redeem as the actual owner so contract balance + marketplace callback apply
         );
 
         this.logger.log(
@@ -219,35 +255,7 @@ export class RedeemVoucher {
         );
       }
 
-      // 8b. Release vault funds if escrow is active
-      try {
-        const typeId = voucher.tokenId as string;
-        this.logger.log(
-          `[STEP 8.5] Checking vault escrow for typeId: ${typeId}`,
-        );
-        const hasEscrow =
-          await this.blockchainService.hasActiveVaultEscrow(typeId);
-
-        if (hasEscrow) {
-          this.logger.log(
-            `[STEP 8.5] Active escrow found. Releasing funds for 1 coupon`,
-          );
-          vaultReleaseTx =
-            await this.blockchainService.releaseVaultFundsPartial(typeId, 1);
-          this.logger.log(
-            `[STEP 8.5] Vault release successful. Tx: ${vaultReleaseTx.hash}`,
-          );
-        } else {
-          this.logger.warn(
-            `[STEP 8.5] No active vault escrow for typeId ${typeId}. Skipping release.`,
-          );
-        }
-      } catch (error) {
-        this.logger.error(`[ERROR] Vault release failed: ${error.message}`);
-        throw new BadRequestException(
-          `Failed to release vault funds: ${error.message}`,
-        );
-      }
+      // 8b. Vault release will be triggered by marketplace callback inside the contract redeem
 
       // 9. Get merchant wallet for transaction
       this.logger.log(`[STEP 9] Getting merchant wallet address`);

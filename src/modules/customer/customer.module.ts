@@ -32,6 +32,11 @@ import { OTPService } from 'src/providers/otp/otp.service';
     GetCustomerListDev,
     OTPService,
   ],
-  exports: [GetCustomerByEmail, GetCustomerPhone, UpdateCustomer],
+  exports: [
+    GetCustomerByEmail,
+    GetCustomerPhone,
+    UpdateCustomer,
+    CreateCustomer,
+  ],
 })
 export class CustomerModule {}

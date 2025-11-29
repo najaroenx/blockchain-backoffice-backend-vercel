@@ -18,15 +18,25 @@ import {
 } from '../dtos';
 import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 import { BuyCouponFromMarketplaceDto } from '../dtos/buy-coupon-marketplace.dto';
+import { MerchantBuyCouponFromSellerDto } from '../dtos/merchant-buy-coupon.dto';
+import { SellerListOnMarketplaceDto } from '../dtos/seller-list-marketplace.dto';
 import { Public } from 'src/modules/auth/public.decorator';
+import { GetMarketplaceListings } from '../handlers/getMarketplaceListings.handler';
 import { ManageCouponHandler } from '../handlers/manageCoupon.handler';
+import { MerchantBuyCouponFromSeller } from '../handlers/merchantBuyCouponFromSeller.handler';
+import { SellerListOnMarketplace } from '../handlers/sellerListOnMarketplace.handler';
+import { GetSellerVouchers } from '../handlers/getSellerVouchers.handler';
 import { VoucherValueType } from '@prisma/client';
 
 @Controller('coupon')
 export class VoucherController {
   constructor(
     private readonly voucherService: VoucherDBService,
+    private readonly getMarketplaceListings: GetMarketplaceListings,
     private readonly manageCouponHandler: ManageCouponHandler,
+    private readonly merchantBuyHandler: MerchantBuyCouponFromSeller,
+    private readonly sellerListHandler: SellerListOnMarketplace,
+    private readonly getSellerVouchersHandler: GetSellerVouchers,
   ) {}
 
   @Get('/')
@@ -69,28 +79,29 @@ export class VoucherController {
   }
 
   /**
-   * Get available vouchers for end users with pagination
-   * GET /coupon/:merchantId/products?page=1&skip=0&limit=20
+   * Get seller vouchers (vouchers not yet purchased by merchants)
+   * GET /coupon/seller/vouchers
+   * Optional query param: walletAddress for filtering by seller
+   */
+  @Get('/seller/vouchers')
+  @Public()
+  @HttpCode(200)
+  async getSellerVouchers(@Query('walletAddress') walletAddress?: string) {
+    return this.getSellerVouchersHandler.execute(walletAddress);
+  }
+
+  /**
+   * Get available vouchers from marketplace (blockchain)
+   * GET /coupon/:merchantId/products
    */
   @Get('/:merchantId/products')
   @Public()
   @HttpCode(200)
   async getAvailableVouchersForCustomers(
     @Param('merchantId') merchantId: string,
-    @Query('page') page?: string,
-    @Query('skip') skip?: string,
-    @Query('limit') limit?: string,
   ) {
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const skipNum = skip ? parseInt(skip, 10) : 0;
-    const limitNum = limit ? parseInt(limit, 10) : 20;
-
-    return this.voucherService.getAvailableVouchersForCustomers(
-      merchantId,
-      pageNum,
-      skipNum,
-      limitNum,
-    );
+    // Fetch from blockchain marketplace instead of database
+    return this.getMarketplaceListings.execute(merchantId);
   }
 
   /**
@@ -249,6 +260,41 @@ export class VoucherController {
   }
 
   /**
+   * Seller lists vouchers on marketplace with THB as payment token
+   * POST /coupon/seller/list-on-marketplace
+   * Body: { voucherId: string, amount: number, pricePerUnitTHB: number, sellerWalletAddress: string }
+   */
+  @Post('/seller/list-on-marketplace')
+  @Public()
+  @HttpCode(200)
+  async sellerListOnMarketplace(@Body() data: SellerListOnMarketplaceDto) {
+    return this.sellerListHandler.execute(
+      data.voucherId,
+      data.amount,
+      data.pricePerUnitTHB,
+      data.sellerWalletAddress,
+    );
+  }
+
+  /**
+   * Merchant buys coupons from seller using THB token
+   * POST /coupon/merchant/buy-from-seller
+   * Body: { listingId: string, amount: number, merchantId: string }
+   */
+  @Post('/merchant/buy-from-seller')
+  @Public()
+  @HttpCode(200)
+  async merchantBuyCouponFromSeller(
+    @Body() data: MerchantBuyCouponFromSellerDto,
+  ) {
+    return this.merchantBuyHandler.execute(
+      data.listingId,
+      data.amount,
+      data.merchantId,
+    );
+  }
+
+  /**
    * Buy coupon from marketplace (customer buying from marketplace)
    * POST /coupon/marketplace/buy
    * Body: { voucherGroupId: string, pointId: string, phone: string }
@@ -287,5 +333,16 @@ export class VoucherController {
       pageNum,
       limitNum,
     );
+  }
+
+  /**
+   * Get on-chain coupon balances for customer (by phone -> wallet)
+   * GET /coupon/my-coupons/onchain/:phone
+   */
+  @Get('/my-coupons/onchain/:phone')
+  @Public()
+  @HttpCode(200)
+  async getCustomerOnChainBalances(@Param('phone') phone: string) {
+    return this.voucherService.getCustomerOnChainBalances(phone);
   }
 }

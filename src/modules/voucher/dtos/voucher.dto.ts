@@ -32,11 +32,12 @@ export class CreateVoucherDto {
   value: number;
 
   @IsInt()
-  pointsCost: number;
+  @IsOptional()
+  pointsCost?: number; // Optional: merchant sets this during activation
 
   @IsString()
-  @IsNotEmpty()
-  pointId: string; // Point ID to specify which point currency to use
+  @IsOptional()
+  pointId?: string; // Optional: merchant sets this during activation
 
   @IsDateString()
   startDate: string;
@@ -56,8 +57,8 @@ export class CreateVoucherDto {
   limitPerMember?: number;
 
   @IsString()
-  @IsNotEmpty()
-  merchantRef: string; // ← Reference ID from merchant system for verification
+  @IsOptional()
+  merchantRef?: string; // Optional: Reference ID from merchant/seller system
 }
 
 export class UpdateVoucherDto {
@@ -114,15 +115,11 @@ export class UpdateVoucherDto {
   merchantRef?: string; // ร้านที่เป็นเจ้าของคูปองที่นำไปแลก
 }
 
-// DTO for voucher sale creation
+// DTO for voucher sale creation (seller creates voucher inventory)
 export class CreateVoucherByDevDto {
   @IsString()
   @IsNotEmpty()
   sellerWalletAddress: string;
-
-  @IsNumber()
-  @IsNotEmpty()
-  price: number;
 
   @ValidateNested()
   @Type(() => CreateVoucherDto)

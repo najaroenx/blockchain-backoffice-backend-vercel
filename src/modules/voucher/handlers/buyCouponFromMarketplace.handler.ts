@@ -4,8 +4,10 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { TokenService } from 'src/providers/token/token.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
@@ -16,6 +18,8 @@ export class BuyCouponFromMarketplace {
   constructor(
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
+    private tokenService: TokenService,
+    private configService: ConfigService,
   ) {}
 
   async execute(voucherGroupId: string, pointId: string, phone: string) {
@@ -205,6 +209,35 @@ export class BuyCouponFromMarketplace {
       }
       const walletAddress = customerWallet.walletAddress;
 
+      // 7.5. Decrypt customer private key
+      this.logger.log(`[STEP 7.5] Decrypting customer private key`);
+      const salt = this.configService.get<string>('SALT');
+      const decryptedPrivateKey = this.tokenService.decryptKey(
+        salt,
+        customerWallet.privateKey,
+      );
+
+      if (!decryptedPrivateKey) {
+        throw new Error('Failed to decrypt customer private key');
+      }
+
+      // 7.6. Check and add customer to marketplace whitelist if needed
+      this.logger.log(
+        `[STEP 7.6] Checking if customer is whitelisted for marketplace`,
+      );
+      const isWhitelisted =
+        await this.blockchainService.isWhitelisted(walletAddress);
+
+      if (!isWhitelisted) {
+        this.logger.log(
+          `[STEP 7.6] Customer not whitelisted. Adding to whitelist...`,
+        );
+        await this.blockchainService.addToMarketplaceWhitelist(walletAddress);
+        this.logger.log(`[STEP 7.6] Customer whitelisted successfully ✓`);
+      } else {
+        this.logger.log(`[STEP 7.6] Customer already whitelisted ✓`);
+      }
+
       // 8. On-chain purchase using ERC-20 (point) via marketplace
       this.logger.log(
         `[STEP 8] Calling smart contract buyCoupon on marketplace`,
@@ -219,22 +252,64 @@ export class BuyCouponFromMarketplace {
           );
         }
 
+        // Validate voucherGroupId is numeric format (not old UUID format)
+        if (!/^\d+$/.test(voucherCode.voucherGroupId)) {
+          throw new BadRequestException(
+            'This voucher code uses an old system format and cannot be purchased from marketplace. ' +
+              'Please contact the merchant to re-activate this voucher. ' +
+              `Current voucherGroupId: ${voucherCode.voucherGroupId}`,
+          );
+        }
+
         const listingId = voucherCode.voucherGroupId;
         const listing =
           await this.blockchainService.getMarketplaceListing(listingId);
 
         if (!listing.isActive) {
-          throw new BadRequestException('Listing is not active');
+          throw new BadRequestException(
+            `Listing ${listingId} is not active. This listing may have been sold out or cancelled.`,
+          );
         }
 
-        // Optional: validate payment token matches point contract (if available)
+        // Verify listing seller matches the merchant who owns this voucher
+        const merchant = await this.prisma.merchant.findUnique({
+          where: { id: voucher.merchantId },
+          select: {
+            wallet: {
+              select: {
+                walletAddress: true,
+              },
+            },
+          },
+        });
+
+        if (!merchant?.wallet?.walletAddress) {
+          throw new BadRequestException('Merchant wallet not found');
+        }
+
+        const merchantAddress = merchant.wallet.walletAddress.toLowerCase();
+        const listingSeller = listing.seller.toLowerCase();
+
+        if (listingSeller !== merchantAddress) {
+          this.logger.error(
+            `[ERROR] Listing seller mismatch. Listing seller: ${listingSeller}, Merchant address: ${merchantAddress}`,
+          );
+          throw new BadRequestException(
+            `This listing belongs to a different seller. The merchant may need to re-activate this voucher. ` +
+              `Expected seller: ${merchantAddress}, Actual seller: ${listingSeller}`,
+          );
+        }
+
+        this.logger.log(`[STEP 8] Listing seller verified ✓`);
+
+        // Validate payment token matches point contract (customer pays with point token)
         if (voucherCode.point?.contractAddress) {
-          const expected = convertBufferToAddress(
+          const expectedPointAddress = convertBufferToAddress(
             voucherCode.point.contractAddress as any,
           ).toLowerCase();
-          if (listing.paymentToken.toLowerCase() !== expected) {
+          if (listing.paymentToken.toLowerCase() !== expectedPointAddress) {
             throw new BadRequestException(
-              `Listing payment token mismatch. Expected: ${expected}, got: ${listing.paymentToken}`,
+              `Listing payment token mismatch. Expected point token: ${expectedPointAddress}, got: ${listing.paymentToken}`,
             );
           }
         }
@@ -242,7 +317,7 @@ export class BuyCouponFromMarketplace {
         blockchainTx = await this.blockchainService.buyCoupon(
           listingId,
           1, // Buy 1 unit
-          customerWallet.privateKey, // Buyer signs
+          decryptedPrivateKey, // Buyer signs with decrypted key
         );
 
         this.logger.log(

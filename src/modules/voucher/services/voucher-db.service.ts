@@ -9,6 +9,7 @@ import { BuyCouponFromMarketplace } from '../handlers/buyCouponFromMarketplace.h
 import { GetCustomerOwnedVouchers } from '../handlers/getCustomerOwnedVouchers.handler';
 import { CreateVoucherByDevDto, CreateVoucherDto } from '../dtos/voucher.dto';
 import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
+import { GetCustomerOnChainBalances } from '../handlers/getCustomerOnChainBalances.handler';
 
 export interface DeleteVoucherResponse {
   success: boolean;
@@ -27,6 +28,7 @@ export class VoucherDBService {
     private readonly redeemVoucherHandler: RedeemVoucher,
     private readonly buyCouponFromMarketplaceHandler: BuyCouponFromMarketplace,
     private readonly getCustomerOwnedVouchersHandler: GetCustomerOwnedVouchers,
+    private readonly getCustomerOnChainBalancesHandler: GetCustomerOnChainBalances,
   ) {}
 
   async createVoucher(data: Prisma.VoucherCreateInput): Promise<Voucher> {
@@ -114,26 +116,27 @@ export class VoucherDBService {
     const groupedMap = new Map<string, any>();
 
     for (const voucher of vouchers) {
-      // นับ active codes (codes ที่มี voucherGroupId และยังไม่ถูกใช้)
+      // upcoming codes = voucher ที่ status='upcoming' (merchant ซื้อมาแล้วแต่ยังไม่ activate)
+      const upcomingCodesCount =
+        voucher.status === 'upcoming' ? voucher.totalIssued : 0;
+
+      // active codes = codes ที่ activate แล้ว (มี pointId) และยังไม่ถูกใช้
       const activeCodesCount = await this.prisma.voucherCode.count({
         where: {
           voucherId: voucher.id,
-          voucherGroupId: { not: null },
+          pointId: { not: null },
           isUsed: false,
         },
       });
 
-      // นับ redeemed codes (codes ที่ถูก redeem ไปแล้ว)
+      // redeemed codes = codes ที่ถูก redeem ไปแล้ว
       const redeemedCodesCount = await this.prisma.voucherCode.count({
         where: {
           voucherId: voucher.id,
-          voucherGroupId: { not: null },
+          pointId: { not: null },
           isUsed: true,
         },
       });
-
-      // upcoming = totalIssued ที่ยังไม่ได้สร้าง codes
-      const upcomingCodesCount = voucher.totalIssued;
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { voucherCodes, ...voucherData } = voucher;
@@ -884,5 +887,12 @@ export class VoucherDBService {
       page,
       limit,
     );
+  }
+
+  /**
+   * Get on-chain coupon balances for customer by phone
+   */
+  async getCustomerOnChainBalances(phone: string) {
+    return await this.getCustomerOnChainBalancesHandler.execute(phone);
   }
 }

@@ -116,9 +116,13 @@ export class VoucherDBService {
     const groupedMap = new Map<string, any>();
 
     for (const voucher of vouchers) {
-      // upcoming codes = voucher ที่ status='upcoming' (merchant ซื้อมาแล้วแต่ยังไม่ activate)
-      const upcomingCodesCount =
-        voucher.status === 'upcoming' ? voucher.totalIssued : 0;
+      // upcoming codes = voucher codes ที่ยังไม่ถูก activate (ยังไม่มี voucherGroupId)
+      const upcomingCodesCount = await this.prisma.voucherCode.count({
+        where: {
+          voucherId: voucher.id,
+          voucherGroupId: null,
+        },
+      });
 
       // active codes = codes ที่ activate แล้ว (มี pointId) และยังไม่ถูกใช้
       const activeCodesCount = await this.prisma.voucherCode.count({

@@ -96,6 +96,10 @@ export class VoucherDBService {
   }
 
   async getVouchersByMerchant(merchantId: string): Promise<any[]> {
+    console.log(
+      `[getVouchersByMerchant] Querying vouchers for merchantId: ${merchantId}`,
+    );
+
     const vouchers = await this.repository.findMany<any>({
       where: { merchantId },
       include: {
@@ -112,17 +116,32 @@ export class VoucherDBService {
       },
     });
 
+    console.log(
+      `[getVouchersByMerchant] Found ${vouchers.length} vouchers for merchant ${merchantId}`,
+    );
+    console.log(
+      `[getVouchersByMerchant] Vouchers:`,
+      JSON.stringify(
+        vouchers.map((v) => ({
+          id: v.id,
+          name: v.name,
+          status: v.status,
+          merchantId: v.merchantId,
+          totalIssued: v.totalIssued,
+          voucherCodesCount: v.voucherCodes?.length || 0,
+        })),
+        null,
+        2,
+      ),
+    );
+
     // Group vouchers โดย createdAt ของ VoucherCode
     const groupedMap = new Map<string, any>();
 
     for (const voucher of vouchers) {
-      // upcoming codes = voucher codes ที่ยังไม่ถูก activate (ยังไม่มี voucherGroupId)
-      const upcomingCodesCount = await this.prisma.voucherCode.count({
-        where: {
-          voucherId: voucher.id,
-          voucherGroupId: null,
-        },
-      });
+      // upcoming codes = totalIssued ที่เหลือ (ยังไม่ได้ activate)
+      // ใช้ voucher.totalIssued แทนการนับ codes เพราะ codes จาก seller ไม่ควรนับเป็น upcoming
+      const upcomingCodesCount = voucher.totalIssued;
 
       // active codes = codes ที่ activate แล้ว (มี pointId) และยังไม่ถูกใช้
       const activeCodesCount = await this.prisma.voucherCode.count({
@@ -147,9 +166,13 @@ export class VoucherDBService {
 
       // ถ้ามี active codes หรือ redeemed codes - หา voucherGroupId ที่ไม่ซ้ำกัน
       if (activeCodesCount > 0 || redeemedCodesCount > 0) {
-        // หา voucherGroupId ที่ไม่ซ้ำกันของ codes ที่มี voucherGroupId พร้อมข้อมูลที่ถูกต้อง
+        // หา voucherGroupId ที่ไม่ซ้ำกันของ codes ที่ merchant activate แล้ว (มี pointId)
         const activatedCodes = await this.prisma.voucherCode.findMany({
-          where: { voucherId: voucher.id, voucherGroupId: { not: null } },
+          where: {
+            voucherId: voucher.id,
+            voucherGroupId: { not: null },
+            pointId: { not: null },
+          },
           select: {
             voucherGroupId: true,
             createdAt: true,
@@ -235,10 +258,21 @@ export class VoucherDBService {
     }
 
     // สร้าง result array
+    console.log(
+      `[getVouchersByMerchant] Processing groupedMap with ${groupedMap.size} groups`,
+    );
     const result = [];
     for (const group of groupedMap.values()) {
       // ถ้ามี active codes หรือ redeemed codes
       if (group.activeCount > 0 || group.redeemedCount > 0) {
+        console.log(
+          `[getVouchersByMerchant] Adding active group:`,
+          JSON.stringify({
+            voucherIds: group.voucherIds,
+            activeCount: group.activeCount,
+            redeemedCount: group.redeemedCount,
+          }),
+        );
         result.push({
           ...group.baseData,
           status: 'active',
@@ -251,6 +285,13 @@ export class VoucherDBService {
 
       // ถ้ายังมี upcoming codes
       if (group.upcomingCount > 0) {
+        console.log(
+          `[getVouchersByMerchant] Adding upcoming group:`,
+          JSON.stringify({
+            voucherIds: group.voucherIds,
+            upcomingCount: group.upcomingCount,
+          }),
+        );
         result.push({
           ...group.baseData,
           status: 'upcoming',
@@ -262,15 +303,44 @@ export class VoucherDBService {
       }
     }
 
-    // เพิ่ม: แสดง vouchers ที่ merchant ซื้อมาแล้วแต่ยังไม่มี VoucherCode เลย (ยังไม่ได้ activate)
+    console.log(
+      `[getVouchersByMerchant] After groupedMap processing, result has ${result.length} items`,
+    );
+
+    // เพิ่ม: แสดง vouchers ที่ merchant ซื้อมาแล้วแต่ยังไม่ได้ activate
+    // กรณี 1: ไม่มี VoucherCode เลย (ซื้อมาแต่ seller ยังไม่ list)
+    // กรณี 2: มี codes แต่ไม่มี pointId (seller list แล้ว merchant ซื้อ แต่ยังไม่ activate)
     // Status: "upcoming" สำหรับคูปองที่ซื้อมาและยังไม่ activate
+    console.log(
+      `[getVouchersByMerchant] Checking for vouchers not yet activated by merchant...`,
+    );
     for (const voucher of vouchers) {
       const hasAnyCode = await this.prisma.voucherCode.count({
         where: { voucherId: voucher.id },
       });
 
-      // ถ้าไม่มี VoucherCode เลย = merchant ซื้อมาแล้วแต่ยังไม่ activate
-      if (hasAnyCode === 0) {
+      const hasActivatedCode = await this.prisma.voucherCode.count({
+        where: {
+          voucherId: voucher.id,
+          pointId: { not: null },
+        },
+      });
+
+      console.log(
+        `[getVouchersByMerchant] Voucher ${voucher.id} (${voucher.name}) has ${hasAnyCode} total codes, ${hasActivatedCode} activated codes (with pointId)`,
+      );
+
+      // ถ้าไม่มี activated codes (pointId = null) = merchant ซื้อมาแล้วแต่ยังไม่ activate
+      // (อาจมี codes จาก seller listing หรือไม่มี codes เลย)
+      if (hasActivatedCode === 0 && voucher.totalIssued > 0) {
+        console.log(
+          `[getVouchersByMerchant] Adding voucher without codes:`,
+          JSON.stringify({
+            id: voucher.id,
+            name: voucher.name,
+            totalIssued: voucher.totalIssued,
+          }),
+        );
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { voucherCodes, ...voucherData } = voucher;
         result.push({
@@ -283,6 +353,22 @@ export class VoucherDBService {
         });
       }
     }
+
+    console.log(`[getVouchersByMerchant] Final result count: ${result.length}`);
+    console.log(
+      `[getVouchersByMerchant] Returning:`,
+      JSON.stringify(
+        result.map((r) => ({
+          id: r.id,
+          name: r.name,
+          status: r.status,
+          totalIssued: r.totalIssued,
+          availableCount: r.availableCount,
+        })),
+        null,
+        2,
+      ),
+    );
 
     return result;
   }

@@ -30,7 +30,7 @@ export class ActivateVoucher {
   ) {
     try {
       this.logger.log(
-        `[START] Activating voucher ${voucherId} with amount: ${amount}, pointsCost: ${pointsCost}, pointId: ${pointId}, currency: ${currency}`,
+        `[START] Activating voucher ${voucherId} with amount: ${amount}, pointsCost: ${pointsCost}, pointId: ${pointId}`,
       );
 
       // 1. ตรวจสอบว่า voucher upstream มีอยู่จริง
@@ -77,15 +77,6 @@ export class ActivateVoucher {
         );
         throw new BadRequestException(
           `Point does not belong to this voucher's merchant`,
-        );
-      }
-
-      if (point.symbol !== currency) {
-        this.logger.error(
-          `[ERROR] Currency mismatch. Expected: ${point.symbol}, Received: ${currency}`,
-        );
-        throw new BadRequestException(
-          `Currency mismatch: expected "${point.symbol}" but got "${currency}"`,
         );
       }
 
@@ -308,7 +299,7 @@ export class ActivateVoucher {
                 voucherId,
                 pointsCost,
                 pointId,
-                currency,
+                currency: point.symbol,
                 voucherGroupId: listingId,
               })),
             });
@@ -364,7 +355,7 @@ export class ActivateVoucher {
         upcomingCodesCount: result.upcomingCodesCount,
         pointsCost,
         pointId,
-        currency,
+        currency: point.symbol,
       };
     } catch (error) {
       this.logger.error(

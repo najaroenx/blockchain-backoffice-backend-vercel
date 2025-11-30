@@ -12,6 +12,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { createWallet } from 'src/libs/createWallet';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
+import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 
 @Injectable()
 export class CreateMerchant {
@@ -23,6 +24,7 @@ export class CreateMerchant {
     private prisma: PrismaService,
     private tokenService: TokenService,
     private configService: ConfigService,
+    private blockchainService: BlockchainService,
   ) {}
 
   async execute(
@@ -58,9 +60,12 @@ export class CreateMerchant {
       }
 
       // ใช้ transaction เพื่อให้ rollback ทั้งหมดถ้ามีขั้นตอนใดล้มเหลว
+      let walletAddress: string;
       const result = await this.prisma.$transaction(async (tx) => {
         // 1. สร้าง wallet ก่อน
-        const { privateKey, walletAddress } = createWallet();
+        const walletData = createWallet();
+        walletAddress = walletData.walletAddress;
+        const privateKey = walletData.privateKey;
 
         // 2. Encrypt private key ก่อนเก็บลง database
         this.logger.log(`[CreateMerchant] Encrypting merchant private key`);
@@ -103,6 +108,35 @@ export class CreateMerchant {
       await this.createApiKey.execute(result.id, {
         name: 'default api key',
       });
+
+      // 5.5. Auto-whitelist merchant wallet address on marketplace
+      try {
+        this.logger.log(
+          `[CreateMerchant] Auto-whitelisting merchant wallet: ${walletAddress}`,
+        );
+        const isWhitelisted =
+          await this.blockchainService.isWhitelisted(walletAddress);
+
+        if (!isWhitelisted) {
+          await this.blockchainService.addToMarketplaceWhitelist(walletAddress);
+          this.logger.log(
+            `[CreateMerchant] ✅ Merchant wallet whitelisted successfully`,
+          );
+        } else {
+          this.logger.log(
+            `[CreateMerchant] ℹ️ Merchant wallet already whitelisted`,
+          );
+        }
+      } catch (whitelistError) {
+        // Non-critical: ไม่ throw error เพราะ merchant สร้างสำเร็จแล้ว
+        // Merchant สามารถ whitelist ได้ทีหลังผ่าน manual API หรือ auto-whitelist ตอนทำ transaction ครั้งแรก
+        this.logger.warn(
+          `[CreateMerchant] ⚠️ Failed to auto-whitelist merchant: ${whitelistError.message}`,
+        );
+        this.logger.warn(
+          `[CreateMerchant] Merchant can be whitelisted manually later or will be auto-whitelisted on first transaction`,
+        );
+      }
 
       // 6. ลบ wallet field ออกจาก response (ถ้ามี)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

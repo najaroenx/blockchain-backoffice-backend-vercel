@@ -20,12 +20,17 @@ import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 import { BuyCouponFromMarketplaceDto } from '../dtos/buy-coupon-marketplace.dto';
 import { MerchantBuyCouponFromSellerDto } from '../dtos/merchant-buy-coupon.dto';
 import { SellerListOnMarketplaceDto } from '../dtos/seller-list-marketplace.dto';
+import {
+  AddToWhitelistDto,
+  BatchAddToWhitelistDto,
+} from '../dtos/add-to-whitelist.dto';
 import { Public } from 'src/modules/auth/public.decorator';
 import { GetMarketplaceListings } from '../handlers/getMarketplaceListings.handler';
 import { ManageCouponHandler } from '../handlers/manageCoupon.handler';
 import { MerchantBuyCouponFromSeller } from '../handlers/merchantBuyCouponFromSeller.handler';
 import { SellerListOnMarketplace } from '../handlers/sellerListOnMarketplace.handler';
 import { GetSellerVouchers } from '../handlers/getSellerVouchers.handler';
+import { AddToWhitelist } from '../handlers/addToWhitelist.handler';
 import { VoucherValueType } from '@prisma/client';
 
 @Controller('coupon')
@@ -37,6 +42,7 @@ export class VoucherController {
     private readonly merchantBuyHandler: MerchantBuyCouponFromSeller,
     private readonly sellerListHandler: SellerListOnMarketplace,
     private readonly getSellerVouchersHandler: GetSellerVouchers,
+    private readonly addToWhitelistHandler: AddToWhitelist,
   ) {}
 
   @Get('/')
@@ -344,5 +350,40 @@ export class VoucherController {
   @HttpCode(200)
   async getCustomerOnChainBalances(@Param('phone') phone: string) {
     return this.voucherService.getCustomerOnChainBalances(phone);
+  }
+
+  /**
+   * Manual whitelist single address
+   * POST /coupon/admin/whitelist
+   * Body: { address: string }
+   */
+  @Post('/admin/whitelist')
+  @Public()
+  @HttpCode(200)
+  async addToWhitelist(@Body() body: AddToWhitelistDto) {
+    return this.addToWhitelistHandler.execute(body.address);
+  }
+
+  /**
+   * Manual whitelist multiple addresses
+   * POST /coupon/admin/whitelist/batch
+   * Body: { addresses: string[] }
+   */
+  @Post('/admin/whitelist/batch')
+  @Public()
+  @HttpCode(200)
+  async batchAddToWhitelist(@Body() body: BatchAddToWhitelistDto) {
+    return this.addToWhitelistHandler.executeBatch(body.addresses);
+  }
+
+  /**
+   * Check whitelist status
+   * GET /coupon/admin/whitelist/:address
+   */
+  @Get('/admin/whitelist/:address')
+  @Public()
+  @HttpCode(200)
+  async checkWhitelistStatus(@Param('address') address: string) {
+    return this.addToWhitelistHandler.checkStatus(address);
   }
 }

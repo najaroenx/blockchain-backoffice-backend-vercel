@@ -14,6 +14,7 @@ import { ManageCouponHandler } from './handlers/manageCoupon.handler';
 import { MerchantBuyCouponFromSeller } from './handlers/merchantBuyCouponFromSeller.handler';
 import { SellerListOnMarketplace } from './handlers/sellerListOnMarketplace.handler';
 import { GetSellerVouchers } from './handlers/getSellerVouchers.handler';
+import { AddToWhitelist } from './handlers/addToWhitelist.handler';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 import { TokenModule } from 'src/providers/token/token.module';
 
@@ -34,6 +35,7 @@ import { TokenModule } from 'src/providers/token/token.module';
     GetCustomerOnChainBalances,
     GetMarketplaceListings,
     ManageCouponHandler,
+    AddToWhitelist,
   ],
   exports: [VoucherDBService],
 })

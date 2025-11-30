@@ -10,6 +10,7 @@ import { GetMerchant } from './handlers/getMerchantById.handler';
 import { DeleteMerchant } from './handlers/deleteMerchant.handler';
 import { PrismaModule } from 'prisma/prisma.module';
 import { TokenModule } from 'src/providers/token/token.module';
+import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 
 @Module({
   controllers: [MerchantController],
@@ -22,7 +23,7 @@ import { TokenModule } from 'src/providers/token/token.module';
     GetMerchant,
     DeleteMerchant,
   ],
-  imports: [ApiKeyModule, PrismaModule, TokenModule],
+  imports: [ApiKeyModule, PrismaModule, TokenModule, BlockchainModule],
   exports: [GetMerchant],
 })
 export class MerchantModule {}

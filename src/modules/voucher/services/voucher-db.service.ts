@@ -262,6 +262,26 @@ export class VoucherDBService {
       }
     }
 
+    // เพิ่ม: แสดง vouchers ที่ merchant ซื้อมาแล้วแต่ยังไม่มี VoucherCode เลย (ยังไม่ได้ activate)
+    // Status: "upcoming" สำหรับคูปองที่ซื้อมาและยังไม่ activate
+    for (const voucher of vouchers) {
+      const hasAnyCode = await this.prisma.voucherCode.count({
+        where: { voucherId: voucher.id },
+      });
+
+      // ถ้าไม่มี VoucherCode เลย = merchant ซื้อมาแล้วแต่ยังไม่ activate
+      if (hasAnyCode === 0) {
+        result.push({
+          ...voucher,
+          status: 'upcoming',
+          totalIssued: voucher.totalIssued,
+          availableCount: voucher.totalIssued,
+          totalRedeemed: 0,
+          voucherIds: [voucher.id],
+        });
+      }
+    }
+
     return result;
   }
 

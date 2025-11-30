@@ -271,8 +271,10 @@ export class VoucherDBService {
 
       // ถ้าไม่มี VoucherCode เลย = merchant ซื้อมาแล้วแต่ยังไม่ activate
       if (hasAnyCode === 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { voucherCodes, ...voucherData } = voucher;
         result.push({
-          ...voucher,
+          ...voucherData,
           status: 'upcoming',
           totalIssued: voucher.totalIssued,
           availableCount: voucher.totalIssued,

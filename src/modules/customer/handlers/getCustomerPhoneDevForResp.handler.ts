@@ -26,6 +26,7 @@ export class GetCustomerPhoneDevForResp {
   async execute(
     merchantId: string,
     phone: string,
+    callbackUri?: string,
   ): Promise<GetCustomerPhoneDevForRespType> {
     try {
       const customer = await this.db.getCustomersByPhone(merchantId, phone);
@@ -49,8 +50,8 @@ export class GetCustomerPhoneDevForResp {
               message: `Customer with phone ${phone} not found`,
               error: 'NEW_OTP_GENERATED',
               data: {
-                url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}`,
-                callbackUrl: 'http://localhost:4001/auth/verify',
+                url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}&callbackUri=${callbackUri || ''}`,
+                callbackUri: callbackUri || '',
                 merchantId: merchantId,
               },
             });
@@ -61,8 +62,8 @@ export class GetCustomerPhoneDevForResp {
             message: `Customer with phone ${phone} not found`,
             error: 'NEW_OTP_GENERATED',
             data: {
-              url: `${this.configService.get('FRONT_URL')}/otp?requestid=${findRequest.uid}&merchantId=${merchantId}`,
-              callbackUrl: 'http://localhost:4001/auth/verify',
+              url: `${this.configService.get('FRONT_URL')}/otp?requestid=${findRequest.uid}&merchantId=${merchantId}&callbackUri=${callbackUri || ''}`,
+              callbackUri: callbackUri || '',
               merchantId: merchantId,
             },
           });
@@ -80,8 +81,8 @@ export class GetCustomerPhoneDevForResp {
           statusCode: 404,
           message: `Customer with phone ${phone} not found`,
           data: {
-            url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}`,
-            callbackUrl: 'http://localhost:4001/auth/verify',
+            url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}&callbackUri=${callbackUri || ''}`,
+            callbackUri: callbackUri || '',
             merchantId: merchantId,
           },
         });

@@ -68,11 +68,16 @@ export class CustomerController {
   async getCustomerByPhone(
     @Param('phone') phone: string,
     @Param('merchantId') merchantId: string,
+    @Query('callbackUri') callbackUri: string,
   ) {
     console.log(
-      `Getting customer by phone for merchant ${merchantId} and phone ${phone}`,
+      `Getting customer by phone for merchant ${merchantId} and phone ${phone} and callbackUri ${callbackUri}`,
     );
-    return this.getCustomerPhoneDevForResp.execute(merchantId, phone);
+    return this.getCustomerPhoneDevForResp.execute(
+      merchantId,
+      phone,
+      callbackUri,
+    );
   }
 
   @Public()

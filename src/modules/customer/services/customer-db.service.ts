@@ -157,7 +157,11 @@ export class CustomerDBService {
           point: Point;
         }
       >;
-      customerMerChant: CustomerMerChant[];
+      customerMerChant: Array<
+        CustomerMerChant & {
+          merchant: Merchant;
+        }
+      >;
       ownedVouchers: VoucherCode[];
     }
   > {
@@ -168,7 +172,11 @@ export class CustomerDBService {
             point: Point;
           }
         >;
-        customerMerChant: CustomerMerChant[];
+        customerMerChant: Array<
+          CustomerMerChant & {
+            merchant: Merchant;
+          }
+        >;
         ownedVouchers: VoucherCode[];
       }
     >({

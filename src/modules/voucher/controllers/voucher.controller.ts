@@ -113,6 +113,41 @@ export class VoucherController {
   }
 
   /**
+   * Search voucher codes by merchant and groupId with pagination
+   * GET /coupon/search?merchantId=xxx&groupId=xxx&page=1&skip=0&limit=20
+   */
+  @Get('/search')
+  @Public()
+  @HttpCode(200)
+  async searchVoucherCodesByGroup(
+    @Query('merchantId') merchantId: string,
+    @Query('groupId') groupId: string,
+    @Query('page') page?: string,
+    @Query('skip') skip?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (!merchantId || !groupId) {
+      return {
+        statusCode: 400,
+        message: 'merchantId and groupId are required',
+        data: null,
+      };
+    }
+
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const skipNum = skip ? parseInt(skip, 10) : 0;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+
+    return this.voucherService.getVoucherCodesByGroup(
+      merchantId,
+      groupId,
+      pageNum,
+      skipNum,
+      limitNum,
+    );
+  }
+
+  /**
    * Get voucher codes by merchant and groupId with pagination
    * GET /coupon/:merchantId/:groupId/products?page=1&skip=0&limit=20
    */

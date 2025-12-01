@@ -61,6 +61,20 @@ export type GetCustomerPhoneDevForRespType = {
         point: Point;
       }
     >;
+    customerMerChant: Array<{
+      id: string;
+      merchantId: string;
+      customerId: string;
+      merchant: {
+        id: string;
+        name: string;
+        description: string | null;
+        imageUrl: string | null;
+        location: string | null;
+        website: string;
+        tel: string;
+      };
+    }>;
     ownedVouchers?: any[];
   };
 };

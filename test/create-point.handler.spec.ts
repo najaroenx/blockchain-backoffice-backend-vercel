@@ -55,9 +55,12 @@ describe('CreatePoint', () => {
     } as any);
 
     // Mock dependencies to return predictable values
-    blockchainService.createNewPointToken.mockResolvedValue(
-      fakeContractAddress,
-    );
+    blockchainService.createNewPointToken.mockResolvedValue({
+      contractAddress: fakeContractAddress,
+      startDate: 0,
+      endDate: 0,
+      epochDuration: 0,
+    });
     dbService.createPoint.mockResolvedValue(fakePoint);
 
     const result = await handler.execute(merchantId, data);

@@ -1,5 +1,13 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiHeader,
+  ApiBody,
+} from '@nestjs/swagger';
+import {
   CreateBurnTransactionBodyDto,
   CreateMintTransactionBodyDto,
   CreateTransactionBodyDto,
@@ -15,6 +23,7 @@ import { BurnTransaction } from '../handlers/burnTransaction.handler';
 import { GetWalletBalance } from '../handlers/getMerchantBalance.handler';
 import { Public } from 'src/modules/auth/public.decorator';
 
+@ApiTags('Transaction')
 @Controller('/:merchantId/transaction')
 export class TransactionController {
   constructor(
@@ -45,6 +54,28 @@ export class TransactionController {
   @Get('/:walletAddress/:pointId/balance')
   @Public()
   @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Wallet Balance',
+    description: 'ดึงข้อมูลยอดคงเหลือของคะแนนในกระเป๋าเงิน',
+  })
+  @ApiParam({
+    name: 'walletAddress',
+    description: 'Wallet address ของลูกค้า',
+    example: '0x50581102bEB5cDEb68cB5f84ACdE46fa2DeB842E',
+  })
+  @ApiParam({
+    name: 'pointId',
+    description: 'รหัสคะแนน',
+    example: 'cmiimp4g400015v01nv1ij7zf',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Balance retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Wallet or Point not found',
+  })
   async getWalletBalanceForPoint(
     @Param('walletAddress') walletAddress: string,
     @Param('pointId') pointId: string,
@@ -55,6 +86,57 @@ export class TransactionController {
   @Post('/:pointId')
   @Public()
   @HttpCode(201)
+  @ApiOperation({
+    summary: 'Send Point B2C',
+    description: 'ส่งคะแนนให้ลูกค้า (Business to Customer)',
+  })
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'API Key สำหรับ authentication',
+    required: true,
+    example: 'LEk8YLySHJdMD_nD0cw5',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'รหัสร้านค้า',
+    example: 'cmih1s6qu00050i01m3cactjj',
+  })
+  @ApiParam({
+    name: 'pointId',
+    description: 'รหัสคะแนน',
+    example: 'cmiimp4g400015v01nv1ij7zf',
+  })
+  @ApiBody({
+    description: 'Transaction details',
+    schema: {
+      type: 'object',
+      properties: {
+        amount: {
+          type: 'number',
+          example: 10,
+          description: 'จำนวนคะแนนที่ต้องการส่ง',
+        },
+        receiverPhone: {
+          type: 'string',
+          example: '0984360421',
+          description: 'เบอร์โทรศัพท์ของผู้รับ',
+        },
+      },
+      required: ['amount', 'receiverPhone'],
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Transaction completed successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid parameters',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer or Point not found',
+  })
   async transaction(
     @Param('merchantId') merchantId: string,
     @Param('pointId') pointId: string,

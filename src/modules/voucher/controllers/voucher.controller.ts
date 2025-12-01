@@ -9,6 +9,7 @@ import {
   Patch,
   Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { VoucherDBService } from '../services/voucher-db.service';
 import {
   CreateVoucherByDevDto,
@@ -33,6 +34,7 @@ import { GetSellerVouchers } from '../handlers/getSellerVouchers.handler';
 import { AddToWhitelist } from '../handlers/addToWhitelist.handler';
 import { VoucherValueType } from '@prisma/client';
 
+@ApiTags('Voucher')
 @Controller('coupon')
 export class VoucherController {
   constructor(
@@ -233,6 +235,52 @@ export class VoucherController {
   @Post('/redeem')
   @Public()
   @HttpCode(200)
+  @ApiOperation({
+    summary: 'Redeem Voucher',
+    description: 'ใช้ voucher code เพื่อแลกรับส่วนลดหรือของรางวัล',
+  })
+  @ApiBody({
+    description: 'Voucher redemption details',
+    schema: {
+      type: 'object',
+      properties: {
+        code: {
+          type: 'string',
+          example: 'WELCOME2024',
+          description: 'รหัส voucher code',
+        },
+        phone: {
+          type: 'string',
+          example: '0984360421',
+          description: 'เบอร์โทรศัพท์ของลูกค้า',
+        },
+        merchantRef: {
+          type: 'string',
+          example: 'merchant-ref-001',
+          description: 'รหัสอ้างอิงร้านค้า',
+        },
+        eventId: {
+          type: 'string',
+          example: 'event-2025-concert',
+          description: 'รหัส event (สำหรับติดตามการใช้งาน)',
+        },
+      },
+      required: ['code', 'phone', 'merchantRef'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Voucher redeemed successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Bad Request - Code already used, expired, wrong merchant, or insufficient balance',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Code or customer not found',
+  })
   async redeemVoucher(
     @Body()
     data: {

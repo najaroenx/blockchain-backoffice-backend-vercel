@@ -67,6 +67,7 @@ export class GetTransactionsByCustomerId {
             merchant.website,
           ),
           voucherCodeId: rest.voucherCodeId || null,
+          eventId: rest.eventId || null,
           createdAt: rest.createdAt,
         };
       });

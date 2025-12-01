@@ -303,57 +303,6 @@ export class VoucherDBService {
       }
     }
 
-    console.log(
-      `[getVouchersByMerchant] After groupedMap processing, result has ${result.length} items`,
-    );
-
-    // เพิ่ม: แสดง vouchers ที่ merchant ซื้อมาแล้วแต่ยังไม่ได้ activate
-    // กรณี 1: ไม่มี VoucherCode เลย (ซื้อมาแต่ seller ยังไม่ list)
-    // กรณี 2: มี codes แต่ไม่มี pointId (seller list แล้ว merchant ซื้อ แต่ยังไม่ activate)
-    // Status: "upcoming" สำหรับคูปองที่ซื้อมาและยังไม่ activate
-    console.log(
-      `[getVouchersByMerchant] Checking for vouchers not yet activated by merchant...`,
-    );
-    for (const voucher of vouchers) {
-      const hasAnyCode = await this.prisma.voucherCode.count({
-        where: { voucherId: voucher.id },
-      });
-
-      const hasActivatedCode = await this.prisma.voucherCode.count({
-        where: {
-          voucherId: voucher.id,
-          pointId: { not: null },
-        },
-      });
-
-      console.log(
-        `[getVouchersByMerchant] Voucher ${voucher.id} (${voucher.name}) has ${hasAnyCode} total codes, ${hasActivatedCode} activated codes (with pointId)`,
-      );
-
-      // ถ้าไม่มี activated codes (pointId = null) = merchant ซื้อมาแล้วแต่ยังไม่ activate
-      // (อาจมี codes จาก seller listing หรือไม่มี codes เลย)
-      if (hasActivatedCode === 0 && voucher.totalIssued > 0) {
-        console.log(
-          `[getVouchersByMerchant] Adding voucher without codes:`,
-          JSON.stringify({
-            id: voucher.id,
-            name: voucher.name,
-            totalIssued: voucher.totalIssued,
-          }),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { voucherCodes, ...voucherData } = voucher;
-        result.push({
-          ...voucherData,
-          status: 'upcoming',
-          totalIssued: voucher.totalIssued,
-          availableCount: voucher.totalIssued,
-          totalRedeemed: 0,
-          voucherIds: [voucher.id],
-        });
-      }
-    }
-
     console.log(`[getVouchersByMerchant] Final result count: ${result.length}`);
     console.log(
       `[getVouchersByMerchant] Returning:`,

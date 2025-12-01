@@ -8,6 +8,14 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { CreateCustomerDto, UpdateCustomerDto } from '../dtos';
 import { GetCustomersByMerchantId } from '../handlers/getCustomersByMerchantId.handler';
 import { GetCustomerById } from '../handlers/getCustomerById.handler';
@@ -19,6 +27,7 @@ import { UpdateCustomer } from '../handlers/updateCustomer.handler';
 import { GetCustomerPhoneDevForResp } from '../handlers/getCustomerPhoneDevForResp.handler';
 import { Public } from 'src/modules/auth/public.decorator';
 
+@ApiTags('Customer')
 @Controller('/:merchantId/customer')
 export class CustomerController {
   constructor(
@@ -65,6 +74,40 @@ export class CustomerController {
   @Public()
   @Get('/phone/:phone')
   @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Customer Wallet by Phone',
+    description: 'ค้นหาข้อมูล Wallet และ Voucher ของลูกค้าด้วยเบอร์โทรศัพท์',
+  })
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'API Key สำหรับ authentication',
+    required: true,
+    example: 'LEk8YLySHJdMD_nD0cw5',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'รหัสร้านค้า',
+    example: 'cmi5o77hc00079yqzgrtf0e5l',
+  })
+  @ApiParam({
+    name: 'phone',
+    description: 'เบอร์โทรศัพท์ของลูกค้า',
+    example: '0987665432',
+  })
+  @ApiQuery({
+    name: 'callbackUri',
+    description: 'URL สำหรับ redirect กลับ (ใช้กรณีไม่เจอ user)',
+    required: false,
+    example: 'https://example.com',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Customer found successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer not found (returns OTP registration URL)',
+  })
   async getCustomerByPhone(
     @Param('phone') phone: string,
     @Param('merchantId') merchantId: string,

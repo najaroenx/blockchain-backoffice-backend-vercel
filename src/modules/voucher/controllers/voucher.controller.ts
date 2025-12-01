@@ -228,18 +228,25 @@ export class VoucherController {
   /**
    * Redeem voucher code
    * POST /coupon/redeem
-   * Body: { code: string, phone: string, merchantRef: string }
+   * Body: { code: string, phone: string, merchantRef: string, eventId?: string }
    */
   @Post('/redeem')
   @Public()
   @HttpCode(200)
   async redeemVoucher(
-    @Body() data: { code: string; phone: string; merchantRef: string },
+    @Body()
+    data: {
+      code: string;
+      phone: string;
+      merchantRef: string;
+      eventId?: string;
+    },
   ) {
     return this.voucherService.redeemVoucher(
       data.code,
       data.phone,
       data.merchantRef,
+      data.eventId,
     );
   }
 

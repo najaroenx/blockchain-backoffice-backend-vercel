@@ -24,10 +24,15 @@ export class RedeemVoucher {
     this.salt = this.configService.get<string>('SALT');
   }
 
-  async execute(code: string, phone: string, merchantRef: string) {
+  async execute(
+    code: string,
+    phone: string,
+    merchantRef: string,
+    eventId?: string,
+  ) {
     try {
       this.logger.log(
-        `[START] Redeeming voucher code: ${code} for customer phone: ${phone} at merchant: ${merchantRef}`,
+        `[START] Redeeming voucher code: ${code} for customer phone: ${phone} at merchant: ${merchantRef}${eventId ? ` for event: ${eventId}` : ''}`,
       );
 
       // 0. Find customer by phone
@@ -216,7 +221,7 @@ export class RedeemVoucher {
 
       // 8. เรียก Smart Contract เพื่อ redeem voucher NFT (Burn ERC-1155)
       let blockchainTx = null;
-      let vaultReleaseTx = null;
+      const vaultReleaseTx = null;
       this.logger.log(
         `[STEP 8] Calling smart contract to redeem voucher code: ${code}`,
       );
@@ -307,6 +312,7 @@ export class RedeemVoucher {
             merchantId: voucher.merchantId, // Track which merchant's voucher was redeemed
             voucherCodeId: voucherCode.id,
             transactionTypeId: TransactionTypeId.REDEEM,
+            eventId: eventId || null, // Track event ID if provided
           },
         }),
       ]);

@@ -114,6 +114,7 @@ model Transaction {
   senderAddress     Bytes
   receiverAddress   Bytes
   amount            Int
+  eventId           String? // Event ID for tracking redemption events
   createdAt         DateTime         @default(now()) @map(name: "created_at")
   updatedAt         DateTime         @updatedAt @map(name: "updated_at")
   merchant          Merchant?        @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -131,6 +132,7 @@ model Transaction {
   receiverId String?
 
   @@index([voucherCodeId])
+  @@index([eventId])
 }
 
 model Customer {

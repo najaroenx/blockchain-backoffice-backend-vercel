@@ -42,10 +42,10 @@ This is a three-tier blockchain-based voucher marketplace system that enables:
                     ┌───────────────┴───────────────┐
                     │                               │
                     ▼                               ▼
-        ┌───────────────────────┐       ┌──────────────────────┐
-        │   PostgreSQL Database │       │  Ethereum Blockchain │
-        │   (Business Data)     │       │   (Smart Contracts)  │
-        └───────────────────────┘       └──────────────────────┘
+        ┌───────────────────────┐       ┌─────────────────────────────┐
+        │   PostgreSQL Database │       │  Hyperledger Besu Blockchain │
+        │   (Business Data)     │       │   (Smart Contracts)         │
+        └───────────────────────┘       └─────────────────────────────┘
                                                     │
                                     ┌───────────────┼───────────────┐
                                     │               │               │

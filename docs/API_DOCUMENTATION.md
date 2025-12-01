@@ -230,10 +230,180 @@
 
 ---
 
+## 3. Get Wallet Balance
+
+**Description:** ดึงข้อมูลยอดคงเหลือของคะแนนในกระเป๋าเงิน
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/transaction/:walletAddress/:pointId/balance`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/transaction/0x50581102bEB5cDEb68cB5f84ACdE46fa2DeB842E/cmiimp4g400015v01nv1ij7zf/balance`
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| walletAddress | String | M | Wallet address ของลูกค้า | 0x50581102bEB5cDEb68cB5f84ACdE46fa2DeB842E |
+| pointId | String | M | รหัสคะแนน | cmiimp4g400015v01nv1ij7zf |
+
+### Response
+
+#### Success Response (200)
+
+```json
+{
+  "walletAddress": "0x50581102bEB5cDEb68cB5f84ACdE46fa2DeB842E",
+  "pointId": "cmiimp4g400015v01nv1ij7zf",
+  "balance": 100,
+  "point": {
+    "id": "cmiimp4g400015v01nv1ij7zf",
+    "name": "LAT",
+    "symbol": "LAT",
+    "contractAddress": "0x1234567890abcdef1234567890abcdef12345678"
+  }
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Balance retrieved |
+| 400 | 400 | Bad Request - Invalid parameters |
+| 404 | 404 | Not Found - Wallet or Point not found |
+| 500 | 500 | Internal Server Error |
+
+---
+
+## 4. Redeem Voucher
+
+**Description:** ใช้ voucher code เพื่อแลกรับส่วนลดหรือของรางวัล
+
+### Request
+
+**Method:** `POST`
+
+**URL:** `{{endpoint_url}}/coupon/redeem`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/coupon/redeem`
+
+### Request Parameters
+
+#### Request Body
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| code | String | M | รหัส voucher code | WELCOME2024 |
+| phone | String | M | เบอร์โทรศัพท์ของลูกค้า | 0984360421 |
+| merchantRef | String | M | รหัสอ้างอิงร้านค้า | merchant-ref-001 |
+| eventId | String | O | รหัส event (สำหรับติดตามการใช้งาน) | event-2025-concert |
+
+**Example Request Body:**
+```json
+{
+  "code": "WELCOME2024",
+  "phone": "0984360421",
+  "merchantRef": "merchant-ref-001",
+  "eventId": "event-2025-concert"
+}
+```
+
+### Response
+
+#### Success Response (200)
+
+```json
+{
+  "success": true,
+  "message": "Voucher redeemed successfully",
+  "voucher": {
+    "id": "voucher-mock-1",
+    "name": "Welcome Discount 20%",
+    "description": "Get 20% off on your first purchase",
+    "valueType": "percentage",
+    "value": 20,
+    "merchantName": "Test Merchant",
+    "startDate": "2025-11-28T11:50:32.760Z",
+    "endDate": "2025-12-28T11:50:32.760Z"
+  },
+  "redemption": {
+    "code": "WELCOME2024",
+    "redeemedBy": "cmiisvgqn0007xk01efv8szbq",
+    "redeemedAt": "2025-12-01T06:30:00.000Z",
+    "pointsCost": 100
+  },
+  "blockchain": {
+    "transactionHash": "0xc24bec9dc9eade84bd15d55386c79b0d858c3b18700be655d17e060eadaadfaf",
+    "blockNumber": 12345678
+  },
+  "vaultRelease": null
+}
+```
+
+#### Error Responses
+
+**Code Not Found (404)**
+```json
+{
+  "statusCode": 404,
+  "message": "Voucher code \"INVALID123\" not found"
+}
+```
+
+**Code Already Used (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Voucher code has already been redeemed by customer: cmiisvgqn0007xk01efv8szbq"
+}
+```
+
+**Voucher Expired (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Voucher has expired on 2025-11-28T11:50:32.760Z"
+}
+```
+
+**Wrong Merchant (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "This voucher can only be redeemed at the issuing merchant"
+}
+```
+
+**Insufficient Balance (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Insufficient on-chain coupon balance for redemption"
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Voucher redeemed |
+| 400 | 400 | Bad Request - Code already used, expired, wrong merchant, or insufficient balance |
+| 404 | 404 | Not Found - Code or customer not found |
+| 500 | 500 | Internal Server Error |
+
+---
+
 ## Notes
 
 - **M/O** = Mandatory/Optional
 - All timestamps are in ISO 8601 format (UTC)
-- API Key must be included in the `x-api-key` header for all requests
+- API Key must be included in the `x-api-key` header for all requests (except public endpoints like redeem)
 - Phone numbers should be in Thai format (10 digits starting with 0)
 - The `eventId` field in transaction responses is optional and used for tracking specific events
+- Voucher redemption is a public endpoint and does not require authentication
+- Balance endpoint is also public for easy access

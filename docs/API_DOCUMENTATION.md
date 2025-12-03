@@ -39,6 +39,34 @@
 
 ### Response
 
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| message | String | ข้อความสถานะ |
+| statusCode | Number | HTTP status code |
+| data | Object | ข้อมูลลูกค้า |
+| data.id | String | รหัสลูกค้า |
+| data.email | String | อีเมลลูกค้า |
+| data.firstName | String \| null | ชื่อจริง |
+| data.lastName | String \| null | นามสกุล |
+| data.phone | String | เบอร์โทรศัพท์ |
+| data.walletAddress | String | Wallet address |
+| data.wallet | Object | ข้อมูล wallet |
+| data.wallet.walletAddress | String | Wallet address |
+| data.wallet.privateKey | String | Private key (encrypted) |
+| data.wallet.type | String | ประเภท wallet (customer) |
+| data.wallet.status | String | สถานะ wallet (active/inactive) |
+| data.customerMerChant | Array | รายการร้านค้าที่ลูกค้าลงทะเบียน |
+| data.customerPoints | Array | รายการคะแนนของลูกค้า |
+| data.customerPoints[].balances | Number | ยอดคะแนนคงเหลือ |
+| data.customerPoints[].pointId | String | รหัสคะแนน |
+| data.customerPoints[].point | Object | ข้อมูลคะแนน |
+| data.ownedVouchers | Array | รายการ voucher ที่ลูกค้าเป็นเจ้าของ |
+| data.ownedVouchers[].code | String | รหัส voucher code |
+| data.ownedVouchers[].isUsed | Boolean | สถานะการใช้งาน |
+| data.ownedVouchers[].voucher | Object | ข้อมูล voucher |
+
 #### Success Response (200)
 
 ```json
@@ -201,6 +229,25 @@
 
 ### Response
 
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String | รหัสธุรกรรม (Transaction ID) |
+| txHash | String | Transaction hash บน blockchain |
+| senderAddress | String | Wallet address ของผู้ส่ง (Merchant) |
+| receiverAddress | String | Wallet address ของผู้รับ (Customer) |
+| amount | Number | จำนวนคะแนนที่โอน |
+| createdAt | String | วันที่สร้างธุรกรรม (ISO 8601) |
+| updatedAt | String | วันที่อัพเดทธุรกรรมล่าสุด (ISO 8601) |
+| merchantId | String | รหัสร้านค้า |
+| pointId | String | รหัสคะแนน |
+| transactionTypeId | String | ประเภทธุรกรรม (TRANSFER, MINT, BURN, etc.) |
+| voucherCodeId | String \| null | รหัส voucher code (ถ้ามี) |
+| eventId | String \| null | รหัสอีเว้นท์ (ถ้ามี) |
+| senderId | String \| null | รหัสผู้ส่ง (null สำหรับ B2C) |
+| receiverId | String | รหัสผู้รับ (Customer ID) |
+
 #### Success Response (201)
 
 ```json
@@ -221,25 +268,6 @@
   "receiverId": "cmiisvgqn0007xk01efv8szbq"
 }
 ```
-
-#### Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| id | String | รหัสธุรกรรม (Transaction ID) |
-| txHash | String | Transaction hash บน blockchain |
-| senderAddress | String | Wallet address ของผู้ส่ง (Merchant) |
-| receiverAddress | String | Wallet address ของผู้รับ (Customer) |
-| amount | Number | จำนวนคะแนนที่โอน |
-| createdAt | String | วันที่สร้างธุรกรรม (ISO 8601) |
-| updatedAt | String | วันที่อัพเดทธุรกรรมล่าสุด (ISO 8601) |
-| merchantId | String | รหัสร้านค้า |
-| pointId | String | รหัสคะแนน |
-| transactionTypeId | String | ประเภทธุรกรรม (TRANSFER, MINT, BURN, etc.) |
-| voucherCodeId | String \| null | รหัส voucher code (ถ้ามี) |
-| eventId | String \| null | รหัสอีเว้นท์ (ถ้ามี) |
-| senderId | String \| null | รหัสผู้ส่ง (null สำหรับ B2C) |
-| receiverId | String | รหัสผู้รับ (Customer ID) |
 
 ### Response Status Codes
 
@@ -275,6 +303,19 @@
 | pointId | String | M | รหัสคะแนน | cmiimp4g400015v01nv1ij7zf |
 
 ### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| walletAddress | String | Wallet address ของลูกค้า |
+| pointId | String | รหัสคะแนน |
+| balance | Number | ยอดคะแนนคงเหลือ |
+| point | Object | ข้อมูลคะแนน |
+| point.id | String | รหัสคะแนน |
+| point.name | String | ชื่อคะแนน |
+| point.symbol | String | สัญลักษณ์คะแนน |
+| point.contractAddress | String | Contract address บน blockchain |
 
 #### Success Response (200)
 
@@ -319,8 +360,10 @@
 
 #### Request Body
 
+##### Request Body Fields
+
 | Parameter | Type | M/O | Description | Example |
-|-----------|------|-----|-------------|---------||
+|-----------|------|-----|-------------|---------|
 | code | String | M | รหัส voucher code | WELCOME2024 |
 | phone | String | M | เบอร์โทรศัพท์ของลูกค้า | 0984360421 |
 | merchantRef | String | M | รหัสอ้างอิงร้านค้า | merchant-ref-001 |
@@ -335,6 +378,31 @@
 ```
 
 ### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | สถานะความสำเร็จ |
+| message | String | ข้อความตอบกลับ |
+| voucher | Object | ข้อมูล voucher |
+| voucher.id | String | รหัส voucher |
+| voucher.name | String | ชื่อ voucher |
+| voucher.description | String | รายละเอียด voucher |
+| voucher.valueType | String | ประเภทส่วนลด (percentage, cash, gift, etc.) |
+| voucher.value | Number | มูลค่าส่วนลด |
+| voucher.merchantName | String | ชื่อร้านค้า |
+| voucher.startDate | String | วันที่เริ่มใช้งาน (ISO 8601) |
+| voucher.endDate | String | วันที่หมดอายุ (ISO 8601) |
+| redemption | Object | ข้อมูลการแลก voucher |
+| redemption.code | String | รหัส voucher code ที่ใช้ |
+| redemption.redeemedBy | String | รหัสลูกค้าที่แลก |
+| redemption.redeemedAt | String | วันที่แลก (ISO 8601) |
+| redemption.pointsCost | Number | จำนวนคะแนนที่ใช้ |
+| blockchain | Object | ข้อมูล blockchain transaction |
+| blockchain.transactionHash | String | Transaction hash บน blockchain |
+| blockchain.blockNumber | Number | Block number |
+| vaultRelease | Object \| null | ข้อมูลการปลดล็อค vault (ถ้ามี) |
 
 #### Success Response (200)
 

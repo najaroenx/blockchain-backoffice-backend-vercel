@@ -91,7 +91,6 @@ export class GetSellerVouchers {
       );
 
       return {
-        success: true,
         count: enhancedVouchers.length,
         vouchers: enhancedVouchers,
       };

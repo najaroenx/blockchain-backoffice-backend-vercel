@@ -183,7 +183,7 @@
 #### Request Body
 
 | Parameter | Type | M/O | Description | Example |
-|-----------|------|-----|-------------|---------||
+|-----------|------|-----|-------------|---------|
 | amount | Number | M | จำนวนคะแนนที่ต้องการส่ง | 10 |
 | phone | String | M | เบอร์โทรศัพท์ของผู้รับ | 0984360421 |
 | transactionTypeId | String | O | ประเภทธุรกรรม (default: TRANSFER) | TRANSFER |
@@ -221,6 +221,25 @@
   "receiverId": "cmiisvgqn0007xk01efv8szbq"
 }
 ```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String | รหัสธุรกรรม (Transaction ID) |
+| txHash | String | Transaction hash บน blockchain |
+| senderAddress | String | Wallet address ของผู้ส่ง (Merchant) |
+| receiverAddress | String | Wallet address ของผู้รับ (Customer) |
+| amount | Number | จำนวนคะแนนที่โอน |
+| createdAt | String | วันที่สร้างธุรกรรม (ISO 8601) |
+| updatedAt | String | วันที่อัพเดทธุรกรรมล่าสุด (ISO 8601) |
+| merchantId | String | รหัสร้านค้า |
+| pointId | String | รหัสคะแนน |
+| transactionTypeId | String | ประเภทธุรกรรม (TRANSFER, MINT, BURN, etc.) |
+| voucherCodeId | String \| null | รหัส voucher code (ถ้ามี) |
+| eventId | String \| null | รหัสอีเว้นท์ (ถ้ามี) |
+| senderId | String \| null | รหัสผู้ส่ง (null สำหรับ B2C) |
+| receiverId | String | รหัสผู้รับ (Customer ID) |
 
 ### Response Status Codes
 

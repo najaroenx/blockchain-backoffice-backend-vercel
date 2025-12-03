@@ -52,10 +52,14 @@ export class GetCustomerById {
         customer.customerPoints.map(async ({ point }) => ({
           ...point,
           contractAddress: convertBufferToAddress(point.contractAddress),
-          balances: await this.getPointBalance(
+          balances: await this.getBalanceFromContract(
             convertBufferToAddress(point.contractAddress),
             customerWalletAddress,
           ),
+          // balances: await this.getPointBalance(
+          //   convertBufferToAddress(point.contractAddress),
+          //   customerWalletAddress,
+          // ),
         })),
       );
 
@@ -97,5 +101,18 @@ export class GetCustomerById {
     console.log(balances);
 
     return balances;
+  }
+
+  private async getBalanceFromContract(
+    pointAddress: string,
+    walletAddress: string,
+  ): Promise<number> {
+    // Get balance from blockchain
+    const balance = await this.blockchainService.getBalance({
+      walletAddress,
+      pointAddress: pointAddress,
+    });
+    this.logger.log(`[GetCustomerById] Balance retrieved: ${balance} points`);
+    return balance ? +balance : 0;
   }
 }

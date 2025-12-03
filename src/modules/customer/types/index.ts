@@ -78,3 +78,27 @@ export type GetCustomerPhoneDevForRespType = {
     ownedVouchers?: any[];
   };
 };
+export type GetCustomerByPhoneResponseTypeV1 = {
+  phone: string;
+  walletAddress: string;
+  customerPoints: Array<
+    CustomerPoint & {
+      point: Point;
+    }
+  >;
+  customerMerChant: Array<{
+    id: string;
+    merchantId: string;
+    customerId: string;
+    merchant: {
+      id: string;
+      name: string;
+      description: string | null;
+      imageUrl: string | null;
+      location: string | null;
+      website: string;
+      tel: string;
+    };
+  }>;
+  ownedVouchers?: any[];
+};

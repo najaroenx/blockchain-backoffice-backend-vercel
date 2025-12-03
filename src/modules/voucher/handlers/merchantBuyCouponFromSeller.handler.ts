@@ -240,8 +240,6 @@ export class MerchantBuyCouponFromSeller {
       );
 
       return {
-        success: true,
-        message: `Successfully purchased ${amount} coupons from seller`,
         purchase: {
           listingId,
           amount,

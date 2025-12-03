@@ -187,9 +187,6 @@ export class SellerListOnMarketplace {
       );
 
       return {
-        success: true,
-        message:
-          'Voucher successfully listed on marketplace for merchants to purchase',
         listing: {
           voucherId: voucher.id,
           voucherName: voucher.name,

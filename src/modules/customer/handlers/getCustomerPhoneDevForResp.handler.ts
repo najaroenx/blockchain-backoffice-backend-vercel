@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
-import { GetCustomerPhoneDevForRespType } from '../types';
+import { GetCustomerByPhoneResponseTypeV1 } from '../types';
 import { TempLinkDBService } from 'src/modules/templink/service/templink-db.service';
 import { OTPService } from 'src/providers/otp/otp.service';
 
@@ -27,7 +27,7 @@ export class GetCustomerPhoneDevForResp {
     merchantId: string,
     phone: string,
     callbackUri?: string,
-  ): Promise<GetCustomerPhoneDevForRespType> {
+  ): Promise<GetCustomerByPhoneResponseTypeV1> {
     try {
       const customer = await this.db.getCustomersByPhone(merchantId, phone);
       const otp = this.otpService.generateOTP(6);
@@ -142,11 +142,7 @@ export class GetCustomerPhoneDevForResp {
         ownedVouchers: ownedVouchers,
       };
 
-      return {
-        message: 'Customer found successfully',
-        statusCode: 200,
-        data: formattedCustomer,
-      };
+      return formattedCustomer;
     } catch (error) {
       this.logger.error(
         `Error message : ${error.message}, \n Error detail : ${error}`,

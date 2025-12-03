@@ -55,10 +55,14 @@ export class CreateTransactionB2C {
       | 'transactionTypeId'
       | 'receiverAddress'
       | 'senderAddress'
-    > & { transactionTypeId: string; phone: string },
+    > & { transactionTypeId?: string; phone: string; eventId?: string },
   ): Promise<CreateTransactionResponse> {
     try {
-      const { transactionTypeId, phone, ...rest } = data;
+      const { transactionTypeId, phone, eventId, ...rest } = data;
+
+      // Default to TRANSFER if transactionTypeId not provided
+      const finalTransactionTypeId =
+        transactionTypeId || TransactionTypeId.TRANSFER;
 
       const { point } = await this.getPointByIdHandler.execute(
         pointId,
@@ -387,8 +391,9 @@ export class CreateTransactionB2C {
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
         receiver: { connect: { id: customer.id } },
-        transactionType: { connect: { id: TransactionTypeId.TRANSFER } },
+        transactionType: { connect: { id: finalTransactionTypeId } },
         txHash: new Uint8Array(createBufferFromHex(txId)),
+        eventId: eventId || null,
       });
 
       if (customer.customerPoints.length === 0) {

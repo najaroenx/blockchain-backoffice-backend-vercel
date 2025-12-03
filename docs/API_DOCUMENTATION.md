@@ -183,15 +183,19 @@
 #### Request Body
 
 | Parameter | Type | M/O | Description | Example |
-|-----------|------|-----|-------------|---------|
+|-----------|------|-----|-------------|---------||
 | amount | Number | M | จำนวนคะแนนที่ต้องการส่ง | 10 |
-| receiverPhone | String | M | เบอร์โทรศัพท์ของผู้รับ | 0984360421 |
+| phone | String | M | เบอร์โทรศัพท์ของผู้รับ | 0984360421 |
+| transactionTypeId | String | O | ประเภทธุรกรรม (default: TRANSFER) | TRANSFER |
+| eventId | String | O | รหัสอีเว้นท์สำหรับติดตามธุรกรรม | event_12345 |
 
 **Example Request Body:**
 ```json
 {
   "amount": 10,
-  "receiverPhone": "0984360421"
+  "phone": "0984360421",
+  "transactionTypeId": "TRANSFER",
+  "eventId": "event_12345"
 }
 ```
 
@@ -297,19 +301,17 @@
 #### Request Body
 
 | Parameter | Type | M/O | Description | Example |
-|-----------|------|-----|-------------|---------|
+|-----------|------|-----|-------------|---------||
 | code | String | M | รหัส voucher code | WELCOME2024 |
 | phone | String | M | เบอร์โทรศัพท์ของลูกค้า | 0984360421 |
 | merchantRef | String | M | รหัสอ้างอิงร้านค้า | merchant-ref-001 |
-| eventId | String | O | รหัส event (สำหรับติดตามการใช้งาน) | event-2025-concert |
 
 **Example Request Body:**
 ```json
 {
   "code": "WELCOME2024",
   "phone": "0984360421",
-  "merchantRef": "merchant-ref-001",
-  "eventId": "event-2025-concert"
+  "merchantRef": "merchant-ref-001"
 }
 ```
 

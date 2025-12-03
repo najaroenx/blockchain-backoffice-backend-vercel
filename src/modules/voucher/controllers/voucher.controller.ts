@@ -265,7 +265,7 @@ export class VoucherController {
   /**
    * Redeem voucher code
    * POST /coupon/redeem
-   * Body: { code: string, phone: string, merchantRef: string, eventId?: string }
+   * Body: { code: string, phone: string, merchantRef: string }
    */
   @Post('/redeem')
   @Public()
@@ -294,11 +294,6 @@ export class VoucherController {
           example: 'merchant-ref-001',
           description: 'รหัสอ้างอิงร้านค้า',
         },
-        eventId: {
-          type: 'string',
-          example: 'event-2025-concert',
-          description: 'รหัส event (สำหรับติดตามการใช้งาน)',
-        },
       },
       required: ['code', 'phone', 'merchantRef'],
     },
@@ -322,14 +317,12 @@ export class VoucherController {
       code: string;
       phone: string;
       merchantRef: string;
-      eventId?: string;
     },
   ) {
     return this.voucherService.redeemVoucher(
       data.code,
       data.phone,
       data.merchantRef,
-      data.eventId,
     );
   }
 

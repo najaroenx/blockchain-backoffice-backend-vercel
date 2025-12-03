@@ -116,13 +116,23 @@ export class TransactionController {
           example: 10,
           description: 'จำนวนคะแนนที่ต้องการส่ง',
         },
-        receiverPhone: {
+        phone: {
           type: 'string',
           example: '0984360421',
           description: 'เบอร์โทรศัพท์ของผู้รับ',
         },
+        transactionTypeId: {
+          type: 'string',
+          example: 'TRANSFER',
+          description: 'ประเภทธุรกรรม (optional, default: TRANSFER)',
+        },
+        eventId: {
+          type: 'string',
+          example: 'event_12345',
+          description: 'รหัสอีเว้นท์สำหรับติดตามธุรกรรม (optional)',
+        },
       },
-      required: ['amount', 'receiverPhone'],
+      required: ['amount', 'phone'],
     },
   })
   @ApiResponse({

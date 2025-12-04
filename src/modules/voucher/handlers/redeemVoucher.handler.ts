@@ -481,4 +481,114 @@ export class RedeemVoucher {
       throw error;
     }
   }
+
+  /**
+   * Redeem AIS voucher - similar to execute but transfers points to receiverPhone
+   */
+  async executeAIS(
+    code: string,
+    phone: string,
+    merchantRef: string,
+    receiverPhone: string,
+  ) {
+    try {
+      this.logger.log(
+        `[START AIS] Redeeming AIS voucher code: ${code} for customer phone: ${phone}, receiver: ${receiverPhone} at merchant: ${merchantRef}`,
+      );
+
+      // Validate that phone and receiverPhone are different
+      if (phone === receiverPhone) {
+        throw new BadRequestException(
+          'Receiver phone must be different from redeemer phone',
+        );
+      }
+
+      // 0. Find redeemer customer by phone
+      this.logger.log(`[STEP 0] Finding redeemer customer by phone: ${phone}`);
+      const customer = await this.prisma.customer.findFirst({
+        where: { tel: phone },
+        include: { wallet: true },
+      });
+
+      if (!customer) {
+        this.logger.error(`[ERROR] Customer with phone ${phone} not found`);
+        throw new NotFoundException(`Customer with phone ${phone} not found`);
+      }
+
+      // 0b. Find receiver customer by receiverPhone
+      this.logger.log(
+        `[STEP 0b] Finding receiver customer by phone: ${receiverPhone}`,
+      );
+      const receiverCustomer = await this.prisma.customer.findFirst({
+        where: { tel: receiverPhone },
+        include: { wallet: true },
+      });
+
+      if (!receiverCustomer) {
+        this.logger.error(
+          `[ERROR] Receiver customer with phone ${receiverPhone} not found`,
+        );
+        throw new NotFoundException(
+          `Receiver customer with phone ${receiverPhone} not found`,
+        );
+      }
+
+      const customerId = customer.id;
+      const receiverCustomerId = receiverCustomer.id;
+
+      this.logger.log(
+        `[STEP 0] Redeemer: ${customerId}, Receiver: ${receiverCustomerId}`,
+      );
+
+      // 1. First validate that this is an AIS voucher
+      this.logger.log(`[STEP 1] Validating voucher type`);
+      const voucherCode = await this.prisma.voucherCode.findUnique({
+        where: { code },
+        select: {
+          voucher: {
+            select: {
+              valueType: true,
+              value: true,
+            },
+          },
+        },
+      });
+
+      if (voucherCode?.voucher.valueType !== 'aispoint') {
+        throw new BadRequestException(
+          'This endpoint is only for AIS Point vouchers. Use /coupon/redeem for other voucher types.',
+        );
+      }
+
+      this.logger.log(
+        `[STEP 1] Voucher type validated: aispoint (value: ${voucherCode.voucher.value})`,
+      );
+
+      // Call the normal redeem flow
+      const redeemResult = await this.execute(code, phone, merchantRef);
+
+      // Additional: Transfer points to receiver (AIS-specific logic)
+      // TODO: Call AIS API to transfer points
+      // Amount to transfer = voucher.value (the AIS point amount)
+      const transferAmount = voucherCode.voucher.value;
+
+      this.logger.log(
+        `[SUCCESS AIS] Voucher redeemed. Points (${transferAmount}) prepared for transfer to ${receiverPhone}`,
+      );
+
+      return {
+        ...redeemResult,
+        pointTransfer: {
+          phone: phone,
+          receiverPhone: receiverPhone,
+          amount: transferAmount,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `[ERROR AIS] Failed to redeem AIS voucher: ${error.message}`,
+      );
+      throw error;
+    }
+  }
 }

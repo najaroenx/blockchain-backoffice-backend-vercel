@@ -211,6 +211,7 @@ export class VoucherDBService {
             groupedMap.set(activeGroupKey, {
               baseData: {
                 ...voucherData,
+                merchantRef: voucherData.merchantRef || null,
                 pointsCost: codeGroup.pointsCost,
                 pointId: codeGroup.pointId,
                 currency: codeGroup.currency,
@@ -241,6 +242,7 @@ export class VoucherDBService {
           groupedMap.set(upcomingGroupKey, {
             baseData: {
               ...voucherData,
+              merchantRef: voucherData.merchantRef || null,
               // ไม่มี pointsCost, pointId, currency เพราะยังไม่ได้ activate
             },
             activeCount: 0,
@@ -542,6 +544,23 @@ export class VoucherDBService {
    */
   async redeemVoucher(code: string, phone: string, merchantRef: string) {
     return this.redeemVoucherHandler.execute(code, phone, merchantRef);
+  }
+
+  /**
+   * Redeem AIS voucher - transfer points to receiverPhone
+   */
+  async redeemAISVoucher(
+    code: string,
+    phone: string,
+    merchantRef: string,
+    receiverPhone: string,
+  ) {
+    return this.redeemVoucherHandler.executeAIS(
+      code,
+      phone,
+      merchantRef,
+      receiverPhone,
+    );
   }
 
   /**

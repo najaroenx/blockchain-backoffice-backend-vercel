@@ -674,7 +674,7 @@
 
 ---
 
-## 6. Redeem Voucher
+## 7. Redeem Voucher
 
 **Description:** ใช้ voucher code เพื่อแลกรับส่วนลดหรือของรางวัล
 
@@ -814,6 +814,221 @@
 | 400 | 400 | Bad Request - Code already used, expired, wrong merchant, or insufficient balance |
 | 404 | 404 | Not Found - Code or customer not found |
 | 500 | 500 | Internal Server Error |
+
+---
+
+## 8. Redeem AIS Voucher (Transfer Points to Another Customer)
+
+**Description:** แลก voucher ประเภท AIS Point โดยโอนคะแนนไปให้เบอร์โทรศัพท์อื่น (Public endpoint - ไม่ต้อง authenticate)
+
+### Request
+
+**Method:** `POST`
+
+**URL:** `{{endpoint_url}}/coupon/redeem-ais`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/coupon/redeem-ais`
+
+### Request Parameters
+
+#### Body (JSON)
+
+```json
+{
+  "code": "AIS2024WELCOME",
+  "phone": "0984360421",
+  "merchantRef": "merchant-ref-001",
+  "receiverPhone": "0987654321"
+}
+```
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| code | String | M | รหัส voucher ที่ต้องการแลก | AIS2024WELCOME |
+| phone | String | M | เบอร์โทรศัพท์ของผู้แลก voucher | 0984360421 |
+| merchantRef | String | M | Reference ของร้านค้า (ต้องตรงกับ voucher.merchantRef) | merchant-ref-001 |
+| receiverPhone | String | M | เบอร์โทรศัพท์ของผู้รับคะแนน AIS Point (ต้องไม่ซ้ำกับ phone) | 0987654321 |
+
+### Response
+
+#### Success Response (200)
+
+```json
+{
+  "status": "success",
+  "message": "OK",
+  "data": {
+    "success": true,
+    "message": "Voucher redeemed successfully",
+    "voucher": {
+      "id": "voucher123",
+      "name": "AIS Point 100",
+      "description": "Get 100 AIS Points",
+      "valueType": "aispoint",
+      "value": 100,
+      "merchantName": "AIS Shop",
+      "startDate": "2024-01-01T00:00:00.000Z",
+      "endDate": "2024-12-31T23:59:59.000Z"
+    },
+    "redemption": {
+      "code": "AIS2024WELCOME",
+      "redeemedBy": "customer-id-123",
+      "redeemedAt": "2024-12-04T10:30:00.000Z",
+      "pointsCost": 50
+    },
+    "blockchain": {
+      "transactionHash": "0xabc123...",
+      "blockNumber": 12345
+    },
+    "vaultRelease": {
+      "transactionHash": "0xdef456...",
+      "blockNumber": 12346
+    },
+    "pointTransfer": {
+      "phone": "0984360421",
+      "receiverPhone": "0987654321",
+      "amount": 100
+    }
+  }
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| status | String | สถานะการตอบกลับ ("success") |
+| message | String | ข้อความสถานะ ("OK") |
+| data | Object | ข้อมูลผลลัพธ์การแลก |
+| data.success | Boolean | สถานะความสำเร็จ |
+| data.message | String | ข้อความอธิบาย |
+| data.voucher | Object | ข้อมูล voucher ที่แลก |
+| data.voucher.id | String | รหัส voucher |
+| data.voucher.name | String | ชื่อ voucher |
+| data.voucher.description | String | รายละเอียด voucher |
+| data.voucher.valueType | String | ประเภทคูปอง (aispoint) |
+| data.voucher.value | Number | มูลค่าของ voucher (จำนวน AIS Point) |
+| data.voucher.merchantName | String | ชื่อร้านค้า |
+| data.voucher.startDate | String | วันที่เริ่มใช้งาน |
+| data.voucher.endDate | String | วันที่หมดอายุ |
+| data.redemption | Object | ข้อมูลการแลก |
+| data.redemption.code | String | รหัส voucher ที่แลก |
+| data.redemption.redeemedBy | String | รหัสลูกค้าผู้แลก |
+| data.redemption.redeemedAt | String | วันเวลาที่แลก (ISO 8601) |
+| data.redemption.pointsCost | Number | คะแนนที่ใช้ในการแลก |
+| data.blockchain | Object/null | ข้อมูล transaction บน blockchain |
+| data.blockchain.transactionHash | String | Hash ของ transaction |
+| data.blockchain.blockNumber | Number | หมายเลข block |
+| data.vaultRelease | Object/null | ข้อมูล vault release transaction |
+| data.vaultRelease.transactionHash | String | Hash ของ transaction |
+| data.vaultRelease.blockNumber | Number | หมายเลข block |
+| data.pointTransfer | Object | ข้อมูลการโอนคะแนน AIS Point |
+| data.pointTransfer.phone | String | เบอร์โทรผู้แลก (ผู้โอน) |
+| data.pointTransfer.receiverPhone | String | เบอร์โทรผู้รับ |
+| data.pointTransfer.amount | Number | จำนวนคะแนน AIS Point ที่โอน |
+
+### Error Responses
+
+**Code Not Found (404)**
+```json
+{
+  "statusCode": 404,
+  "message": "Voucher code not found",
+  "error": "Not Found"
+}
+```
+
+**Customer Not Found (404)**
+```json
+{
+  "statusCode": 404,
+  "message": "Customer with phone 0984360421 not found",
+  "error": "Not Found"
+}
+```
+
+**Receiver Not Found (404)**
+```json
+{
+  "statusCode": 404,
+  "message": "Receiver customer with phone 0987654321 not found",
+  "error": "Not Found"
+}
+```
+
+**Same Phone Number (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Receiver phone must be different from redeemer phone",
+  "error": "Bad Request"
+}
+```
+
+**Wrong Voucher Type (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "This endpoint is only for AIS Point vouchers. Use /coupon/redeem for other voucher types.",
+  "error": "Bad Request"
+}
+```
+
+**Code Already Used (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Voucher code has already been redeemed by customer: customer-id-456",
+  "error": "Bad Request"
+}
+```
+
+**Voucher Expired (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Voucher has expired on 2024-11-30T23:59:59.000Z",
+  "error": "Bad Request"
+}
+```
+
+**Wrong Merchant (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "This voucher can only be redeemed at the issuing merchant",
+  "error": "Bad Request"
+}
+```
+
+**Insufficient Balance (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Insufficient on-chain coupon balance for redemption",
+  "error": "Bad Request"
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Voucher redeemed and points transfer prepared |
+| 400 | 400 | Bad Request - Same phone, wrong type, code used, expired, wrong merchant, or insufficient balance |
+| 404 | 404 | Not Found - Code, redeemer, or receiver not found |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- This endpoint is **public** and does not require authentication
+- Only works with vouchers of type **`aispoint`** (VoucherValueType.aispoint)
+- The `phone` and `receiverPhone` must be **different** phone numbers
+- Both phone numbers must exist in the customer database
+- The `pointTransfer.amount` equals the voucher's `value` field (AIS points)
+- The `redemption.pointsCost` is the points spent by the customer to obtain the voucher
+- The `merchantRef` must match the voucher's `merchantRef` field (if set)
+- Actual AIS point transfer integration is pending (TODO in code)
 
 ---
 

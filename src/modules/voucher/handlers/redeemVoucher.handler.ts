@@ -300,7 +300,7 @@ export class RedeemVoucher {
             txHash: Buffer.from(blockchainTx.hash.slice(2), 'hex'),
             senderAddress: Buffer.from(customerAddress.slice(2), 'hex'),
             receiverAddress: Buffer.from(merchantAddress.slice(2), 'hex'),
-            amount: voucherCode.pointsCost,
+            amount: 1, // Customer redeems 1 voucher (not pointsCost)
             pointId: voucherCode.pointId,
             senderId: customerId,
             receiverId: null, // No receiver - voucher is burned, not transferred

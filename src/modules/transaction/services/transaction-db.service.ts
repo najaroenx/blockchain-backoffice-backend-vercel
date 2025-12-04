@@ -25,7 +25,31 @@ export class TransactionDBService {
           merchant: true,
           sender: true,
           receiver: true,
+          merchantSender: true,
+          merchantReceiver: true,
           point: true,
+        },
+      });
+
+    return transactions;
+  }
+
+  async getAllTransactionsByCustomerId(
+    customerId: string,
+  ): Promise<GetTransactionsByCustomerId[]> {
+    const transactions =
+      await this.repository.findMany<GetTransactionsByCustomerId>({
+        where: {
+          OR: [{ senderId: customerId }, { receiverId: customerId }],
+        },
+        include: {
+          merchant: true,
+          sender: true,
+          receiver: true,
+          point: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
         },
       });
 
@@ -44,6 +68,8 @@ export class TransactionDBService {
           merchant: true,
           sender: true,
           receiver: true,
+          merchantSender: true,
+          merchantReceiver: true,
           point: true,
         },
       });
@@ -84,6 +110,8 @@ export class TransactionDBService {
           merchant: true,
           sender: true,
           receiver: true,
+          merchantSender: true,
+          merchantReceiver: true,
           point: true,
         },
       });
@@ -109,6 +137,8 @@ export class TransactionDBService {
           merchant: true,
           sender: true,
           receiver: true,
+          merchantSender: true,
+          merchantReceiver: true,
           point: true,
         },
       });

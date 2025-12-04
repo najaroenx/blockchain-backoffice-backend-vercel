@@ -24,15 +24,10 @@ export class RedeemVoucher {
     this.salt = this.configService.get<string>('SALT');
   }
 
-  async execute(
-    code: string,
-    phone: string,
-    merchantRef: string,
-    eventId?: string,
-  ) {
+  async execute(code: string, phone: string, merchantRef: string) {
     try {
       this.logger.log(
-        `[START] Redeeming voucher code: ${code} for customer phone: ${phone} at merchant: ${merchantRef}${eventId ? ` for event: ${eventId}` : ''}`,
+        `[START] Redeeming voucher code: ${code} for customer phone: ${phone} at merchant: ${merchantRef}`,
       );
 
       // 0. Find customer by phone
@@ -312,7 +307,6 @@ export class RedeemVoucher {
             merchantId: voucher.merchantId, // Track which merchant's voucher was redeemed
             voucherCodeId: voucherCode.id,
             transactionTypeId: TransactionTypeId.REDEEM,
-            eventId: eventId || null, // Track event ID if provided
           },
         }),
       ]);

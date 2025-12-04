@@ -37,6 +37,7 @@ export class TransactionController {
   ) {}
 
   @Get('/')
+  @Public()
   @HttpCode(200)
   async getTransactions(@Param('merchantId') merchantId: string) {
     return this.getTransactionsByMerchantId.execute(merchantId);
@@ -44,11 +45,28 @@ export class TransactionController {
 
   @Get('/:customerId')
   @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Transaction History by Customer ID',
+    description: 'ดึงประวัติธุรกรรมของลูกค้าในร้านค้านั้นๆด้วย Customer ID',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'รหัสร้านค้า',
+    example: 'cmih1s6qu00050i01m3cactjj',
+  })
+  @ApiParam({
+    name: 'customerId',
+    description: 'รหัสลูกค้า (Customer ID)',
+    example: 'cmiisvgqn0007xk01efv8szbq',
+  })
   async getTransactionsByCustomer(
     @Param('merchantId') merchantId: string,
     @Param('customerId') customerId: string,
   ) {
-    return this.getTransactionsByCustomerId.execute(customerId, merchantId);
+    return this.getTransactionsByCustomerId.executeByCustomerId(
+      merchantId,
+      customerId,
+    );
   }
 
   @Get('/:walletAddress/:pointId/balance')
@@ -116,13 +134,23 @@ export class TransactionController {
           example: 10,
           description: 'จำนวนคะแนนที่ต้องการส่ง',
         },
-        receiverPhone: {
+        phone: {
           type: 'string',
           example: '0984360421',
           description: 'เบอร์โทรศัพท์ของผู้รับ',
         },
+        transactionTypeId: {
+          type: 'string',
+          example: 'TRANSFER',
+          description: 'ประเภทธุรกรรม (optional, default: TRANSFER)',
+        },
+        eventId: {
+          type: 'string',
+          example: 'event_12345',
+          description: 'รหัสอีเว้นท์สำหรับติดตามธุรกรรม (optional)',
+        },
       },
-      required: ['amount', 'receiverPhone'],
+      required: ['amount', 'phone'],
     },
   })
   @ApiResponse({

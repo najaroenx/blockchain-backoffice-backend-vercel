@@ -1,14 +1,19 @@
-import { IsNumber, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateTransactionBodyDto {
   @IsString()
-  transactionTypeId: string;
+  @IsOptional()
+  transactionTypeId?: string;
 
   @IsString()
   phone: string;
 
   @IsNumber()
   amount: number;
+
+  @IsString()
+  @IsOptional()
+  eventId?: string;
 }
 
 export class CreateTransactionC2CBodyDto {

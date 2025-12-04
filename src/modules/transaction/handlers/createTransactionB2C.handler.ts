@@ -376,25 +376,33 @@ export class CreateTransactionB2C {
         `[CreateTransactionB2C] Blockchain transaction successful. TxId: ${txId}`,
       );
 
+      const txHashBuffer = new Uint8Array(createBufferFromHex(txId));
+      const senderAddressBuffer = Buffer.from(
+        merchantWalletAddress.replace(/^0x/, ''),
+        'hex',
+      );
+      const receiverAddressBuffer = Buffer.from(
+        ((customer as any).wallet?.walletAddress || '').replace(/^0x/, ''),
+        'hex',
+      );
+
+      // Create single transaction record with both sender (merchant) and receiver (customer)
       const transaction = await this.db.createTransaction({
         ...rest,
-        // senderAddress: merchant wallet address
-        senderAddress: Buffer.from(
-          merchantWalletAddress.replace(/^0x/, ''),
-          'hex',
-        ),
-        // receiverAddress: customer wallet address
-        receiverAddress: Buffer.from(
-          ((customer as any).wallet?.walletAddress || '').replace(/^0x/, ''),
-          'hex',
-        ),
+        senderAddress: senderAddressBuffer,
+        receiverAddress: receiverAddressBuffer,
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
+        // senderId is null for B2C (merchant is not a customer)
         receiver: { connect: { id: customer.id } },
         transactionType: { connect: { id: finalTransactionTypeId } },
-        txHash: new Uint8Array(createBufferFromHex(txId)),
+        txHash: txHashBuffer,
         eventId: eventId || null,
       });
+
+      this.logger.log(
+        `[CreateTransactionB2C] Transaction created. ID: ${transaction.id}`,
+      );
 
       if (customer.customerPoints.length === 0) {
         await this.updateCustomer.execute(customer.id, {

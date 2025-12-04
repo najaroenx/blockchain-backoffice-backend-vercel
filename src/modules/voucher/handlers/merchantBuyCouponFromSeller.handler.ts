@@ -177,8 +177,8 @@ export class MerchantBuyCouponFromSeller {
         `[STEP 5] Blockchain purchase successful. Tx: ${blockchainTx.hash}, Block: ${blockchainTx.blockNumber}`,
       );
 
-      // 6. Create transaction record
-      this.logger.log(`[STEP 6] Creating transaction record`);
+      // 6. Create transaction records (payment + voucher receipt)
+      this.logger.log(`[STEP 6] Creating transaction records`);
 
       // Convert Wei to THB amount (Int) for database
       // Note: Transaction.amount field stores THB value as integer, not Wei
@@ -186,26 +186,33 @@ export class MerchantBuyCouponFromSeller {
         parseFloat(ethers.formatEther(totalPriceWei)),
       );
 
+      const txHashBuffer = Buffer.from(blockchainTx.hash.slice(2), 'hex');
+      const senderAddressBuffer = Buffer.from(
+        merchantWallet.walletAddress.slice(2),
+        'hex',
+      );
+      const receiverAddressBuffer = Buffer.from(listing.seller.slice(2), 'hex');
+
+      // Create transaction record for payment
       const transaction = await this.prisma.transaction.create({
         data: {
-          txHash: Buffer.from(blockchainTx.hash.slice(2), 'hex'),
-          senderAddress: Buffer.from(
-            merchantWallet.walletAddress.slice(2),
-            'hex',
-          ),
-          receiverAddress: Buffer.from(listing.seller.slice(2), 'hex'),
+          txHash: txHashBuffer,
+          senderAddress: senderAddressBuffer,
+          receiverAddress: receiverAddressBuffer,
           amount: amountTHB,
           pointId: null, // THB purchase, not point-based
-          merchantId: merchantId, // Merchant who purchased
-          senderId: null, // B2B transaction, not customer-based
-          receiverId: null, // Seller ID not tracked in our system
-          voucherCodeId: null, // Will be set during activation
+          merchantId: merchantId,
+          senderId: null,
+          receiverId: null,
+          merchantSenderId: merchantId, // Merchant paid
+          merchantReceiverId: null, // Seller not tracked in DB
+          voucherCodeId: null,
           transactionTypeId: TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
         } as any,
       });
 
       this.logger.log(
-        `[STEP 6] Transaction record created. ID: ${transaction.id}`,
+        `[STEP 6] Transaction created. Payment ID: ${transaction.id}`,
       );
 
       // 7. Update voucher status to 'upcoming' and assign to merchant

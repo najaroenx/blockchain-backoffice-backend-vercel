@@ -335,6 +335,23 @@ export class BuyCouponFromMarketplace {
       // 9. Transfer ownership - อัพเดท database และหัก balance off-chain ให้สอดคล้อง
       this.logger.log(`[STEP 9] Updating database - transferring ownership`);
 
+      // Get merchant wallet address for receiver
+      const merchantWallet = await this.prisma.wallet.findFirst({
+        where: { merchant: { id: voucherCode.voucher.merchantId } },
+        select: { walletAddress: true },
+      });
+
+      if (!merchantWallet?.walletAddress) {
+        throw new BadRequestException('Merchant wallet not found');
+      }
+
+      const txHashBuffer = Buffer.from(blockchainTx.hash.slice(2), 'hex');
+      const customerAddressBuffer = Buffer.from(walletAddress.slice(2), 'hex');
+      const merchantAddressBuffer = Buffer.from(
+        merchantWallet.walletAddress.slice(2),
+        'hex',
+      );
+
       const [, , transaction] = await this.prisma.$transaction([
         // Update current owner
         this.prisma.voucherCode.update({
@@ -352,16 +369,18 @@ export class BuyCouponFromMarketplace {
           },
         }),
 
-        // Create transaction record (payment + ownership transfer)
+        // Create single transaction record
         this.prisma.transaction.create({
           data: {
-            txHash: Buffer.from(blockchainTx.hash.slice(2), 'hex'),
-            senderAddress: Buffer.from(walletAddress.slice(2), 'hex'),
-            receiverAddress: Buffer.from(walletAddress.slice(2), 'hex'),
+            txHash: txHashBuffer,
+            senderAddress: customerAddressBuffer,
+            receiverAddress: merchantAddressBuffer,
             amount: voucherCode.pointsCost,
             pointId: voucherCode.pointId,
+            merchantId: voucherCode.voucher.merchantId,
             senderId: customerId,
-            receiverId: customerId,
+            receiverId: null, // Merchant is receiver but not a customer
+            merchantReceiverId: voucherCode.voucher.merchantId, // Merchant received payment
             voucherCodeId: voucherCodeId,
             transactionTypeId: TransactionTypeId.MARKETPLACE_PURCHASE,
           } as any,

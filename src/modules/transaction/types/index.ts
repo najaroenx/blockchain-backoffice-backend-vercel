@@ -18,10 +18,13 @@ export type GetTransactionByMerchantIdResponseType = {
       | 'updatedAt'
       | 'senderId'
       | 'receiverId'
+      | 'merchantSenderId'
+      | 'merchantReceiverId'
     > & {
       txHash: string;
       receiverAddress: string;
       senderAddress: string;
+      transactionDirection: 'SENT' | 'RECEIVED';
     }
   >;
   counts: number;
@@ -39,10 +42,13 @@ export type GetTransactionsByCustomerIdResponseType = {
       | 'updatedAt'
       | 'senderId'
       | 'receiverId'
+      | 'merchantSenderId'
+      | 'merchantReceiverId'
     > & {
       txHash: string;
       receiverAddress: string;
       senderAddress: string;
+      transactionDirection: 'SENT' | 'RECEIVED';
     }
   >;
   counts: number;
@@ -52,6 +58,8 @@ export type GetTransactionsByCustomerId = Transaction & {
   sender: Customer;
   receiver: Customer;
   merchant: Merchant;
+  merchantSender: Merchant;
+  merchantReceiver: Merchant;
   point: Point;
 };
 
@@ -59,6 +67,8 @@ export type GetTransactionsByMerchantId = Transaction & {
   sender: Customer;
   receiver: Customer;
   merchant: Merchant;
+  merchantSender: Merchant;
+  merchantReceiver: Merchant;
   point: Point;
 };
 

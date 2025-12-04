@@ -224,7 +224,9 @@ Merchant purchases vouchers from seller using THB token.
 }
 ```
 
-**Error Responses:**
+**Note:** This endpoint creates a single transaction record with both sender (merchant) and receiver (seller) information for audit trail purposes.
+
+**Error Responses:
 - `400 Bad Request` - Merchant wallet not configured OR Listing not active OR Payment token not THB
 - `404 Not Found` - Merchant not found
 
@@ -316,7 +318,9 @@ Customer purchases voucher from marketplace using Point tokens.
 }
 ```
 
-**Error Responses:**
+**Note:** This endpoint creates a single transaction record with both sender (customer) and receiver (merchant) information. When querying transaction history, a `transactionDirection` field indicates whether the user sent or received points.
+
+**Error Responses:
 - `400 Bad Request` - Code already used OR Voucher expired OR Insufficient point balance OR Listing not active
 - `404 Not Found` - Customer not found (by phone) OR No available voucher code
 

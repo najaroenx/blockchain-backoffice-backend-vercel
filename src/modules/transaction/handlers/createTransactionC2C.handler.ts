@@ -86,25 +86,34 @@ export class CreateTransactionC2C {
         point,
       );
 
+      const txHashBuffer = Uint8Array.from(
+        Buffer.from(txId.replace(/^0x/, ''), 'hex'),
+      );
+      const senderAddressBuffer = Buffer.from(
+        ((sender as any).wallet?.walletAddress || '').replace(/^0x/, ''),
+        'hex',
+      );
+      const receiverAddressBuffer = Buffer.from(
+        ((receiver as any).wallet?.walletAddress || '').replace(/^0x/, ''),
+        'hex',
+      );
+
+      // Create single transaction record with both sender and receiver
       const transaction = await this.db.createTransaction({
         ...rest,
-        // Access wallet addresses from wallet relation
-        senderAddress: Buffer.from(
-          ((sender as any).wallet?.walletAddress || '').replace(/^0x/, ''),
-          'hex',
-        ),
-        receiverAddress: Buffer.from(
-          ((receiver as any).wallet?.walletAddress || '').replace(/^0x/, ''),
-          'hex',
-        ),
+        senderAddress: senderAddressBuffer,
+        receiverAddress: receiverAddressBuffer,
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
-        receiver: { connect: { id: receiver.id } },
         sender: { connect: { id: sender.id } },
+        receiver: { connect: { id: receiver.id } },
         transactionType: { connect: { id: TransactionTypeId.TRANSFER } },
-        // txHash: createBufferFromHex(txId),
-        txHash: Uint8Array.from(Buffer.from(txId.replace(/^0x/, ''), 'hex')),
+        txHash: txHashBuffer,
       });
+
+      this.logger.log(
+        `[CreateTransactionC2C] Transaction created. ID: ${transaction.id}`,
+      );
 
       await this.updateReceiverPoints(receiver, sender, point, data.amount);
 

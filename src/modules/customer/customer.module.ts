@@ -39,6 +39,7 @@ import { GetCustomerPhoneDevForResp } from './handlers/getCustomerPhoneDevForRes
     GetCustomerPhone,
     UpdateCustomer,
     CreateCustomer,
+    CustomerDBService,
   ],
 })
 export class CustomerModule {}

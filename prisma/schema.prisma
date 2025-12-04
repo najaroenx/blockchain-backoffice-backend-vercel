@@ -89,12 +89,16 @@ model Merchant {
   userMerchant     UserMerchant[]
   point            Point[]
   apiKey           ApiKey[]
-  transactions     Transaction[]
+  transactions     Transaction[]      @relation("TransactionMerchant")
   customerMerChant CustomerMerChant[]
   vouchers         Voucher[]
   tel              String
   walletId         String?            @unique
   wallet           Wallet?            @relation(fields: [walletId], references: [id])
+
+  // Merchant as transaction participant
+  sentTransactions     Transaction[] @relation("MerchantSender")
+  receivedTransactions Transaction[] @relation("MerchantReceiver")
 }
 
 model ApiKey {
@@ -117,7 +121,7 @@ model Transaction {
   eventId           String? // Event ID for tracking redemption events
   createdAt         DateTime         @default(now()) @map(name: "created_at")
   updatedAt         DateTime         @updatedAt @map(name: "updated_at")
-  merchant          Merchant?        @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  merchant          Merchant?        @relation("TransactionMerchant", fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantId        String?
   point             Point?           @relation(fields: [pointId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   pointId           String?
@@ -126,10 +130,17 @@ model Transaction {
   voucherCode       VoucherCode?     @relation(fields: [voucherCodeId], references: [id])
   voucherCodeId     String?
 
+  // Customer as sender/receiver
   sender     Customer? @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   senderId   String?
   receiver   Customer? @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   receiverId String?
+
+  // Merchant as sender/receiver
+  merchantSender     Merchant? @relation("MerchantSender", fields: [merchantSenderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  merchantSenderId   String?
+  merchantReceiver   Merchant? @relation("MerchantReceiver", fields: [merchantReceiverId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  merchantReceiverId String?
 
   @@index([voucherCodeId])
   @@index([eventId])

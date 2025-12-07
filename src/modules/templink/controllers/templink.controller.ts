@@ -17,12 +17,14 @@ import {
 } from '../handlers';
 import { CreateOTP } from '../handlers/createOTP.handler';
 import { VerifyOTP } from '../handlers/verifyOTP.handler';
+import { ReSendOTP } from '../handlers/reSendOTP.handler';
 import {
   CreateTempLinkDto,
   UpdateTempLinkDto,
   GetTempLinkByUidParams,
   GetTempLinksByMerchantParams,
   VerifyOtpDto,
+  SendOtpDto,
 } from '../dtos';
 import { Public } from 'src/modules/auth/public.decorator';
 
@@ -36,6 +38,7 @@ export class TempLinkController {
     private readonly deleteTempLinkHandler: DeleteTempLink,
     private readonly createOTPHandler: CreateOTP,
     private readonly verifyOTPHandler: VerifyOTP,
+    private readonly reSendOTPHandler: ReSendOTP,
   ) {}
 
   @Public()
@@ -80,10 +83,10 @@ export class TempLinkController {
   }
 
   @Public()
-  @Get('/:uid/send-otp')
-  @HttpCode(200)
-  async sendOTP(@Param() params: GetTempLinkByUidParams) {
-    return this.createOTPHandler.execute(params.uid);
+  @Post('/send-otp')
+  @HttpCode(201)
+  async sendOTP(@Body() body: SendOtpDto) {
+    return this.createOTPHandler.execute(body.requestId, body.phoneNumber);
   }
 
   @Public()
@@ -91,5 +94,12 @@ export class TempLinkController {
   @HttpCode(200)
   async verifyOTP(@Body() body: VerifyOtpDto) {
     return this.verifyOTPHandler.execute(body.phoneNumber, body.otpCode);
+  }
+
+  @Public()
+  @Post('/resend-otp')
+  @HttpCode(200)
+  async resendOTP(@Body() body: { requestId: string }) {
+    return this.reSendOTPHandler.execute(body.requestId);
   }
 }

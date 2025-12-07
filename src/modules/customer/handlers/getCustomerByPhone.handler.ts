@@ -163,11 +163,11 @@ export class GetCustomerPhone {
       const customerData = await this.db.getCustomerByPhoneDetailed(phone);
 
       if (!customerData) {
-        return {
+        throw new NotFoundException({
+          statusCode: 404,
           message: `Customer with phone ${phone} not found`,
-          status: 404,
-          data: null,
-        };
+          error: 'CUSTOMER_NOT_FOUND',
+        });
       }
 
       this.logger.log(`[SUCCESS] Found customer: ${(customerData as any).id}`);
@@ -176,22 +176,18 @@ export class GetCustomerPhone {
       const walletAddress = (customerData as any).wallet?.walletAddress || '';
 
       return {
-        message: 'success',
-        status: 200,
-        data: {
+        walletAddress,
+        phone,
+        customer: {
+          id: (customerData as any).id,
+          email: (customerData as any).email,
+          firstName: (customerData as any).firstName,
+          lastName: (customerData as any).lastName,
+          tel: (customerData as any).tel,
           walletAddress,
-          phone,
-          customer: {
-            id: (customerData as any).id,
-            email: (customerData as any).email,
-            firstName: (customerData as any).firstName,
-            lastName: (customerData as any).lastName,
-            tel: (customerData as any).tel,
-            walletAddress,
-            createdAt: (customerData as any).createdAt,
-            updatedAt: (customerData as any).updatedAt,
-            merchants,
-          },
+          createdAt: (customerData as any).createdAt,
+          updatedAt: (customerData as any).updatedAt,
+          merchants,
         },
       };
     } catch (error) {
@@ -199,6 +195,9 @@ export class GetCustomerPhone {
         `Error getting customer detailed by phone: ${error.message}`,
         error.stack,
       );
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

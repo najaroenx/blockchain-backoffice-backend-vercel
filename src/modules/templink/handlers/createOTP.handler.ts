@@ -16,23 +16,25 @@ export class CreateOTP {
     private otpService: OTPService,
   ) {}
 
-  async execute(uid?: string) {
+  async execute(uid?: string, phoneNumber?: string) {
     try {
       //   Get temp link by uid
       const tempLink = await this.tempLinkDBService.getTempLinkByUid(uid);
-
+      this.logger.log(
+        `Executing CreateOTP handler for uid: ${JSON.stringify(tempLink)}`,
+      );
       if (!tempLink) {
         throw new Error(`Temp link with uid ${uid} not found`);
       }
-
       // Check if expired
       if (tempLink.expire < new Date()) {
-        throw new Error(`Temp link has expired!`);
+        throw new Error(`URL has expired!`);
       }
-      console.log(uid);
-
+      this.logger.log(`Creating OTP for temp link with uid: ${uid}`);
+      tempLink.phoneNumber = phoneNumber;
+      await this.tempLinkDBService.updateTempLink(uid, tempLink);
       // Send OTP to phone number
-      await this.otpService.sendOTP(tempLink.phoneNumber, tempLink.otp);
+      await this.otpService.sendOTP(phoneNumber, tempLink.otp);
 
       return {
         success: true,

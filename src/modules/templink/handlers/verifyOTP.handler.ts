@@ -42,15 +42,15 @@ export class VerifyOTP {
 
       this.logger.log(`OTP verified successfully for phone: ${phoneNumber}`);
 
+      // Delete temp link after successful verification
+      await this.tempLinkDBService.deleteTempLink(tempLink.uid);
+      this.logger.log(`Temp link deleted for uid: ${tempLink.uid}`);
+
       return {
-        success: true,
-        message: 'OTP verified successfully',
-        data: {
-          id: tempLink.id,
-          uid: tempLink.uid,
-          phoneNumber: tempLink.phoneNumber,
-          merchantId: tempLink.merchantId,
-        },
+        id: tempLink.id,
+        uid: tempLink.uid,
+        phoneNumber: tempLink.phoneNumber,
+        merchantId: tempLink.merchantId,
       };
     } catch (error) {
       if (

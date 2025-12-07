@@ -18,8 +18,16 @@ import { TempLinkModule } from '../templink/templink.module';
 import { GetCustomerListDev } from './handlers/getCustomerListDev.handler';
 import { OTPService } from 'src/providers/otp/otp.service';
 import { GetCustomerPhoneDevForResp } from './handlers/getCustomerPhoneDevForResp.handler';
+import { RegisterCustomerDev } from './handlers/registerCustomer.dev.handler';
+import { MerchantModule } from '../merchant/merchant.module';
 @Module({
-  imports: [TokenModule, BlockchainModule, PrismaModule, TempLinkModule],
+  imports: [
+    TokenModule,
+    BlockchainModule,
+    PrismaModule,
+    TempLinkModule,
+    MerchantModule,
+  ],
   controllers: [CustomerController, CustomerPhoneController],
   providers: [
     CustomerRepository,
@@ -33,6 +41,7 @@ import { GetCustomerPhoneDevForResp } from './handlers/getCustomerPhoneDevForRes
     GetCustomerListDev,
     OTPService,
     GetCustomerPhoneDevForResp,
+    RegisterCustomerDev,
   ],
   exports: [
     // GetCustomerByEmail,
@@ -40,6 +49,7 @@ import { GetCustomerPhoneDevForResp } from './handlers/getCustomerPhoneDevForRes
     UpdateCustomer,
     CreateCustomer,
     CustomerDBService,
+    // RegisterCustomerDev,
   ],
 })
 export class CustomerModule {}

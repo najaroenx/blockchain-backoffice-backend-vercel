@@ -23,6 +23,8 @@ export class GetTempLinkByUidParams {
   @IsString()
   @IsNotEmpty()
   uid: string;
+
+  phoneNumber: string;
 }
 
 export class GetTempLinksByMerchantParams {
@@ -39,4 +41,14 @@ export class VerifyOtpDto {
   @IsString()
   @IsNotEmpty()
   otpCode: string;
+}
+
+export class SendOtpDto {
+  @IsString()
+  @IsNotEmpty()
+  phoneNumber: string;
+
+  @IsString()
+  @IsNotEmpty()
+  requestId: string;
 }

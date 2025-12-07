@@ -22,8 +22,9 @@ import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
     UpdateMerchant,
     GetMerchant,
     DeleteMerchant,
+    MerchantDBService,
   ],
   imports: [ApiKeyModule, PrismaModule, TokenModule, BlockchainModule],
-  exports: [GetMerchant],
+  exports: [GetMerchant, MerchantDBService],
 })
 export class MerchantModule {}

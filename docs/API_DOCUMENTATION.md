@@ -1070,6 +1070,106 @@
 
 ---
 
+## Customer Registration
+
+### Register Customer
+
+**Description:** Create a temporary registration link for customer onboarding. This generates a unique URL with OTP that expires in 5 minutes.
+
+**Method:** `POST`
+
+**URL:** `{{endpoint_url}}/:merchantId/customer/register`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/cmih1s6qu00050i01m3cactjj/customer/register?callbackUri=https://example.com`
+
+**Authentication:** Public endpoint (no API key required)
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| merchantId | String | M | Merchant ID (alphanumeric, hyphens, underscores) | cmih1s6qu00050i01m3cactjj |
+
+#### Query Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| callbackUri | String | O | URL to redirect after registration (must be valid URL) | https://example.com |
+
+### Response
+
+#### Success Response (201)
+
+```json
+{
+  "url": "https://frontend-url.com/otp?requestid=550e8400-e29b-41d4-a716-446655440000&merchantId=cmih1s6qu00050i01m3cactjj&callbackUri=https://example.com",
+  "callbackUrl": "https://example.com",
+  "merchantId": "cmih1s6qu00050i01m3cactjj"
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| url | String | Complete registration URL with embedded requestId, merchantId, and callbackUri |
+| callbackUrl | String | The callback URL provided in request (or empty string) |
+| merchantId | String | The merchant ID |
+
+#### Error Responses
+
+**400 - Merchant Not Found**
+
+```json
+{
+  "statusCode": 400,
+  "message": "Merchant not found",
+  "error": "MERCHANT_NOT_FOUND"
+}
+```
+
+**400 - Invalid Parameters**
+
+```json
+{
+  "statusCode": 400,
+  "message": [
+    "merchantId must contain only alphanumeric characters, hyphens, and underscores",
+    "callbackUri must be a valid URL"
+  ]
+}
+```
+
+**500 - Internal Server Error**
+
+```json
+{
+  "statusCode": 500,
+  "message": "Failed to register customer"
+}
+```
+
+### Registration Flow
+
+1. **Call Register Endpoint** - POST to `/:merchantId/customer/register` with optional `callbackUri`
+2. **Receive Registration URL** - Get unique URL with embedded `requestId` and 5-minute expiry
+3. **Customer Opens URL** - Direct customer to the registration URL
+4. **Send OTP** - POST to `/templink/send-otp` with `requestId` and `phoneNumber`
+5. **Verify OTP** - POST to `/templink/verify-otp` with `phoneNumber` and `otpCode`
+6. **Complete Registration** - Customer is registered and temp link is deleted
+
+### Notes
+
+- The `requestId` in the returned URL is used for subsequent OTP operations
+- OTP expires after 5 minutes from registration link creation
+- Temp link is automatically created with a 6-digit OTP
+- The registration URL should be sent to the customer (via SMS, email, etc.)
+- After successful OTP verification, the temp link is deleted automatically
+
+---
+
 ## Notes
 
 - **M/O** = Mandatory/Optional

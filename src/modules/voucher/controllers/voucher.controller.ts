@@ -25,6 +25,7 @@ import {
   AddToWhitelistDto,
   BatchAddToWhitelistDto,
 } from '../dtos/add-to-whitelist.dto';
+import { RedeemAISVoucherDto } from '../dtos/redeem-voucher.dto';
 import { Public } from 'src/modules/auth/public.decorator';
 import { GetMarketplaceListings } from '../handlers/getMarketplaceListings.handler';
 import { ManageCouponHandler } from '../handlers/manageCoupon.handler';
@@ -325,6 +326,179 @@ export class VoucherController {
       data.code,
       data.phone,
       data.merchantRef,
+    );
+  }
+
+  /**
+   * Redeem AIS voucher code
+   * POST /coupon/redeem-ais
+   * Body: { code: string, phone: string, merchantRef: string, receiverPhone: string }
+   */
+  @Post('/redeem-ais')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Redeem AIS Voucher (Transfer Points to Another Customer)',
+    description:
+      'แลก voucher ประเภท AIS Point โดยโอนคะแนนไปให้เบอร์โทรศัพท์อื่น. Voucher ต้องเป็นประเภท "aispoint" เท่านั้น และเบอร์ผู้แลกกับผู้รับต้องไม่เหมือนกัน',
+  })
+  @ApiBody({
+    description: 'AIS Voucher redemption details',
+    schema: {
+      type: 'object',
+      properties: {
+        code: {
+          type: 'string',
+          example: 'AIS2024WELCOME',
+          description: 'รหัส voucher code ที่ต้องการแลก',
+        },
+        phone: {
+          type: 'string',
+          example: '0984360421',
+          description: 'เบอร์โทรศัพท์ของลูกค้าที่แลก voucher (ผู้โอนคะแนน)',
+        },
+        merchantRef: {
+          type: 'string',
+          example: 'merchant-ref-001',
+          description: 'รหัสอ้างอิงร้านค้า (ต้องตรงกับ voucher.merchantRef)',
+        },
+        receiverPhone: {
+          type: 'string',
+          example: '0987654321',
+          description:
+            'เบอร์โทรศัพท์ของผู้รับคะแนน AIS Point (ต้องไม่ซ้ำกับ phone)',
+        },
+      },
+      required: ['code', 'phone', 'merchantRef', 'receiverPhone'],
+    },
+    examples: {
+      success: {
+        summary: 'Valid AIS redemption',
+        value: {
+          code: 'AIS2024WELCOME',
+          phone: '0984360421',
+          merchantRef: 'merchant-ref-001',
+          receiverPhone: '0987654321',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'AIS Voucher redeemed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'success' },
+        message: { type: 'string', example: 'OK' },
+        data: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            message: {
+              type: 'string',
+              example: 'Voucher redeemed successfully',
+            },
+            voucher: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string', example: 'AIS Point 100' },
+                description: { type: 'string' },
+                valueType: { type: 'string', example: 'aispoint' },
+                value: { type: 'number', example: 100 },
+                merchantName: { type: 'string' },
+              },
+            },
+            redemption: {
+              type: 'object',
+              properties: {
+                code: { type: 'string' },
+                redeemedBy: { type: 'string' },
+                redeemedAt: { type: 'string', format: 'date-time' },
+                pointsCost: { type: 'number', example: 50 },
+              },
+            },
+            blockchain: {
+              type: 'object',
+              properties: {
+                transactionHash: { type: 'string' },
+                blockNumber: { type: 'number' },
+              },
+            },
+            pointTransfer: {
+              type: 'object',
+              properties: {
+                phone: { type: 'string', example: '0984360421' },
+                receiverPhone: { type: 'string', example: '0987654321' },
+                amount: {
+                  type: 'number',
+                  example: 100,
+                  description: 'จำนวนคะแนน AIS Point ที่โอน',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Bad Request - Same phone numbers, wrong voucher type (not aispoint), code already used, expired, wrong merchant, or insufficient balance',
+    schema: {
+      type: 'object',
+      examples: {
+        samePhone: {
+          statusCode: 400,
+          message: 'Receiver phone must be different from redeemer phone',
+          error: 'Bad Request',
+        },
+        wrongType: {
+          statusCode: 400,
+          message:
+            'This endpoint is only for AIS Point vouchers. Use /coupon/redeem for other voucher types.',
+          error: 'Bad Request',
+        },
+        alreadyUsed: {
+          statusCode: 400,
+          message: 'Voucher code has already been redeemed',
+          error: 'Bad Request',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Code, redeemer customer, or receiver customer not found',
+    schema: {
+      type: 'object',
+      examples: {
+        codeNotFound: {
+          statusCode: 404,
+          message: 'Voucher code not found',
+          error: 'Not Found',
+        },
+        customerNotFound: {
+          statusCode: 404,
+          message: 'Customer with phone 0984360421 not found',
+          error: 'Not Found',
+        },
+        receiverNotFound: {
+          statusCode: 404,
+          message: 'Receiver customer with phone 0987654321 not found',
+          error: 'Not Found',
+        },
+      },
+    },
+  })
+  async redeemAISVoucher(@Body() data: RedeemAISVoucherDto) {
+    return this.voucherService.redeemAISVoucher(
+      data.code,
+      data.phone,
+      data.merchantRef,
+      data.receiverPhone,
     );
   }
 

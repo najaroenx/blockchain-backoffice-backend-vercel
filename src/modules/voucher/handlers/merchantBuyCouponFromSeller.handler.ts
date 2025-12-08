@@ -237,6 +237,24 @@ export class MerchantBuyCouponFromSeller {
         this.logger.log(
           `[STEP 7] Voucher ${voucher.id} updated to 'upcoming' and assigned to merchant ${merchant.name}`,
         );
+
+        // 8. ลบ codes ที่ seller สร้างไว้ (placeholder codes จาก marketplace listing)
+        this.logger.log(
+          `[STEP 8] Removing seller placeholder codes for voucher ${voucher.id}`,
+        );
+
+        const deletedCodesResult = await this.prisma.voucherCode.deleteMany({
+          where: {
+            voucherId: voucher.id,
+            voucherGroupId: listingId, // Seller codes have listingId as voucherGroupId
+            pointId: null, // Seller codes don't have pointId (using THB)
+            currentOwnerId: null, // Not yet owned by anyone
+          },
+        });
+
+        this.logger.log(
+          `[STEP 8] Deleted ${deletedCodesResult.count} seller placeholder codes. Merchant will create new codes when activating.`,
+        );
       } else {
         this.logger.warn(
           `[STEP 7] Voucher with tokenId ${listing.typeId} not found or already assigned`,

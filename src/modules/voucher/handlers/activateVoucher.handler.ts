@@ -26,7 +26,6 @@ export class ActivateVoucher {
     amount: number,
     pointsCost: number,
     pointId: string,
-    currency: string,
   ) {
     try {
       this.logger.log(

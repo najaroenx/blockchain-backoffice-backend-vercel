@@ -62,6 +62,7 @@ export class GetMarketplaceListings {
                       select: {
                         id: true,
                         name: true,
+                        imageUrl: true,
                         wallet: {
                           select: {
                             walletAddress: true,
@@ -166,6 +167,7 @@ export class GetMarketplaceListings {
                           id: merchant.id,
                           name: merchant.name,
                           walletAddress: sellerWalletAddress,
+                          imageUrl: merchant.imageUrl,
                         }
                       : null,
                     point: point

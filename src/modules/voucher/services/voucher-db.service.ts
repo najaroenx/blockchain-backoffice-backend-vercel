@@ -417,7 +417,7 @@ export class VoucherDBService {
       data.amount,
       data.pointsCost,
       data.pointId,
-      data.currency,
+      // data.currency,
     );
   }
 

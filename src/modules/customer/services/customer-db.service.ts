@@ -242,6 +242,8 @@ export class CustomerDBService {
             currency: true,
             isUsed: true,
             usedAt: true,
+            voucherGroupId: true,
+            createdAt: true,
             voucher: {
               select: {
                 id: true,
@@ -253,8 +255,13 @@ export class CustomerDBService {
                 status: true,
                 startDate: true,
                 endDate: true,
+                merchantRef: true,
+                merchantId: true,
               },
             },
+          },
+          orderBy: {
+            createdAt: 'desc',
           },
         },
       },

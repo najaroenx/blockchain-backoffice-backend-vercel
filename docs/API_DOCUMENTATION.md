@@ -62,10 +62,14 @@
 | data.customerPoints[].balances | Number | ยอดคะแนนคงเหลือ |
 | data.customerPoints[].pointId | String | รหัสคะแนน |
 | data.customerPoints[].point | Object | ข้อมูลคะแนน |
-| data.ownedVouchers | Array | รายการ voucher ที่ลูกค้าเป็นเจ้าของ |
-| data.ownedVouchers[].code | String | รหัส voucher code |
-| data.ownedVouchers[].isUsed | Boolean | สถานะการใช้งาน |
-| data.ownedVouchers[].voucher | Object | ข้อมูล voucher |
+| data.ownedVouchers | Array | รายการ voucher ที่ลูกค้าเป็นเจ้าของ (grouped by voucherGroupId และ codeStatus) |
+| data.ownedVouchers[].voucherGroupId | String | รหัสกลุ่ม voucher (ใช้จัดกลุ่ม voucher ที่เหมือนกัน) |
+| data.ownedVouchers[].voucher | Object | ข้อมูล voucher รวม merchantRef |
+| data.ownedVouchers[].latestCode | String | รหัส voucher code ล่าสุดในกลุ่มนี้ |
+| data.ownedVouchers[].codeStatus | String | สถานะของ code ในกลุ่ม: `unused` (ยังไม่ได้ใช้), `used` (ใช้แล้ว), `expired` (หมดอายุ) |
+| data.ownedVouchers[].totalCodes | Number | จำนวน code ทั้งหมดในกลุ่มนี้ที่มีสถานะเดียวกัน |
+| data.ownedVouchers[].pointsCost | Number | จำนวนคะแนนที่ใช้ซื้อ |
+| data.ownedVouchers[].currency | String | สกุลเงินหรือคะแนนที่ใช้ซื้อ |
 
 #### Success Response (200)
 
@@ -110,13 +114,7 @@
     ],
     "ownedVouchers": [
       {
-        "id": "mock-voucher-1",
-        "code": "WELCOME2024",
-        "voucherId": "voucher-mock-1",
-        "pointsCost": 100,
-        "currency": "POINTS",
-        "isUsed": false,
-        "usedAt": null,
+        "voucherGroupId": "group-123",
         "voucher": {
           "id": "voucher-mock-1",
           "name": "Welcome Discount 20%",
@@ -126,17 +124,37 @@
           "valueType": "percentage",
           "status": "active",
           "startDate": "2025-11-28T11:50:32.760Z",
-          "endDate": "2025-12-28T11:50:32.760Z"
-        }
+          "endDate": "2025-12-28T11:50:32.760Z",
+          "merchantRef": "merchant-ref-001"
+        },
+        "latestCode": "WELCOME2024",
+        "codeStatus": "unused",
+        "totalCodes": 3,
+        "pointsCost": 100,
+        "currency": "POINTS"
       },
       {
-        "id": "mock-voucher-2",
-        "code": "FREESHIP50",
-        "voucherId": "voucher-mock-2",
-        "pointsCost": 50,
-        "currency": "POINTS",
-        "isUsed": false,
-        "usedAt": null,
+        "voucherGroupId": "group-123",
+        "voucher": {
+          "id": "voucher-mock-1",
+          "name": "Welcome Discount 20%",
+          "description": "Get 20% off on your first purchase",
+          "imageUrl": "https://via.placeholder.com/300x200?text=Welcome+Discount",
+          "value": 20,
+          "valueType": "percentage",
+          "status": "active",
+          "startDate": "2025-11-28T11:50:32.760Z",
+          "endDate": "2025-12-28T11:50:32.760Z",
+          "merchantRef": "merchant-ref-001"
+        },
+        "latestCode": "WELCOME2023",
+        "codeStatus": "used",
+        "totalCodes": 2,
+        "pointsCost": 100,
+        "currency": "POINTS"
+      },
+      {
+        "voucherGroupId": "group-456",
         "voucher": {
           "id": "voucher-mock-2",
           "name": "Free Shipping",
@@ -146,8 +164,14 @@
           "valueType": "gift",
           "status": "active",
           "startDate": "2025-11-28T11:50:32.760Z",
-          "endDate": "2026-01-27T11:50:32.760Z"
-        }
+          "endDate": "2026-01-27T11:50:32.760Z",
+          "merchantRef": "merchant-ref-002"
+        },
+        "latestCode": "FREESHIP50",
+        "codeStatus": "unused",
+        "totalCodes": 1,
+        "pointsCost": 50,
+        "currency": "POINTS"
       }
     ],
     "phone": "0984360421",
@@ -155,6 +179,18 @@
   }
 }
 ```
+
+**หมายเหตุเกี่ยวกับ ownedVouchers:**
+- **การจัดกลุ่ม (Grouping):** Voucher codes จะถูกจัดกลุ่มตาม `voucherGroupId` (หรือ `voucherId` ถ้าไม่มี voucherGroupId) และแยกตาม `codeStatus`
+- **codeStatus:** มี 3 สถานะ
+  - `unused`: คูปองที่ยังไม่ได้ใช้งานและยังไม่หมดอายุ
+  - `used`: คูปองที่ใช้งานไปแล้ว
+  - `expired`: คูปองที่หมดอายุแล้ว (เช็คจาก `endDate < วันที่ปัจจุบัน`)
+- **latestCode:** แสดงรหัสคูปองล่าสุดในแต่ละกลุ่ม (เรียงตาม `createdAt` จากล่าสุดไปเก่าสุด)
+- **totalCodes:** จำนวนคูปองทั้งหมดในกลุ่มที่มีสถานะเดียวกัน
+- **ตัวอย่าง:** หากลูกค้ามีคูปอง "Welcome Discount" จำนวน 5 ใบ โดยใช้ไปแล้ว 2 ใบ ยังไม่ใช้ 3 ใบ จะแสดงเป็น 2 กลุ่ม:
+  - กลุ่มที่ 1: `voucherGroupId: "group-123"`, `codeStatus: "unused"`, `totalCodes: 3`, `latestCode: "WELCOME2024"`
+  - กลุ่มที่ 2: `voucherGroupId: "group-123"`, `codeStatus: "used"`, `totalCodes: 2`, `latestCode: "WELCOME2023"`
 
 #### Error Response (404 - User Not Found)
 

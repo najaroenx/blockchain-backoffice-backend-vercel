@@ -4,23 +4,15 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
 import { GetCustomerByPhoneResponseTypeV1 } from '../types';
-import { TempLinkDBService } from 'src/modules/templink/service/templink-db.service';
-import { OTPService } from 'src/providers/otp/otp.service';
 
 @Injectable()
 export class GetCustomerPhoneDevForResp {
   private logger = new Logger(GetCustomerPhoneDevForResp.name);
 
-  constructor(
-    private db: CustomerDBService,
-    private tempLinkDBService: TempLinkDBService,
-    private configService: ConfigService,
-    private otpService: OTPService,
-  ) {}
+  constructor(private db: CustomerDBService) {}
 
   async execute(
     merchantId: string,
@@ -38,11 +30,17 @@ export class GetCustomerPhoneDevForResp {
           message: 'Customer not found',
           error: 'CUSTOMER_NOT_FOUND',
         });
+
+      // Group vouchers by voucherGroupId
+      const groupedVouchers = this.groupVouchersByGroupId(
+        customer.ownedVouchers || [],
+      );
+
       const formattedCustomer = {
         ...customer,
         phone: phone,
         walletAddress: customer.wallet?.walletAddress || '',
-        ownedVouchers: customer.ownedVouchers || [],
+        ownedVouchers: groupedVouchers,
         customerPoints: customer.customerPoints || [],
         customerMerChant: customer.customerMerChant || [],
       };
@@ -159,5 +157,50 @@ export class GetCustomerPhoneDevForResp {
     });
 
     return Array.from(merchantMap.values());
+  }
+
+  private groupVouchersByGroupId(vouchers: any[]): any[] {
+    const groupedMap = new Map<string, any>();
+    const now = new Date();
+
+    for (const voucherCode of vouchers) {
+      const groupId = voucherCode.voucherGroupId || voucherCode.voucherId;
+      const isExpired =
+        voucherCode.voucher.endDate &&
+        new Date(voucherCode.voucher.endDate) < now;
+
+      // Determine status: expired > used > unused
+      let status = 'unused';
+      if (isExpired) {
+        status = 'expired';
+      } else if (voucherCode.isUsed) {
+        status = 'used';
+      }
+
+      const key = `${groupId}|${status}`;
+
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, {
+          voucherGroupId: groupId,
+          voucher: voucherCode.voucher,
+          latestCode: null,
+          codeStatus: status,
+          totalCodes: 0,
+          pointsCost: voucherCode.pointsCost,
+          currency: voucherCode.currency,
+        });
+      }
+
+      const group = groupedMap.get(key);
+
+      // Set latestCode to the latest code in this status group (since we ordered by createdAt desc)
+      if (!group.latestCode) {
+        group.latestCode = voucherCode.code;
+      }
+
+      group.totalCodes += 1;
+    }
+
+    return Array.from(groupedMap.values());
   }
 }

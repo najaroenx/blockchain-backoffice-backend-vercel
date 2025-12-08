@@ -5,7 +5,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
 import { GetCustomerByPhoneResponseTypeV1 } from '../types';
@@ -30,116 +29,22 @@ export class GetCustomerPhoneDevForResp {
   ): Promise<GetCustomerByPhoneResponseTypeV1> {
     try {
       const customer = await this.db.getCustomersByPhone(merchantId, phone);
-      const otp = this.otpService.generateOTP(6);
-      this.logger.log(`Generated OTP ${otp} for phone ${phone}`);
-      if (!customer) {
-        const findRequest =
-          await this.tempLinkDBService.getTempLinkByPhoneNumber(phone);
-
-        if (findRequest) {
-          // Check if expired, update with new expiration
-          if (findRequest.expire < new Date()) {
-            const uuid = randomUUID();
-            await this.tempLinkDBService.updateTempLink(findRequest.uid, {
-              uid: uuid,
-              expire: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
-              otp: otp,
-            });
-            throw new NotFoundException({
-              statusCode: 404,
-              message: `Customer with phone ${phone} not found`,
-              error: 'NEW_OTP_GENERATED',
-              data: {
-                url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}&callbackUri=${callbackUri || ''}`,
-                callbackUri: callbackUri || '',
-                merchantId: merchantId,
-              },
-            });
-          }
-
-          throw new NotFoundException({
-            statusCode: 404,
-            message: `Customer with phone ${phone} not found`,
-            error: 'NEW_OTP_GENERATED',
-            data: {
-              url: `${this.configService.get('FRONT_URL')}/otp?requestid=${findRequest.uid}&merchantId=${merchantId}&callbackUri=${callbackUri || ''}`,
-              callbackUri: callbackUri || '',
-              merchantId: merchantId,
-            },
-          });
-        }
-
-        const uuid = randomUUID();
-        await this.tempLinkDBService.createTempLink({
-          merchantId,
-          phoneNumber: phone,
-          uid: uuid,
-          otp: otp,
-          expire: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
-        });
+      this.logger.log(
+        `Fetched customer for phone ${phone} under merchant ${merchantId} callbackUri: ${callbackUri}`,
+      );
+      if (!customer)
         throw new NotFoundException({
           statusCode: 404,
-          message: `Customer with phone ${phone} not found`,
-          data: {
-            url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}&callbackUri=${callbackUri || ''}`,
-            callbackUri: callbackUri || '',
-            merchantId: merchantId,
-          },
+          message: 'Customer not found',
+          error: 'CUSTOMER_NOT_FOUND',
         });
-      }
-
-      // Add mock vouchers if customer has no owned vouchers
-      const ownedVouchers: any[] = customer.ownedVouchers || [];
-      if (ownedVouchers.length === 0) {
-        // Add mock vouchers for demonstration
-        ownedVouchers.push({
-          id: 'mock-voucher-1',
-          code: 'WELCOME2024',
-          voucherId: 'voucher-mock-1',
-          pointsCost: 100,
-          currency: 'POINTS',
-          isUsed: false,
-          usedAt: null,
-          voucher: {
-            id: 'voucher-mock-1',
-            name: 'Welcome Discount 20%',
-            description: 'Get 20% off on your first purchase',
-            imageUrl:
-              'https://via.placeholder.com/300x200?text=Welcome+Discount',
-            value: 20,
-            valueType: 'percentage',
-            status: 'active',
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-          },
-        });
-        ownedVouchers.push({
-          id: 'mock-voucher-2',
-          code: 'FREESHIP50',
-          voucherId: 'voucher-mock-2',
-          pointsCost: 50,
-          currency: 'POINTS',
-          isUsed: false,
-          usedAt: null,
-          voucher: {
-            id: 'voucher-mock-2',
-            name: 'Free Shipping',
-            description: 'Free shipping on orders over $50',
-            imageUrl: 'https://via.placeholder.com/300x200?text=Free+Shipping',
-            value: 0,
-            valueType: 'gift',
-            status: 'active',
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days from now
-          },
-        });
-      }
-
       const formattedCustomer = {
         ...customer,
         phone: phone,
         walletAddress: customer.wallet?.walletAddress || '',
-        ownedVouchers: ownedVouchers,
+        ownedVouchers: customer.ownedVouchers || [],
+        customerPoints: customer.customerPoints || [],
+        customerMerChant: customer.customerMerChant || [],
       };
 
       return formattedCustomer;

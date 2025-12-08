@@ -1,4 +1,26 @@
-import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  Matches,
+  IsNotEmpty,
+} from 'class-validator';
+
+export class RegisterCustomerDto {
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message:
+      'merchantId must contain only alphanumeric characters, hyphens, and underscores',
+  })
+  merchantId: string;
+
+  @IsUrl()
+  @IsOptional()
+  callbackUri?: string;
+}
 
 export class CreateCustomerDto {
   @IsEmail()

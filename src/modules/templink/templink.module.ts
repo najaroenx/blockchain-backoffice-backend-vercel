@@ -12,6 +12,7 @@ import {
 } from './handlers';
 import { CreateOTP } from './handlers/createOTP.handler';
 import { VerifyOTP } from './handlers/verifyOTP.handler';
+import { ReSendOTP } from './handlers/reSendOTP.handler';
 import { OTPModule } from 'src/providers/otp/otp.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { OTPModule } from 'src/providers/otp/otp.module';
     DeleteTempLink,
     CreateOTP,
     VerifyOTP,
+    ReSendOTP,
   ],
   exports: [TempLinkDBService],
 })

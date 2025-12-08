@@ -16,7 +16,11 @@ import {
   ApiResponse,
   ApiHeader,
 } from '@nestjs/swagger';
-import { CreateCustomerDto, UpdateCustomerDto } from '../dtos';
+import {
+  CreateCustomerDto,
+  UpdateCustomerDto,
+  RegisterCustomerDto,
+} from '../dtos';
 import { GetCustomersByMerchantId } from '../handlers/getCustomersByMerchantId.handler';
 import { GetCustomerById } from '../handlers/getCustomerById.handler';
 import { GetCustomerPhone } from '../handlers/getCustomerByPhone.handler';
@@ -25,6 +29,10 @@ import { GetCustomerListDev } from '../handlers/getCustomerListDev.handler';
 import { PageOptionsDto } from 'src/common/dtos';
 import { UpdateCustomer } from '../handlers/updateCustomer.handler';
 import { GetCustomerPhoneDevForResp } from '../handlers/getCustomerPhoneDevForResp.handler';
+import {
+  RegisterCustomerDev,
+  // RegistrationResponse,
+} from '../handlers/registerCustomer.dev.handler';
 import { Public } from 'src/modules/auth/public.decorator';
 
 @ApiTags('Customer')
@@ -38,6 +46,7 @@ export class CustomerController {
     private readonly getCustomerListDev: GetCustomerListDev,
     private readonly updateCustomerHandler: UpdateCustomer,
     private readonly getCustomerPhoneDevForResp: GetCustomerPhoneDevForResp,
+    private readonly registerCustomerDev: RegisterCustomerDev,
   ) {}
 
   @Public()
@@ -69,6 +78,30 @@ export class CustomerController {
     @Param('merchantId') merchantId: string,
   ) {
     return this.getCustomerDetialByIdHandler.execute(merchantId, customerId);
+  }
+
+  @Public()
+  @Post('/register')
+  @HttpCode(201)
+  async registerCustomer(
+    @Param('merchantId') merchantId: string,
+    @Query('callbackUri') callbackUri?: string,
+  ): Promise<any> {
+    const dto = new RegisterCustomerDto();
+    dto.merchantId = merchantId;
+    dto.callbackUri = callbackUri;
+
+    // Validate the DTO
+    const { validate } = await import('class-validator');
+    const errors = await validate(dto);
+    if (errors.length > 0) {
+      const { BadRequestException } = await import('@nestjs/common');
+      throw new BadRequestException(
+        errors.map((err) => Object.values(err.constraints || {})).flat(),
+      );
+    }
+
+    return this.registerCustomerDev.execute(merchantId, callbackUri);
   }
 
   @Public()

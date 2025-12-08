@@ -34,9 +34,17 @@ export class MerchantController {
 
   @Get('/')
   @HttpCode(200)
+  @Public()
   async getMerchants(@Req() request: Request) {
     const userId = (request as any).user.id as string;
     return this.getMerchantsHandler.execute(userId);
+  }
+
+  @Get('/all')
+  @HttpCode(200)
+  @Public()
+  async getAllMerchants(@Query() filters: MerchantFilterDto) {
+    return this.merchantDBService.getAllMerchants(filters);
   }
 
   @Post('/')
@@ -74,11 +82,12 @@ export class MerchantController {
   /**
    * Get all merchants with pagination and filtering
    * GET /merchant/all?page=1&limit=20&name=test&location=bangkok
+   * TODO: need implement more use only test
    */
   @Get('/all')
   @Public()
   @HttpCode(200)
-  async getAllMerchants(@Query() filters: MerchantFilterDto) {
+  async all(@Query() filters: MerchantFilterDto) {
     return this.merchantDBService.getAllMerchants(filters);
   }
 

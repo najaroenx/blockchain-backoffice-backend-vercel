@@ -52,4 +52,16 @@ export class GetMerchants {
       return null;
     }
   }
+
+  async getListMerchants(): Promise<any> {
+    try {
+      const merchants = await this.db.getAllMerchants({});
+      return merchants;
+    } catch (error) {
+      this.logger.error(
+        `Error message : ${error.message}, \n Error detail : ${error}`,
+      );
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+    }
+  }
 }

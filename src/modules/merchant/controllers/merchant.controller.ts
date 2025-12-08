@@ -34,7 +34,6 @@ export class MerchantController {
 
   @Get('/')
   @HttpCode(200)
-  @Public()
   async getMerchants(@Req() request: Request) {
     const userId = (request as any).user.id as string;
     return this.getMerchantsHandler.execute(userId);

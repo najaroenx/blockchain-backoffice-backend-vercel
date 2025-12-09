@@ -10,6 +10,7 @@ import { GetCustomerOwnedVouchers } from '../handlers/getCustomerOwnedVouchers.h
 import { CreateVoucherByDevDto, CreateVoucherDto } from '../dtos/voucher.dto';
 import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 import { GetCustomerOnChainBalances } from '../handlers/getCustomerOnChainBalances.handler';
+import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 
 export interface DeleteVoucherResponse {
   success: boolean;
@@ -29,6 +30,7 @@ export class VoucherDBService {
     private readonly buyCouponFromMarketplaceHandler: BuyCouponFromMarketplace,
     private readonly getCustomerOwnedVouchersHandler: GetCustomerOwnedVouchers,
     private readonly getCustomerOnChainBalancesHandler: GetCustomerOnChainBalances,
+    private readonly blockchainService: BlockchainService,
   ) {}
 
   async createVoucher(data: Prisma.VoucherCreateInput): Promise<Voucher> {
@@ -103,7 +105,11 @@ export class VoucherDBService {
     const vouchers = await this.repository.findMany<any>({
       where: { merchantId },
       include: {
-        merchant: true,
+        merchant: {
+          include: {
+            wallet: true,
+          },
+        },
         voucherCodes: {
           select: {
             pointsCost: true,
@@ -139,9 +145,47 @@ export class VoucherDBService {
     const groupedMap = new Map<string, any>();
 
     for (const voucher of vouchers) {
-      // upcoming codes = totalIssued ที่เหลือ (ยังไม่ได้ activate)
-      // ใช้ voucher.totalIssued แทนการนับ codes เพราะ codes จาก seller ไม่ควรนับเป็น upcoming
-      const upcomingCodesCount = voucher.totalIssued;
+      // upcoming codes = codes ที่รอใช้งาน (ยังไม่ activate)
+      // นับเฉพาะ codes ที่ merchant เป็นเจ้าของ ไม่รวม seller codes
+      const upcomingCodesCount = await this.prisma.voucherCode.count({
+        where: {
+          voucherId: voucher.id,
+          pointId: null, // Not yet activated
+          voucherGroupId: null, // Not seller placeholder codes
+        },
+      });
+
+      // ถ้าไม่มี codes เลย ดึงจำนวนจาก blockchain (merchant wallet balance)
+      let finalUpcomingCount = upcomingCodesCount;
+
+      if (
+        upcomingCodesCount === 0 &&
+        voucher.tokenId &&
+        voucher.merchant?.wallet?.walletAddress
+      ) {
+        try {
+          // ดึง balance ของ coupon type นี้จาก merchant wallet
+          const balanceResult =
+            await this.blockchainService.getUserCouponBalance(
+              voucher.merchant.wallet.walletAddress,
+              parseInt(voucher.tokenId),
+            );
+          finalUpcomingCount = parseInt(balanceResult.balance);
+
+          console.log(
+            `[getVouchersByMerchant] Voucher ${voucher.id} (${voucher.name}): ` +
+              `No codes in DB, blockchain balance = ${finalUpcomingCount}`,
+          );
+        } catch (error) {
+          console.error(
+            `[getVouchersByMerchant] Failed to get blockchain balance for voucher ${voucher.id}:`,
+            error.message,
+          );
+          // Fallback: ถ้า blockchain call ล้มเหลว ใช้ totalIssued
+          finalUpcomingCount =
+            voucher.totalIssued > 0 ? voucher.totalIssued : 0;
+        }
+      }
 
       // active codes = codes ที่ activate แล้ว (มี pointId) และยังไม่ถูกใช้
       const activeCodesCount = await this.prisma.voucherCode.count({
@@ -235,7 +279,7 @@ export class VoucherDBService {
       }
 
       // ถ้ายังมี upcoming codes
-      if (upcomingCodesCount > 0) {
+      if (finalUpcomingCount > 0) {
         const upcomingGroupKey = `upcoming|${voucher.id}`;
 
         if (!groupedMap.has(upcomingGroupKey)) {
@@ -252,7 +296,7 @@ export class VoucherDBService {
         }
 
         const upcomingGroup = groupedMap.get(upcomingGroupKey);
-        upcomingGroup.upcomingCount += upcomingCodesCount;
+        upcomingGroup.upcomingCount += finalUpcomingCount;
         if (!upcomingGroup.voucherIds.includes(voucher.id)) {
           upcomingGroup.voucherIds.push(voucher.id);
         }

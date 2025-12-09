@@ -1,0 +1,183 @@
+/**
+ * Mock Data Factory for Tests
+ * Provides consistent test data across all test suites
+ */
+
+export const MockDataFactory = {
+  /**
+   * Create mock merchant with wallet
+   */
+  createMockMerchant: (overrides = {}) => ({
+    id: 'merchant-123',
+    name: 'Test Merchant',
+    description: 'Test merchant description',
+    website: 'https://test-merchant.com',
+    tel: '0812345678',
+    walletId: 'wallet-123',
+    wallet: {
+      id: 'wallet-123',
+      walletAddress: '0x1234567890123456789012345678901234567890',
+      privateKey: 'encrypted-private-key-123',
+      type: 'merchant',
+      status: 'active',
+    },
+    ...overrides,
+  }),
+
+  /**
+   * Create mock customer with wallet
+   */
+  createMockCustomer: (overrides = {}) => ({
+    id: 'customer-123',
+    email: 'test@customer.com',
+    firstName: 'Test',
+    lastName: 'Customer',
+    tel: '0987654321',
+    wallet: {
+      id: 'wallet-customer-123',
+      walletAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      privateKey: 'encrypted-customer-key-123',
+      type: 'customer',
+      status: 'active',
+    },
+    customerMerChant: [],
+    customerPoints: [],
+    ownedVouchers: [],
+    ...overrides,
+  }),
+
+  /**
+   * Create mock voucher
+   */
+  createMockVoucher: (overrides = {}) => ({
+    id: 'voucher-123',
+    name: 'Test Voucher',
+    description: 'Test voucher description',
+    merchantId: 'merchant-123',
+    tokenId: '12345',
+    status: 'upcoming',
+    valueType: 'cash',
+    value: 100,
+    startDate: new Date('2025-01-01'),
+    endDate: new Date('2025-12-31'),
+    totalIssued: 200,
+    totalRedeemed: 0,
+    imageUrl: 'https://example.com/voucher.jpg',
+    merchantRef: 'REF-123',
+    limitPerMember: 5,
+    _count: {
+      voucherCodes: 0,
+    },
+    ...overrides,
+  }),
+
+  /**
+   * Create mock voucher code
+   */
+  createMockVoucherCode: (overrides = {}) => ({
+    id: 'code-123',
+    code: 'VOUCHER-0001',
+    voucherId: 'voucher-123',
+    voucherGroupId: 'listing-123',
+    pointsCost: 100,
+    pointId: 'point-123',
+    currency: 'POINTS',
+    isUsed: false,
+    usedAt: null,
+    currentOwnerId: null,
+    createdAt: new Date(),
+    voucher: null, // Can be populated if needed
+    ...overrides,
+  }),
+
+  /**
+   * Create mock point
+   */
+  createMockPoint: (overrides = {}) => ({
+    id: 'point-123',
+    name: 'Test Points',
+    symbol: 'TST',
+    merchantId: 'merchant-123',
+    contractAddress: Buffer.from(
+      '1234567890123456789012345678901234567890',
+      'hex',
+    ),
+    imageUrl: 'https://example.com/point.png',
+    ...overrides,
+  }),
+
+  /**
+   * Create mock transaction
+   */
+  createMockTransaction: (overrides = {}) => ({
+    id: 'tx-123',
+    txHash: Buffer.from(
+      'abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      'hex',
+    ),
+    senderAddress: Buffer.from(
+      '1234567890123456789012345678901234567890',
+      'hex',
+    ),
+    receiverAddress: Buffer.from(
+      'abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      'hex',
+    ),
+    amount: 100,
+    merchantId: 'merchant-123',
+    pointId: 'point-123',
+    senderId: null,
+    receiverId: 'customer-123',
+    transactionTypeId: 'TRANSFER',
+    voucherCodeId: null,
+    eventId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }),
+
+  /**
+   * Create mock marketplace listing
+   */
+  createMockMarketplaceListing: (overrides = {}) => ({
+    listingId: 'listing-123',
+    seller: '0x1234567890123456789012345678901234567890',
+    typeId: '12345',
+    amount: '100',
+    pricePerUnit: '100',
+    paymentToken: '0xPOINT_TOKEN_ADDRESS',
+    isActive: true,
+    listedAt: '1234567890',
+    ...overrides,
+  }),
+
+  /**
+   * Create mock blockchain balance response
+   */
+  createMockBalanceResponse: (overrides = {}) => ({
+    balance: '1000',
+    balanceWei: '1000000000000000000000',
+    ...overrides,
+  }),
+
+  /**
+   * Create mock blockchain transaction response
+   */
+  createMockBlockchainTx: (overrides = {}) => ({
+    hash: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+    blockNumber: 12345,
+    from: '0x1234567890123456789012345678901234567890',
+    to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+    value: '100000000000000000000',
+    ...overrides,
+  }),
+
+  /**
+   * Create mock NFT balance
+   */
+  createMockNFTBalance: (overrides = {}) => ({
+    balance: '200',
+    tokenId: '12345',
+    ...overrides,
+  }),
+};

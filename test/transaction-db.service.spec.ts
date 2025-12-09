@@ -57,6 +57,8 @@ describe('TransactionDBService', () => {
         merchant: true,
         sender: true,
         receiver: true,
+        merchantSender: true,
+        merchantReceiver: true,
         point: true,
       },
     });
@@ -73,6 +75,8 @@ describe('TransactionDBService', () => {
         merchant: true,
         sender: true,
         receiver: true,
+        merchantSender: true,
+        merchantReceiver: true,
         point: true,
       },
     });
@@ -115,6 +119,8 @@ describe('TransactionDBService', () => {
         merchant: true,
         sender: true,
         receiver: true,
+        merchantSender: true,
+        merchantReceiver: true,
         point: true,
       },
     });

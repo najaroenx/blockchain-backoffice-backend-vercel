@@ -3,6 +3,12 @@ import { VoucherController } from '../src/modules/voucher/controllers/voucher.co
 import { VoucherDBService } from '../src/modules/voucher/services/voucher-db.service';
 import { VoucherStatus, VoucherValueType } from '@prisma/client';
 import { ManageCouponHandler } from '../src/modules/voucher/handlers/manageCoupon.handler';
+import { GetMarketplaceListings } from '../src/modules/voucher/handlers/getMarketplaceListings.handler';
+import { MerchantBuyCouponFromSeller } from '../src/modules/voucher/handlers/merchantBuyCouponFromSeller.handler';
+import { SellerListOnMarketplace } from '../src/modules/voucher/handlers/sellerListOnMarketplace.handler';
+import { GetSellerVouchers } from '../src/modules/voucher/handlers/getSellerVouchers.handler';
+import { AddToWhitelist } from '../src/modules/voucher/handlers/addToWhitelist.handler';
+import { GetVoucherByListingId } from '../src/modules/voucher/handlers/getVoucherByListingId.handler';
 
 describe('VoucherController', () => {
   let controller: VoucherController;
@@ -24,6 +30,30 @@ describe('VoucherController', () => {
     getVoucherCodesStatistics: jest.fn(),
   };
 
+  const mockGetMarketplaceListings = {
+    execute: jest.fn(),
+  };
+
+  const mockMerchantBuyHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockSellerListHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockGetSellerVouchersHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockAddToWhitelistHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockGetVoucherByListingId = {
+    execute: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [VoucherController],
@@ -33,8 +63,32 @@ describe('VoucherController', () => {
           useValue: mockVoucherDBService,
         },
         {
+          provide: GetMarketplaceListings,
+          useValue: mockGetMarketplaceListings,
+        },
+        {
           provide: ManageCouponHandler,
           useValue: mockManageCouponHandler,
+        },
+        {
+          provide: MerchantBuyCouponFromSeller,
+          useValue: mockMerchantBuyHandler,
+        },
+        {
+          provide: SellerListOnMarketplace,
+          useValue: mockSellerListHandler,
+        },
+        {
+          provide: GetSellerVouchers,
+          useValue: mockGetSellerVouchersHandler,
+        },
+        {
+          provide: AddToWhitelist,
+          useValue: mockAddToWhitelistHandler,
+        },
+        {
+          provide: GetVoucherByListingId,
+          useValue: mockGetVoucherByListingId,
         },
       ],
     }).compile();

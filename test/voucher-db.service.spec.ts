@@ -8,6 +8,7 @@ import { ActivateVoucher } from '../src/modules/voucher/handlers/activateVoucher
 import { RedeemVoucher } from '../src/modules/voucher/handlers/redeemVoucher.handler';
 import { BuyCouponFromMarketplace } from '../src/modules/voucher/handlers/buyCouponFromMarketplace.handler';
 import { GetCustomerOwnedVouchers } from '../src/modules/voucher/handlers/getCustomerOwnedVouchers.handler';
+import { GetCustomerOnChainBalances } from '../src/modules/voucher/handlers/getCustomerOnChainBalances.handler';
 
 describe('VoucherDBService', () => {
   let service: VoucherDBService;
@@ -54,6 +55,10 @@ describe('VoucherDBService', () => {
     execute: jest.fn(),
   };
 
+  const mockGetCustomerOnChainBalances = {
+    execute: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -85,6 +90,10 @@ describe('VoucherDBService', () => {
         {
           provide: GetCustomerOwnedVouchers,
           useValue: mockGetCustomerOwnedVouchers,
+        },
+        {
+          provide: GetCustomerOnChainBalances,
+          useValue: mockGetCustomerOnChainBalances,
         },
       ],
     }).compile();

@@ -182,20 +182,22 @@ export class GetCustomerPhoneDevForResp {
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {
           voucherGroupId: groupId,
-          voucher: voucherCode.voucher,
-          latestCode: null,
-          codeStatus: status,
+          latestVoucher: {
+            ...voucherCode.voucher,
+            latestCode: null,
+            codeStatus: status,
+            pointsCost: voucherCode.pointsCost,
+            currency: voucherCode.currency,
+          },
           totalCodes: 0,
-          pointsCost: voucherCode.pointsCost,
-          currency: voucherCode.currency,
         });
       }
 
       const group = groupedMap.get(key);
 
       // Set latestCode to the latest code in this status group (since we ordered by createdAt desc)
-      if (!group.latestCode) {
-        group.latestCode = voucherCode.code;
+      if (!group.latestVoucher.latestCode) {
+        group.latestVoucher.latestCode = voucherCode.code;
       }
 
       group.totalCodes += 1;

@@ -36,7 +36,12 @@ describe('CreatePoint', () => {
 
   it('should create a point successfully', async () => {
     const merchantId = 'merchant-123';
-    const data = { name: 'My Point', initialSupply: 100 } as any;
+    const data = {
+      name: 'My Point',
+      symbol: 'MYP',
+      initialSupply: 100,
+      decimal: 18,
+    } as any;
     const fakeContractAddress = Buffer.from('0xABCDEF');
     const fakePoint = {
       id: '1',
@@ -71,7 +76,12 @@ describe('CreatePoint', () => {
     expect(dbService.createPoint).toHaveBeenCalledWith(
       merchantId,
       fakeContractAddress,
-      data,
+      expect.objectContaining({
+        name: 'My Point',
+        symbol: 'MYP',
+        initialSupply: 100,
+        decimal: 18,
+      }),
     );
     expect(result).toEqual(fakePoint);
   });

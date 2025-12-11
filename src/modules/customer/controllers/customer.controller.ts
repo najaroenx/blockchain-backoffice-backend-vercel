@@ -24,6 +24,7 @@ import {
 import { GetCustomersByMerchantId } from '../handlers/getCustomersByMerchantId.handler';
 import { GetCustomerById } from '../handlers/getCustomerById.handler';
 import { GetCustomerPhone } from '../handlers/getCustomerByPhone.handler';
+import { GetCustomerPoints } from '../handlers/getCustomerPoints.handler';
 import { CreateCustomer } from '../handlers/createCustomer.handler';
 import { GetCustomerListDev } from '../handlers/getCustomerListDev.handler';
 import { PageOptionsDto } from 'src/common/dtos';
@@ -185,7 +186,34 @@ export class CustomerController {
 
 @Controller('/customer')
 export class CustomerPhoneController {
-  constructor(private readonly getCustomerByPhone: GetCustomerPhone) {}
+  constructor(
+    private readonly getCustomerByPhone: GetCustomerPhone,
+    private readonly getCustomerPoints: GetCustomerPoints,
+  ) {}
+
+  @Public()
+  @Get('/:phone/points')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Customer Points Balance (All Merchants)',
+    description: 'ดึง Point Balance ของลูกค้าทุก merchant (ไม่รวม voucher)',
+  })
+  @ApiParam({
+    name: 'phone',
+    description: 'เบอร์โทรศัพท์ของลูกค้า (10 digits)',
+    example: '0984360421',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Customer points retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer not found',
+  })
+  async getCustomerPointsBalance(@Param('phone') phone: string) {
+    return this.getCustomerPoints.execute(phone);
+  }
 
   @Public()
   @Get('/:phone')

@@ -46,7 +46,8 @@ export class GetTransactionsByCustomerId {
       );
 
       const res = transactions.map((transaction) => {
-        const { sender, receiver, merchant, point, ...rest } = transaction;
+        const { sender, receiver, merchant, point, voucherCode, ...rest } =
+          transaction;
 
         const formatParticipant = (
           customer,
@@ -81,6 +82,7 @@ export class GetTransactionsByCustomerId {
             id: point.id,
             name: point.name,
             symbol: point.symbol,
+            imageUrl: point.imageUrl || null,
           },
           sender: formatParticipant(
             sender,
@@ -92,6 +94,15 @@ export class GetTransactionsByCustomerId {
             rest.receiverAddress,
             merchant.website,
           ),
+          voucher: voucherCode?.voucher
+            ? {
+                id: (voucherCode as any).voucher.id || null,
+                name: (voucherCode as any).voucher.name || null,
+                valueType: (voucherCode as any).voucher.valueType || null,
+                value: (voucherCode as any).voucher.value || null,
+                imageUrl: (voucherCode as any).voucher.imageUrl || null,
+              }
+            : null,
           voucherCodeId: rest.voucherCodeId || null,
           eventId: rest.eventId || null,
           createdAt: rest.createdAt,
@@ -122,7 +133,8 @@ export class GetTransactionsByCustomerId {
       );
 
       const res = transactions.map((transaction) => {
-        const { sender, receiver, merchant, point, ...rest } = transaction;
+        const { sender, receiver, merchant, point, voucherCode, ...rest } =
+          transaction;
 
         const formatParticipant = (
           customer,
@@ -157,6 +169,7 @@ export class GetTransactionsByCustomerId {
             id: point.id,
             name: point.name,
             symbol: point.symbol,
+            imageUrl: point.imageUrl || null,
           },
           sender: formatParticipant(
             sender,
@@ -168,6 +181,15 @@ export class GetTransactionsByCustomerId {
             rest.receiverAddress,
             merchant.website,
           ),
+          voucher: voucherCode?.voucher
+            ? {
+                id: (voucherCode as any).voucher.id || null,
+                name: (voucherCode as any).voucher.name || null,
+                valueType: (voucherCode as any).voucher.valueType || null,
+                value: (voucherCode as any).voucher.value || null,
+                imageUrl: (voucherCode as any).voucher.imageUrl || null,
+              }
+            : null,
           voucherCodeId: rest.voucherCodeId || null,
           eventId: rest.eventId || null,
           createdAt: rest.createdAt,

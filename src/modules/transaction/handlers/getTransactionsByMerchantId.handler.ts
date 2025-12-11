@@ -22,7 +22,8 @@ export class GetTransactionsByMerchantId {
         await this.db.getTransactionsByMerchantId(merchantId);
 
       const res = transactions.map((transaction) => {
-        const { sender, receiver, merchant, point, ...rest } = transaction;
+        const { sender, receiver, merchant, point, voucherCode, ...rest } =
+          transaction;
 
         const formatParticipant = (
           customer,
@@ -67,6 +68,7 @@ export class GetTransactionsByMerchantId {
                 id: point.id,
                 name: point.name,
                 symbol: point.symbol,
+                imageUrl: point.imageUrl || null,
               }
             : null,
           sender: formatParticipant(
@@ -79,6 +81,15 @@ export class GetTransactionsByMerchantId {
             rest.receiverAddress,
             merchant.website,
           ),
+          voucher: voucherCode?.voucher
+            ? {
+                id: (voucherCode as any).voucher.id || null,
+                name: (voucherCode as any).voucher.name || null,
+                valueType: (voucherCode as any).voucher.valueType || null,
+                value: (voucherCode as any).voucher.value || null,
+                imageUrl: (voucherCode as any).voucher.imageUrl || null,
+              }
+            : null,
           voucherCodeId: rest.voucherCodeId || null,
           eventId: rest.eventId || null,
           createdAt: rest.createdAt,

@@ -9,7 +9,6 @@ import { BuyCouponFromMarketplace } from '../handlers/buyCouponFromMarketplace.h
 import { GetCustomerOwnedVouchers } from '../handlers/getCustomerOwnedVouchers.handler';
 import { CreateVoucherByDevDto, CreateVoucherDto } from '../dtos/voucher.dto';
 import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
-import { GetCustomerOnChainBalances } from '../handlers/getCustomerOnChainBalances.handler';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 
 export interface DeleteVoucherResponse {
@@ -29,7 +28,6 @@ export class VoucherDBService {
     private readonly redeemVoucherHandler: RedeemVoucher,
     private readonly buyCouponFromMarketplaceHandler: BuyCouponFromMarketplace,
     private readonly getCustomerOwnedVouchersHandler: GetCustomerOwnedVouchers,
-    private readonly getCustomerOnChainBalancesHandler: GetCustomerOnChainBalances,
     private readonly blockchainService: BlockchainService,
   ) {}
 
@@ -1011,12 +1009,5 @@ export class VoucherDBService {
       page,
       limit,
     );
-  }
-
-  /**
-   * Get on-chain coupon balances for customer by phone
-   */
-  async getCustomerOnChainBalances(phone: string) {
-    return await this.getCustomerOnChainBalancesHandler.execute(phone);
   }
 }

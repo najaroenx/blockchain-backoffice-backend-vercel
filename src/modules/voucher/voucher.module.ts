@@ -8,7 +8,6 @@ import { ActivateVoucher } from './handlers/activateVoucher.handler';
 import { RedeemVoucher } from './handlers/redeemVoucher.handler';
 import { BuyCouponFromMarketplace } from './handlers/buyCouponFromMarketplace.handler';
 import { GetCustomerOwnedVouchers } from './handlers/getCustomerOwnedVouchers.handler';
-import { GetCustomerOnChainBalances } from './handlers/getCustomerOnChainBalances.handler';
 import { GetMarketplaceListings } from './handlers/getMarketplaceListings.handler';
 import { ManageCouponHandler } from './handlers/manageCoupon.handler';
 import { MerchantBuyCouponFromSeller } from './handlers/merchantBuyCouponFromSeller.handler';
@@ -32,7 +31,6 @@ import { GetVoucherByListingId } from './handlers/getVoucherByListingId.handler'
     SellerListOnMarketplace,
     GetSellerVouchers,
     GetCustomerOwnedVouchers,
-    GetCustomerOnChainBalances,
     GetMarketplaceListings,
     ManageCouponHandler,
     AddToWhitelist,

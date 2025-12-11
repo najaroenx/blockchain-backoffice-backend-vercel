@@ -16,6 +16,8 @@ import {
 // import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { GetTransactionsByCustomerId } from '../handlers/getTransactionsByCustomerId.handler';
 import { GetTransactionsByMerchantId } from '../handlers/getTransactionsByMerchantId.handler';
+import { GetPointTransactionsByCustomerPhone } from '../handlers/getPointTransactionsByCustomerPhone.handler';
+import { GetVoucherTransactionsByCustomerPhone } from '../handlers/getVoucherTransactionsByCustomerPhone.handler';
 import { CreateTransactionB2C } from '../handlers/createTransactionB2C.handler';
 import { CreateTransactionC2C } from '../handlers/createTransactionC2C.handler';
 import { MintTransaction } from '../handlers/mintTransaction.handler';
@@ -29,6 +31,8 @@ export class TransactionController {
   constructor(
     private readonly getTransactionsByCustomerId: GetTransactionsByCustomerId,
     private readonly getTransactionsByMerchantId: GetTransactionsByMerchantId,
+    private readonly getPointTransactionsByCustomerPhone: GetPointTransactionsByCustomerPhone,
+    private readonly getVoucherTransactionsByCustomerPhone: GetVoucherTransactionsByCustomerPhone,
     private readonly createTransactionB2C: CreateTransactionB2C,
     private readonly createTransactionC2C: CreateTransactionC2C,
     private readonly mintTransaction: MintTransaction,
@@ -41,6 +45,75 @@ export class TransactionController {
   @HttpCode(200)
   async getTransactions(@Param('merchantId') merchantId: string) {
     return this.getTransactionsByMerchantId.execute(merchantId);
+  }
+
+  @Get('/customer/phone/:phone/points')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Point Transaction History by Customer Phone',
+    description:
+      'ดึงประวัติธุรกรรม Point เท่านั้น (ไม่รวม voucher) ของลูกค้าด้วยเบอร์โทรศัพท์',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'รหัสร้านค้า',
+    example: 'cmih1s6qu00050i01m3cactjj',
+  })
+  @ApiParam({
+    name: 'phone',
+    description: 'เบอร์โทรศัพท์ของลูกค้า (10 digits)',
+    example: '0984360421',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Point transaction history retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer not found',
+  })
+  async getPointTransactionsCustomer(
+    @Param('merchantId') merchantId: string,
+    @Param('phone') phone: string,
+  ) {
+    return this.getPointTransactionsByCustomerPhone.execute(merchantId, phone);
+  }
+
+  @Get('/customer/phone/:phone/vouchers')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Voucher Transaction History by Customer Phone',
+    description:
+      'ดึงประวัติธุรกรรม Voucher เท่านั้น (ไม่รวม point) ของลูกค้าด้วยเบอร์โทรศัพท์',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'รหัสร้านค้า',
+    example: 'cmih1s6qu00050i01m3cactjj',
+  })
+  @ApiParam({
+    name: 'phone',
+    description: 'เบอร์โทรศัพท์ของลูกค้า (10 digits)',
+    example: '0984360421',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Voucher transaction history retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer not found',
+  })
+  async getVoucherTransactionsCustomer(
+    @Param('merchantId') merchantId: string,
+    @Param('phone') phone: string,
+  ) {
+    return this.getVoucherTransactionsByCustomerPhone.execute(
+      merchantId,
+      phone,
+    );
   }
 
   @Get('/:customerId')

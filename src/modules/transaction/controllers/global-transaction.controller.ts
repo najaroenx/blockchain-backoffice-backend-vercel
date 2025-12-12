@@ -68,7 +68,8 @@ export class GlobalTransactionController {
   @Public()
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Get Voucher Transaction History by Customer Phone (All Merchants)',
+    summary:
+      'Get Voucher Transaction History by Customer Phone (All Merchants)',
     description:
       'ดึงประวัติธุรกรรม Voucher เท่านั้น (ไม่รวม point) ของลูกค้าจากทุก merchants ด้วยเบอร์โทรศัพท์',
   })

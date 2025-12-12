@@ -319,17 +319,17 @@
 
 ---
 
-## 3. Get Transaction History by Customer
+## 3. Get Point Transactions by Customer Phone (Merchant-Scoped)
 
-**Description:** ดึงประวัติธุรกรรมของลูกค้าในร้านค้านั้นๆด้วยเบอร์โทรศัพท์
+**Description:** ดึงประวัติ point transactions ของลูกค้าในร้านค้านั้นๆ ด้วยเบอร์โทรศัพท์ (ไม่รวม voucher ownership transactions)
 
 ### Request
 
 **Method:** `GET`
 
-**URL:** `{{endpoint_url}}/:merchantId/transaction/customer/:phone`
+**URL:** `{{endpoint_url}}/:merchantId/transaction/customer/phone/:phone/points`
 
-**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/cmih1s6qu00050i01m3cactjj/transaction/customer/0984360421`
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/cmih1s6qu00050i01m3cactjj/transaction/customer/phone/0984360421/points`
 
 ### Request Parameters
 
@@ -344,9 +344,458 @@
 | Parameter | Type | M/O | Description | Example |
 |-----------|------|-----|-------------|---------|
 | merchantId | String | M | รหัสร้านค้า | cmih1s6qu00050i01m3cactjj |
-| phone | String | M | เบอร์โทรศัพท์ของลูกค้า | 0984360421 |
+| phone | String | M | เบอร์โทรศัพท์ของลูกค้า (10 digits) | 0984360421 |
 
 ### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| transactions | Array | รายการ point transactions (MINT, TRANSFER, BURN, EARN, MARKETPLACE_PURCHASE) |
+| transactions[].id | String | รหัสธุรกรรม |
+| transactions[].transactionHash | String | Transaction hash บน blockchain |
+| transactions[].transactionTypeId | String | ประเภทธุรกรรม (MINT, TRANSFER, BURN, EARN, MARKETPLACE_PURCHASE) |
+| transactions[].amount | Number | จำนวน point |
+| transactions[].direction | String | ทิศทางจากมุมมองลูกค้า: `SENT` หรือ `RECEIVED` |
+| transactions[].point | Object | ข้อมูล point |
+| transactions[].point.id | String | รหัส point |
+| transactions[].point.name | String | ชื่อ point |
+| transactions[].point.symbol | String | สัญลักษณ์ point |
+| transactions[].point.imageUrl | String \| null | URL รูปภาพ point logo |
+| transactions[].voucher | Object \| null | ข้อมูล voucher (สำหรับ MARKETPLACE_PURCHASE) |
+| transactions[].voucher.id | String | รหัส voucher |
+| transactions[].voucher.name | String | ชื่อ voucher |
+| transactions[].voucher.valueType | String | ประเภทมูลค่า (cash, percent, free) |
+| transactions[].voucher.value | Number | มูลค่า voucher |
+| transactions[].voucher.imageUrl | String | URL รูปภาพ voucher |
+| transactions[].voucherCodeId | String \| null | รหัส voucher code (ถ้ามี) |
+| transactions[].sender | Object | ข้อมูลผู้ส่ง |
+| transactions[].sender.id | String | รหัสผู้ส่ง |
+| transactions[].sender.walletAddress | String | Wallet address ผู้ส่ง |
+| transactions[].sender.emailOrWebsite | String | อีเมลหรือเว็บไซต์ |
+| transactions[].receiver | Object | ข้อมูลผู้รับ |
+| transactions[].receiver.id | String | รหัสผู้รับ |
+| transactions[].receiver.walletAddress | String | Wallet address ผู้รับ |
+| transactions[].receiver.emailOrWebsite | String | อีเมลหรือเว็บไซต์ |
+| transactions[].merchant | Object | ข้อมูลร้านค้า |
+| transactions[].merchant.id | String | รหัสร้านค้า |
+| transactions[].merchant.name | String | ชื่อร้านค้า |
+| transactions[].createdAt | String | วันที่สร้างธุรกรรม (ISO 8601) |
+| counts | Number | จำนวน point transactions ทั้งหมด |
+
+#### Success Response (200)
+
+```json
+{
+  "transactions": [
+    {
+      "id": "cm4p9kv7j003y7w5xhps7krvz",
+      "transactionHash": "0xc24bec9dc9eade84bd15d55386c79b0d858c3b18700be655d17e060eadaadfaf",
+      "transactionTypeId": "MARKETPLACE_PURCHASE",
+      "amount": 100,
+      "direction": "SENT",
+      "point": {
+        "id": "cm4ohkm5l000099b5ebs3eltd",
+        "name": "AIS Points",
+        "symbol": "AISP",
+        "imageUrl": "https://example.com/images/ais-point.png"
+      },
+      "voucher": {
+        "id": "cm4p9abc123xyz",
+        "name": "Starbucks 100 THB",
+        "valueType": "cash",
+        "value": 100,
+        "imageUrl": "https://example.com/images/starbucks.png"
+      },
+      "voucherCodeId": "cm4p9code123",
+      "sender": {
+        "id": "cmiisvgqn0007xk01efv8szbq",
+        "walletAddress": "0x50581102beb5cdeb68cb5f84acde46fa2deb842e",
+        "emailOrWebsite": "customer@example.com"
+      },
+      "receiver": {
+        "id": "cmih1s6qu00050i01m3cactjj",
+        "walletAddress": "0x5291e73df82e9b162ab09b64ba5c0b8d359ebc38",
+        "emailOrWebsite": "https://merchant-website.com"
+      },
+      "merchant": {
+        "id": "cmih1s6qu00050i01m3cactjj",
+        "name": "AIS Shop"
+      },
+      "createdAt": "2025-12-11T10:30:00.000Z"
+    },
+    {
+      "id": "cm4p9xyz789abc",
+      "transactionHash": "0xabc123...",
+      "transactionTypeId": "TRANSFER",
+      "amount": 50,
+      "direction": "RECEIVED",
+      "point": {
+        "id": "cm4ohkm5l000099b5ebs3eltd",
+        "name": "AIS Points",
+        "symbol": "AISP",
+        "imageUrl": "https://example.com/images/ais-point.png"
+      },
+      "voucher": null,
+      "voucherCodeId": null,
+      "sender": {
+        "id": "sender123",
+        "walletAddress": "0x1234...",
+        "emailOrWebsite": "sender@example.com"
+      },
+      "receiver": {
+        "id": "cmiisvgqn0007xk01efv8szbq",
+        "walletAddress": "0x50581102beb5cdeb68cb5f84acde46fa2deb842e",
+        "emailOrWebsite": "customer@example.com"
+      },
+      "merchant": {
+        "id": "cmih1s6qu00050i01m3cactjj",
+        "name": "AIS Shop"
+      },
+      "createdAt": "2025-12-10T15:20:00.000Z"
+    }
+  ],
+  "counts": 2
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Point transactions retrieved |
+| 404 | 404 | Not Found - Customer not found |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- **Transaction Types Included:** MINT, TRANSFER, BURN, EARN, MARKETPLACE_PURCHASE
+- **MARKETPLACE_PURCHASE:** แสดง point deduction พร้อม voucher details ใน `voucher` object
+- **Image URLs:** ทั้ง `point.imageUrl` และ `voucher.imageUrl` จะแสดงเมื่อมีข้อมูล
+
+---
+
+## 4. Get Voucher Transactions by Customer Phone (Merchant-Scoped)
+
+**Description:** ดึงประวัติ voucher ownership transactions ของลูกค้าในร้านค้านั้นๆ ด้วยเบอร์โทรศัพท์ (เฉพาะการโอนและแลก voucher)
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/:merchantId/transaction/customer/phone/:phone/vouchers`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/cmih1s6qu00050i01m3cactjj/transaction/customer/phone/0984360421/vouchers`
+
+### Request Parameters
+
+#### Header Fields
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| x-api-key | String | M | API Key สำหรับ authentication | LEk8YLySHJdMD_nD0cw5 |
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| merchantId | String | M | รหัสร้านค้า | cmih1s6qu00050i01m3cactjj |
+| phone | String | M | เบอร์โทรศัพท์ของลูกค้า (10 digits) | 0984360421 |
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| transactions | Array | รายการ voucher transactions (VOUCHER_TRANSFER, REDEEM) |
+| transactions[].id | String | รหัสธุรกรรม |
+| transactions[].transactionHash | String | Transaction hash บน blockchain |
+| transactions[].transactionTypeId | String | ประเภทธุรกรรม (VOUCHER_TRANSFER, REDEEM) |
+| transactions[].amount | Number | จำนวน voucher (usually 1) |
+| transactions[].direction | String | ทิศทางจากมุมมองลูกค้า: `SENT` หรือ `RECEIVED` |
+| transactions[].point | Object | ข้อมูล point ที่เกี่ยวข้อง |
+| transactions[].point.id | String | รหัส point |
+| transactions[].point.name | String | ชื่อ point |
+| transactions[].point.symbol | String | สัญลักษณ์ point |
+| transactions[].point.imageUrl | String \| null | URL รูปภาพ point logo |
+| transactions[].voucher | Object | ข้อมูล voucher |
+| transactions[].voucher.id | String | รหัส voucher |
+| transactions[].voucher.name | String | ชื่อ voucher |
+| transactions[].voucher.valueType | String | ประเภทมูลค่า (cash, percent, free) |
+| transactions[].voucher.value | Number | มูลค่า voucher |
+| transactions[].voucher.imageUrl | String | URL รูปภาพ voucher |
+| transactions[].voucherCodeId | String | รหัส voucher code |
+| transactions[].sender | Object | ข้อมูลผู้ส่ง |
+| transactions[].receiver | Object | ข้อมูลผู้รับ |
+| transactions[].merchant | Object | ข้อมูลร้านค้า |
+| transactions[].createdAt | String | วันที่สร้างธุรกรรม (ISO 8601) |
+| counts | Number | จำนวน voucher transactions ทั้งหมด |
+
+#### Success Response (200)
+
+```json
+{
+  "transactions": [
+    {
+      "id": "cm4voucher123",
+      "transactionHash": "0xvoucher123...",
+      "transactionTypeId": "REDEEM",
+      "amount": 1,
+      "direction": "RECEIVED",
+      "point": {
+        "id": "cm4ohkm5l000099b5ebs3eltd",
+        "name": "AIS Points",
+        "symbol": "AISP",
+        "imageUrl": "https://example.com/images/ais-point.png"
+      },
+      "voucher": {
+        "id": "cm4p9abc123xyz",
+        "name": "Starbucks 100 THB",
+        "valueType": "cash",
+        "value": 100,
+        "imageUrl": "https://example.com/images/starbucks.png"
+      },
+      "voucherCodeId": "cm4vouchercode123",
+      "sender": {
+        "id": "merchant123",
+        "walletAddress": "0xmerchant...",
+        "emailOrWebsite": "https://merchant.com"
+      },
+      "receiver": {
+        "id": "cmiisvgqn0007xk01efv8szbq",
+        "walletAddress": "0x50581102beb5cdeb68cb5f84acde46fa2deb842e",
+        "emailOrWebsite": "customer@example.com"
+      },
+      "merchant": {
+        "id": "cmih1s6qu00050i01m3cactjj",
+        "name": "AIS Shop"
+      },
+      "createdAt": "2025-12-11T14:45:00.000Z"
+    }
+  ],
+  "counts": 1
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Voucher transactions retrieved |
+| 404 | 404 | Not Found - Customer not found |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- **Transaction Types Included:** VOUCHER_TRANSFER, REDEEM only
+- **Excludes MARKETPLACE_PURCHASE:** ไม่แสดงการซื้อ voucher (อยู่ใน point transactions แทน)
+- **Voucher Object:** มีข้อมูลครบถ้วนทุก transaction
+
+---
+
+## 5. Get Global Point Transactions by Customer Phone
+
+**Description:** ดึงประวัติ point transactions ของลูกค้าจากทุก merchants ด้วยเบอร์โทรศัพท์ (ไม่รวม voucher ownership transactions)
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/transaction/customer/phone/:phone/points`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/transaction/customer/phone/0984360421/points`
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| phone | String | M | เบอร์โทรศัพท์ของลูกค้า (10 digits) | 0984360421 |
+
+### Response
+
+#### Response Fields
+
+Same as **Section 3** (Get Point Transactions by Customer Phone) but includes transactions from **all merchants**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| transactions | Array | รายการ point transactions จากทุก merchants |
+| transactions[].merchant | Object | ข้อมูลร้านค้า (แตกต่างกันได้) |
+| transactions[].merchant.id | String | รหัสร้านค้า |
+| transactions[].merchant.name | String | ชื่อร้านค้า |
+| ... | ... | (Fields เหมือน Section 3) |
+| counts | Number | จำนวน point transactions ทั้งหมดข้ามทุก merchants |
+
+#### Success Response (200)
+
+```json
+{
+  "transactions": [
+    {
+      "id": "cm4p9kv7j003y7w5xhps7krvz",
+      "transactionTypeId": "MARKETPLACE_PURCHASE",
+      "amount": 100,
+      "direction": "SENT",
+      "point": {
+        "id": "cm4ohkm5l000099b5ebs3eltd",
+        "name": "AIS Points",
+        "symbol": "AISP",
+        "imageUrl": "https://example.com/ais-point.png"
+      },
+      "voucher": {
+        "id": "cm4voucher1",
+        "name": "Starbucks 100 THB",
+        "valueType": "cash",
+        "value": 100,
+        "imageUrl": "https://example.com/starbucks.png"
+      },
+      "merchant": {
+        "id": "merchant_ais",
+        "name": "AIS Shop"
+      },
+      "createdAt": "2025-12-11T10:30:00.000Z"
+    },
+    {
+      "id": "cm4another123",
+      "transactionTypeId": "TRANSFER",
+      "amount": 50,
+      "direction": "RECEIVED",
+      "point": {
+        "id": "point_true",
+        "name": "TRUE Points",
+        "symbol": "TRUEP",
+        "imageUrl": "https://example.com/true-point.png"
+      },
+      "voucher": null,
+      "merchant": {
+        "id": "merchant_true",
+        "name": "TRUE Shop"
+      },
+      "createdAt": "2025-12-10T08:15:00.000Z"
+    }
+  ],
+  "counts": 2
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Global point transactions retrieved |
+| 404 | 404 | Not Found - Customer not found |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- **Cross-Merchant:** รวม transactions จากทุก merchants ที่ลูกค้าเคยทำธุรกรรม
+- **Use Case:** แสดง unified point transaction history ใน customer wallet app
+- **Same Structure:** Response structure เหมือน merchant-scoped endpoint
+
+---
+
+## 6. Get Global Voucher Transactions by Customer Phone
+
+**Description:** ดึงประวัติ voucher ownership transactions ของลูกค้าจากทุก merchants ด้วยเบอร์โทรศัพท์
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/transaction/customer/phone/:phone/vouchers`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/transaction/customer/phone/0984360421/vouchers`
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| phone | String | M | เบอร์โทรศัพท์ของลูกค้า (10 digits) | 0984360421 |
+
+### Response
+
+#### Response Fields
+
+Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes transactions from **all merchants**
+
+#### Success Response (200)
+
+```json
+{
+  "transactions": [
+    {
+      "id": "cm4voucher_ais",
+      "transactionTypeId": "REDEEM",
+      "amount": 1,
+      "voucher": {
+        "id": "voucher_starbucks",
+        "name": "Starbucks 100 THB",
+        "valueType": "cash",
+        "value": 100,
+        "imageUrl": "https://example.com/starbucks.png"
+      },
+      "merchant": {
+        "id": "merchant_ais",
+        "name": "AIS Shop"
+      },
+      "createdAt": "2025-12-11T14:45:00.000Z"
+    },
+    {
+      "id": "cm4voucher_true",
+      "transactionTypeId": "VOUCHER_TRANSFER",
+      "amount": 1,
+      "voucher": {
+        "id": "voucher_amazon",
+        "name": "Amazon Gift Card 500 THB",
+        "valueType": "cash",
+        "value": 500,
+        "imageUrl": "https://example.com/amazon.png"
+      },
+      "merchant": {
+        "id": "merchant_true",
+        "name": "TRUE Shop"
+      },
+      "createdAt": "2025-12-09T11:20:00.000Z"
+    }
+  ],
+  "counts": 2
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Global voucher transactions retrieved |
+| 404 | 404 | Not Found - Customer not found |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- **Cross-Merchant:** รวม voucher transactions จากทุก merchants
+- **Use Case:** แสดง unified voucher history ใน customer wallet app
+
+---
+
+## 7. Get All Customer Transaction History
+
+**Description:** ดึงประวัติธุรกรรมทั้งหมดของลูกค้าจากทุก merchants ด้วยเบอร์โทรศัพท์ (รวม point และ voucher transactions)
+
+**💡 Note:** หากต้องการแยกประเภทธุรกรรมชัดเจน สามารถใช้ Section 5 (points) และ Section 6 (vouchers) แทนได้
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/transaction/customer/:phone`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/transaction/customer/0984360421`
 
 #### Response Fields
 
@@ -426,135 +875,7 @@
 
 ---
 
-## 4. Get All Customer Transaction History
-
-**Description:** ดึงประวัติธุรกรรมทั้งหมดของลูกค้าจากทุก merchants ด้วยเบอร์โทรศัพท์
-
-### Request
-
-**Method:** `GET`
-
-**URL:** `{{endpoint_url}}/transaction/customer/:phone`
-
-**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/transaction/customer/0984360421`
-
-### Request Parameters
-
-#### Path Parameters
-
-| Parameter | Type | M/O | Description | Example |
-|-----------|------|-----|-------------|---------|
-| phone | String | M | เบอร์โทรศัพท์ของลูกค้า | 0984360421 |
-
-### Response
-
-#### Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| transactions | Array | รายการธุรกรรมทั้งหมดจากทุก merchants |
-| transactions[].id | String | รหัสธุรกรรม |
-| transactions[].txHash | String | Transaction hash บน blockchain |
-| transactions[].senderAddress | String | Wallet address ของผู้ส่ง |
-| transactions[].receiverAddress | String | Wallet address ของผู้รับ |
-| transactions[].transactionTypeId | String | ประเภทธุรกรรม (TRANSFER, MINT, BURN, etc.) |
-| transactions[].amount | Number | จำนวนคะแนนที่โอน |
-| transactions[].merchantId | String | รหัสร้านค้า |
-| transactions[].merchantName | String \| null | ชื่อร้านค้า |
-| transactions[].point | Object | ข้อมูลคะแนน |
-| transactions[].point.id | String | รหัสคะแนน |
-| transactions[].point.name | String | ชื่อคะแนน |
-| transactions[].point.symbol | String | สัญลักษณ์คะแนน |
-| transactions[].sender | Object | ข้อมูลผู้ส่ง |
-| transactions[].sender.id | String | รหัสผู้ส่ง (Customer ID หรือ Merchant ID) |
-| transactions[].sender.walletAddress | String | Wallet address ผู้ส่ง |
-| transactions[].sender.emailOrWebsite | String | อีเมลหรือเว็บไซต์ผู้ส่ง |
-| transactions[].receiver | Object | ข้อมูลผู้รับ |
-| transactions[].receiver.id | String | รหัสผู้รับ (Customer ID หรือ Merchant ID) |
-| transactions[].receiver.walletAddress | String | Wallet address ผู้รับ |
-| transactions[].receiver.emailOrWebsite | String | อีเมลหรือเว็บไซต์ผู้รับ |
-| transactions[].voucherCodeId | String \| null | รหัส voucher code (ถ้ามี) |
-| transactions[].eventId | String \| null | รหัสอีเว้นท์ (ถ้ามี) |
-| transactions[].createdAt | String | วันที่สร้างธุรกรรม (ISO 8601) |
-| counts | Number | จำนวนธุรกรรมทั้งหมด |
-
-#### Success Response (200)
-
-```json
-{
-  "transactions": [
-    {
-      "id": "cmiiswd23000axk01f35tq4td",
-      "txHash": "0xc24bec9dc9eade84bd15d55386c79b0d858c3b18700be655d17e060eadaadfaf",
-      "senderAddress": "0x5291e73df82e9b162ab09b64ba5c0b8d359ebc38",
-      "receiverAddress": "0x50581102beb5cdeb68cb5f84acde46fa2deb842e",
-      "transactionTypeId": "TRANSFER",
-      "amount": 10,
-      "merchantId": "cmih1s6qu00050i01m3cactjj",
-      "merchantName": "Test Merchant A",
-      "point": {
-        "id": "cmiimp4g400015v01nv1ij7zf",
-        "name": "LAT",
-        "symbol": "LAT"
-      },
-      "sender": {
-        "id": "cmih1s6qu00050i01m3cactjj",
-        "walletAddress": "0x5291e73df82e9b162ab09b64ba5c0b8d359ebc38",
-        "emailOrWebsite": "https://merchant-website.com"
-      },
-      "receiver": {
-        "id": "cmiisvgqn0007xk01efv8szbq",
-        "walletAddress": "0x50581102beb5cdeb68cb5f84acde46fa2deb842e",
-        "emailOrWebsite": "customer@example.com"
-      },
-      "voucherCodeId": null,
-      "eventId": "event_12345",
-      "createdAt": "2025-11-28T11:50:22.491Z"
-    },
-    {
-      "id": "abc123def456ghi789",
-      "txHash": "0xabc123def456ghi789abc123def456ghi789abc123def456ghi789abc123def456",
-      "senderAddress": "0x50581102beb5cdeb68cb5f84acde46fa2deb842e",
-      "receiverAddress": "0x9876543210fedcba9876543210fedcba98765432",
-      "transactionTypeId": "TRANSFER",
-      "amount": 5,
-      "merchantId": "xyz987merchant123",
-      "merchantName": "Another Merchant B",
-      "point": {
-        "id": "point123xyz",
-        "name": "GOLD",
-        "symbol": "GOLD"
-      },
-      "sender": {
-        "id": "cmiisvgqn0007xk01efv8szbq",
-        "walletAddress": "0x50581102beb5cdeb68cb5f84acde46fa2deb842e",
-        "emailOrWebsite": "customer@example.com"
-      },
-      "receiver": {
-        "id": "receiver123",
-        "walletAddress": "0x9876543210fedcba9876543210fedcba98765432",
-        "emailOrWebsite": "receiver@example.com"
-      },
-      "voucherCodeId": null,
-      "eventId": null,
-      "createdAt": "2025-11-27T08:30:15.123Z"
-    }
-  ],
-  "counts": 2
-}
-```
-
-### Response Status Codes
-
-| HTTP Status | Status Code | Description |
-|-------------|-------------|-------------|
-| 200 | 200 | Success - Transaction history retrieved |
-| 404 | 404 | Not Found - Customer not found |
-| 500 | 500 | Internal Server Error |
-
----
-
-## 5. Get Merchant Transaction History
+## 8. Get Merchant Transaction History
 
 **Description:** ดึงประวัติธุรกรรมทั้งหมดของร้านค้า (Public endpoint - ไม่ต้อง authentication)
 
@@ -647,7 +968,7 @@
 
 ---
 
-## 6. Get Wallet Balance
+## 9. Get Wallet Balance
 
 **Description:** ดึงข้อมูลยอดคงเหลือของคะแนนในกระเป๋าเงิน
 
@@ -710,7 +1031,7 @@
 
 ---
 
-## 7. Redeem Voucher
+## 10. Redeem Voucher
 
 **Description:** ใช้ voucher code เพื่อแลกรับส่วนลดหรือของรางวัล
 
@@ -853,7 +1174,7 @@
 
 ---
 
-## 8. Redeem AIS Voucher (Transfer Points to Another Customer)
+## 11. Redeem AIS Voucher (Transfer Points to Another Customer)
 
 **Description:** แลก voucher ประเภท AIS Point โดยโอนคะแนนไปให้เบอร์โทรศัพท์อื่น (Public endpoint - ไม่ต้อง authenticate)
 

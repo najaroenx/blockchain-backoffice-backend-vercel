@@ -48,8 +48,7 @@ export class GetVoucherTransactionsByCustomerPhone {
       const voucherTransactions = transactions.filter((transaction) => {
         const transactionType = transaction.transactionTypeId;
         return (
-          transactionType === 'VOUCHER_TRANSFER' ||
-          transactionType === 'REDEEM'
+          transactionType === 'VOUCHER_TRANSFER' || transactionType === 'REDEEM'
         );
       });
 

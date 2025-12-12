@@ -61,6 +61,16 @@ export type GetTransactionsByCustomerId = Transaction & {
   merchantSender: Merchant;
   merchantReceiver: Merchant;
   point: Point;
+  voucherCode?: {
+    id: string;
+    voucher: {
+      id: string;
+      name: string;
+      valueType: string;
+      value: number;
+      imageUrl?: string;
+    };
+  } | null;
 };
 
 export type GetTransactionsByMerchantId = Transaction & {
@@ -70,6 +80,16 @@ export type GetTransactionsByMerchantId = Transaction & {
   merchantSender: Merchant;
   merchantReceiver: Merchant;
   point: Point;
+  voucherCode?: {
+    id: string;
+    voucher: {
+      id: string;
+      name: string;
+      valueType: string;
+      value: number;
+      imageUrl?: string;
+    };
+  } | null;
 };
 
 export type CreateTransaction = Omit<

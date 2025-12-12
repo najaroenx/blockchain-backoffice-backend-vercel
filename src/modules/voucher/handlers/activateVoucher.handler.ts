@@ -307,16 +307,17 @@ export class ActivateVoucher {
             `[STEP 4.4] Created ${amount} codes with voucherGroupId (listingId): ${listingId}`,
           );
 
-          // 4.5 ลด totalIssued ของ voucher
+          // 4.5 ลด totalIssued ของ voucher และ update currency
           const newTotalIssued = upcomingVoucher.totalIssued - amount;
           this.logger.log(
-            `[STEP 4.6] Updating voucher: totalIssued ${upcomingVoucher.totalIssued} -> ${newTotalIssued}`,
+            `[STEP 4.6] Updating voucher: totalIssued ${upcomingVoucher.totalIssued} -> ${newTotalIssued}, currency -> ${point.symbol}`,
           );
 
           await tx.voucher.update({
             where: { id: voucherId },
             data: {
               totalIssued: newTotalIssued,
+              currency: point.symbol,
             },
           });
 

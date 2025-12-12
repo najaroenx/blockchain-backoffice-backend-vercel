@@ -67,6 +67,7 @@ export class RedeemVoucher {
               tokenId: true,
               name: true,
               description: true,
+              imageUrl: true,
               status: true,
               startDate: true,
               endDate: true,
@@ -319,6 +320,41 @@ export class RedeemVoucher {
         `[SUCCESS] Voucher code redeemed successfully for customer: ${customerId}`,
       );
 
+      // 11. Format transaction response same as /customer/phone/:phone endpoint
+      const transactionResponse = {
+        id: redeemTransaction.id,
+        txHash: blockchainTx.hash,
+        senderAddress: customerAddress,
+        receiverAddress: merchantAddress,
+        transactionTypeId: redeemTransaction.transactionTypeId,
+        amount: redeemTransaction.amount,
+        transactionDirection: 'SENT' as 'SENT' | 'RECEIVED',
+        merchantId: voucher.merchantId,
+        merchantName: voucher.merchant?.name || voucher.merchantName,
+        point: voucherCode.pointId
+          ? {
+              id: voucherCode.pointId,
+              name: voucherCode.currency || 'POINT',
+              symbol: voucherCode.currency || 'POINT',
+            }
+          : null,
+        sender: {
+          id: customerId,
+          walletAddress: customerAddress,
+          emailOrWebsite: customer.email,
+        },
+        receiver: {
+          id: voucher.merchantId,
+          walletAddress: merchantAddress,
+          emailOrWebsite: merchant?.wallet?.email || '',
+        },
+        voucherCodeId: voucherCode.id,
+        valueType: voucher.valueType,
+        value: voucher.value,
+        eventId: null,
+        createdAt: redeemTransaction.createdAt,
+      };
+
       // 7. Return response
       return {
         success: true,
@@ -327,6 +363,7 @@ export class RedeemVoucher {
           id: voucher.id,
           name: voucher.name,
           description: voucher.description,
+          imageUrl: voucher.imageUrl || null,
           valueType: voucher.valueType,
           value: voucher.value,
           merchantName: voucher.merchant?.name || voucher.merchantName,
@@ -339,6 +376,7 @@ export class RedeemVoucher {
           redeemedAt: updatedCode.usedAt,
           pointsCost: updatedCode.pointsCost,
         },
+        transaction: transactionResponse,
         blockchain: blockchainTx
           ? {
               transactionHash: blockchainTx.hash,
@@ -495,13 +533,6 @@ export class RedeemVoucher {
       this.logger.log(
         `[START AIS] Redeeming AIS voucher code: ${code} for customer phone: ${phone}, receiver: ${receiverPhone} at merchant: ${merchantRef}`,
       );
-
-      // Validate that phone and receiverPhone are different
-      if (phone === receiverPhone) {
-        throw new BadRequestException(
-          'Receiver phone must be different from redeemer phone',
-        );
-      }
 
       // 0. Find redeemer customer by phone
       this.logger.log(`[STEP 0] Finding redeemer customer by phone: ${phone}`);

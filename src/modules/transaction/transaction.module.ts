@@ -19,6 +19,8 @@ import { GetWalletBalance } from './handlers/getMerchantBalance.handler';
 import { GetTreasuryBalance } from './handlers/getTreasuryBalance.handler';
 import { ListTreasuries } from './handlers/listTreasuries.handler';
 import { GetAllTransactionsByCustomerPhone } from './handlers/getAllTransactionsByCustomerPhone.handler';
+import { GetPointTransactionsByCustomerPhone } from './handlers/getPointTransactionsByCustomerPhone.handler';
+import { GetVoucherTransactionsByCustomerPhone } from './handlers/getVoucherTransactionsByCustomerPhone.handler';
 import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
@@ -36,6 +38,8 @@ import { PrismaModule } from 'prisma/prisma.module';
     GetTransactionsByCustomerId,
     GetTransactionsByMerchantId,
     GetAllTransactionsByCustomerPhone,
+    GetPointTransactionsByCustomerPhone,
+    GetVoucherTransactionsByCustomerPhone,
     CreateTransactionB2C,
     CreateTransactionC2C,
     MintTransaction,

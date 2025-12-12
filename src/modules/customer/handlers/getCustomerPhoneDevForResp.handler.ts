@@ -146,11 +146,13 @@ export class GetCustomerPhoneDevForResp {
             voucherId: voucher.voucherId,
             name: voucher.voucher.name,
             description: voucher.voucher.description,
-            imageUrl: voucher.voucher.imageUrl,
+            imageUrl: voucher.voucher.imageUrl || null,
             pointsCost: voucher.pointsCost,
             currency: voucher.currency,
             value: voucher.voucher.value,
             valueType: voucher.voucher.valueType,
+            isUsed: voucher.isUsed || false,
+            usedAt: voucher.usedAt || null,
           });
         }
       }

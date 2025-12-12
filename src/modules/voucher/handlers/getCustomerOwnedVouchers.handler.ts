@@ -22,15 +22,17 @@ export class GetCustomerOwnedVouchers {
         `[START] Getting owned vouchers for phone: ${phone}, status: ${status}`,
       );
 
-      // Find wallet by phone and type customer
-      const wallet = await this.prisma.wallet.findFirst({
-        where: { phoneNumber: phone, type: 'customer' },
-        include: { customer: true },
+      // Find customer by phone (tel field) - same as buyCouponFromMarketplace
+      const customer = await this.prisma.customer.findFirst({
+        where: { tel: phone },
+        include: {
+          wallet: true,
+        },
       });
 
-      if (!wallet || !wallet.customer) {
+      if (!customer || !customer.wallet) {
         this.logger.error(
-          `[ERROR] Customer wallet with phone ${phone} not found`,
+          `[ERROR] Customer with phone ${phone} not found or has no wallet`,
         );
         return {
           phone,
@@ -43,97 +45,214 @@ export class GetCustomerOwnedVouchers {
         };
       }
 
-      const customerId = wallet.customer.id;
-      const walletAddress = wallet.walletAddress;
+      const customerId = customer.id;
+      const walletAddress = customer.wallet.walletAddress;
       this.logger.log(
-        `[START] Customer found: ${customerId} with wallet ${walletAddress}`,
+        `[SUCCESS] Customer found: ${customerId} with wallet ${walletAddress}`,
       );
 
-      // Build where clause based on status
-      const where: any = {
-        currentOwnerId: customerId,
-      };
-
-      if (status === 'unused') {
-        where.isUsed = false;
-      } else if (status === 'used') {
-        where.isUsed = true;
-      }
-      // 'all' = no isUsed filter
-
-      const skip = (page - 1) * limit;
-
-      // Get owned vouchers with details
-      const [vouchers, totalCount] = await Promise.all([
-        this.prisma.voucherCode.findMany({
-          where,
-          include: {
-            voucher: {
-              include: {
-                merchant: true,
-              },
+      // STEP 1: Get all vouchers with NFTs from database (active + upcoming with codes)
+      this.logger.log(
+        `[STEP 1] Fetching all vouchers with marketplace listings from database`,
+      );
+      const activeVouchers = await this.prisma.voucher.findMany({
+        where: {
+          status: { in: ['active', 'upcoming'] },
+          tokenId: { not: null },
+        },
+        include: {
+          merchant: true,
+          voucherCodes: {
+            where: {
+              voucherGroupId: { not: null }, // Only activated codes
             },
-            transactions: {
-              where: {
-                receiverId: customerId,
-              },
-              orderBy: {
-                createdAt: 'desc',
-              },
-              take: 1, // Latest purchase transaction
-              include: {
-                transactionType: true,
-              },
+            select: {
+              id: true,
+              code: true,
+              pointsCost: true,
+              currency: true,
+              isUsed: true,
+              usedAt: true,
+              currentOwnerId: true,
+              createdAt: true,
             },
+            take: 1, // Just need one for metadata
           },
-          orderBy: {
-            createdAt: 'desc',
-          },
-          skip,
-          take: limit,
-        }),
-        this.prisma.voucherCode.count({ where }),
-      ]);
-
-      // Count by status
-      const [unusedCount, usedCount] = await Promise.all([
-        this.prisma.voucherCode.count({
-          where: { currentOwnerId: customerId, isUsed: false },
-        }),
-        this.prisma.voucherCode.count({
-          where: { currentOwnerId: customerId, isUsed: true },
-        }),
-      ]);
+        },
+      });
 
       this.logger.log(
-        `[SUCCESS] Found ${vouchers.length} vouchers for phone ${phone}`,
+        `[STEP 1] Found ${activeVouchers.length} active vouchers to check`,
       );
 
-      // Fetch on-chain balances for unique tokenIds
-      const tokenIds = Array.from(
-        new Set(
-          vouchers
-            .map((vc) => vc.voucher?.tokenId)
-            .filter((tid): tid is string => Boolean(tid)),
-        ),
+      // STEP 2: Query on-chain balance for each tokenId
+      this.logger.log(
+        `[STEP 2] Querying on-chain NFT balances for wallet ${walletAddress}`,
       );
 
-      const onChainBalanceMap = new Map<string, string | null>();
+      const vouchersWithBalance = [];
 
-      for (const tokenId of tokenIds) {
+      for (const voucher of activeVouchers) {
+        if (!voucher.tokenId) continue;
+
         try {
           const balance = await this.blockchainService.getUserCouponBalance(
             walletAddress,
-            Number(tokenId),
+            Number(voucher.tokenId),
           );
-          onChainBalanceMap.set(tokenId, balance.balance);
+
+          const onChainBalance = parseInt(balance.balance);
+
+          if (onChainBalance > 0) {
+            this.logger.log(
+              `[STEP 2] Wallet has ${onChainBalance} NFTs of tokenId ${voucher.tokenId} (${voucher.name})`,
+            );
+
+            // Get voucher codes for this customer
+            const customerCodes = await this.prisma.voucherCode.findMany({
+              where: {
+                voucherId: voucher.id,
+                currentOwnerId: customerId,
+              },
+              include: {
+                transactions: {
+                  where: {
+                    receiverId: customerId,
+                    transactionTypeId: {
+                      in: ['MARKETPLACE_PURCHASE', 'VOUCHER_TRANSFER'],
+                    },
+                  },
+                  orderBy: { createdAt: 'desc' },
+                  take: 1,
+                  include: {
+                    transactionType: true,
+                  },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            });
+
+            // Map each on-chain NFT to database code or create virtual entry
+            for (let i = 0; i < onChainBalance; i++) {
+              const code = customerCodes[i] || null;
+              const sampleCode = voucher.voucherCodes[0];
+
+              vouchersWithBalance.push({
+                voucher,
+                code,
+                onChainBalance: onChainBalance.toString(),
+                pointsCost: code?.pointsCost || sampleCode?.pointsCost || 0,
+                currency: code?.currency || sampleCode?.currency || '',
+                purchaseTransaction: code?.transactions[0] || null,
+              });
+            }
+          }
         } catch (err) {
           this.logger.warn(
-            `[WARN] Failed to fetch on-chain balance for tokenId ${tokenId}: ${err.message}`,
+            `[WARN] Failed to fetch balance for tokenId ${voucher.tokenId}: ${err.message}`,
           );
-          onChainBalanceMap.set(tokenId, null);
         }
       }
+
+      this.logger.log(
+        `[STEP 2] Total vouchers with on-chain balance: ${vouchersWithBalance.length}`,
+      );
+
+      // STEP 2.5: Add redeemed vouchers (used codes with 0 on-chain balance)
+      this.logger.log(
+        `[STEP 2.5] Fetching redeemed vouchers for customer ${customerId}`,
+      );
+
+      const redeemedCodes = await this.prisma.voucherCode.findMany({
+        where: {
+          currentOwnerId: customerId,
+          isUsed: true,
+        },
+        include: {
+          voucher: {
+            include: {
+              merchant: true,
+            },
+          },
+          transactions: {
+            where: {
+              receiverId: customerId,
+              transactionTypeId: {
+                in: ['MARKETPLACE_PURCHASE', 'VOUCHER_TRANSFER', 'REDEEM'],
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            include: {
+              transactionType: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(
+        `[STEP 2.5] Found ${redeemedCodes.length} redeemed vouchers`,
+      );
+
+      // Add redeemed codes that are not already in the list
+      const existingCodeIds = new Set(
+        vouchersWithBalance.map((item) => item.code?.id).filter(Boolean),
+      );
+
+      for (const code of redeemedCodes) {
+        if (!existingCodeIds.has(code.id)) {
+          vouchersWithBalance.push({
+            voucher: code.voucher,
+            code: code,
+            onChainBalance: '0', // Already redeemed/burned
+            pointsCost: code.pointsCost || 0,
+            currency: code.currency || '',
+            purchaseTransaction: code.transactions[0] || null,
+          });
+        }
+      }
+
+      this.logger.log(
+        `[STEP 2.5] Total vouchers (including redeemed): ${vouchersWithBalance.length}`,
+      );
+
+      // STEP 3: Apply status filter
+      let filteredVouchers = vouchersWithBalance;
+
+      if (status === 'unused') {
+        filteredVouchers = vouchersWithBalance.filter(
+          (item) => !item.code?.isUsed,
+        );
+      } else if (status === 'used') {
+        filteredVouchers = vouchersWithBalance.filter(
+          (item) => item.code?.isUsed,
+        );
+      }
+
+      this.logger.log(
+        `[STEP 3] After status filter (${status}): ${filteredVouchers.length} vouchers`,
+      );
+
+      // STEP 4: Apply pagination
+      const totalCount = filteredVouchers.length;
+      const skip = (page - 1) * limit;
+      const paginatedVouchers = filteredVouchers.slice(skip, skip + limit);
+
+      // Count by status
+      const unusedCount = vouchersWithBalance.filter(
+        (item) => !item.code?.isUsed,
+      ).length;
+      const usedCount = vouchersWithBalance.filter(
+        (item) => item.code?.isUsed,
+      ).length;
+
+      this.logger.log(
+        `[SUCCESS] Returning ${paginatedVouchers.length} vouchers (page ${page}, limit ${limit})`,
+      );
+
+      this.logger.log(
+        `[SUCCESS] Returning ${paginatedVouchers.length} vouchers (page ${page}, limit ${limit})`,
+      );
 
       return {
         phone,
@@ -151,38 +270,44 @@ export class GetCustomerOwnedVouchers {
           unused: unusedCount,
           used: usedCount,
         },
-        vouchers: vouchers.map((vc) => {
-          const purchaseTransaction = vc.transactions[0];
-          const tokenId = vc.voucher?.tokenId;
+        vouchers: paginatedVouchers.map((item) => {
+          const {
+            voucher,
+            code,
+            onChainBalance,
+            pointsCost,
+            currency,
+            purchaseTransaction,
+          } = item;
 
           return {
-            codeId: vc.id,
-            code: vc.code,
-            isUsed: vc.isUsed,
-            usedAt: vc.usedAt,
-            pointsCost: vc.pointsCost,
-            purchasedAt: purchaseTransaction?.createdAt || vc.createdAt,
+            codeId: code?.id || null,
+            code: code?.code || null,
+            isUsed: code?.isUsed || false,
+            usedAt: code?.usedAt || null,
+            pointsCost: pointsCost,
+            currency: currency,
+            purchasedAt:
+              purchaseTransaction?.createdAt || code?.createdAt || null,
             purchaseType:
               purchaseTransaction?.transactionType?.name || 'Unknown',
-            onChainBalance:
-              tokenId && onChainBalanceMap.has(tokenId)
-                ? onChainBalanceMap.get(tokenId)
-                : null,
+            onChainBalance: onChainBalance,
             voucher: {
-              id: vc.voucher.id,
-              name: vc.voucher.name,
-              description: vc.voucher.description,
-              valueType: vc.voucher.valueType,
-              value: vc.voucher.value,
-              currency: vc.voucher.currency,
-              imageUrl: vc.voucher.imageUrl,
-              startDate: vc.voucher.startDate,
-              endDate: vc.voucher.endDate,
-              merchantRef: vc.voucher.merchantRef,
+              id: voucher.id,
+              tokenId: voucher.tokenId,
+              name: voucher.name,
+              description: voucher.description,
+              valueType: voucher.valueType,
+              value: voucher.value,
+              currency: voucher.currency,
+              imageUrl: voucher.imageUrl,
+              startDate: voucher.startDate,
+              endDate: voucher.endDate,
+              merchantRef: voucher.merchantRef,
               merchant: {
-                id: vc.voucher.merchant?.id,
-                name: vc.voucher.merchant?.name || vc.voucher.merchantName,
-                imageUrl: vc.voucher.merchant?.imageUrl,
+                id: voucher.merchant?.id,
+                name: voucher.merchant?.name || voucher.merchantName,
+                imageUrl: voucher.merchant?.imageUrl,
               },
             },
           };

@@ -352,43 +352,61 @@ export class BuyCouponFromMarketplace {
         'hex',
       );
 
-      const [, , transaction] = await this.prisma.$transaction([
-        // Update current owner
-        this.prisma.voucherCode.update({
-          where: { id: voucherCodeId },
-          data: { currentOwnerId: customerId },
-        }),
+      const [, , purchaseTransaction, transferTransaction] =
+        await this.prisma.$transaction([
+          // Update current owner
+          this.prisma.voucherCode.update({
+            where: { id: voucherCodeId },
+            data: { currentOwnerId: customerId },
+          }),
 
-        // Deduct customer point balance (off-chain ledger to mirror on-chain spend)
-        this.prisma.customerPoint.update({
-          where: { id: customerPoint.id },
-          data: {
-            balances: {
-              decrement: voucherCode.pointsCost,
+          // Deduct customer point balance (off-chain ledger to mirror on-chain spend)
+          this.prisma.customerPoint.update({
+            where: { id: customerPoint.id },
+            data: {
+              balances: {
+                decrement: voucherCode.pointsCost,
+              },
             },
-          },
-        }),
+          }),
 
-        // Create single transaction record
-        this.prisma.transaction.create({
-          data: {
-            txHash: txHashBuffer,
-            senderAddress: customerAddressBuffer,
-            receiverAddress: merchantAddressBuffer,
-            amount: voucherCode.pointsCost,
-            pointId: voucherCode.pointId,
-            merchantId: voucherCode.voucher.merchantId,
-            senderId: customerId,
-            receiverId: null, // Merchant is receiver but not a customer
-            merchantReceiverId: voucherCode.voucher.merchantId, // Merchant received payment
-            voucherCodeId: voucherCodeId,
-            transactionTypeId: TransactionTypeId.MARKETPLACE_PURCHASE,
-          } as any,
-        }),
-      ]);
+          // Transaction 1: MARKETPLACE_PURCHASE - Payment from customer to merchant
+          this.prisma.transaction.create({
+            data: {
+              txHash: txHashBuffer,
+              senderAddress: customerAddressBuffer,
+              receiverAddress: merchantAddressBuffer,
+              amount: voucherCode.pointsCost,
+              pointId: voucherCode.pointId,
+              merchantId: voucherCode.voucher.merchantId,
+              senderId: customerId,
+              receiverId: null, // Merchant is receiver but not a customer
+              merchantReceiverId: voucherCode.voucher.merchantId, // Merchant received payment
+              voucherCodeId: voucherCodeId,
+              transactionTypeId: TransactionTypeId.MARKETPLACE_PURCHASE,
+            } as any,
+          }),
+
+          // Transaction 2: VOUCHER_TRANSFER - Voucher ownership transfer to customer
+          this.prisma.transaction.create({
+            data: {
+              txHash: txHashBuffer,
+              senderAddress: merchantAddressBuffer, // Merchant/marketplace sends voucher
+              receiverAddress: customerAddressBuffer, // Customer receives voucher
+              amount: 1, // 1 voucher unit
+              pointId: voucherCode.pointId,
+              merchantId: voucherCode.voucher.merchantId,
+              senderId: null, // Merchant is sender but not a customer
+              receiverId: customerId, // Customer receives voucher
+              merchantReceiverId: null,
+              voucherCodeId: voucherCodeId,
+              transactionTypeId: TransactionTypeId.VOUCHER_TRANSFER,
+            } as any,
+          }),
+        ]);
 
       this.logger.log(
-        `[SUCCESS] Coupon purchased successfully from marketplace. Transaction ID: ${transaction.id}`,
+        `[SUCCESS] Coupon purchased successfully from marketplace. Payment Transaction ID: ${purchaseTransaction.id}, Transfer Transaction ID: ${transferTransaction.id}`,
       );
 
       // Return response
@@ -401,8 +419,26 @@ export class BuyCouponFromMarketplace {
           address: walletAddress,
           customerId,
           purchasePrice: voucherCode.pointsCost,
-          transactionId: transaction.id,
-          purchasedAt: transaction.createdAt,
+          transactionId: purchaseTransaction.id,
+          purchasedAt: purchaseTransaction.createdAt,
+        },
+        transactions: {
+          payment: {
+            id: purchaseTransaction.id,
+            type: TransactionTypeId.MARKETPLACE_PURCHASE,
+            amount: voucherCode.pointsCost,
+            from: walletAddress,
+            to: merchantWallet.walletAddress,
+            createdAt: purchaseTransaction.createdAt,
+          },
+          transfer: {
+            id: transferTransaction.id,
+            type: TransactionTypeId.VOUCHER_TRANSFER,
+            amount: 1,
+            from: merchantWallet.walletAddress,
+            to: walletAddress,
+            createdAt: transferTransaction.createdAt,
+          },
         },
         voucher: {
           id: voucher.id,

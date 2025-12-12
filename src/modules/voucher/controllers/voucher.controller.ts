@@ -601,17 +601,6 @@ export class VoucherController {
   }
 
   /**
-   * Get on-chain coupon balances for customer (by phone -> wallet)
-   * GET /coupon/my-coupons/onchain/:phone
-   */
-  @Get('/my-coupons/onchain/:phone')
-  @Public()
-  @HttpCode(200)
-  async getCustomerOnChainBalances(@Param('phone') phone: string) {
-    return this.voucherService.getCustomerOnChainBalances(phone);
-  }
-
-  /**
    * Manual whitelist single address
    * POST /coupon/admin/whitelist
    * Body: { address: string }

@@ -231,11 +231,12 @@ export class MerchantBuyCouponFromSeller {
           data: {
             status: 'upcoming',
             merchantId: merchantId,
+            merchantName: merchant.name,
           },
         });
 
         this.logger.log(
-          `[STEP 7] Voucher ${voucher.id} updated to 'upcoming' and assigned to merchant ${merchant.name}`,
+          `[STEP 7] Voucher ${voucher.id} updated to 'upcoming' and assigned to merchant ${merchant.name} (merchantName updated)`,
         );
 
         // 8. ลบ codes ที่ seller สร้างไว้ (placeholder codes จาก marketplace listing)

@@ -11,8 +11,8 @@ import { GetTransactionsByCustomerIdResponseType } from '../types';
 import { CustomerDBService } from 'src/modules/customer/services/customer-db.service';
 
 @Injectable()
-export class GetAllTransactionsByCustomerPhone {
-  private logger = new Logger(GetAllTransactionsByCustomerPhone.name);
+export class GetVoucherTransactionsByCustomerPhone {
+  private logger = new Logger(GetVoucherTransactionsByCustomerPhone.name);
 
   constructor(
     private db: TransactionDBService,
@@ -20,10 +20,16 @@ export class GetAllTransactionsByCustomerPhone {
   ) {}
 
   async execute(
+    merchantId: string | null,
     phone: string,
   ): Promise<GetTransactionsByCustomerIdResponseType> {
     try {
-      // Lookup customer by phone number (without merchant filter)
+      const scope = merchantId ? `merchant: ${merchantId}` : 'all merchants';
+      this.logger.log(
+        `[START] Getting voucher transactions for ${scope}, phone: ${phone}`,
+      );
+
+      // Lookup customer by phone number
       const customer = await this.customerDb.getCustomerByPhoneDetailed(phone);
 
       // Check if customer was found
@@ -31,12 +37,27 @@ export class GetAllTransactionsByCustomerPhone {
         throw new NotFoundException(`Customer with phone ${phone} not found`);
       }
 
-      // Get all transactions using customer ID (no merchant filter)
-      const transactions = await this.db.getAllTransactionsByCustomerId(
-        customer.id,
+      // Get transactions - use getAllTransactionsByCustomerId if no merchantId filter
+      const transactions = merchantId
+        ? await this.db.getTransactionsByCustomerId(customer.id, merchantId)
+        : await this.db.getAllTransactionsByCustomerId(customer.id);
+
+      const totalTransactions = transactions.length;
+
+      // Filter only voucher ownership transactions (VOUCHER_TRANSFER, REDEEM)
+      const voucherTransactions = transactions.filter((transaction) => {
+        const transactionType = transaction.transactionTypeId;
+        return (
+          transactionType === 'VOUCHER_TRANSFER' || transactionType === 'REDEEM'
+        );
+      });
+
+      const filteredCount = totalTransactions - voucherTransactions.length;
+      this.logger.log(
+        `[SUCCESS] Filtered ${filteredCount} non-voucher transactions out of ${totalTransactions} total. Returning ${voucherTransactions.length} voucher ownership transactions`,
       );
 
-      const res = transactions.map((transaction) => {
+      const res = voucherTransactions.map((transaction) => {
         const { sender, receiver, merchant, point, voucherCode, ...rest } =
           transaction;
 

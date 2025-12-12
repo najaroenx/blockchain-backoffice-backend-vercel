@@ -19,6 +19,7 @@ import { GetCustomerListDev } from './handlers/getCustomerListDev.handler';
 import { OTPService } from 'src/providers/otp/otp.service';
 import { GetCustomerPhoneDevForResp } from './handlers/getCustomerPhoneDevForResp.handler';
 import { RegisterCustomerDev } from './handlers/registerCustomer.dev.handler';
+import { GetCustomerPoints } from './handlers/getCustomerPoints.handler';
 import { MerchantModule } from '../merchant/merchant.module';
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { MerchantModule } from '../merchant/merchant.module';
     OTPService,
     GetCustomerPhoneDevForResp,
     RegisterCustomerDev,
+    GetCustomerPoints,
   ],
   exports: [
     // GetCustomerByEmail,

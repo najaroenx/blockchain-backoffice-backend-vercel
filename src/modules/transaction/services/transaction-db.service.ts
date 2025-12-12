@@ -28,6 +28,19 @@ export class TransactionDBService {
           merchantSender: true,
           merchantReceiver: true,
           point: true,
+          voucherCode: {
+            include: {
+              voucher: {
+                select: {
+                  id: true,
+                  name: true,
+                  valueType: true,
+                  value: true,
+                  imageUrl: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -47,6 +60,19 @@ export class TransactionDBService {
           sender: true,
           receiver: true,
           point: true,
+          voucherCode: {
+            include: {
+              voucher: {
+                select: {
+                  id: true,
+                  name: true,
+                  valueType: true,
+                  value: true,
+                  imageUrl: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -71,6 +97,19 @@ export class TransactionDBService {
           merchantSender: true,
           merchantReceiver: true,
           point: true,
+          voucherCode: {
+            include: {
+              voucher: {
+                select: {
+                  id: true,
+                  name: true,
+                  valueType: true,
+                  value: true,
+                  imageUrl: true,
+                },
+              },
+            },
+          },
         },
       });
 

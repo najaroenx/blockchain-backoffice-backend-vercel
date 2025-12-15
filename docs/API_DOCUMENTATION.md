@@ -394,7 +394,7 @@
       "transactionHash": "0xc24bec9dc9eade84bd15d55386c79b0d858c3b18700be655d17e060eadaadfaf",
       "transactionTypeId": "MARKETPLACE_PURCHASE",
       "amount": 100,
-      "direction": "SENT",
+      "transactionDirection": "SENT",
       "point": {
         "id": "cm4ohkm5l000099b5ebs3eltd",
         "name": "AIS Points",
@@ -430,7 +430,7 @@
       "transactionHash": "0xabc123...",
       "transactionTypeId": "TRANSFER",
       "amount": 50,
-      "direction": "RECEIVED",
+      "transactionDirection": "RECEIVED",
       "point": {
         "id": "cm4ohkm5l000099b5ebs3eltd",
         "name": "AIS Points",
@@ -543,7 +543,7 @@
       "transactionHash": "0xvoucher123...",
       "transactionTypeId": "REDEEM",
       "amount": 1,
-      "direction": "RECEIVED",
+      "transactionDirection": "RECEIVED",
       "point": {
         "id": "cm4ohkm5l000099b5ebs3eltd",
         "name": "AIS Points",
@@ -1083,11 +1083,29 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 | voucher.merchantName | String | ชื่อร้านค้า |
 | voucher.startDate | String | วันที่เริ่มใช้งาน (ISO 8601) |
 | voucher.endDate | String | วันที่หมดอายุ (ISO 8601) |
+| voucher.imageUrl | String \| null | URL รูปภาพของ voucher |
 | redemption | Object | ข้อมูลการแลก voucher |
 | redemption.code | String | รหัส voucher code ที่ใช้ |
 | redemption.redeemedBy | String | รหัสลูกค้าที่แลก |
 | redemption.redeemedAt | String | วันที่แลก (ISO 8601) |
 | redemption.pointsCost | Number | จำนวนคะแนนที่ใช้ |
+| transaction | Object | ข้อมูล transaction บนระบบ |
+| transaction.id | String | รหัส transaction |
+| transaction.txHash | String | Transaction hash |
+| transaction.senderAddress | String | Wallet address ผู้ส่ง |
+| transaction.receiverAddress | String | Wallet address ผู้รับ |
+| transaction.transactionTypeId | Number | รหัสประเภท transaction |
+| transaction.amount | Number | จำนวนที่โอน |
+| transaction.transactionDirection | String | ทิศทางการทำธุรกรรม (SENT/RECEIVED) |
+| transaction.merchantId | String | รหัสร้านค้า |
+| transaction.merchantName | String | ชื่อร้านค้า |
+| transaction.point | Object \| null | ข้อมูลคะแนน/สกุลเงิน |
+| transaction.sender | Object | ข้อมูลผู้ส่ง |
+| transaction.receiver | Object | ข้อมูลผู้รับ |
+| transaction.voucherCodeId | String | รหัส voucher code |
+| transaction.valueType | String | ประเภทส่วนลด |
+| transaction.value | Number | มูลค่าส่วนลด |
+| transaction.createdAt | String | วันที่สร้าง transaction (ISO 8601) |
 | blockchain | Object | ข้อมูล blockchain transaction |
 | blockchain.transactionHash | String | Transaction hash บน blockchain |
 | blockchain.blockNumber | Number | Block number |
@@ -1103,6 +1121,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
     "id": "voucher-mock-1",
     "name": "Welcome Discount 20%",
     "description": "Get 20% off on your first purchase",
+    "imageUrl": "https://example.com/voucher.jpg",
     "valueType": "percentage",
     "value": 20,
     "merchantName": "Test Merchant",
@@ -1114,6 +1133,37 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
     "redeemedBy": "cmiisvgqn0007xk01efv8szbq",
     "redeemedAt": "2025-12-01T06:30:00.000Z",
     "pointsCost": 100
+  },
+  "transaction": {
+    "id": "cm4abc123xyz",
+    "txHash": "0xc24bec9dc9eade84bd15d55386c79b0d858c3b18700be655d17e060eadaadfaf",
+    "senderAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+    "receiverAddress": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+    "transactionTypeId": 7,
+    "amount": 1,
+    "transactionDirection": "SENT",
+    "merchantId": "merchant123",
+    "merchantName": "Test Merchant",
+    "point": {
+      "id": "point123",
+      "name": "POINT",
+      "symbol": "POINT"
+    },
+    "sender": {
+      "id": "cmiisvgqn0007xk01efv8szbq",
+      "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+      "emailOrWebsite": "customer@example.com"
+    },
+    "receiver": {
+      "id": "merchant123",
+      "walletAddress": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+      "emailOrWebsite": "merchant@example.com"
+    },
+    "voucherCodeId": "code123",
+    "valueType": "percentage",
+    "value": 20,
+    "eventId": null,
+    "createdAt": "2025-12-01T06:30:00.000Z"
   },
   "blockchain": {
     "transactionHash": "0xc24bec9dc9eade84bd15d55386c79b0d858c3b18700be655d17e060eadaadfaf",
@@ -1223,6 +1273,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
       "id": "voucher123",
       "name": "AIS Point 100",
       "description": "Get 100 AIS Points",
+      "imageUrl": "https://example.com/ais-voucher.jpg",
       "valueType": "aispoint",
       "value": 100,
       "merchantName": "AIS Shop",
@@ -1234,6 +1285,37 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
       "redeemedBy": "customer-id-123",
       "redeemedAt": "2024-12-04T10:30:00.000Z",
       "pointsCost": 50
+    },
+    "transaction": {
+      "id": "cm4txn123xyz",
+      "txHash": "0xabc123def456...",
+      "senderAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+      "receiverAddress": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+      "transactionTypeId": 7,
+      "amount": 1,
+      "transactionDirection": "SENT",
+      "merchantId": "merchant123",
+      "merchantName": "AIS Shop",
+      "point": {
+        "id": "ais-point-123",
+        "name": "AIS_POINT",
+        "symbol": "AIS_POINT"
+      },
+      "sender": {
+        "id": "customer-id-123",
+        "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+        "emailOrWebsite": "customer@example.com"
+      },
+      "receiver": {
+        "id": "merchant123",
+        "walletAddress": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+        "emailOrWebsite": "ais@example.com"
+      },
+      "voucherCodeId": "code123",
+      "valueType": "aispoint",
+      "value": 100,
+      "eventId": null,
+      "createdAt": "2024-12-04T10:30:00.000Z"
     },
     "blockchain": {
       "transactionHash": "0xabc123...",
@@ -1265,6 +1347,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 | data.voucher.id | String | รหัส voucher |
 | data.voucher.name | String | ชื่อ voucher |
 | data.voucher.description | String | รายละเอียด voucher |
+| data.voucher.imageUrl | String \| null | URL รูปภาพของ voucher |
 | data.voucher.valueType | String | ประเภทคูปอง (aispoint) |
 | data.voucher.value | Number | มูลค่าของ voucher (จำนวน AIS Point) |
 | data.voucher.merchantName | String | ชื่อร้านค้า |
@@ -1275,6 +1358,23 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 | data.redemption.redeemedBy | String | รหัสลูกค้าผู้แลก |
 | data.redemption.redeemedAt | String | วันเวลาที่แลก (ISO 8601) |
 | data.redemption.pointsCost | Number | คะแนนที่ใช้ในการแลก |
+| data.transaction | Object | ข้อมูล transaction บนระบบ |
+| data.transaction.id | String | รหัส transaction |
+| data.transaction.txHash | String | Transaction hash |
+| data.transaction.senderAddress | String | Wallet address ผู้ส่ง |
+| data.transaction.receiverAddress | String | Wallet address ผู้รับ |
+| data.transaction.transactionTypeId | Number | รหัสประเภท transaction |
+| data.transaction.amount | Number | จำนวนที่โอน |
+| data.transaction.transactionDirection | String | ทิศทางการทำธุรกรรม (SENT/RECEIVED) |
+| data.transaction.merchantId | String | รหัสร้านค้า |
+| data.transaction.merchantName | String | ชื่อร้านค้า |
+| data.transaction.point | Object \| null | ข้อมูลคะแนน/สกุลเงิน |
+| data.transaction.sender | Object | ข้อมูลผู้ส่ง |
+| data.transaction.receiver | Object | ข้อมูลผู้รับ |
+| data.transaction.voucherCodeId | String | รหัส voucher code |
+| data.transaction.valueType | String | ประเภทส่วนลด |
+| data.transaction.value | Number | มูลค่าส่วนลด |
+| data.transaction.createdAt | String | วันที่สร้าง transaction (ISO 8601) |
 | data.blockchain | Object/null | ข้อมูล transaction บน blockchain |
 | data.blockchain.transactionHash | String | Hash ของ transaction |
 | data.blockchain.blockNumber | Number | หมายเลข block |

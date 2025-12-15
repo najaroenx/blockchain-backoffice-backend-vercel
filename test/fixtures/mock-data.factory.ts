@@ -133,6 +133,68 @@ export const MockDataFactory = {
     eventId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    // Relations for nested response
+    point: null,
+    sender: null,
+    receiver: null,
+    merchant: null,
+    voucherCode: null,
+    ...overrides,
+  }),
+
+  /**
+   * Create mock transaction with full relations (for handler tests)
+   */
+  createMockTransactionWithRelations: (overrides = {}) => ({
+    id: 'tx-123',
+    txHash: Buffer.from(
+      'abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      'hex',
+    ),
+    senderAddress: Buffer.from(
+      '1234567890123456789012345678901234567890',
+      'hex',
+    ),
+    receiverAddress: Buffer.from(
+      'abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      'hex',
+    ),
+    amount: 100,
+    merchantId: 'merchant-123',
+    pointId: 'point-123',
+    senderId: 'merchant-123',
+    receiverId: 'customer-123',
+    transactionTypeId: 'TRANSFER',
+    voucherCodeId: null,
+    eventId: null,
+    createdAt: new Date('2025-12-11T10:00:00.000Z'),
+    updatedAt: new Date('2025-12-11T10:00:00.000Z'),
+    point: {
+      id: 'point-123',
+      name: 'Test Points',
+      symbol: 'TST',
+      imageUrl: 'https://example.com/point.png',
+    },
+    sender: {
+      id: 'merchant-123',
+      email: 'merchant@test.com',
+      wallet: {
+        walletAddress: '0x1234567890123456789012345678901234567890',
+      },
+    },
+    receiver: {
+      id: 'customer-123',
+      email: 'customer@test.com',
+      wallet: {
+        walletAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      },
+    },
+    merchant: {
+      id: 'merchant-123',
+      name: 'Test Merchant',
+      website: 'https://test-merchant.com',
+    },
+    voucherCode: null,
     ...overrides,
   }),
 

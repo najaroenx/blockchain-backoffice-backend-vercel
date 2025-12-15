@@ -106,8 +106,27 @@ describe('ActivateVoucher', () => {
       prisma.point.findUnique.mockResolvedValue(mockPoint);
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
 
+      blockchainService.getUserCouponBalance.mockResolvedValue({
+        address: '0x1234567890123456789012345678901234567890',
+        typeId: '12345',
+        balance: '100',
+      });
       blockchainService.getNFTBalance.mockResolvedValue(mockNFTBalance);
       blockchainService.addToWhitelist.mockResolvedValue({});
+      blockchainService.addToMarketplaceWhitelist.mockResolvedValue(mockTxResponse);
+      blockchainService.listCoupon.mockResolvedValue({
+        hash: '0xLISTING_TX_HASH',
+        listingId: 'listing-123',
+      });
+      blockchainService.getMarketplaceListing.mockResolvedValue({
+        listingId: 'listing-123',
+        seller: '0x1234567890123456789012345678901234567890',
+        typeId: '12345',
+        amount: '100',
+        pricePerUnit: '100',
+        paymentToken: '0xPOINT_ADDRESS',
+        isActive: true,
+      });
       blockchainService.createMarketplaceListing.mockResolvedValue(
         mockTxResponse,
       );
@@ -192,6 +211,15 @@ describe('ActivateVoucher', () => {
       prisma.point.findUnique.mockResolvedValue(
         MockDataFactory.createMockPoint(),
       );
+      prisma.merchant.findUnique.mockResolvedValue(
+        MockDataFactory.createMockMerchant({
+          id: 'merchant-123',
+          wallet: {
+            walletAddress: '0x1234567890123456789012345678901234567890',
+            privateKey: 'encrypted-key',
+          },
+        }),
+      );
 
       await expect(
         handler.execute(voucherId, 50, 100, 'point-123'),
@@ -237,6 +265,20 @@ describe('ActivateVoucher', () => {
 
       prisma.voucher.findUnique.mockResolvedValue(mockVoucher);
       prisma.point.findUnique.mockResolvedValue(mockPoint);
+      prisma.merchant.findUnique.mockResolvedValue(
+        MockDataFactory.createMockMerchant({
+          id: 'merchant-123',
+          wallet: {
+            walletAddress: '0x1234567890123456789012345678901234567890',
+            privateKey: 'encrypted-key',
+          },
+        }),
+      );
+      blockchainService.getUserCouponBalance.mockResolvedValue({
+        address: '0x1234567890123456789012345678901234567890',
+        typeId: '12345',
+        balance: '30',
+      });
       blockchainService.getNFTBalance.mockResolvedValue(mockNFTBalance);
 
       await expect(

@@ -60,6 +60,19 @@ describe('TransactionDBService', () => {
         merchantSender: true,
         merchantReceiver: true,
         point: true,
+        voucherCode: {
+          include: {
+            voucher: {
+              select: {
+                id: true,
+                name: true,
+                valueType: true,
+                value: true,
+                imageUrl: true,
+              },
+            },
+          },
+        },
       },
     });
     expect(result).toEqual([mockTransaction]);
@@ -78,6 +91,19 @@ describe('TransactionDBService', () => {
         merchantSender: true,
         merchantReceiver: true,
         point: true,
+        voucherCode: {
+          include: {
+            voucher: {
+              select: {
+                id: true,
+                name: true,
+                valueType: true,
+                value: true,
+                imageUrl: true,
+              },
+            },
+          },
+        },
       },
     });
     expect(result).toEqual([mockTransaction]);

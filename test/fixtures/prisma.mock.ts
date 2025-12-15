@@ -184,6 +184,8 @@ export const createMockBlockchainService = () => ({
   buyCoupon: jest.fn(),
   approveTHB: jest.fn(),
   mintTHB: jest.fn(),
+  getUserCouponBalance: jest.fn(),
+  addToMarketplaceWhitelist: jest.fn(),
 });
 
 /**
@@ -233,7 +235,7 @@ export const createMockTokenService = () => ({
   sign: jest.fn(),
   verify: jest.fn(),
   decode: jest.fn(),
-  decryptKey: jest.fn((encryptedKey) => {
+  decryptKey: jest.fn((salt, encryptedKey) => {
     // Return a valid private key format for tests
     if (encryptedKey) {
       return '0x1234567890123456789012345678901234567890123456789012345678901234';

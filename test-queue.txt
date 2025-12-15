@@ -1,0 +1,273 @@
+=== TEST QUEUE FOR 80% COVERAGE TARGET ===
+Current Coverage: 25.69% statements | Target: 80%
+Total Files Analyzed: 125 | Files Needing Tests: 80
+
+Priority Format: [Priority] File | Current Coverage | Impact Score | Test Complexity
+
+=== HIGH PRIORITY (Impact: High, Coverage: 0-20%) ===
+Business Logic Files - Critical to test first
+
+[1] src/modules/voucher/services/voucher-db.service.ts | 7.18% | HIGH | Complex
+    → 15 methods, core voucher CRUD operations, high business value
+
+[2] src/modules/transaction/handlers/createTransactionC2C.handler.ts | 0% | HIGH | Complex
+    → Customer-to-customer transfers, blockchain integration, critical business logic
+
+[3] src/modules/transaction/handlers/burnTransaction.handler.ts | 0% | HIGH | Medium
+    → Token burning logic, blockchain integration, financial operations
+
+[4] src/modules/transaction/handlers/mintTransaction.handler.ts | 0% | HIGH | Medium
+    → Token minting logic, blockchain integration, financial operations
+
+[5] src/modules/customer/services/customer-db.service.ts | 20.83% | HIGH | Complex
+    → Customer data operations, authentication dependencies
+
+[6] src/modules/merchant/services/merchant-db.service.ts | 15.62% | HIGH | Medium
+    → Merchant operations, business entity management
+
+[7] src/modules/point/services/point-db.service.ts | 14.7% | HIGH | Medium
+    → Point system CRUD, loyalty program core
+
+[8] src/modules/transaction/handlers/getTransactionsByCustomerId.handler.ts | 0% | HIGH | Medium
+    → Customer transaction history, reporting feature
+
+[9] src/modules/transaction/handlers/getTransactionsByMerchantId.handler.ts | 0% | HIGH | Medium
+    → Merchant transaction reporting, analytics
+
+[10] src/modules/transaction/handlers/getMerchantBalance.handler.ts | 0% | HIGH | Simple
+     → Balance query, blockchain read operation
+
+[11] src/modules/transaction/handlers/getTreasuryBalance.handler.ts | 0% | HIGH | Simple
+     → Treasury balance query, financial oversight
+
+[12] src/providers/blockchain.service.ts | 13.48% | HIGH | Complex
+     → Web3 integration, smart contract calls, critical infrastructure
+
+[13] src/modules/voucher/handlers/createVoucherWithCodes.handler.ts | 14.58% | HIGH | Complex
+     → Voucher creation, code generation, business logic
+
+[14] src/modules/voucher/handlers/getCustomerOwnedVouchers.handler.ts | 8.57% | HIGH | Medium
+     → Customer voucher list, ownership verification
+
+[15] src/modules/voucher/handlers/buyCouponFromMarketplace.handler.ts | 8.62% | HIGH | Complex
+     → Marketplace purchase, payment flow, blockchain transaction
+
+[16] src/modules/voucher/handlers/merchantBuyCouponFromSeller.handler.ts | 12.5% | HIGH | Complex
+     → B2B voucher purchase, merchant interactions
+
+[17] src/modules/voucher/handlers/addToWhitelist.handler.ts | 10% | MEDIUM | Simple
+     → Whitelist management, access control
+
+[18] src/modules/voucher/handlers/sellerListOnMarketplace.handler.ts | 11.29% | MEDIUM | Medium
+     → Marketplace listing creation, seller operations
+
+[19] src/modules/voucher/handlers/getVoucherByListingId.handler.ts | 16.21% | MEDIUM | Simple
+     → Listing details, marketplace query
+
+[20] src/modules/voucher/handlers/getMarketplaceListings.handler.ts | 14.89% | MEDIUM | Medium
+     → Marketplace browsing, listing filters
+
+=== MEDIUM PRIORITY (Impact: Medium, Coverage: 0-40%) ===
+Supporting Features - Important for overall stability
+
+[21] src/modules/customer/handlers/getCustomerById.handler.ts | 0% | MEDIUM | Simple
+     → Basic CRUD operation, customer retrieval
+
+[22] src/modules/customer/handlers/getCustomerPhoneDevForResp.handler.ts | 0% | MEDIUM | Simple
+     → Dev helper, phone number formatting
+
+[23] src/modules/customer/handlers/getCustomerPoints.handler.ts | 0% | MEDIUM | Medium
+     → Customer loyalty points query
+
+[24] src/modules/customer/handlers/getCustomersByMerchantId.handler.ts | 0% | MEDIUM | Medium
+     → Merchant customer list, CRM feature
+
+[25] src/modules/customer/handlers/registerCustomer.dev.handler.ts | 0% | MEDIUM | Medium
+     → Development registration endpoint
+
+[26] src/modules/customer/handlers/createCustomer.handler.ts | 27.02% | MEDIUM | Complex
+     → Customer registration, wallet creation
+
+[27] src/modules/customer/handlers/getCustomerByPhone.handler.ts | 14.7% | MEDIUM | Medium
+     → Customer lookup by phone, authentication
+
+[28] src/modules/customer/handlers/updateCustomer.handler.ts | 41.17% | MEDIUM | Medium
+     → Customer profile updates
+
+[29] src/modules/merchant/handlers/createMerchant.handler.ts | 0% | MEDIUM | Complex
+     → Merchant onboarding, business entity creation
+
+[30] src/modules/merchant/handlers/getMerchants.handler.ts | 0% | MEDIUM | Simple
+     → Merchant list, admin view
+
+[31] src/modules/merchant/handlers/deleteMerchant.handler.ts | 0% | MEDIUM | Medium
+     → Merchant removal, data cleanup
+
+[32] src/modules/merchant/handlers/getMerchantById.handler.ts | 40% | MEDIUM | Simple
+     → Merchant details retrieval
+
+[33] src/modules/merchant/handlers/updateMerchant.handler.ts | 0% | MEDIUM | Medium
+     → Merchant profile updates
+
+[34] src/modules/voucher/handlers/getSellerVouchers.handler.ts | 23.8% | MEDIUM | Medium
+     → Seller voucher inventory
+
+[35] src/modules/voucher/handlers/redeemVoucher.handler.ts | 42.28% | MEDIUM | Complex
+     → Voucher redemption, blockchain transaction
+
+[36] src/modules/voucher/handlers/activateVoucher.handler.ts | 52.77% | LOW | Medium
+     → Voucher activation, status change
+
+[37] src/modules/point/handlers/getPointsByMerchantId.handler.ts | 51.66% | MEDIUM | Medium
+     → Merchant point types list
+
+=== AUTH & SESSION PRIORITY (Impact: High, Coverage: 0%) ===
+Security Critical - Authentication & Authorization
+
+[38] src/modules/auth/auth.strategy.ts | 0% | HIGH | Medium
+     → Authentication strategy, API key validation
+
+[39] src/modules/auth/auth.guard.ts (custom-auth.guard.ts) | 0% | HIGH | Medium
+     → Request authorization, guard implementation
+
+[40] src/modules/auth/services/auth.service.ts | 0% | HIGH | Complex
+     → Authentication logic, token management
+
+[41] src/modules/session/handlers/createSession.handler.ts | 0% | MEDIUM | Simple
+     → Session creation, user login
+
+[42] src/modules/session/handlers/getSessionByToken.handler.ts | 0% | MEDIUM | Simple
+     → Session validation, token lookup
+
+[43] src/modules/session/services/session-db.service.ts | 0% | MEDIUM | Simple
+     → Session CRUD operations
+
+=== TEMPLINK & OTP PRIORITY (Impact: Medium, Coverage: 0-20%) ===
+User Experience Features
+
+[44] src/modules/templink/handlers/createOTP.handler.ts | 0% | MEDIUM | Medium
+     → OTP generation, SMS integration
+
+[45] src/modules/templink/handlers/verifyOTP.handler.ts | 0% | MEDIUM | Medium
+     → OTP validation, security check
+
+[46] src/modules/templink/handlers/reSendOTP.handler.ts | 0% | MEDIUM | Simple
+     → OTP resend logic
+
+[47] src/modules/templink/handlers/createTempLink.handler.ts | 0% | MEDIUM | Simple
+     → Temporary link generation
+
+[48] src/modules/templink/handlers/getTempLinkByUid.handler.ts | 0% | MEDIUM | Simple
+     → Link retrieval by UID
+
+[49] src/modules/templink/handlers/getTempLinksByMerchant.handler.ts | 0% | MEDIUM | Simple
+     → Merchant link list
+
+[50] src/modules/templink/handlers/deleteTempLink.handler.ts | 0% | MEDIUM | Simple
+     → Link deletion
+
+[51] src/modules/templink/handlers/updateTempLink.handler.ts | 0% | MEDIUM | Simple
+     → Link updates
+
+[52] src/modules/templink/service/templink-db.service.ts | 20.83% | MEDIUM | Medium
+     → Templink CRUD operations
+
+=== WALLET & ADMIN PRIORITY (Impact: Medium, Coverage: 0%) ===
+Supporting Infrastructure
+
+[53] src/modules/wallet/handlers/getWalletByPhoneOrEmail.handler.ts | 0% | MEDIUM | Simple
+     → Wallet lookup, customer service
+
+[54] src/modules/wallet/services/wallet-db.service.ts | 0% | MEDIUM | Simple
+     → Wallet CRUD operations
+
+[55] src/modules/admin/handlers/mintTHBToMerchant.handler.ts | 0% | MEDIUM | Medium
+     → Admin treasury operations, token minting
+
+[56] src/modules/dashboard/handlers/dashboard.handler.ts | 0% | LOW | Medium
+     → Dashboard metrics, analytics
+
+=== API KEY HANDLERS (Impact: Low, Coverage: 0-46%) ===
+API Management - Lower Priority
+
+[57] src/modules/api-key/handlers/deleteApiKey.handler.ts | 33.33% | LOW | Simple
+     → API key deletion
+
+[58] src/modules/api-key/handlers/getApiKey.handler.ts | 0% | LOW | Simple
+     → API key retrieval
+
+[59] src/modules/api-key/handlers/getApiKeys.handler.ts | 46.15% | LOW | Simple
+     → API key list
+
+=== UTILITY & INFRASTRUCTURE (Impact: Low-Medium, Coverage: 0-38%) ===
+Supporting Code
+
+[60] src/providers/token.service.ts | 23.52% | MEDIUM | Simple
+     → JWT token operations
+
+[61] src/repository/PrismaRepository.ts | 38.88% | MEDIUM | Complex
+     → Generic repository pattern, database abstraction
+
+[62] src/libs/createBufferFromHex.ts | 66.66% | LOW | Simple
+     → Utility function, hex conversion
+
+[63] src/modules/voucher/utils/generate-codes.util.ts | 0% | LOW | Simple
+     → Voucher code generation utility
+
+[64] src/common/response.interceptor.ts | 0% | LOW | Simple
+     → Response formatting, HTTP interceptor
+
+[65] src/common/dtos/pagination.dto.ts | 0% | LOW | Simple
+     → Pagination DTO, data structure
+
+=== CONTROLLERS (Impact: Low, Coverage: 0-65%) ===
+Controller Layer - Lower Priority (Thin Layer)
+
+[66] src/modules/customer/controllers/customer.controller.ts | 0% | LOW | Simple
+[67] src/modules/merchant/controllers/merchant.controller.ts | 0% | LOW | Simple
+[68] src/modules/transaction/controllers/transaction.controller.ts | 0% | LOW | Simple
+[69] src/modules/transaction/controllers/global-transaction.controller.ts | 0% | LOW | Simple
+[70] src/modules/transaction/controllers/treasury.controller.ts | 0% | LOW | Simple
+[71] src/modules/point/controllers/point.controller.ts | 0% | LOW | Simple
+[72] src/modules/point/controllers/global-point.controller.ts | 0% | LOW | Simple
+[73] src/modules/templink/controllers/templink.controller.ts | 0% | LOW | Simple
+[74] src/modules/wallet/controllers/wallet.controller.ts | 0% | LOW | Simple
+[75] src/modules/session/controllers/session.controller.ts | 0% | LOW | Simple
+[76] src/modules/admin/controllers/admin.controller.ts | 0% | LOW | Simple
+[77] src/modules/auth/controllers/auth.controller.ts | 0% | LOW | Simple
+[78] src/modules/dashboard/controllers/dashboard.controller.ts | 0% | LOW | Simple
+[79] src/modules/voucher/controllers/voucher.controller.ts | 65.97% | LOW | Simple
+
+=== REPOSITORIES (Impact: Low, Coverage: 0-85%) ===
+Repository Layer - Very Low Priority (Generic CRUD)
+
+[80] src/modules/session/session.repository.ts | 0% | LOW | Simple
+[81] src/modules/wallet/wallet.repository.ts | 0% | LOW | Simple
+
+=== IMPLEMENTATION STRATEGY ===
+
+Phase 1 (Files 1-20): Core Business Logic
+Target: +35% coverage | Estimated Time: 3-4 hours
+Focus: Voucher service, transaction handlers, blockchain service
+
+Phase 2 (Files 21-37): Supporting Features  
+Target: +20% coverage | Estimated Time: 2-3 hours
+Focus: Customer/Merchant handlers, remaining voucher handlers
+
+Phase 3 (Files 38-52): Auth & User Experience
+Target: +15% coverage | Estimated Time: 2 hours
+Focus: Authentication, session, OTP/templink handlers
+
+Phase 4 (Files 53-65): Infrastructure & Utilities
+Target: +10% coverage | Estimated Time: 1-2 hours
+Focus: Remaining services, utilities, infrastructure code
+
+Skip for Now (Files 66-81): Controllers & Repositories
+Reason: Thin layer with minimal logic, low ROI for coverage
+
+=== ESTIMATED PROGRESS ===
+Files 1-20:  Will reach ~60% coverage
+Files 21-40: Will reach ~75% coverage  
+Files 41-55: Will reach ~85% coverage (GOAL ACHIEVED)
+
+Recommendation: Focus on files 1-55 to reach 80%+ coverage efficiently

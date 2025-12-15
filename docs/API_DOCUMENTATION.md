@@ -639,7 +639,7 @@ Same as **Section 3** (Get Point Transactions by Customer Phone) but includes tr
       "id": "cm4p9kv7j003y7w5xhps7krvz",
       "transactionTypeId": "MARKETPLACE_PURCHASE",
       "amount": 100,
-      "direction": "SENT",
+      "transactionDirection": "SENT",
       "point": {
         "id": "cm4ohkm5l000099b5ebs3eltd",
         "name": "AIS Points",
@@ -663,7 +663,7 @@ Same as **Section 3** (Get Point Transactions by Customer Phone) but includes tr
       "id": "cm4another123",
       "transactionTypeId": "TRANSFER",
       "amount": 50,
-      "direction": "RECEIVED",
+      "transactionDirection": "RECEIVED",
       "point": {
         "id": "point_true",
         "name": "TRUE Points",

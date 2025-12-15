@@ -68,6 +68,10 @@ describe('RedeemVoucher', () => {
       const mockCustomer = MockDataFactory.createMockCustomer({
         id: 'customer-123',
         tel: phone,
+        wallet: {
+          walletAddress: '0xCustomerAddress123',
+          privateKey: 'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
       });
 
       const mockVoucher = MockDataFactory.createMockVoucher({

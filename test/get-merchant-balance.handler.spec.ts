@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GetWalletBalance } from '../src/modules/transaction/handlers/getMerchantBalance.handler';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import { GetPointById } from '../src/modules/point/handlers/getPointById.handler';
-import { InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 
 describe('GetWalletBalance', () => {
   let handler: GetWalletBalance;
@@ -45,7 +48,9 @@ describe('GetWalletBalance', () => {
     }).compile();
 
     handler = module.get<GetWalletBalance>(GetWalletBalance);
-    blockchainService = module.get(BlockchainService) as jest.Mocked<BlockchainService>;
+    blockchainService = module.get(
+      BlockchainService,
+    ) as jest.Mocked<BlockchainService>;
     getPointByIdHandler = module.get(GetPointById) as jest.Mocked<GetPointById>;
   });
 
@@ -56,7 +61,9 @@ describe('GetWalletBalance', () => {
   describe('execute', () => {
     it('should return wallet balance successfully', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       blockchainService.getBalance.mockResolvedValue('1000.5');
 
       // Act
@@ -77,7 +84,9 @@ describe('GetWalletBalance', () => {
 
     it('should handle zero balance', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       blockchainService.getBalance.mockResolvedValue('0');
 
       // Act
@@ -89,7 +98,9 @@ describe('GetWalletBalance', () => {
 
     it('should handle large balance', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       blockchainService.getBalance.mockResolvedValue('999999999.99');
 
       // Act
@@ -101,7 +112,9 @@ describe('GetWalletBalance', () => {
 
     it('should handle decimal balance', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       blockchainService.getBalance.mockResolvedValue('123.456789');
 
       // Act
@@ -113,19 +126,29 @@ describe('GetWalletBalance', () => {
 
     it('should throw InternalServerErrorException if point not found', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockRejectedValue(new NotFoundException('Point not found'));
+      getPointByIdHandler.execute.mockRejectedValue(
+        new NotFoundException('Point not found'),
+      );
 
       // Act & Assert
-      await expect(handler.execute(mockPointId, mockWalletAddress)).rejects.toThrow(NotFoundException);
+      await expect(
+        handler.execute(mockPointId, mockWalletAddress),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw InternalServerErrorException on blockchain error', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
-      blockchainService.getBalance.mockRejectedValue(new Error('Blockchain RPC error'));
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
+      blockchainService.getBalance.mockRejectedValue(
+        new Error('Blockchain RPC error'),
+      );
 
       // Act & Assert
-      await expect(handler.execute(mockPointId, mockWalletAddress)).rejects.toThrow(InternalServerErrorException);
+      await expect(
+        handler.execute(mockPointId, mockWalletAddress),
+      ).rejects.toThrow(InternalServerErrorException);
     });
 
     it('should preserve HttpException from point handler', async () => {
@@ -135,22 +158,34 @@ describe('GetWalletBalance', () => {
       getPointByIdHandler.execute.mockRejectedValue(httpError);
 
       // Act & Assert
-      await expect(handler.execute(mockPointId, mockWalletAddress)).rejects.toThrow(NotFoundException);
-      await expect(handler.execute(mockPointId, mockWalletAddress)).rejects.toThrow('Point not found');
+      await expect(
+        handler.execute(mockPointId, mockWalletAddress),
+      ).rejects.toThrow(NotFoundException);
+      await expect(
+        handler.execute(mockPointId, mockWalletAddress),
+      ).rejects.toThrow('Point not found');
     });
 
     it('should handle blockchain timeout error', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
-      blockchainService.getBalance.mockRejectedValue(new Error('Connection timeout'));
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
+      blockchainService.getBalance.mockRejectedValue(
+        new Error('Connection timeout'),
+      );
 
       // Act & Assert
-      await expect(handler.execute(mockPointId, mockWalletAddress)).rejects.toThrow(InternalServerErrorException);
+      await expect(
+        handler.execute(mockPointId, mockWalletAddress),
+      ).rejects.toThrow(InternalServerErrorException);
     });
 
     it('should call getPointById without merchantId parameter', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       blockchainService.getBalance.mockResolvedValue('500');
 
       // Act
@@ -169,7 +204,9 @@ describe('GetWalletBalance', () => {
         '0x0000000000000000000000000000000000000000',
       ];
 
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       blockchainService.getBalance.mockResolvedValue('100');
 
       // Act & Assert
@@ -184,7 +221,9 @@ describe('GetWalletBalance', () => {
 
     it('should return correct response structure', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       blockchainService.getBalance.mockResolvedValue('750.25');
 
       // Act
@@ -199,7 +238,9 @@ describe('GetWalletBalance', () => {
 
     it('should handle multiple consecutive calls', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       blockchainService.getBalance
         .mockResolvedValueOnce('100')
         .mockResolvedValueOnce('200')
@@ -219,12 +260,20 @@ describe('GetWalletBalance', () => {
 
     it('should throw InternalServerErrorException on unexpected error', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
-      blockchainService.getBalance.mockRejectedValue(new Error('Unexpected error'));
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
+      blockchainService.getBalance.mockRejectedValue(
+        new Error('Unexpected error'),
+      );
 
       // Act & Assert
-      await expect(handler.execute(mockPointId, mockWalletAddress)).rejects.toThrow(InternalServerErrorException);
-      await expect(handler.execute(mockPointId, mockWalletAddress)).rejects.toThrow('500000: Internal server error');
+      await expect(
+        handler.execute(mockPointId, mockWalletAddress),
+      ).rejects.toThrow(InternalServerErrorException);
+      await expect(
+        handler.execute(mockPointId, mockWalletAddress),
+      ).rejects.toThrow('500000: Internal server error');
     });
 
     it('should handle point with different contract address', async () => {
@@ -233,7 +282,9 @@ describe('GetWalletBalance', () => {
         ...mockPoint,
         contractAddress: '0xDifferentContract999',
       };
-      getPointByIdHandler.execute.mockResolvedValue({ point: differentPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: differentPoint as any,
+      });
       blockchainService.getBalance.mockResolvedValue('555');
 
       // Act

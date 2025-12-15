@@ -106,10 +106,9 @@ describe('GetVoucherTransactionsByCustomerPhone', () => {
       expect(mockCustomerDB.getCustomerByPhoneDetailed).toHaveBeenCalledWith(
         phone,
       );
-      expect(mockTransactionDB.getTransactionsByCustomerId).toHaveBeenCalledWith(
-        'customer-123',
-        merchantId,
-      );
+      expect(
+        mockTransactionDB.getTransactionsByCustomerId,
+      ).toHaveBeenCalledWith('customer-123', merchantId);
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].transactionTypeId).toBe('VOUCHER_TRANSFER');
       expect(result.transactions[1].transactionTypeId).toBe('REDEEM');
@@ -241,10 +240,12 @@ describe('GetVoucherTransactionsByCustomerPhone', () => {
 
       const result = await handler.execute(null, phone);
 
-      expect(mockTransactionDB.getAllTransactionsByCustomerId).toHaveBeenCalledWith(
-        'customer-123',
-      );
-      expect(mockTransactionDB.getTransactionsByCustomerId).not.toHaveBeenCalled();
+      expect(
+        mockTransactionDB.getAllTransactionsByCustomerId,
+      ).toHaveBeenCalledWith('customer-123');
+      expect(
+        mockTransactionDB.getTransactionsByCustomerId,
+      ).not.toHaveBeenCalled();
       expect(result.transactions).toHaveLength(2);
     });
 

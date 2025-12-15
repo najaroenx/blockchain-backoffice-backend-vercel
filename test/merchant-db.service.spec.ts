@@ -95,9 +95,9 @@ describe('MerchantDBService', () => {
 
       repository.create.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.createMerchant('user-1', createData)).rejects.toThrow(
-        'Database error',
-      );
+      await expect(
+        service.createMerchant('user-1', createData),
+      ).rejects.toThrow('Database error');
     });
   });
 
@@ -176,7 +176,11 @@ describe('MerchantDBService', () => {
         location: 'Phuket',
       };
 
-      const updatedMerchant = { ...mockMerchant, name: 'Updated Merchant', location: 'Phuket' };
+      const updatedMerchant = {
+        ...mockMerchant,
+        name: 'Updated Merchant',
+        location: 'Phuket',
+      };
       repository.update.mockResolvedValue(updatedMerchant);
 
       const result = await service.updateMerchant('merchant-1', updateData);
@@ -197,9 +201,9 @@ describe('MerchantDBService', () => {
 
       repository.update.mockRejectedValue(new Error('Merchant not found'));
 
-      await expect(service.updateMerchant('invalid-id', updateData)).rejects.toThrow(
-        'Merchant not found',
-      );
+      await expect(
+        service.updateMerchant('invalid-id', updateData),
+      ).rejects.toThrow('Merchant not found');
     });
   });
 
@@ -220,7 +224,9 @@ describe('MerchantDBService', () => {
     it('should throw error if merchant not found', async () => {
       repository.delete.mockRejectedValue(new Error('Merchant not found'));
 
-      await expect(service.deleteMerchant('invalid-id')).rejects.toThrow('Merchant not found');
+      await expect(service.deleteMerchant('invalid-id')).rejects.toThrow(
+        'Merchant not found',
+      );
     });
   });
 

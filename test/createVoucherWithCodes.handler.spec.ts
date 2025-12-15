@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CreateVoucherWithCodes } from '../src/modules/voucher/handlers/createVoucherWithCodes.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
-import { ConflictException, InternalServerErrorException } from '@nestjs/common';
+import {
+  ConflictException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { CreateVoucherDto } from '../src/modules/voucher/dtos/voucher.dto';
 import { VoucherValueType } from '@prisma/client';
 
@@ -113,7 +116,9 @@ describe('CreateVoucherWithCodes', () => {
     it('should successfully create voucher with point validation', async () => {
       prismaService.point.findUnique.mockResolvedValue(mockPoint);
       prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);
-      blockchainService.createCouponType.mockResolvedValue(mockBlockchainResult);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
 
       prismaService.$transaction.mockImplementation(async (callback: any) => {
         return await callback({
@@ -131,7 +136,9 @@ describe('CreateVoucherWithCodes', () => {
       expect(result.pointId).toBe('point-1');
       expect(result.pointSymbol).toBe('REWARD');
       expect(result.message).toContain('Voucher created successfully');
-      expect(result.note).toBe('Voucher codes will be created when activating the voucher');
+      expect(result.note).toBe(
+        'Voucher codes will be created when activating the voucher',
+      );
 
       expect(prismaService.point.findUnique).toHaveBeenCalledWith({
         where: { id: 'point-1' },
@@ -149,7 +156,9 @@ describe('CreateVoucherWithCodes', () => {
       delete dtoWithoutPoint.pointId;
 
       prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);
-      blockchainService.createCouponType.mockResolvedValue(mockBlockchainResult);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
 
       prismaService.$transaction.mockImplementation(async (callback: any) => {
         return await callback({
@@ -166,17 +175,23 @@ describe('CreateVoucherWithCodes', () => {
 
       expect(result.success).toBe(true);
       expect(result.pointSymbol).toBeNull();
-      expect(result.message).toContain('Merchant will set point currency during activation');
+      expect(result.message).toContain(
+        'Merchant will set point currency during activation',
+      );
       expect(prismaService.point.findUnique).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException when point not found', async () => {
       prismaService.point.findUnique.mockResolvedValue(null);
       prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);
-      blockchainService.createCouponType.mockResolvedValue(mockBlockchainResult);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
 
       await expect(handler.execute(createVoucherDto)).rejects.toThrow(
-        new ConflictException(`Point with ID ${createVoucherDto.pointId} not found`),
+        new ConflictException(
+          `Point with ID ${createVoucherDto.pointId} not found`,
+        ),
       );
 
       expect(prismaService.point.findUnique).toHaveBeenCalledWith({
@@ -192,7 +207,9 @@ describe('CreateVoucherWithCodes', () => {
       };
       prismaService.point.findUnique.mockResolvedValue(differentMerchantPoint);
       prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);
-      blockchainService.createCouponType.mockResolvedValue(mockBlockchainResult);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
 
       await expect(handler.execute(createVoucherDto)).rejects.toThrow(
         new ConflictException('Point does not belong to this merchant'),
@@ -202,7 +219,9 @@ describe('CreateVoucherWithCodes', () => {
     it('should handle merchant not found gracefully', async () => {
       prismaService.point.findUnique.mockResolvedValue(mockPoint);
       prismaService.merchant.findUnique.mockResolvedValue(null);
-      blockchainService.createCouponType.mockResolvedValue(mockBlockchainResult);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
 
       prismaService.$transaction.mockImplementation(async (callback: any) => {
         return await callback({
@@ -224,7 +243,9 @@ describe('CreateVoucherWithCodes', () => {
     it('should throw ConflictException for duplicate coupon ID', async () => {
       prismaService.point.findUnique.mockResolvedValue(mockPoint);
       prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);
-      blockchainService.createCouponType.mockResolvedValue(mockBlockchainResult);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
 
       const duplicateError: any = new Error('Unique constraint failed');
       duplicateError.code = 'P2002';
@@ -240,9 +261,13 @@ describe('CreateVoucherWithCodes', () => {
     it('should throw InternalServerErrorException for general errors', async () => {
       prismaService.point.findUnique.mockResolvedValue(mockPoint);
       prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);
-      blockchainService.createCouponType.mockResolvedValue(mockBlockchainResult);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
 
-      prismaService.$transaction.mockRejectedValue(new Error('Database connection failed'));
+      prismaService.$transaction.mockRejectedValue(
+        new Error('Database connection failed'),
+      );
 
       await expect(handler.execute(createVoucherDto)).rejects.toThrow(
         new InternalServerErrorException('Failed to create voucher'),
@@ -272,7 +297,9 @@ describe('CreateVoucherWithCodes', () => {
     it('should convert date strings to timestamps for blockchain', async () => {
       prismaService.point.findUnique.mockResolvedValue(mockPoint);
       prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);
-      blockchainService.createCouponType.mockResolvedValue(mockBlockchainResult);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
 
       prismaService.$transaction.mockImplementation(async (callback: any) => {
         return await callback({
@@ -290,7 +317,8 @@ describe('CreateVoucherWithCodes', () => {
         expect.any(Number), // endTimestamp
       );
 
-      const [, startTimestamp, endTimestamp] = blockchainService.createCouponType.mock.calls[0];
+      const [, startTimestamp, endTimestamp] =
+        blockchainService.createCouponType.mock.calls[0];
       expect(startTimestamp).toBeGreaterThan(0);
       expect(endTimestamp).toBeGreaterThan(startTimestamp);
     });
@@ -298,7 +326,9 @@ describe('CreateVoucherWithCodes', () => {
     it('should pass correct transaction timeout', async () => {
       prismaService.point.findUnique.mockResolvedValue(mockPoint);
       prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);
-      blockchainService.createCouponType.mockResolvedValue(mockBlockchainResult);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
 
       prismaService.$transaction.mockImplementation(async (callback: any) => {
         return await callback({

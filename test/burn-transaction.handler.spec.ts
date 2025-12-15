@@ -324,7 +324,8 @@ describe('BurnTransaction', () => {
       await handler.execute(mockMerchantId, mockPointId, mockBurnData);
 
       // Assert
-      const createCall = transactionDBService.createTransaction.mock.calls[0][0];
+      const createCall =
+        transactionDBService.createTransaction.mock.calls[0][0];
       const receiverAddressBuffer = createCall.receiverAddress as Buffer;
       const receiverAddressHex = '0x' + receiverAddressBuffer.toString('hex');
 
@@ -476,7 +477,9 @@ describe('BurnTransaction', () => {
       transactionDBService.createTransaction.mockResolvedValue(
         mockTransaction as any,
       );
-      updateCustomer.execute.mockRejectedValue(new Error('Balance update failed'));
+      updateCustomer.execute.mockRejectedValue(
+        new Error('Balance update failed'),
+      );
 
       // Act & Assert
       await expect(

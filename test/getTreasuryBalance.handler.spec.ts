@@ -3,7 +3,10 @@ import { GetTreasuryBalance } from '../src/modules/transaction/handlers/getTreas
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import { GetPointById } from '../src/modules/point/handlers/getPointById.handler';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import {
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { INTERNAL_SERVER_ERROR } from '../src/errors/error.constants';
 
 describe('GetTreasuryBalance', () => {
@@ -130,9 +133,13 @@ describe('GetTreasuryBalance', () => {
       const treasuryType = 'MERCHANT_RESERVE';
 
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
-      getPointByIdHandler.execute.mockRejectedValue(new NotFoundException('Point not found'));
+      getPointByIdHandler.execute.mockRejectedValue(
+        new NotFoundException('Point not found'),
+      );
 
-      await expect(handler.execute(pointId, treasuryType)).rejects.toThrow(NotFoundException);
+      await expect(handler.execute(pointId, treasuryType)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(prismaService.treasury.findUnique).toHaveBeenCalledWith({
         where: { type: treasuryType },
@@ -147,7 +154,9 @@ describe('GetTreasuryBalance', () => {
 
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
       getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint });
-      blockchainService.getBalance.mockRejectedValue(new Error('Blockchain connection failed'));
+      blockchainService.getBalance.mockRejectedValue(
+        new Error('Blockchain connection failed'),
+      );
 
       await expect(handler.execute(pointId, treasuryType)).rejects.toThrow(
         new InternalServerErrorException(INTERNAL_SERVER_ERROR),
@@ -209,7 +218,8 @@ describe('GetTreasuryBalance', () => {
     it('should pass correct contract address to blockchain service', async () => {
       const pointId = 'point-1';
       const treasuryType = 'MERCHANT_RESERVE';
-      const customContractAddress = '0x5555555555555555555555555555555555555555';
+      const customContractAddress =
+        '0x5555555555555555555555555555555555555555';
       const customPoint = {
         ...mockPoint,
         contractAddress: customContractAddress,
@@ -232,7 +242,9 @@ describe('GetTreasuryBalance', () => {
       const treasuryType = 'MERCHANT_RESERVE';
 
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
-      getPointByIdHandler.execute.mockRejectedValue(new Error('Unexpected database error'));
+      getPointByIdHandler.execute.mockRejectedValue(
+        new Error('Unexpected database error'),
+      );
 
       await expect(handler.execute(pointId, treasuryType)).rejects.toThrow(
         new InternalServerErrorException(INTERNAL_SERVER_ERROR),
@@ -247,7 +259,9 @@ describe('GetTreasuryBalance', () => {
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
       getPointByIdHandler.execute.mockRejectedValue(notFoundError);
 
-      await expect(handler.execute(pointId, treasuryType)).rejects.toThrow(notFoundError);
+      await expect(handler.execute(pointId, treasuryType)).rejects.toThrow(
+        notFoundError,
+      );
     });
 
     it('should handle decimal balance values', async () => {

@@ -371,7 +371,8 @@ describe('MintTransaction', () => {
       await handler.execute(mockMerchantId, mockPointId, mockMintData);
 
       // Assert
-      const createCall = transactionDBService.createTransaction.mock.calls[0][0];
+      const createCall =
+        transactionDBService.createTransaction.mock.calls[0][0];
       const senderAddressBuffer = createCall.senderAddress as Buffer;
       const senderAddressHex = '0x' + senderAddressBuffer.toString('hex');
 
@@ -398,7 +399,11 @@ describe('MintTransaction', () => {
       updateCustomer.execute.mockResolvedValue({} as any);
 
       // Act
-      await handler.execute(mockMerchantId, mockPointId, dataWithMetadata as any);
+      await handler.execute(
+        mockMerchantId,
+        mockPointId,
+        dataWithMetadata as any,
+      );
 
       // Assert
       expect(transactionDBService.createTransaction).toHaveBeenCalledWith(
@@ -516,7 +521,9 @@ describe('MintTransaction', () => {
       transactionDBService.createTransaction.mockResolvedValue(
         mockTransaction as any,
       );
-      updateCustomer.execute.mockRejectedValue(new Error('Balance update failed'));
+      updateCustomer.execute.mockRejectedValue(
+        new Error('Balance update failed'),
+      );
 
       // Act & Assert
       await expect(
@@ -526,7 +533,9 @@ describe('MintTransaction', () => {
 
     it('should throw InternalServerErrorException if point not found', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockRejectedValue(new Error('Point not found'));
+      getPointByIdHandler.execute.mockRejectedValue(
+        new Error('Point not found'),
+      );
 
       // Act & Assert
       await expect(
@@ -566,14 +575,17 @@ describe('MintTransaction', () => {
       await handler.execute(mockMerchantId, mockPointId, mockMintData);
 
       // Assert
-      expect(updateCustomer.execute).toHaveBeenCalledWith(customerZeroBalance.id, {
-        customerPoints: {
-          update: {
-            where: { id: 'cp-1' },
-            data: { balances: 100 }, // 0 + 100
+      expect(updateCustomer.execute).toHaveBeenCalledWith(
+        customerZeroBalance.id,
+        {
+          customerPoints: {
+            update: {
+              where: { id: 'cp-1' },
+              data: { balances: 100 }, // 0 + 100
+            },
           },
         },
-      });
+      );
     });
 
     it('should handle small mint amounts', async () => {

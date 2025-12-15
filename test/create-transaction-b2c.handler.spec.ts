@@ -127,7 +127,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0xMerchantAddress123',
-          privateKey: 'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
       });
 
@@ -198,7 +199,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0xMerchantAddress123',
-          privateKey: 'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
       });
 
@@ -263,7 +265,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0xMerchantAddress123',
-          privateKey: 'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
       });
 
@@ -332,7 +335,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0xMerchantAddress123',
-          privateKey: 'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
       });
 
@@ -360,7 +364,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0xMerchantAddress123',
-          privateKey: 'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
       });
 

@@ -34,7 +34,10 @@ describe('CustomerDBService', () => {
     symbol: 'TST',
     decimal: 18,
     initialSupply: 1000000,
-    contractAddress: Buffer.from('0x1111111111111111111111111111111111111111', 'hex'),
+    contractAddress: Buffer.from(
+      '0x1111111111111111111111111111111111111111',
+      'hex',
+    ),
     startDate: new Date(),
     endDate: new Date(Date.now() + 86400000),
     epochDuration: 259200,
@@ -116,7 +119,9 @@ describe('CustomerDBService', () => {
 
       repository.create.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.createCustomer(createData)).rejects.toThrow('Database error');
+      await expect(service.createCustomer(createData)).rejects.toThrow(
+        'Database error',
+      );
     });
   });
 
@@ -127,7 +132,11 @@ describe('CustomerDBService', () => {
         lastName: 'Smith',
       };
 
-      const updatedCustomer = { ...mockCustomer, firstName: 'Jane', lastName: 'Smith' };
+      const updatedCustomer = {
+        ...mockCustomer,
+        firstName: 'Jane',
+        lastName: 'Smith',
+      };
       repository.update.mockResolvedValue(updatedCustomer);
 
       const result = await service.updateCustomer('customer-1', updateData);
@@ -146,9 +155,9 @@ describe('CustomerDBService', () => {
 
       repository.update.mockRejectedValue(new Error('Customer not found'));
 
-      await expect(service.updateCustomer('invalid-id', updateData)).rejects.toThrow(
-        'Customer not found',
-      );
+      await expect(
+        service.updateCustomer('invalid-id', updateData),
+      ).rejects.toThrow('Customer not found');
     });
   });
 
@@ -163,7 +172,10 @@ describe('CustomerDBService', () => {
       repository.count.mockResolvedValue(1);
       repository.findMany.mockResolvedValue(customersWithWallet);
 
-      const result = await service.getCustomersByMerchant('merchant-1', pageOptionsDto);
+      const result = await service.getCustomersByMerchant(
+        'merchant-1',
+        pageOptionsDto,
+      );
 
       expect(result.customers).toEqual(customersWithWallet);
       expect(result.count).toBe(1);
@@ -205,7 +217,10 @@ describe('CustomerDBService', () => {
       repository.count.mockResolvedValue(0);
       repository.findMany.mockResolvedValue([]);
 
-      const result = await service.getCustomersByMerchant('merchant-1', pageOptionsDto);
+      const result = await service.getCustomersByMerchant(
+        'merchant-1',
+        pageOptionsDto,
+      );
 
       expect(result.customers).toEqual([]);
       expect(result.count).toBe(0);
@@ -248,7 +263,10 @@ describe('CustomerDBService', () => {
 
       repository.findFirst.mockResolvedValue(customerWithRelations);
 
-      const result = await service.getCustomersByEmail('merchant-1', 'test@example.com');
+      const result = await service.getCustomersByEmail(
+        'merchant-1',
+        'test@example.com',
+      );
 
       expect(result).toEqual(customerWithRelations);
       expect(repository.findFirst).toHaveBeenCalledWith({
@@ -287,7 +305,10 @@ describe('CustomerDBService', () => {
     it('should return null when customer not found', async () => {
       repository.findFirst.mockResolvedValue(null);
 
-      const result = await service.getCustomersByEmail('merchant-1', 'notfound@example.com');
+      const result = await service.getCustomersByEmail(
+        'merchant-1',
+        'notfound@example.com',
+      );
 
       expect(result).toBeNull();
     });
@@ -348,7 +369,10 @@ describe('CustomerDBService', () => {
 
       repository.findFirst.mockResolvedValue(customerWithRelations);
 
-      const result = await service.getCustomersByPhone('merchant-1', '0812345678');
+      const result = await service.getCustomersByPhone(
+        'merchant-1',
+        '0812345678',
+      );
 
       expect(result).toEqual(customerWithRelations);
       expect(repository.findFirst).toHaveBeenCalledWith({
@@ -443,7 +467,10 @@ describe('CustomerDBService', () => {
     it('should return null when phone not found', async () => {
       repository.findFirst.mockResolvedValue(null);
 
-      const result = await service.getCustomersByPhone('merchant-1', '0899999999');
+      const result = await service.getCustomersByPhone(
+        'merchant-1',
+        '0899999999',
+      );
 
       expect(result).toBeNull();
     });
@@ -472,7 +499,10 @@ describe('CustomerDBService', () => {
 
       repository.findFirst.mockResolvedValue(customerWithVouchers);
 
-      const result = await service.getCustomersByPhone('merchant-1', '0812345678');
+      const result = await service.getCustomersByPhone(
+        'merchant-1',
+        '0812345678',
+      );
 
       expect(result.ownedVouchers).toHaveLength(1);
       expect(result.ownedVouchers[0].code).toBe('VOUCHER123');

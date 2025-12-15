@@ -14,7 +14,10 @@ describe('PointDBService', () => {
     symbol: 'TST',
     decimal: 18,
     initialSupply: 1000000,
-    contractAddress: Buffer.from('0x1111111111111111111111111111111111111111', 'hex'),
+    contractAddress: Buffer.from(
+      '0x1111111111111111111111111111111111111111',
+      'hex',
+    ),
     startDate: new Date(),
     endDate: new Date(Date.now() + 86400000),
     epochDuration: 259200,
@@ -54,8 +57,14 @@ describe('PointDBService', () => {
 
   describe('createPoint', () => {
     it('should create a new point successfully', async () => {
-      const contractAddress = Buffer.from('0x2222222222222222222222222222222222222222', 'hex');
-      const createData: Omit<Omit<Prisma.PointCreateInput, 'contractAddress'>, 'merchant'> = {
+      const contractAddress = Buffer.from(
+        '0x2222222222222222222222222222222222222222',
+        'hex',
+      );
+      const createData: Omit<
+        Omit<Prisma.PointCreateInput, 'contractAddress'>,
+        'merchant'
+      > = {
         name: 'New Point',
         symbol: 'NEW',
         decimal: 18,
@@ -66,7 +75,11 @@ describe('PointDBService', () => {
 
       repository.create.mockResolvedValue(mockPoint);
 
-      const result = await service.createPoint('merchant-1', contractAddress, createData);
+      const result = await service.createPoint(
+        'merchant-1',
+        contractAddress,
+        createData,
+      );
 
       expect(result).toEqual(mockPoint);
       expect(repository.create).toHaveBeenCalledWith({
@@ -79,8 +92,14 @@ describe('PointDBService', () => {
     });
 
     it('should throw error if repository.create fails', async () => {
-      const contractAddress = Buffer.from('0x2222222222222222222222222222222222222222', 'hex');
-      const createData: Omit<Omit<Prisma.PointCreateInput, 'contractAddress'>, 'merchant'> = {
+      const contractAddress = Buffer.from(
+        '0x2222222222222222222222222222222222222222',
+        'hex',
+      );
+      const createData: Omit<
+        Omit<Prisma.PointCreateInput, 'contractAddress'>,
+        'merchant'
+      > = {
         name: 'New Point',
         symbol: 'NEW',
         decimal: 18,
@@ -217,7 +236,11 @@ describe('PointDBService', () => {
         symbol: 'UPD',
       };
 
-      const updatedPoint = { ...mockPoint, name: 'Updated Point', symbol: 'UPD' };
+      const updatedPoint = {
+        ...mockPoint,
+        name: 'Updated Point',
+        symbol: 'UPD',
+      };
       repository.update.mockResolvedValue(updatedPoint);
 
       const result = await service.updatePoint('point-1', updateData);
@@ -236,9 +259,9 @@ describe('PointDBService', () => {
 
       repository.update.mockRejectedValue(new Error('Point not found'));
 
-      await expect(service.updatePoint('invalid-id', updateData)).rejects.toThrow(
-        'Point not found',
-      );
+      await expect(
+        service.updatePoint('invalid-id', updateData),
+      ).rejects.toThrow('Point not found');
     });
   });
 
@@ -257,9 +280,9 @@ describe('PointDBService', () => {
     it('should throw error if point not found', async () => {
       repository.delete.mockRejectedValue(new Error('Point not found'));
 
-      await expect(service.deletePoint('invalid-id', 'merchant-1')).rejects.toThrow(
-        'Point not found',
-      );
+      await expect(
+        service.deletePoint('invalid-id', 'merchant-1'),
+      ).rejects.toThrow('Point not found');
     });
   });
 

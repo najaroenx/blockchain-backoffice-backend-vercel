@@ -76,7 +76,8 @@ describe('MerchantBuyCouponFromSeller', () => {
         wallet: {
           id: 'wallet-123',
           walletAddress: '0x1234567890123456789012345678901234567890',
-          privateKey: 'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
           type: 'merchant',
           status: 'active',
         },
@@ -121,7 +122,8 @@ describe('MerchantBuyCouponFromSeller', () => {
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
       prisma.wallet.findUnique.mockResolvedValue({
         walletAddress: mockMerchant.wallet.walletAddress,
-        privateKey: 'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+        privateKey:
+          'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
       });
 
       blockchainService.isWhitelisted.mockResolvedValue(true);

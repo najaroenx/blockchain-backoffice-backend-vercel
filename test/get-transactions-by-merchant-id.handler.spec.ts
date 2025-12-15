@@ -273,9 +273,7 @@ describe('GetTransactionsByMerchantId', () => {
       const result = await handler.execute(mockMerchantId);
 
       // Assert
-      expect(result.transactions[0].createdAt).toEqual(
-        new Date('2024-01-01'),
-      );
+      expect(result.transactions[0].createdAt).toEqual(new Date('2024-01-01'));
     });
 
     it('should convert buffer addresses to strings', async () => {

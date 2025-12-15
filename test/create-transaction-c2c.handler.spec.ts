@@ -186,18 +186,14 @@ describe('CreateTransactionC2C', () => {
     transactionDBService = module.get(
       TransactionDBService,
     ) as jest.Mocked<TransactionDBService>;
-    getPointByIdHandler = module.get(
-      GetPointById,
-    ) as jest.Mocked<GetPointById>;
+    getPointByIdHandler = module.get(GetPointById) as jest.Mocked<GetPointById>;
     blockchainService = module.get(
       BlockchainService,
     ) as jest.Mocked<BlockchainService>;
     getCustomerByPhone = module.get(
       GetCustomerPhone,
     ) as jest.Mocked<GetCustomerPhone>;
-    updateCustomer = module.get(
-      UpdateCustomer,
-    ) as jest.Mocked<UpdateCustomer>;
+    updateCustomer = module.get(UpdateCustomer) as jest.Mocked<UpdateCustomer>;
     tokenService = module.get(TokenService) as jest.Mocked<TokenService>;
     configService = module.get(ConfigService) as jest.Mocked<ConfigService>;
   });
@@ -209,7 +205,9 @@ describe('CreateTransactionC2C', () => {
   describe('execute - successful C2C transfer', () => {
     it('should create C2C transaction when both customers have points', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: mockReceiverCustomer } as any);
@@ -263,7 +261,9 @@ describe('CreateTransactionC2C', () => {
 
     it('should create point tokens for receiver if they do not exist', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: mockReceiverWithoutPoints } as any);
@@ -308,7 +308,9 @@ describe('CreateTransactionC2C', () => {
 
     it('should update existing receiver point tokens', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: mockReceiverCustomer } as any);
@@ -358,7 +360,9 @@ describe('CreateTransactionC2C', () => {
   describe('execute - error handling', () => {
     it('should throw InternalServerErrorException if sender not found', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute.mockResolvedValueOnce(null as any);
 
       // Act & Assert - BadRequestException is caught and converted to InternalServerErrorException
@@ -369,7 +373,9 @@ describe('CreateTransactionC2C', () => {
 
     it('should throw InternalServerErrorException if receiver not found', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce(null as any);
@@ -393,7 +399,9 @@ describe('CreateTransactionC2C', () => {
         ],
       };
 
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute.mockResolvedValueOnce({
         customer: customerNotInMerchant,
       } as any);
@@ -417,7 +425,9 @@ describe('CreateTransactionC2C', () => {
         ],
       };
 
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: receiverNotInMerchant } as any);
@@ -430,7 +440,9 @@ describe('CreateTransactionC2C', () => {
 
     it('should throw InternalServerErrorException on blockchain RPC error', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: mockReceiverCustomer } as any);
@@ -447,7 +459,9 @@ describe('CreateTransactionC2C', () => {
 
     it('should throw InternalServerErrorException on general error', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: mockReceiverCustomer } as any);
@@ -467,7 +481,9 @@ describe('CreateTransactionC2C', () => {
 
     it('should throw InternalServerErrorException if transaction creation fails', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: mockReceiverCustomer } as any);
@@ -487,7 +503,9 @@ describe('CreateTransactionC2C', () => {
 
     it('should throw InternalServerErrorException if customer update fails', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: mockReceiverCustomer } as any);
@@ -510,7 +528,9 @@ describe('CreateTransactionC2C', () => {
   describe('execute - transaction data validation', () => {
     it('should correctly format transaction buffers', async () => {
       // Arrange
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: mockReceiverCustomer } as any);
@@ -549,7 +569,9 @@ describe('CreateTransactionC2C', () => {
         description: 'Payment for services',
       };
 
-      getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint as any });
+      getPointByIdHandler.execute.mockResolvedValue({
+        point: mockPoint as any,
+      });
       getCustomerByPhone.execute
         .mockResolvedValueOnce({ customer: mockSenderCustomer } as any)
         .mockResolvedValueOnce({ customer: mockReceiverCustomer } as any);

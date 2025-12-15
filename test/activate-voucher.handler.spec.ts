@@ -113,7 +113,9 @@ describe('ActivateVoucher', () => {
       });
       blockchainService.getNFTBalance.mockResolvedValue(mockNFTBalance);
       blockchainService.addToWhitelist.mockResolvedValue({});
-      blockchainService.addToMarketplaceWhitelist.mockResolvedValue(mockTxResponse);
+      blockchainService.addToMarketplaceWhitelist.mockResolvedValue(
+        mockTxResponse,
+      );
       blockchainService.listCoupon.mockResolvedValue({
         hash: '0xLISTING_TX_HASH',
         listingId: 'listing-123',

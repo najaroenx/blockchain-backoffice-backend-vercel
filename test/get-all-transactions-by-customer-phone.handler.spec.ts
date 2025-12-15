@@ -77,9 +77,9 @@ describe('GetAllTransactionsByCustomerPhone', () => {
       expect(mockCustomerDB.getCustomerByPhoneDetailed).toHaveBeenCalledWith(
         phone,
       );
-      expect(mockTransactionDB.getAllTransactionsByCustomerId).toHaveBeenCalledWith(
-        'customer-123',
-      );
+      expect(
+        mockTransactionDB.getAllTransactionsByCustomerId,
+      ).toHaveBeenCalledWith('customer-123');
       expect(result.transactions).toHaveLength(4);
     });
 
@@ -324,7 +324,9 @@ describe('GetAllTransactionsByCustomerPhone', () => {
       const result = await handler.execute(phone);
 
       expect((result.transactions[0] as any).merchantId).toBe('merchant-123');
-      expect((result.transactions[0] as any).merchantName).toBe('Test Merchant');
+      expect((result.transactions[0] as any).merchantName).toBe(
+        'Test Merchant',
+      );
     });
 
     it('should return transactions with sender and receiver objects', async () => {
@@ -345,11 +347,19 @@ describe('GetAllTransactionsByCustomerPhone', () => {
       const result = await handler.execute(phone);
 
       expect((result.transactions[0] as any).sender).toHaveProperty('id');
-      expect((result.transactions[0] as any).sender).toHaveProperty('walletAddress');
-      expect((result.transactions[0] as any).sender).toHaveProperty('emailOrWebsite');
+      expect((result.transactions[0] as any).sender).toHaveProperty(
+        'walletAddress',
+      );
+      expect((result.transactions[0] as any).sender).toHaveProperty(
+        'emailOrWebsite',
+      );
       expect((result.transactions[0] as any).receiver).toHaveProperty('id');
-      expect((result.transactions[0] as any).receiver).toHaveProperty('walletAddress');
-      expect((result.transactions[0] as any).receiver).toHaveProperty('emailOrWebsite');
+      expect((result.transactions[0] as any).receiver).toHaveProperty(
+        'walletAddress',
+      );
+      expect((result.transactions[0] as any).receiver).toHaveProperty(
+        'emailOrWebsite',
+      );
     });
 
     it('should convert Buffer to hex string for txHash and addresses', async () => {
@@ -460,17 +470,19 @@ describe('GetAllTransactionsByCustomerPhone', () => {
       const result = await handler.execute(phone);
 
       expect(result.transactions).toHaveLength(3);
-      
+
       // Point transaction without voucher
       expect(result.transactions[0].transactionTypeId).toBe('TRANSFER');
       expect((result.transactions[0] as any).voucher).toBeNull();
-      
+
       // Voucher transaction
       expect(result.transactions[1].transactionTypeId).toBe('VOUCHER_TRANSFER');
       expect((result.transactions[1] as any).voucher).toBeDefined();
-      
+
       // Point transaction with voucher (marketplace purchase)
-      expect(result.transactions[2].transactionTypeId).toBe('MARKETPLACE_PURCHASE');
+      expect(result.transactions[2].transactionTypeId).toBe(
+        'MARKETPLACE_PURCHASE',
+      );
       expect((result.transactions[2] as any).voucher).toBeDefined();
     });
   });

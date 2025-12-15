@@ -167,7 +167,12 @@ describe('GetCustomerOwnedVouchers', () => {
         balance: '2',
       });
       prismaService.voucherCode.findMany
-        .mockResolvedValueOnce([{ ...mockVoucherCode, transactions: [mockVoucherCode.transactions[0]] }])
+        .mockResolvedValueOnce([
+          {
+            ...mockVoucherCode,
+            transactions: [mockVoucherCode.transactions[0]],
+          },
+        ])
         .mockResolvedValueOnce([]);
 
       const result = await handler.execute('0812345678');
@@ -225,7 +230,9 @@ describe('GetCustomerOwnedVouchers', () => {
         typeId: '100',
         balance: '0',
       });
-      prismaService.voucherCode.findMany.mockResolvedValueOnce([mockRedeemedCode]);
+      prismaService.voucherCode.findMany.mockResolvedValueOnce([
+        mockRedeemedCode,
+      ]);
 
       const result = await handler.execute('0812345678');
 
@@ -259,7 +266,9 @@ describe('GetCustomerOwnedVouchers', () => {
     it('should handle blockchain service errors gracefully', async () => {
       prismaService.customer.findFirst.mockResolvedValue(mockCustomer);
       prismaService.voucher.findMany.mockResolvedValue([mockVoucher]);
-      blockchainService.getUserCouponBalance.mockRejectedValue(new Error('RPC error'));
+      blockchainService.getUserCouponBalance.mockRejectedValue(
+        new Error('RPC error'),
+      );
       prismaService.voucherCode.findMany
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -285,7 +294,9 @@ describe('GetCustomerOwnedVouchers', () => {
       const result = await handler.execute('0812345678');
 
       expect(result.vouchers[0].purchaseType).toBe('Marketplace Purchase');
-      expect(result.vouchers[0].purchasedAt).toEqual(mockVoucherCode.transactions[0].createdAt);
+      expect(result.vouchers[0].purchasedAt).toEqual(
+        mockVoucherCode.transactions[0].createdAt,
+      );
     });
 
     it('should handle vouchers without merchant', async () => {
@@ -295,7 +306,9 @@ describe('GetCustomerOwnedVouchers', () => {
       };
 
       prismaService.customer.findFirst.mockResolvedValue(mockCustomer);
-      prismaService.voucher.findMany.mockResolvedValue([voucherWithoutMerchant]);
+      prismaService.voucher.findMany.mockResolvedValue([
+        voucherWithoutMerchant,
+      ]);
       blockchainService.getUserCouponBalance.mockResolvedValue({
         address: '0xCustomerWallet123',
         typeId: '100',
@@ -318,7 +331,9 @@ describe('GetCustomerOwnedVouchers', () => {
 
       prismaService.customer.findFirst.mockResolvedValue(mockCustomer);
       prismaService.voucher.findMany.mockResolvedValue([voucherWithoutToken]);
-      prismaService.voucherCode.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      prismaService.voucherCode.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
 
       const result = await handler.execute('0812345678');
 
@@ -368,7 +383,9 @@ describe('GetCustomerOwnedVouchers', () => {
     it('should use default pagination values', async () => {
       prismaService.customer.findFirst.mockResolvedValue(mockCustomer);
       prismaService.voucher.findMany.mockResolvedValue([]);
-      prismaService.voucherCode.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      prismaService.voucherCode.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
 
       const result = await handler.execute('0812345678');
 
@@ -377,9 +394,13 @@ describe('GetCustomerOwnedVouchers', () => {
     });
 
     it('should throw error on unexpected exceptions', async () => {
-      prismaService.customer.findFirst.mockRejectedValue(new Error('Database error'));
+      prismaService.customer.findFirst.mockRejectedValue(
+        new Error('Database error'),
+      );
 
-      await expect(handler.execute('0812345678')).rejects.toThrow('Database error');
+      await expect(handler.execute('0812345678')).rejects.toThrow(
+        'Database error',
+      );
     });
   });
 });

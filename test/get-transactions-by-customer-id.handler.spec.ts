@@ -212,9 +212,9 @@ describe('GetTransactionsByCustomerId', () => {
       } as any);
 
       // Act & Assert
-      await expect(
-        handler.execute(mockMerchantId, mockPhone),
-      ).rejects.toThrow(InternalServerErrorException);
+      await expect(handler.execute(mockMerchantId, mockPhone)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('should throw InternalServerErrorException on database error', async () => {
@@ -227,9 +227,9 @@ describe('GetTransactionsByCustomerId', () => {
       );
 
       // Act & Assert
-      await expect(
-        handler.execute(mockMerchantId, mockPhone),
-      ).rejects.toThrow(InternalServerErrorException);
+      await expect(handler.execute(mockMerchantId, mockPhone)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
   });
 

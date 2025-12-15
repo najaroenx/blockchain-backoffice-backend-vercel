@@ -80,10 +80,9 @@ describe('GetPointTransactionsByCustomerPhone', () => {
       expect(mockCustomerDB.getCustomerByPhoneDetailed).toHaveBeenCalledWith(
         phone,
       );
-      expect(mockTransactionDB.getTransactionsByCustomerId).toHaveBeenCalledWith(
-        'customer-123',
-        merchantId,
-      );
+      expect(
+        mockTransactionDB.getTransactionsByCustomerId,
+      ).toHaveBeenCalledWith('customer-123', merchantId);
       expect(result.transactions).toHaveLength(2); // Exclude VOUCHER_TRANSFER
       expect(result.transactions[0].transactionTypeId).toBe('TRANSFER');
       expect(result.transactions[1].transactionTypeId).toBe('MINT');
@@ -233,10 +232,12 @@ describe('GetPointTransactionsByCustomerPhone', () => {
 
       const result = await handler.execute(null, phone);
 
-      expect(mockTransactionDB.getAllTransactionsByCustomerId).toHaveBeenCalledWith(
-        'customer-123',
-      );
-      expect(mockTransactionDB.getTransactionsByCustomerId).not.toHaveBeenCalled();
+      expect(
+        mockTransactionDB.getAllTransactionsByCustomerId,
+      ).toHaveBeenCalledWith('customer-123');
+      expect(
+        mockTransactionDB.getTransactionsByCustomerId,
+      ).not.toHaveBeenCalled();
       expect(result.transactions).toHaveLength(2);
     });
   });
@@ -322,11 +323,19 @@ describe('GetPointTransactionsByCustomerPhone', () => {
       const result = await handler.execute(merchantId, phone);
 
       expect((result.transactions[0] as any).sender).toHaveProperty('id');
-      expect((result.transactions[0] as any).sender).toHaveProperty('walletAddress');
-      expect((result.transactions[0] as any).sender).toHaveProperty('emailOrWebsite');
+      expect((result.transactions[0] as any).sender).toHaveProperty(
+        'walletAddress',
+      );
+      expect((result.transactions[0] as any).sender).toHaveProperty(
+        'emailOrWebsite',
+      );
       expect((result.transactions[0] as any).receiver).toHaveProperty('id');
-      expect((result.transactions[0] as any).receiver).toHaveProperty('walletAddress');
-      expect((result.transactions[0] as any).receiver).toHaveProperty('emailOrWebsite');
+      expect((result.transactions[0] as any).receiver).toHaveProperty(
+        'walletAddress',
+      );
+      expect((result.transactions[0] as any).receiver).toHaveProperty(
+        'emailOrWebsite',
+      );
     });
 
     it('should convert Buffer to hex string for txHash and addresses', async () => {

@@ -7,7 +7,7 @@ import { ActivateVoucher } from '../src/modules/voucher/handlers/activateVoucher
 import { RedeemVoucher } from '../src/modules/voucher/handlers/redeemVoucher.handler';
 import { BuyCouponFromMarketplace } from '../src/modules/voucher/handlers/buyCouponFromMarketplace.handler';
 import { GetCustomerOwnedVouchers } from '../src/modules/voucher/handlers/getCustomerOwnedVouchers.handler';
-import { GetCustomerOnChainBalances } from '../src/modules/voucher/handlers/getCustomerOnChainBalances.handler';
+import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import { MockDataFactory, createMockPrismaClient } from './fixtures';
 
 describe('VoucherDBService - Grouping Logic', () => {
@@ -58,8 +58,12 @@ describe('VoucherDBService - Grouping Logic', () => {
           useValue: { execute: jest.fn() },
         },
         {
-          provide: GetCustomerOnChainBalances,
-          useValue: { execute: jest.fn() },
+          provide: BlockchainService,
+          useValue: {
+            getUserCouponBalance: jest.fn(),
+            createCouponType: jest.fn(),
+            mintCoupon: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -100,7 +104,13 @@ describe('VoucherDBService - Grouping Logic', () => {
         status: 'upcoming',
         totalIssued: 50, // 50 upcoming vouchers not yet activated
         voucherCodes: [mockVoucherCode],
-        merchant: MockDataFactory.createMockMerchant({ id: merchantId }),
+        merchant: MockDataFactory.createMockMerchant({
+          id: merchantId,
+          wallet: {
+            walletAddress: '0x1234567890123456789012345678901234567890',
+            privateKey: 'encrypted-0x1234',
+          },
+        }),
       });
 
       repository.findMany.mockResolvedValue([mockVoucher]);
@@ -149,6 +159,13 @@ describe('VoucherDBService - Grouping Logic', () => {
         merchantId,
         totalIssued: 100,
         voucherCodes: [],
+        merchant: MockDataFactory.createMockMerchant({
+          id: merchantId,
+          wallet: {
+            walletAddress: '0x1234567890123456789012345678901234567890',
+            privateKey: 'encrypted-0x1234',
+          },
+        }),
       });
 
       repository.findMany.mockResolvedValue([mockVoucher]);
@@ -194,6 +211,13 @@ describe('VoucherDBService - Grouping Logic', () => {
         status: 'active',
         totalIssued: 10,
         voucherCodes: [mockVoucherCode1],
+        merchant: MockDataFactory.createMockMerchant({
+          id: merchantId,
+          wallet: {
+            walletAddress: '0x1234567890123456789012345678901234567890',
+            privateKey: 'encrypted-0x1234',
+          },
+        }),
       });
 
       const voucher2 = MockDataFactory.createMockVoucher({
@@ -203,6 +227,13 @@ describe('VoucherDBService - Grouping Logic', () => {
         status: 'upcoming',
         totalIssued: 200,
         voucherCodes: [],
+        merchant: MockDataFactory.createMockMerchant({
+          id: merchantId,
+          wallet: {
+            walletAddress: '0x1234567890123456789012345678901234567890',
+            privateKey: 'encrypted-0x1234',
+          },
+        }),
       });
 
       repository.findMany.mockResolvedValue([voucher1, voucher2]);

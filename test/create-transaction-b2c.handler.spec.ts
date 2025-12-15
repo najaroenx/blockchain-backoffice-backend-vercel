@@ -38,6 +38,11 @@ describe('CreateTransactionB2C', () => {
     tokenService = createMockTokenService();
     configService = createMockConfigService();
 
+    // Ensure decryptKey returns valid private key
+    tokenService.decryptKey.mockReturnValue(
+      '0x1234567890123456789012345678901234567890123456789012345678901234',
+    );
+
     getCustomerByPhone = {
       execute: jest.fn(),
     };
@@ -120,6 +125,11 @@ describe('CreateTransactionB2C', () => {
 
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
+        wallet: {
+          walletAddress: '0xMerchantAddress123',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
       });
 
       const mockPoint = MockDataFactory.createMockPoint({
@@ -187,6 +197,11 @@ describe('CreateTransactionB2C', () => {
 
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
+        wallet: {
+          walletAddress: '0xMerchantAddress123',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
       });
 
       const mockPoint = MockDataFactory.createMockPoint({
@@ -248,6 +263,11 @@ describe('CreateTransactionB2C', () => {
 
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
+        wallet: {
+          walletAddress: '0xMerchantAddress123',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
       });
 
       const mockPoint = MockDataFactory.createMockPoint({
@@ -313,6 +333,11 @@ describe('CreateTransactionB2C', () => {
 
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
+        wallet: {
+          walletAddress: '0xMerchantAddress123',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
       });
 
       const mockPoint = MockDataFactory.createMockPoint({
@@ -337,6 +362,11 @@ describe('CreateTransactionB2C', () => {
 
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
+        wallet: {
+          walletAddress: '0xMerchantAddress123',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
       });
 
       const mockPoint = MockDataFactory.createMockPoint({

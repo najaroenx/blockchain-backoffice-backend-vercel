@@ -8,7 +8,7 @@ import { ActivateVoucher } from '../src/modules/voucher/handlers/activateVoucher
 import { RedeemVoucher } from '../src/modules/voucher/handlers/redeemVoucher.handler';
 import { BuyCouponFromMarketplace } from '../src/modules/voucher/handlers/buyCouponFromMarketplace.handler';
 import { GetCustomerOwnedVouchers } from '../src/modules/voucher/handlers/getCustomerOwnedVouchers.handler';
-import { GetCustomerOnChainBalances } from '../src/modules/voucher/handlers/getCustomerOnChainBalances.handler';
+import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 
 describe('VoucherDBService', () => {
   let service: VoucherDBService;
@@ -55,10 +55,6 @@ describe('VoucherDBService', () => {
     execute: jest.fn(),
   };
 
-  const mockGetCustomerOnChainBalances = {
-    execute: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -92,8 +88,12 @@ describe('VoucherDBService', () => {
           useValue: mockGetCustomerOwnedVouchers,
         },
         {
-          provide: GetCustomerOnChainBalances,
-          useValue: mockGetCustomerOnChainBalances,
+          provide: BlockchainService,
+          useValue: {
+            getUserCouponBalance: jest.fn(),
+            createCouponType: jest.fn(),
+            mintCoupon: jest.fn(),
+          },
         },
       ],
     }).compile();

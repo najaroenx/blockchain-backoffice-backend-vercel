@@ -146,6 +146,11 @@ export class CreateVoucherWithCodes {
         error.stack,
       );
 
+      // Re-throw ConflictException (validation errors should not be caught)
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+
       // ตรวจสอบว่าเป็น duplicate key error หรือไม่
       if (error.code === 'P2002' && error.meta?.target?.includes('id')) {
         throw new ConflictException('Duplicate coupon ID');

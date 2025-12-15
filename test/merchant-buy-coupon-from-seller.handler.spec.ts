@@ -26,6 +26,9 @@ describe('MerchantBuyCouponFromSeller', () => {
     tokenService = createMockTokenService();
     configService = createMockConfigService();
 
+    // Mock THB_ADDRESS environment variable
+    process.env.THB_ADDRESS = '0xTHB_ADDRESS';
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MerchantBuyCouponFromSeller,
@@ -73,7 +76,8 @@ describe('MerchantBuyCouponFromSeller', () => {
         wallet: {
           id: 'wallet-123',
           walletAddress: '0x1234567890123456789012345678901234567890',
-          privateKey: 'encrypted-private-key',
+          privateKey:
+            'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
           type: 'merchant',
           status: 'active',
         },
@@ -85,7 +89,7 @@ describe('MerchantBuyCouponFromSeller', () => {
         typeId: '12345',
         amount: '200',
         pricePerUnit: '100',
-        paymentToken: '0xPOINT_TOKEN_ADDRESS',
+        paymentToken: '0xTHB_ADDRESS',
         isActive: true,
       });
 
@@ -116,6 +120,11 @@ describe('MerchantBuyCouponFromSeller', () => {
       prisma.voucher.findFirst.mockResolvedValue(mockVoucher);
       prisma.point.findUnique.mockResolvedValue(mockPoint);
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+      prisma.wallet.findUnique.mockResolvedValue({
+        walletAddress: mockMerchant.wallet.walletAddress,
+        privateKey:
+          'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
+      });
 
       blockchainService.isWhitelisted.mockResolvedValue(true);
       blockchainService.getBalance.mockResolvedValue({ balance: '10000' });
@@ -183,6 +192,11 @@ describe('MerchantBuyCouponFromSeller', () => {
 
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
+        walletId: 'wallet-123',
+        wallet: {
+          walletAddress: '0x1234567890123456789012345678901234567890',
+          privateKey: 'encrypted-0x1234',
+        },
       });
       const mockListing = MockDataFactory.createMockMarketplaceListing({
         listingId,
@@ -192,10 +206,14 @@ describe('MerchantBuyCouponFromSeller', () => {
       });
       const mockPoint = MockDataFactory.createMockPoint();
 
-      getMerchant.execute.mockResolvedValue({ merchant: mockMerchant });
       blockchainService.getMarketplaceListing.mockResolvedValue(mockListing);
       prisma.voucher.findFirst.mockResolvedValue(mockVoucher);
       prisma.point.findUnique.mockResolvedValue(mockPoint);
+      prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+      prisma.wallet.findUnique.mockResolvedValue({
+        walletAddress: '0x1234567890123456789012345678901234567890',
+        privateKey: 'encrypted-0x1234',
+      });
       blockchainService.isWhitelisted.mockResolvedValue(false);
 
       await expect(
@@ -208,9 +226,17 @@ describe('MerchantBuyCouponFromSeller', () => {
       const listingId = 'listing-123';
       const amount = 100;
 
+      const mockMerchant = MockDataFactory.createMockMerchant({
+        id: merchantId,
+        walletId: 'wallet-123',
+        wallet: {
+          walletAddress: '0x1234567890123456789012345678901234567890',
+          privateKey: 'encrypted-0x1234',
+        },
+      });
       const mockListing = MockDataFactory.createMockMarketplaceListing({
         listingId,
-        pricePerUnit: '100',
+        pricePerUnit: '10000',
       });
       const mockVoucher = MockDataFactory.createMockVoucher({
         tokenId: '12345',
@@ -220,8 +246,13 @@ describe('MerchantBuyCouponFromSeller', () => {
       blockchainService.getMarketplaceListing.mockResolvedValue(mockListing);
       prisma.voucher.findFirst.mockResolvedValue(mockVoucher);
       prisma.point.findUnique.mockResolvedValue(mockPoint);
+      prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+      prisma.wallet.findUnique.mockResolvedValue({
+        walletAddress: '0x1234567890123456789012345678901234567890',
+        privateKey: 'encrypted-0x1234',
+      });
       blockchainService.isWhitelisted.mockResolvedValue(true);
-      blockchainService.getBalance.mockResolvedValue({ balance: '50' }); // Insufficient
+      blockchainService.getBalance.mockResolvedValue({ balance: '1000' });
 
       await expect(
         handler.execute(listingId, amount, merchantId),
@@ -233,6 +264,14 @@ describe('MerchantBuyCouponFromSeller', () => {
       const listingId = 'listing-123';
       const amount = 300; // More than available
 
+      const mockMerchant = MockDataFactory.createMockMerchant({
+        id: merchantId,
+        walletId: 'wallet-123',
+        wallet: {
+          walletAddress: '0x1234567890123456789012345678901234567890',
+          privateKey: 'encrypted-0x1234',
+        },
+      });
       const mockListing = MockDataFactory.createMockMarketplaceListing({
         listingId,
         amount: '200', // Only 200 available
@@ -245,6 +284,11 @@ describe('MerchantBuyCouponFromSeller', () => {
       blockchainService.getMarketplaceListing.mockResolvedValue(mockListing);
       prisma.voucher.findFirst.mockResolvedValue(mockVoucher);
       prisma.point.findUnique.mockResolvedValue(mockPoint);
+      prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+      prisma.wallet.findUnique.mockResolvedValue({
+        walletAddress: '0x1234567890123456789012345678901234567890',
+        privateKey: 'encrypted-0x1234',
+      });
       blockchainService.isWhitelisted.mockResolvedValue(true);
       blockchainService.getBalance.mockResolvedValue({ balance: '100000' });
 

@@ -76,10 +76,6 @@ export class ReSendOTP {
         `[ReSendOTP:L78] OTP resent successfully to ${tempLink.phoneNumber}`,
       );
 
-      // Delete temp link after successful OTP send
-      await this.tempLinkDBService.deleteTempLink(uid);
-      this.logger.log(`[ReSendOTP:L83] Temp link deleted for uid: ${uid}`);
-
       return {
         success: true,
         message: 'OTP resent successfully',

@@ -733,6 +733,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
       "id": "cm4voucher_ais",
       "transactionTypeId": "REDEEM",
       "amount": 1,
+      "transactionDirection": "SENT",
       "voucher": {
         "id": "voucher_starbucks",
         "name": "Starbucks 100 THB",
@@ -750,6 +751,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
       "id": "cm4voucher_true",
       "transactionTypeId": "VOUCHER_TRANSFER",
       "amount": 1,
+      "transactionDirection": "RECEIVED",
       "voucher": {
         "id": "voucher_amazon",
         "name": "Amazon Gift Card 500 THB",

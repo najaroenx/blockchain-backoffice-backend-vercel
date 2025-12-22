@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { GetTransactionByMerchantIdResponseType } from '../types';
 
@@ -42,6 +43,37 @@ export class GetTransactionsByMerchantId {
           emailOrWebsite: customer?.email ?? merchantWebsite,
         });
 
+        const formatPointInfo = (
+          point: any,
+          amount: number,
+          transactionTypeId: string,
+        ) => {
+          if (!point) return null;
+
+          const voucherTransactionTypes = [
+            TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
+            TransactionTypeId.VOUCHER_TRANSFER,
+            TransactionTypeId.VOUCHER_GIFT,
+          ];
+
+          if (
+            voucherTransactionTypes.includes(
+              transactionTypeId as TransactionTypeId,
+            )
+          ) {
+            return null;
+          }
+
+          return {
+            id: point.id,
+            name: point.name,
+            symbol: point.symbol,
+            merchantId: point.merchantId || null,
+            imageUrl: point.imageUrl || null,
+            balance: amount,
+          };
+        };
+
         // Determine transaction direction from merchant's perspective
         // SENT when:
         // - senderId === null (B2C: Merchant sent to customer)
@@ -63,14 +95,7 @@ export class GetTransactionsByMerchantId {
           transactionTypeId: rest.transactionTypeId,
           amount: rest.amount,
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
-          point: point
-            ? {
-                id: point.id,
-                name: point.name,
-                symbol: point.symbol,
-                imageUrl: point.imageUrl || null,
-              }
-            : null,
+          point: formatPointInfo(point, rest.amount, rest.transactionTypeId),
           sender: formatParticipant(
             sender,
             rest.senderAddress,

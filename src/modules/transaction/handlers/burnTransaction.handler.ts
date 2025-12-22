@@ -126,9 +126,7 @@ export class BurnTransaction {
     point: PointType,
     amount: number,
   ) {
-    const senderPoints = sender.customerPoints.find(
-      (cp) => cp.pointId === point.id,
-    );
+    const senderPoints = sender.customerPoints.find((cp) => cp.id === point.id);
 
     // the system will update the sender's balance.
 
@@ -136,7 +134,7 @@ export class BurnTransaction {
       customerPoints: {
         update: {
           where: { id: senderPoints.id },
-          data: { balances: senderPoints.balances - amount },
+          data: { balances: senderPoints.balance - amount },
         },
       },
     });

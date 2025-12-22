@@ -9,14 +9,8 @@ import {
   Delete,
   Query,
 } from '@nestjs/common';
-import {
-  CreatePointDto,
-  DeletePointParams,
-  GetPointByIdParams,
-  UpdatePointDto,
-} from '../dtos';
+import { CreatePointDto, DeletePointParams, UpdatePointDto } from '../dtos';
 import { GetPointsByMerchantId } from '../handlers/getPointsByMerchantId.handler';
-import { GetPointById } from '../handlers/getPointById.handler';
 import { UpdatePoint } from '../handlers/updatePoint.handler';
 import { CreatePoint } from '../handlers/createPoint.handler';
 import { DeletePoint } from '../handlers/deletePoint.handler';
@@ -25,7 +19,6 @@ import { DeletePoint } from '../handlers/deletePoint.handler';
 export class PointController {
   constructor(
     private readonly getPointsByMerchantIdHandler: GetPointsByMerchantId,
-    private readonly getPointByIdHandler: GetPointById,
     private readonly updatePointHandler: UpdatePoint,
     private readonly createPointHandler: CreatePoint,
     private readonly deletePointHandler: DeletePoint,
@@ -38,13 +31,6 @@ export class PointController {
     @Query() query: Record<string, any>,
   ) {
     return this.getPointsByMerchantIdHandler.execute(merchantId, query);
-  }
-
-  @Get('/:pointId')
-  @HttpCode(200)
-  async getPointById(@Param() params: GetPointByIdParams) {
-    const { merchantId, pointId } = params;
-    return this.getPointByIdHandler.execute(pointId, merchantId);
   }
 
   @Post('/')

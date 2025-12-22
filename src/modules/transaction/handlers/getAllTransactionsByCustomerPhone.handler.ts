@@ -6,8 +6,15 @@ import {
 } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
-import { GetTransactionsByCustomerIdResponseType } from '../types';
+import {
+  GetTransactionsByCustomerIdResponseType,
+  CustomerWithWallet,
+  VoucherCodeWithVoucher,
+  TransactionParticipant,
+  TransactionVoucherInfo,
+} from '../types';
 import { CustomerDBService } from 'src/modules/customer/services/customer-db.service';
 
 @Injectable()
@@ -41,21 +48,64 @@ export class GetAllTransactionsByCustomerPhone {
           transaction;
 
         const formatParticipant = (
-          customer,
-          walletAddress,
-          merchantWebsite,
-        ) => ({
+          customer: CustomerWithWallet | null,
+          walletAddress: Uint8Array,
+          merchantWebsite: string | null,
+        ): TransactionParticipant => ({
           id: customer?.id ?? merchant?.id,
           walletAddress: convertBufferToAddress(
-            (customer as any)?.wallet?.walletAddress
+            customer?.wallet?.walletAddress
               ? Buffer.from(
-                  (customer as any).wallet.walletAddress.replace(/^0x/, ''),
+                  customer.wallet.walletAddress.replace(/^0x/, ''),
                   'hex',
                 )
               : walletAddress,
           ),
           emailOrWebsite: customer?.email ?? merchantWebsite,
         });
+
+        const formatVoucherInfo = (
+          voucherCode: VoucherCodeWithVoucher | null,
+        ): TransactionVoucherInfo | null => {
+          if (!voucherCode?.voucher) return null;
+
+          return {
+            id: voucherCode.voucher.id,
+            name: voucherCode.voucher.name,
+            valueType: voucherCode.voucher.valueType,
+            value: voucherCode.voucher.value,
+            imageUrl: voucherCode.voucher.imageUrl || null,
+          };
+        };
+
+        const formatPointInfo = (
+          point: any,
+          amount: number,
+          transactionTypeId: string,
+        ) => {
+          const voucherTransactionTypes = [
+            TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
+            TransactionTypeId.VOUCHER_TRANSFER,
+            TransactionTypeId.VOUCHER_GIFT,
+          ];
+
+          if (
+            voucherTransactionTypes.includes(
+              transactionTypeId as TransactionTypeId,
+            )
+          ) {
+            return null;
+          }
+
+          return {
+            id: point.id,
+            name: point.name,
+            symbol: point.symbol,
+            merchantId: point.merchantId || null,
+            imageUrl: point.imageUrl || null,
+            balance: amount,
+          };
+        };
 
         // Determine direction from customer's perspective
         const transactionDirection =
@@ -71,12 +121,7 @@ export class GetAllTransactionsByCustomerPhone {
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
           merchantId: rest.merchantId,
           merchantName: merchant?.name || null,
-          point: {
-            id: point.id,
-            name: point.name,
-            symbol: point.symbol,
-            imageUrl: point.imageUrl || null,
-          },
+          point: formatPointInfo(point, rest.amount, rest.transactionTypeId),
           sender: formatParticipant(
             sender,
             rest.senderAddress,
@@ -87,15 +132,7 @@ export class GetAllTransactionsByCustomerPhone {
             rest.receiverAddress,
             merchant?.website,
           ),
-          voucher: voucherCode?.voucher
-            ? {
-                id: (voucherCode as any).voucher.id || null,
-                name: (voucherCode as any).voucher.name || null,
-                valueType: (voucherCode as any).voucher.valueType || null,
-                value: (voucherCode as any).voucher.value || null,
-                imageUrl: (voucherCode as any).voucher.imageUrl || null,
-              }
-            : null,
+          voucher: formatVoucherInfo(voucherCode),
           voucherCodeId: rest.voucherCodeId || null,
           eventId: rest.eventId || null,
           createdAt: rest.createdAt,

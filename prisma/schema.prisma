@@ -151,7 +151,7 @@ model Customer {
   email            String
   firstName        String?
   lastName         String?
-  tel              String
+  tel              String             @unique
   createdAt        DateTime           @default(now()) @map(name: "created_at")
   updatedAt        DateTime           @updatedAt @map(name: "updated_at")
   customerMerChant CustomerMerChant[]

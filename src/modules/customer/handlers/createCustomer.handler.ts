@@ -34,6 +34,16 @@ export class CreateCustomer {
     >,
   ): Promise<any> {
     try {
+      // Validate merchant exists first to prevent foreign key constraint violation
+      const merchant = await this.prisma.merchant.findUnique({
+        where: { id: merchantId },
+      });
+
+      if (!merchant) {
+        this.logger.error(`[ERROR] Merchant with id ${merchantId} not found`);
+        throw new NotFoundException(`Merchant with id ${merchantId} not found`);
+      }
+
       const customer = await this.db.getCustomersByEmail(
         merchantId,
         data.email,
@@ -113,7 +123,8 @@ export class CreateCustomer {
       };
     } catch (error) {
       this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
+        `[FATAL ERROR] Failed to create customer: ${error.message}`,
+        error.stack,
       );
       if (error instanceof NotFoundException) {
         throw error;

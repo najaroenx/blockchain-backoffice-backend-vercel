@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -35,6 +36,7 @@ import {
   // RegistrationResponse,
 } from '../handlers/registerCustomer.dev.handler';
 import { Public } from 'src/modules/auth/public.decorator';
+import { ClearCustomerByPhone } from '../handlers/clearCustomerByPhone.handler';
 
 @ApiTags('Customer')
 @Controller('/:merchantId/customer')
@@ -189,6 +191,7 @@ export class CustomerPhoneController {
   constructor(
     private readonly getCustomerByPhone: GetCustomerPhone,
     private readonly getCustomerPoints: GetCustomerPoints,
+    private readonly clearCustomerByPhone: ClearCustomerByPhone,
   ) {}
 
   @Public()
@@ -220,5 +223,34 @@ export class CustomerPhoneController {
   @HttpCode(200)
   async getCustomerByPhoneDetailed(@Param('phone') phone: string) {
     return this.getCustomerByPhone.executeDetailed(phone);
+  }
+
+  @Public()
+  @Delete('/:phone')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Clear Customer by Phone',
+    description:
+      'ลบข้อมูลลูกค้าทั้งหมดโดยใช้เบอร์โทรศัพท์ (ลบ wallet, transactions, temp links, clear voucher ownership)',
+  })
+  @ApiParam({
+    name: 'phone',
+    description: 'เบอร์โทรศัพท์ของลูกค้า (10 digits)',
+    example: '0984360421',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Customer cleared successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer not found',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error',
+  })
+  async clearCustomer(@Param('phone') phone: string) {
+    return this.clearCustomerByPhone.execute(phone);
   }
 }

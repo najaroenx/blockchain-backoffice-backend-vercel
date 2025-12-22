@@ -1,0 +1,56 @@
+export type CustomerOwnedVoucherMerchant = {
+  id: string | undefined;
+  name: string | undefined;
+  imageUrl: string | null | undefined;
+};
+
+export type CustomerOwnedVoucherInfo = {
+  id: string;
+  tokenId: string | null;
+  name: string;
+  description: string | null;
+  valueType: string;
+  value: number;
+  currency: string | null;
+  imageUrl: string | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  merchantRef: string | null;
+  merchant: CustomerOwnedVoucherMerchant;
+};
+
+export type CustomerOwnedVoucherItem = {
+  codeId: string | null;
+  code: string | null;
+  isUsed: boolean;
+  usedAt: Date | null;
+  pointsCost: number;
+  currency: string;
+  purchasedAt: Date | null;
+  purchaseType: string;
+  onChainBalance: string;
+  voucher: CustomerOwnedVoucherInfo;
+};
+
+export type CustomerOwnedVouchersPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type CustomerOwnedVouchersSummary = {
+  total: number;
+  unused: number;
+  used: number;
+};
+
+export type GetCustomerOwnedVouchersResponseType = {
+  phone: string;
+  walletAddress: string | null;
+  customerId: string | null;
+  status: 'unused' | 'used' | 'all';
+  pagination: CustomerOwnedVouchersPagination;
+  summary: CustomerOwnedVouchersSummary;
+  vouchers: CustomerOwnedVoucherItem[];
+};

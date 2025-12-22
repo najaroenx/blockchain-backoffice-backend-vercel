@@ -1629,6 +1629,548 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
+## 13. Get Point by ID
+
+**Description:** ดึงข้อมูล Point ด้วย ID พร้อม merchant info และ statistics
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/points/:pointId`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/points/cmiimp4g400015v01nv1ij7zf`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| pointId | String | M | รหัส Point | cmiimp4g400015v01nv1ij7zf |
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| point | Object | ข้อมูล Point |
+| point.id | String | รหัส Point |
+| point.name | String | ชื่อ Point |
+| point.symbol | String | Symbol ของ Point |
+| point.contractAddress | String | Contract address (hex format) |
+| point.initialSupply | Number | จำนวน supply เริ่มต้น |
+| point.decimal | Number | จำนวนทศนิยม |
+| point.startDate | String \| null | วันเริ่มต้น |
+| point.endDate | String | วันหมดอายุ |
+| point.epochDuration | Number | ระยะเวลา 1 epoch (seconds) |
+| point.imageUrl | String \| null | URL รูปภาพ |
+| point.merchantId | String \| null | รหัส Merchant |
+| point.merchant | Object \| null | ข้อมูล Merchant |
+| point.merchant.id | String | รหัส Merchant |
+| point.merchant.name | String | ชื่อ Merchant |
+| point.merchant.description | String \| null | คำอธิบาย |
+| point.merchant.imageUrl | String \| null | URL รูปภาพ |
+| point.merchant.website | String \| null | Website |
+| point.statistics | Object | สถิติ |
+| point.statistics.totalTransactions | Number | จำนวน transactions ทั้งหมด |
+| point.statistics.totalCustomers | Number | จำนวนลูกค้าทั้งหมด |
+| point.statistics.totalBalance | Number | ยอด balance รวม |
+| point.statistics.initialSupply | Number | จำนวน supply เริ่มต้น |
+| point.statistics.circulatingSupply | Number | จำนวน supply ที่หมุนเวียน |
+
+#### Success Response (200)
+
+```json
+{
+  "point": {
+    "id": "cmiimp4g400015v01nv1ij7zf",
+    "name": "LAT",
+    "symbol": "LAT",
+    "contractAddress": "0x1234567890abcdef1234567890abcdef12345678",
+    "initialSupply": 1000000,
+    "decimal": 18,
+    "startDate": "2025-01-01T00:00:00.000Z",
+    "endDate": "2026-01-01T00:00:00.000Z",
+    "epochDuration": 259200,
+    "imageUrl": "https://example.com/point.png",
+    "merchantId": "cmih1s6qu00050i01m3cactjj",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z",
+    "merchant": {
+      "id": "cmih1s6qu00050i01m3cactjj",
+      "name": "Example Merchant",
+      "description": "A sample merchant",
+      "imageUrl": "https://example.com/merchant.png",
+      "website": "https://example.com"
+    },
+    "statistics": {
+      "totalTransactions": 150,
+      "totalCustomers": 50,
+      "totalBalance": 500000,
+      "initialSupply": 1000000,
+      "circulatingSupply": 500000
+    }
+  }
+}
+```
+
+#### Error Response (404)
+
+```json
+{
+  "statusCode": 404,
+  "message": "Point not found"
+}
+```
+
+---
+
+## 14. Get Transaction by ID
+
+**Description:** ดึงข้อมูล Transaction ด้วย ID
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/transaction/:id`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/transaction/cm4abc123xyz`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| id | String | M | รหัส Transaction | cm4abc123xyz |
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String | รหัส Transaction |
+| txHash | String | Transaction hash (hex format) |
+| senderAddress | String | Wallet address ผู้ส่ง |
+| receiverAddress | String | Wallet address ผู้รับ |
+| transactionTypeId | String | ประเภท transaction |
+| amount | Number | จำนวน |
+| transactionDirection | String | ทิศทาง: `SENT` หรือ `RECEIVED` |
+| merchantId | String \| null | รหัส Merchant |
+| merchantName | String \| null | ชื่อ Merchant |
+| point | Object \| null | ข้อมูล Point (null สำหรับ voucher transactions) |
+| sender | Object \| null | ข้อมูลผู้ส่ง |
+| receiver | Object \| null | ข้อมูลผู้รับ |
+| voucher | Object \| null | ข้อมูล Voucher (ถ้ามี) |
+| voucherCodeId | String \| null | รหัส Voucher Code |
+| eventId | String \| null | รหัส Event |
+| createdAt | String | วันที่สร้าง |
+
+#### Success Response (200)
+
+```json
+{
+  "id": "cm4abc123xyz",
+  "txHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  "senderAddress": "0x50581102bEB5cDEb68cB5f84ACdE46fa2DeB842E",
+  "receiverAddress": "0x60581102bEB5cDEb68cB5f84ACdE46fa2DeB843F",
+  "transactionTypeId": "B2C",
+  "amount": 100,
+  "transactionDirection": "SENT",
+  "merchantId": "cmih1s6qu00050i01m3cactjj",
+  "merchantName": "Example Merchant",
+  "point": {
+    "id": "cmiimp4g400015v01nv1ij7zf",
+    "name": "LAT",
+    "symbol": "LAT",
+    "merchantId": "cmih1s6qu00050i01m3cactjj",
+    "imageUrl": "https://example.com/point.png",
+    "balance": 100
+  },
+  "sender": {
+    "id": "cmih1s6qu00050i01m3cactjj",
+    "walletAddress": "0x50581102bEB5cDEb68cB5f84ACdE46fa2DeB842E",
+    "emailOrWebsite": "https://example.com"
+  },
+  "receiver": {
+    "id": "cmiisvgqn0007xk01efv8szbq",
+    "walletAddress": "0x60581102bEB5cDEb68cB5f84ACdE46fa2DeB843F",
+    "emailOrWebsite": "customer@example.com"
+  },
+  "voucher": null,
+  "voucherCodeId": null,
+  "eventId": null,
+  "createdAt": "2025-01-01T00:00:00.000Z"
+}
+```
+
+#### Error Response (404)
+
+```json
+{
+  "statusCode": 404,
+  "message": "Transaction with id cm4abc123xyz not found"
+}
+```
+
+---
+
+## 15. Clear Customer by Phone
+
+**Description:** ลบข้อมูลลูกค้าทั้งหมดโดยใช้เบอร์โทรศัพท์ (ลบ wallet, transactions, temp links, clear voucher ownership)
+
+### Request
+
+**Method:** `DELETE`
+
+**URL:** `{{endpoint_url}}/customer/:phone`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/customer/0984360421`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| phone | String | M | เบอร์โทรศัพท์ของลูกค้า (10 digits) | 0984360421 |
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | สถานะการลบ |
+| message | String | ข้อความสถานะ |
+| phone | String | เบอร์โทรศัพท์ที่ลบ |
+| customerId | String | รหัสลูกค้าที่ถูกลบ |
+
+#### Success Response (200)
+
+```json
+{
+  "success": true,
+  "message": "Customer cleared successfully",
+  "phone": "0984360421",
+  "customerId": "cmiisvgqn0007xk01efv8szbq"
+}
+```
+
+#### Error Response (404)
+
+```json
+{
+  "statusCode": 404,
+  "message": "Customer not found"
+}
+```
+
+#### Error Response (500)
+
+```json
+{
+  "statusCode": 500,
+  "message": "Internal server error"
+}
+```
+
+### Notes
+
+- การลบจะดำเนินการใน transaction เพื่อความ atomicity
+- ข้อมูลที่ถูกลบ:
+  - Voucher ownership (set currentOwnerId เป็น null)
+  - Customer record (cascade ไปยัง CustomerMerChant, CustomerPoint, Transactions)
+  - Wallet record
+  - Temp links ที่เกี่ยวข้อง
+
+---
+
+## 16. Get Voucher by ID
+
+**Description:** ดึงข้อมูล Voucher ด้วย ID พร้อม merchant info และ voucher codes
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/coupon/:voucherId`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/coupon/cm123abc456`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| voucherId | String | M | รหัส Voucher | cm123abc456 |
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String | รหัส Voucher |
+| name | String | ชื่อ Voucher |
+| description | String \| null | คำอธิบาย |
+| imageUrl | String \| null | URL รูปภาพ |
+| status | String | สถานะ: `active`, `inactive`, `upcoming`, `expired` |
+| valueType | String | ประเภทมูลค่า: `percentage`, `cash`, `gift`, `multiplier`, `aispoint` |
+| value | Number | มูลค่า |
+| currency | String \| null | สกุลเงิน |
+| startDate | String \| null | วันเริ่มต้น |
+| endDate | String \| null | วันหมดอายุ |
+| tokenId | String \| null | Token ID บน blockchain |
+| totalRedeemed | Number | จำนวนที่ใช้แล้ว |
+| merchantId | String \| null | รหัส Merchant |
+| merchantName | String \| null | ชื่อ Merchant |
+| merchantRef | String \| null | Reference ID จาก merchant |
+| createdAt | String | วันที่สร้าง |
+| updatedAt | String | วันที่อัพเดต |
+| merchant | Object \| null | ข้อมูล Merchant |
+| merchant.id | String | รหัส Merchant |
+| merchant.name | String | ชื่อ Merchant |
+| merchant.description | String \| null | คำอธิบาย |
+| merchant.imageUrl | String \| null | URL รูปภาพ |
+| merchant.website | String \| null | Website |
+| voucherCodes | Array | รายการ Voucher Codes |
+| voucherCodes[].id | String | รหัส Voucher Code |
+| voucherCodes[].code | String | Code |
+| voucherCodes[].pointsCost | Number | ราคา (points) |
+| voucherCodes[].currency | String \| null | สกุลเงินของ point |
+| voucherCodes[].isUsed | Boolean | ใช้แล้วหรือยัง |
+| voucherCodes[].usedAt | String \| null | วันที่ใช้ |
+| voucherCodes[].usedBy | String \| null | ใช้โดยใคร |
+| voucherCodes[].currentOwnerId | String \| null | รหัสเจ้าของปัจจุบัน |
+| voucherCodes[].createdAt | String | วันที่สร้าง |
+
+#### Success Response (200)
+
+```json
+{
+  "id": "cm123abc456",
+  "name": "Discount 10%",
+  "description": "Get 10% off on your next purchase",
+  "imageUrl": "https://example.com/voucher.png",
+  "status": "active",
+  "valueType": "percentage",
+  "value": 10,
+  "currency": "THB",
+  "startDate": "2025-01-01T00:00:00.000Z",
+  "endDate": "2026-01-01T00:00:00.000Z",
+  "tokenId": "1",
+  "totalRedeemed": 5,
+  "merchantId": "cmih1s6qu00050i01m3cactjj",
+  "merchantName": "Example Merchant",
+  "merchantRef": "VOUCHER-001",
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "updatedAt": "2025-01-01T00:00:00.000Z",
+  "merchant": {
+    "id": "cmih1s6qu00050i01m3cactjj",
+    "name": "Example Merchant",
+    "description": "A sample merchant",
+    "imageUrl": "https://example.com/merchant.png",
+    "website": "https://example.com"
+  },
+  "voucherCodes": [
+    {
+      "id": "cmxyz789",
+      "code": "DISC10-001",
+      "pointsCost": 100,
+      "currency": "LAT",
+      "isUsed": false,
+      "usedAt": null,
+      "usedBy": null,
+      "currentOwnerId": "cmiisvgqn0007xk01efv8szbq",
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### Error Response (404)
+
+```json
+{
+  "statusCode": 404,
+  "message": "Voucher with id cm123abc456 not found"
+}
+```
+
+---
+
+## 17. Get Customer Owned Vouchers
+
+**Description:** ดึงรายการ Vouchers ที่ลูกค้าเป็นเจ้าของ (lookup จาก phone -> wallet -> on-chain balance)
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/coupon/my-coupons/:phone`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/coupon/my-coupons/0984360421?status=all&page=1&limit=20`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| phone | String | M | เบอร์โทรศัพท์ลูกค้า (10 digits) | 0984360421 |
+
+#### Query Parameters
+
+| Parameter | Type | M/O | Description | Default |
+|-----------|------|-----|-------------|---------|
+| status | String | O | Filter by status: `unused`, `used`, `all` | all |
+| page | Number | O | หมายเลขหน้า | 1 |
+| limit | Number | O | จำนวนรายการต่อหน้า | 20 |
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| phone | String | เบอร์โทรศัพท์ |
+| walletAddress | String \| null | Wallet address |
+| customerId | String \| null | รหัสลูกค้า |
+| status | String | Status filter ที่ใช้ |
+| pagination | Object | ข้อมูล pagination |
+| pagination.page | Number | หน้าปัจจุบัน |
+| pagination.limit | Number | จำนวนต่อหน้า |
+| pagination.total | Number | จำนวนทั้งหมด |
+| pagination.totalPages | Number | จำนวนหน้าทั้งหมด |
+| summary | Object | สรุปจำนวน |
+| summary.total | Number | จำนวน vouchers ทั้งหมด |
+| summary.unused | Number | จำนวนที่ยังไม่ได้ใช้ |
+| summary.used | Number | จำนวนที่ใช้แล้ว |
+| vouchers | Array | รายการ vouchers |
+| vouchers[].codeId | String \| null | รหัส Voucher Code |
+| vouchers[].code | String \| null | Code |
+| vouchers[].isUsed | Boolean | ใช้แล้วหรือยัง |
+| vouchers[].usedAt | String \| null | วันที่ใช้ |
+| vouchers[].pointsCost | Number | ราคา (points) |
+| vouchers[].currency | String | สกุลเงินของ point |
+| vouchers[].purchasedAt | String \| null | วันที่ซื้อ |
+| vouchers[].purchaseType | String | ประเภทการซื้อ |
+| vouchers[].onChainBalance | String | ยอดบน blockchain |
+| vouchers[].voucher | Object | ข้อมูล voucher |
+| vouchers[].voucher.id | String | รหัส Voucher |
+| vouchers[].voucher.tokenId | String \| null | Token ID |
+| vouchers[].voucher.name | String | ชื่อ Voucher |
+| vouchers[].voucher.description | String \| null | คำอธิบาย |
+| vouchers[].voucher.valueType | String | ประเภทมูลค่า |
+| vouchers[].voucher.value | Number | มูลค่า |
+| vouchers[].voucher.currency | String \| null | สกุลเงิน |
+| vouchers[].voucher.imageUrl | String \| null | URL รูปภาพ |
+| vouchers[].voucher.startDate | String \| null | วันเริ่มต้น |
+| vouchers[].voucher.endDate | String \| null | วันหมดอายุ |
+| vouchers[].voucher.merchantRef | String \| null | Reference ID |
+| vouchers[].voucher.merchant | Object | ข้อมูล Merchant |
+
+#### Success Response (200)
+
+```json
+{
+  "phone": "0984360421",
+  "walletAddress": "0x50581102bEB5cDEb68cB5f84ACdE46fa2DeB842E",
+  "customerId": "cmiisvgqn0007xk01efv8szbq",
+  "status": "all",
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 3,
+    "totalPages": 1
+  },
+  "summary": {
+    "total": 3,
+    "unused": 2,
+    "used": 1
+  },
+  "vouchers": [
+    {
+      "codeId": "cmxyz789",
+      "code": "DISC10-001",
+      "isUsed": false,
+      "usedAt": null,
+      "pointsCost": 100,
+      "currency": "LAT",
+      "purchasedAt": "2025-01-15T10:30:00.000Z",
+      "purchaseType": "MARKETPLACE_PURCHASE",
+      "onChainBalance": "1",
+      "voucher": {
+        "id": "cm123abc456",
+        "tokenId": "1",
+        "name": "Discount 10%",
+        "description": "Get 10% off on your next purchase",
+        "valueType": "percentage",
+        "value": 10,
+        "currency": "THB",
+        "imageUrl": "https://example.com/voucher.png",
+        "startDate": "2025-01-01T00:00:00.000Z",
+        "endDate": "2026-01-01T00:00:00.000Z",
+        "merchantRef": "VOUCHER-001",
+        "merchant": {
+          "id": "cmih1s6qu00050i01m3cactjj",
+          "name": "Example Merchant",
+          "imageUrl": "https://example.com/merchant.png"
+        }
+      }
+    }
+  ]
+}
+```
+
+#### Response when customer not found (200)
+
+```json
+{
+  "phone": "0984360421",
+  "walletAddress": null,
+  "customerId": null,
+  "status": "all",
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 0
+  },
+  "summary": {
+    "total": 0,
+    "unused": 0,
+    "used": 0
+  },
+  "vouchers": []
+}
+```
+
+### Notes
+
+- Endpoint นี้จะ query on-chain balance จาก blockchain ด้วย
+- `onChainBalance` แสดงจำนวน NFT ที่เหลือบน blockchain
+- รวม voucher ที่ซื้อแล้วและที่ redeem แล้ว (isUsed = true)
+- Pagination ทำงานหลังจาก filter status
+
+---
+
 ## Notes
 
 - **M/O** = Mandatory/Optional

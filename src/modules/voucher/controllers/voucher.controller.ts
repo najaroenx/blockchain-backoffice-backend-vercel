@@ -34,6 +34,7 @@ import { SellerListOnMarketplace } from '../handlers/sellerListOnMarketplace.han
 import { GetSellerVouchers } from '../handlers/getSellerVouchers.handler';
 import { AddToWhitelist } from '../handlers/addToWhitelist.handler';
 import { GetVoucherByListingId } from '../handlers/getVoucherByListingId.handler';
+import { GetVoucherByMerchantRef } from '../handlers/getVoucherByMerchantRef.handler';
 import { VoucherValueType } from '@prisma/client';
 
 @ApiTags('Voucher')
@@ -48,6 +49,7 @@ export class VoucherController {
     private readonly getSellerVouchersHandler: GetSellerVouchers,
     private readonly addToWhitelistHandler: AddToWhitelist,
     private readonly getVoucherByListingId: GetVoucherByListingId,
+    private readonly getVoucherByMerchantRefHandler: GetVoucherByMerchantRef,
   ) {}
 
   @Get('/')
@@ -644,5 +646,14 @@ export class VoucherController {
   @HttpCode(200)
   async getVoucherByListingIds(@Param('listingId') listingId: string) {
     return this.getVoucherByListingId.execute(listingId);
+  }
+  //** GET Voucher by merchantRef */
+  @Get('/coupon-by-merchant/:merchantRef')
+  @Public()
+  @HttpCode(200)
+  async getVoucherByMerchantRefEndpoint(
+    @Param('merchantRef') merchantRef: string,
+  ) {
+    return this.getVoucherByMerchantRefHandler.execute(merchantRef);
   }
 }

@@ -9,8 +9,8 @@ import {
   POINT_NOT_FOUND,
 } from 'src/errors/error.constants';
 import { PointDBService } from '../services/point-db.service';
-import { GetPointResponseType } from '../types';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { GetPointByIdResponseType } from '../types';
 
 @Injectable()
 export class GetPointById {
@@ -21,11 +21,18 @@ export class GetPointById {
   async execute(
     pointId: string,
     merchantId?: string,
-  ): Promise<GetPointResponseType> {
+  ): Promise<GetPointByIdResponseType> {
     try {
+      this.logger.log(`[START] Getting point by id: ${pointId}`);
+
       const point = await this.db.getPointById(pointId, merchantId);
 
-      if (!point) throw new NotFoundException(POINT_NOT_FOUND);
+      if (!point) {
+        this.logger.error(`[ERROR] Point with id ${pointId} not found`);
+        throw new NotFoundException(POINT_NOT_FOUND);
+      }
+
+      this.logger.log(`[SUCCESS] Retrieved point ${pointId} successfully`);
 
       return {
         point: {
@@ -35,7 +42,8 @@ export class GetPointById {
       };
     } catch (error) {
       this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
+        `[FATAL ERROR] Failed to get point: ${error.message}`,
+        error.stack,
       );
       if (error instanceof NotFoundException) {
         throw error;

@@ -37,14 +37,64 @@ export class PointDBService {
     return { points, total };
   }
 
-  async getPointById(pointId: string, merchantId?: string): Promise<Point> {
-    const where: Prisma.PointWhereUniqueInput = merchantId
+  async getPointById(pointId: string, merchantId?: string): Promise<any> {
+    const where: any = merchantId
       ? { id: pointId, merchantId }
       : { id: pointId };
-    const point = await this.repository.findUnique<Point>({
+
+    const point: any = await this.repository.findFirst({
       where,
+      include: {
+        merchant: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            imageUrl: true,
+            website: true,
+          },
+        },
+        transactions: {
+          select: {
+            id: true,
+            amount: true,
+            createdAt: true,
+          },
+        },
+        customerPoints: {
+          select: {
+            balances: true,
+            customerId: true,
+          },
+        },
+      },
     });
-    return point;
+
+    if (!point) {
+      return null;
+    }
+
+    // Calculate statistics
+    const totalTransactions = point.transactions?.length || 0;
+    const totalCustomers = point.customerPoints?.length || 0;
+    const totalBalance =
+      point.customerPoints?.reduce(
+        (sum: number, cp: any) => sum + (cp.balances || 0),
+        0,
+      ) || 0;
+
+    const { transactions, customerPoints, ...pointData } = point;
+
+    return {
+      ...pointData,
+      statistics: {
+        totalTransactions,
+        totalCustomers,
+        totalBalance,
+        initialSupply: pointData.initialSupply,
+        circulatingSupply: totalBalance,
+      },
+    };
   }
 
   async updatePoint(

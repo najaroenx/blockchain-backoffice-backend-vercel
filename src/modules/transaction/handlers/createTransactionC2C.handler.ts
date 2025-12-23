@@ -13,6 +13,7 @@ import {
   CreateTransaction as CreateTransactionResponse,
   CustomerType,
   PointType,
+  CustomerWithWallet,
 } from '../types';
 import { Prisma } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
@@ -90,11 +91,17 @@ export class CreateTransactionC2C {
         Buffer.from(txId.replace(/^0x/, ''), 'hex'),
       );
       const senderAddressBuffer = Buffer.from(
-        ((sender as any).wallet?.walletAddress || '').replace(/^0x/, ''),
+        (sender as CustomerWithWallet).wallet?.walletAddress?.replace(
+          /^0x/,
+          '',
+        ) || '',
         'hex',
       );
       const receiverAddressBuffer = Buffer.from(
-        ((receiver as any).wallet?.walletAddress || '').replace(/^0x/, ''),
+        (receiver as CustomerWithWallet).wallet?.walletAddress?.replace(
+          /^0x/,
+          '',
+        ) || '',
         'hex',
       );
 
@@ -137,8 +144,8 @@ export class CreateTransactionC2C {
   }
 
   private async updateReceiverPoints(
-    receiver: CustomerType,
-    sender: CustomerType,
+    receiver: any,
+    sender: any,
     point: PointType,
     amount: number,
   ) {
@@ -178,7 +185,10 @@ export class CreateTransactionC2C {
     });
   }
 
-  private async getCustomer(merchantId: string, phone: string): Promise<any> {
+  private async getCustomer(
+    merchantId: string,
+    phone: string,
+  ): Promise<{ customer: any }> {
     const customerResponse = await this.getCustomerByPhone.execute(
       merchantId,
       phone,
@@ -209,18 +219,18 @@ export class CreateTransactionC2C {
 
   private async performBlockchainTransaction(
     amount: number,
-    sender: CustomerType,
-    receiver: CustomerType,
-    point: any,
+    sender: any,
+    receiver: any,
+    point: PointType,
   ): Promise<string> {
     const senderPrivateKey = this.tokenService.decryptKey(
       this.salt,
-      (sender as any).wallet?.privateKey || '',
+      (sender as CustomerWithWallet).wallet?.privateKey || '',
     );
 
     const { txId } = await this.blockchainService.transactionC2C({
       amount,
-      to: (receiver as any).wallet?.walletAddress || '',
+      to: (receiver as CustomerWithWallet).wallet?.walletAddress || '',
       senderPrivateKey,
       pointAddress: point.contractAddress,
     });

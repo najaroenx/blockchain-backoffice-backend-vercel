@@ -185,6 +185,41 @@ export class TransactionDBService {
     return transactions;
   }
 
+  async getTransactionById(id: string): Promise<any> {
+    const transaction = await this.repository.findFirst({
+      where: { id },
+      include: {
+        merchant: true,
+        sender: {
+          include: {
+            wallet: true,
+          },
+        },
+        receiver: {
+          include: {
+            wallet: true,
+          },
+        },
+        point: true,
+        voucherCode: {
+          include: {
+            voucher: {
+              select: {
+                id: true,
+                name: true,
+                valueType: true,
+                value: true,
+                imageUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return transaction;
+  }
+
   async createTransaction(
     data: Prisma.TransactionCreateInput,
   ): Promise<Transaction> {

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { GetCustomerOwnedVouchersResponseType } from '../types';
 
 @Injectable()
 export class GetCustomerOwnedVouchers {
@@ -16,7 +17,7 @@ export class GetCustomerOwnedVouchers {
     status?: 'unused' | 'used' | 'all',
     page: number = 1,
     limit: number = 20,
-  ) {
+  ): Promise<GetCustomerOwnedVouchersResponseType> {
     try {
       this.logger.log(
         `[START] Getting owned vouchers for phone: ${phone}, status: ${status}`,

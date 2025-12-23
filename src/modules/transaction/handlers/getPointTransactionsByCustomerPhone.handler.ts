@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { GetTransactionsByCustomerIdResponseType } from '../types';
 import { CustomerDBService } from 'src/modules/customer/services/customer-db.service';
@@ -78,6 +79,35 @@ export class GetPointTransactionsByCustomerPhone {
           emailOrWebsite: customer?.email ?? merchantWebsite,
         });
 
+        const formatPointInfo = (
+          point: any,
+          amount: number,
+          transactionTypeId: string,
+        ) => {
+          const voucherTransactionTypes = [
+            TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
+            TransactionTypeId.VOUCHER_TRANSFER,
+            TransactionTypeId.VOUCHER_GIFT,
+          ];
+
+          if (
+            voucherTransactionTypes.includes(
+              transactionTypeId as TransactionTypeId,
+            )
+          ) {
+            return null;
+          }
+
+          return {
+            id: point.id,
+            name: point.name,
+            symbol: point.symbol,
+            merchantId: point.merchantId || null,
+            imageUrl: point.imageUrl || null,
+            balance: amount,
+          };
+        };
+
         // Determine direction from customer's perspective
         const transactionDirection =
           rest.senderId === customer.id ? 'SENT' : 'RECEIVED';
@@ -92,12 +122,7 @@ export class GetPointTransactionsByCustomerPhone {
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
           merchantId: rest.merchantId,
           merchantName: merchant?.name || null,
-          point: {
-            id: point.id,
-            name: point.name,
-            symbol: point.symbol,
-            imageUrl: point.imageUrl || null,
-          },
+          point: formatPointInfo(point, rest.amount, rest.transactionTypeId),
           sender: formatParticipant(
             sender,
             rest.senderAddress,

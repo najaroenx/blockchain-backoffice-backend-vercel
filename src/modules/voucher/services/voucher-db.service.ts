@@ -7,6 +7,7 @@ import { ActivateVoucher } from '../handlers/activateVoucher.handler';
 import { RedeemVoucher } from '../handlers/redeemVoucher.handler';
 import { BuyCouponFromMarketplace } from '../handlers/buyCouponFromMarketplace.handler';
 import { GetCustomerOwnedVouchers } from '../handlers/getCustomerOwnedVouchers.handler';
+import { GetVoucherById } from '../handlers/getVoucherById.handler';
 import { CreateVoucherByDevDto, CreateVoucherDto } from '../dtos/voucher.dto';
 import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
@@ -28,6 +29,7 @@ export class VoucherDBService {
     private readonly redeemVoucherHandler: RedeemVoucher,
     private readonly buyCouponFromMarketplaceHandler: BuyCouponFromMarketplace,
     private readonly getCustomerOwnedVouchersHandler: GetCustomerOwnedVouchers,
+    private readonly getVoucherByIdHandler: GetVoucherById,
     private readonly blockchainService: BlockchainService,
   ) {}
 
@@ -53,46 +55,7 @@ export class VoucherDBService {
   }
 
   async getVoucherById(voucherId: string): Promise<any> {
-    const voucher = await this.repository.findUnique<any>({
-      where: { id: voucherId },
-      include: {
-        merchant: true,
-        voucherCodes: {
-          take: 1,
-          select: {
-            pointsCost: true,
-          },
-        },
-      },
-    });
-
-    if (!voucher) {
-      return null;
-    }
-
-    // นับ active codes (codes ที่มี voucherGroupId และยังไม่ถูกใช้)
-    const activeCodesCount = await this.prisma.voucherCode.count({
-      where: { voucherId, voucherGroupId: { not: null }, isUsed: false },
-    });
-
-    // นับ redeemed codes (codes ที่ถูก redeem ไปแล้ว)
-    const redeemedCodesCount = await this.prisma.voucherCode.count({
-      where: { voucherId, voucherGroupId: { not: null }, isUsed: true },
-    });
-
-    // upcoming = totalIssued ที่ยังไม่ได้สร้าง codes
-    const upcomingCodesCount = voucher.totalIssued;
-
-    // Format response
-    const { voucherCodes, ...voucherData } = voucher;
-    return {
-      ...voucherData,
-      pointsCost: voucherCodes[0]?.pointsCost || 0,
-      activeCodesCount,
-      totalRedeemed: redeemedCodesCount,
-      upcomingCodesCount,
-      totalCodes: activeCodesCount + redeemedCodesCount + upcomingCodesCount,
-    };
+    return this.getVoucherByIdHandler.execute(voucherId);
   }
 
   async getVouchersByMerchant(merchantId: string): Promise<any[]> {

@@ -78,14 +78,44 @@ export type GetCustomerPhoneDevForRespType = {
     ownedVouchers?: any[];
   };
 };
+
+export interface GroupedVoucherLatestVoucher {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string | null;
+  value: number;
+  valueType: string;
+  status: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  merchantRef: string | null;
+  merchantId: string | null;
+  latestCode: string;
+  codeStatus: 'unused' | 'used' | 'expired';
+  pointsCost: number;
+  currency: string | null;
+}
+
+export interface GroupedVoucher {
+  voucherGroupId: string;
+  latestVoucher: GroupedVoucherLatestVoucher;
+  totalCodes: number;
+}
+
+export interface PointInfo {
+  id: string;
+  name: string;
+  symbol: string;
+  merchantId: string | null;
+  imageUrl: string | null;
+  balance: number;
+}
+
 export type GetCustomerByPhoneResponseTypeV1 = {
   phone: string;
   walletAddress: string;
-  customerPoints: Array<
-    CustomerPoint & {
-      point: Point;
-    }
-  >;
+  customerPoints: PointInfo[];
   customerMerChant: Array<{
     id: string;
     merchantId: string;
@@ -100,5 +130,5 @@ export type GetCustomerByPhoneResponseTypeV1 = {
       tel: string;
     };
   }>;
-  ownedVouchers?: any[];
+  ownedVouchers: GroupedVoucher[];
 };

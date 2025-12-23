@@ -41,7 +41,14 @@ export class GetCustomerPhoneDevForResp {
         phone: phone,
         walletAddress: customer.wallet?.walletAddress || '',
         ownedVouchers: groupedVouchers,
-        customerPoints: customer.customerPoints || [],
+        customerPoints: (customer.customerPoints || []).map((cp: any) => ({
+          id: cp.point.id,
+          name: cp.point.name,
+          symbol: cp.point.symbol,
+          merchantId: cp.point.merchantId || null,
+          imageUrl: cp.point.imageUrl || null,
+          balance: cp.balances,
+        })),
         customerMerChant: customer.customerMerChant || [],
       };
 

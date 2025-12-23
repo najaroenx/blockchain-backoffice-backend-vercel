@@ -21,6 +21,7 @@ import { GetCustomerPhoneDevForResp } from './handlers/getCustomerPhoneDevForRes
 import { RegisterCustomerDev } from './handlers/registerCustomer.dev.handler';
 import { GetCustomerPoints } from './handlers/getCustomerPoints.handler';
 import { MerchantModule } from '../merchant/merchant.module';
+import { ClearCustomerByPhone } from './handlers/clearCustomerByPhone.handler';
 @Module({
   imports: [
     TokenModule,
@@ -44,6 +45,7 @@ import { MerchantModule } from '../merchant/merchant.module';
     GetCustomerPhoneDevForResp,
     RegisterCustomerDev,
     GetCustomerPoints,
+    ClearCustomerByPhone,
   ],
   exports: [
     // GetCustomerByEmail,

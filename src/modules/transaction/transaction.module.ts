@@ -21,6 +21,7 @@ import { ListTreasuries } from './handlers/listTreasuries.handler';
 import { GetAllTransactionsByCustomerPhone } from './handlers/getAllTransactionsByCustomerPhone.handler';
 import { GetPointTransactionsByCustomerPhone } from './handlers/getPointTransactionsByCustomerPhone.handler';
 import { GetVoucherTransactionsByCustomerPhone } from './handlers/getVoucherTransactionsByCustomerPhone.handler';
+import { GetTransactionById } from './handlers/getTransactionById.handler';
 import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
@@ -40,6 +41,7 @@ import { PrismaModule } from 'prisma/prisma.module';
     GetAllTransactionsByCustomerPhone,
     GetPointTransactionsByCustomerPhone,
     GetVoucherTransactionsByCustomerPhone,
+    GetTransactionById,
     CreateTransactionB2C,
     CreateTransactionC2C,
     MintTransaction,

@@ -85,7 +85,4 @@ export class DeletePointParams {
 export class GetPointByIdParams {
   @IsString()
   pointId: string;
-
-  @IsString()
-  merchantId: string;
 }

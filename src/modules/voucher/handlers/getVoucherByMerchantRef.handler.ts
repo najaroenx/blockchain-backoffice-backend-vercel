@@ -57,8 +57,15 @@ export class GetVoucherByMerchantRef {
           `Voucher with merchantRef ${merchantRef} not found`,
         );
       }
-
-      return voucher;
+      const response = {
+        id: voucher.id,
+        name: voucher.name,
+        description: voucher.description,
+        merchant: voucher.merchant,
+        amount: voucher.voucherCodes.length * voucher.value,
+        voucherCodes: voucher.voucherCodes,
+      };
+      return response;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

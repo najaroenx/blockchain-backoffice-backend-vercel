@@ -38,7 +38,7 @@ export class OTPService {
       ).toString('base64');
       const bodyReq = {
         sender: 'saleday',
-        text: `Your OTP code is ${otp}`,
+        text: `รหัส OTP คือ ${otp} จะหมดอายุใน 5 นาที และจะใช้ได้ 1 ครั้งเท่านั้น`,
         destinations: [
           {
             destination: phoneNumber,

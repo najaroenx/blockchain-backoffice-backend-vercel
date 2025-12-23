@@ -18,6 +18,7 @@ import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 import { TokenModule } from 'src/providers/token/token.module';
 import { GetVoucherByListingId } from './handlers/getVoucherByListingId.handler';
 import { GetVoucherById } from './handlers/getVoucherById.handler';
+import { GetVoucherByMerchantRef } from './handlers/getVoucherByMerchantRef.handler';
 @Module({
   imports: [PrismaModule, BlockchainModule, TokenModule],
   controllers: [VoucherController],
@@ -37,6 +38,7 @@ import { GetVoucherById } from './handlers/getVoucherById.handler';
     AddToWhitelist,
     GetVoucherByListingId,
     GetVoucherById,
+    GetVoucherByMerchantRef,
   ],
   exports: [VoucherDBService],
 })

@@ -103,6 +103,25 @@ export class GetVoucherByListingId {
       this.logger.log(
         '[GetVoucherByListingId] Step 9: Execution completed successfully',
       );
+      this.logger.log(
+        `[GetVoucherByListingId] Step 10: Voucher found for listing ${listingId}:`,
+        voucherCodes,
+      );
+      // TODO: for temporary use
+      const availableCount = await this.prisma.voucherCode.count({
+        where: {
+          voucherId: voucherCodes.voucherId,
+          voucherGroupId: voucherCodes.voucherGroupId,
+          isUsed: false,
+          currentOwnerId: {
+            not: null,
+          },
+        },
+      });
+      this.logger.log(
+        `[GetVoucherByListingId] Step 11: Available count for voucher ${voucherCodes.voucherId}: ${availableCount} : ${voucherCodes.voucherGroupId}`,
+      );
+      voucherCodes.voucher.totalRedeemed = availableCount || 0;
       return voucherCodes;
     } catch (error) {
       this.logger.error(

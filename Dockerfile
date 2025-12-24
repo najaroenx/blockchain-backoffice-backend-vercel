@@ -14,9 +14,6 @@ COPY . .
 # Generate Prisma Client for linux musl
 RUN npx prisma generate
 
-# Compile scripts
-RUN npx tsc scripts/remove-duplicate-customer-tel.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
-
 # Build NestJS app
 RUN yarn run build
 
@@ -46,7 +43,6 @@ EXPOSE 4000
 # "]
 # PROD MODE
 CMD ["sh", "-c", "\
-    node dist/scripts/remove-duplicate-customer-tel.js && \
     npx prisma migrate deploy && \
     node dist/src/main \
 "]

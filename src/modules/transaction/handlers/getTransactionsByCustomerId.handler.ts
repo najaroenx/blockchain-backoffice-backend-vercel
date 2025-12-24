@@ -144,6 +144,7 @@ export class GetTransactionsByCustomerId {
           voucher: formatVoucherInfo(voucherCode),
           voucherCodeId: rest.voucherCodeId || null,
           eventId: rest.eventId || null,
+          transactionRefId: (rest as any).transactionRefId || null,
           createdAt: rest.createdAt,
         };
       });
@@ -263,6 +264,7 @@ export class GetTransactionsByCustomerId {
           voucher: formatVoucherInfo(voucherCode),
           voucherCodeId: rest.voucherCodeId || null,
           eventId: rest.eventId || null,
+          transactionRefId: (rest as any).transactionRefId || null,
           createdAt: rest.createdAt,
         };
       });

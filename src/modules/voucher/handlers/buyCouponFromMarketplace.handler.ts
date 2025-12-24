@@ -10,6 +10,7 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { AssetType } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
@@ -353,6 +354,9 @@ export class BuyCouponFromMarketplace {
         'hex',
       );
 
+      // Generate shared transactionRefId for linked transactions
+      const transactionRefId = randomUUID();
+
       const [, , purchaseTransaction, transferTransaction] =
         await this.prisma.$transaction([
           // Update current owner
@@ -386,6 +390,7 @@ export class BuyCouponFromMarketplace {
               voucherCodeId: voucherCodeId,
               transactionTypeId: TransactionTypeId.MARKETPLACE_PURCHASE,
               type: AssetType.VOUCHER,
+              transactionRefId,
             } as any,
           }),
 
@@ -404,6 +409,7 @@ export class BuyCouponFromMarketplace {
               voucherCodeId: voucherCodeId,
               transactionTypeId: TransactionTypeId.VOUCHER_TRANSFER,
               type: AssetType.VOUCHER,
+              transactionRefId,
             } as any,
           }),
         ]);

@@ -14,10 +14,6 @@ COPY . .
 # Generate Prisma Client for linux musl
 RUN npx prisma generate
 
-# Compile scripts for runtime
-RUN npx tsc scripts/populate-transaction-type.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
-RUN npx tsc scripts/populate-transaction-ref-id.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
-
 # Build NestJS app
 RUN yarn run build
 
@@ -48,7 +44,5 @@ EXPOSE 4000
 # PROD MODE
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    node dist/scripts/populate-transaction-type.js && \
-    node dist/scripts/populate-transaction-ref-id.js && \
     node dist/src/main \
 "]

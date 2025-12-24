@@ -15,6 +15,7 @@ import {
   PointType,
 } from '../types';
 import { Prisma, AssetType } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
@@ -99,6 +100,7 @@ export class BurnTransaction {
         // txHash: createBufferFromHex(txId),
         txHash: new Uint8Array(createBufferFromHex(txId)),
         type: AssetType.POINT,
+        transactionRefId: randomUUID(),
       });
 
       await this.updateBalances(sender, point, data.amount);

@@ -71,12 +71,14 @@ export class GetSellerVouchers {
             pointsCost: voucherCodes[0]?.pointsCost || null,
             pointId: voucherCodes[0]?.pointId || null,
             currency: voucherCodes[0]?.currency || null,
+            // Additional info
             stats: {
               totalCodes: totalCodesCount,
               listedCodes: listedCodesCount,
               soldCodes: soldCodesCount,
               availableForSale: voucher.totalIssued - soldCodesCount,
             },
+            // to do total ทั้งหมดตอนนี้เท่าไหร่ , เหลือเท่าไหร่ total issuee - จำนวนที่ลิส
             status: {
               isListed: listedCodesCount > 0,
               hasSales: soldCodesCount > 0,

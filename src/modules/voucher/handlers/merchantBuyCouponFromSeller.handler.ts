@@ -10,6 +10,7 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { AssetType } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { ethers } from 'ethers';
 
 /**
@@ -210,6 +211,7 @@ export class MerchantBuyCouponFromSeller {
           voucherCodeId: null,
           transactionTypeId: TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
           type: AssetType.VOUCHER,
+          transactionRefId: randomUUID(),
         } as any,
       });
 

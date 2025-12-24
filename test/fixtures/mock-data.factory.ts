@@ -131,6 +131,7 @@ export const MockDataFactory = {
     transactionTypeId: 'TRANSFER',
     voucherCodeId: null,
     eventId: null,
+    transactionRefId: 'ref-123',
     createdAt: new Date(),
     updatedAt: new Date(),
     // Relations for nested response
@@ -167,6 +168,7 @@ export const MockDataFactory = {
     transactionTypeId: 'TRANSFER',
     voucherCodeId: null,
     eventId: null,
+    transactionRefId: 'ref-123',
     createdAt: new Date('2025-12-11T10:00:00.000Z'),
     updatedAt: new Date('2025-12-11T10:00:00.000Z'),
     point: {

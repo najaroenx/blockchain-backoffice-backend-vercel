@@ -16,6 +16,7 @@ import {
   CustomerWithWallet,
 } from '../types';
 import { Prisma, AssetType } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 // import { createBufferFromHex } from 'src/libs/createBufferFromHex';
@@ -117,6 +118,7 @@ export class CreateTransactionC2C {
         transactionType: { connect: { id: TransactionTypeId.TRANSFER } },
         txHash: txHashBuffer,
         type: AssetType.POINT,
+        transactionRefId: randomUUID(),
       });
 
       this.logger.log(

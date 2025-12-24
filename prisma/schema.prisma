@@ -142,8 +142,12 @@ model Transaction {
   merchantReceiver   Merchant? @relation("MerchantReceiver", fields: [merchantReceiverId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantReceiverId String?
 
+  // Transaction category: POINT or VOUCHER
+  category TransactionCategory?
+
   @@index([voucherCodeId])
   @@index([eventId])
+  @@index([category])
 }
 
 model Customer {
@@ -202,6 +206,12 @@ enum VoucherValueType {
   gift
   multiplier
   aispoint
+}
+
+// Transaction category enum for distinguishing point vs voucher transactions
+enum TransactionCategory {
+  POINT
+  VOUCHER
 }
 
 model Voucher {

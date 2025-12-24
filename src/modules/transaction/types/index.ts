@@ -53,6 +53,7 @@ export interface TransactionDetail {
   voucher: TransactionVoucherInfo | null;
   voucherCodeId: string | null;
   eventId: string | null;
+  transactionRefId: string | null;
   createdAt: Date;
 }
 

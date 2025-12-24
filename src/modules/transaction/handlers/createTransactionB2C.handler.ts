@@ -12,6 +12,7 @@ import {
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { Prisma, AssetType } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { CreateTransaction as CreateTransactionResponse } from '../types';
@@ -399,6 +400,7 @@ export class CreateTransactionB2C {
         txHash: txHashBuffer,
         eventId: eventId || null,
         type: AssetType.POINT,
+        transactionRefId: randomUUID(),
       });
 
       this.logger.log(

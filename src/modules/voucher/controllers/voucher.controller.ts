@@ -104,6 +104,29 @@ export class VoucherController {
   }
 
   /**
+   * Get seller listings from marketplace for merchants to purchase
+   * GET /coupon/merchant/seller-listings
+   * Filters only listings with THB payment token (seller -> merchant)
+   * Supports pagination via page and limit query params
+   */
+  @Get('/merchant/seller-listings')
+  @Public()
+  @HttpCode(200)
+  async getSellerMarketplaceListings(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.getMarketplaceListings.execute(
+      undefined, // no merchantId filter
+      true, // sellerOnly = true
+      pageNum,
+      limitNum,
+    );
+  }
+
+  /**
    * Get available vouchers from marketplace (blockchain)
    * GET /coupon/:merchantId/products
    */

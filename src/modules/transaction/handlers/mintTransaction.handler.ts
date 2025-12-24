@@ -11,6 +11,7 @@ import {
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { Prisma, AssetType } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 // import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { CreateTransaction as CreateTransactionResponse } from '../types';
@@ -111,6 +112,7 @@ export class MintTransaction {
         // txHash: createBufferFromHex(txId),
         txHash: Uint8Array.from(Buffer.from(txId.replace(/^0x/, ''), 'hex')),
         type: AssetType.POINT,
+        transactionRefId: randomUUID(),
       });
 
       if (customer.customerPoints.length === 0) {

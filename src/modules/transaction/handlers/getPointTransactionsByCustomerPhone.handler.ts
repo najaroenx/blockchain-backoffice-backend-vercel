@@ -144,6 +144,7 @@ export class GetPointTransactionsByCustomerPhone {
             : null,
           voucherCodeId: rest.voucherCodeId || null,
           eventId: rest.eventId || null,
+          transactionRefId: (rest as any).transactionRefId || null,
           createdAt: rest.createdAt,
         };
       });

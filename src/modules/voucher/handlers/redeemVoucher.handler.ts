@@ -7,6 +7,7 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
+import { AssetType } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -308,6 +309,7 @@ export class RedeemVoucher {
             merchantId: voucher.merchantId, // Track which merchant's voucher was redeemed
             voucherCodeId: voucherCode.id,
             transactionTypeId: TransactionTypeId.REDEEM,
+            type: AssetType.VOUCHER,
           },
         }),
       ]);

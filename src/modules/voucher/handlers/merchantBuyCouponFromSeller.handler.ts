@@ -9,6 +9,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
+import { AssetType } from '@prisma/client';
 import { ethers } from 'ethers';
 
 /**
@@ -208,6 +209,7 @@ export class MerchantBuyCouponFromSeller {
           merchantReceiverId: null, // Seller not tracked in DB
           voucherCodeId: null,
           transactionTypeId: TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
+          type: AssetType.VOUCHER,
         } as any,
       });
 

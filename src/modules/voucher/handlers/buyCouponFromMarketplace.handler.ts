@@ -9,6 +9,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
+import { AssetType } from '@prisma/client';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
@@ -384,6 +385,7 @@ export class BuyCouponFromMarketplace {
               merchantReceiverId: voucherCode.voucher.merchantId, // Merchant received payment
               voucherCodeId: voucherCodeId,
               transactionTypeId: TransactionTypeId.MARKETPLACE_PURCHASE,
+              type: AssetType.VOUCHER,
             } as any,
           }),
 
@@ -401,6 +403,7 @@ export class BuyCouponFromMarketplace {
               merchantReceiverId: null,
               voucherCodeId: voucherCodeId,
               transactionTypeId: TransactionTypeId.VOUCHER_TRANSFER,
+              type: AssetType.VOUCHER,
             } as any,
           }),
         ]);

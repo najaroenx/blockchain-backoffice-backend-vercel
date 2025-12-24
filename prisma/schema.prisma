@@ -145,9 +145,13 @@ model Transaction {
   // Asset type: POINT or VOUCHER
   type AssetType?
 
+  // Transaction reference ID for grouping related transactions
+  transactionRefId String?
+
   @@index([voucherCodeId])
   @@index([eventId])
   @@index([type])
+  @@index([transactionRefId])
 }
 
 model Customer {

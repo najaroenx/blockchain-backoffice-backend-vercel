@@ -14,7 +14,7 @@ import {
   CustomerType,
   PointType,
 } from '../types';
-import { Prisma } from '@prisma/client';
+import { Prisma, AssetType } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
@@ -98,6 +98,7 @@ export class BurnTransaction {
         transactionType: { connect: { id: TransactionTypeId.BURN } },
         // txHash: createBufferFromHex(txId),
         txHash: new Uint8Array(createBufferFromHex(txId)),
+        type: AssetType.POINT,
       });
 
       await this.updateBalances(sender, point, data.amount);

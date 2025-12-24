@@ -95,6 +95,7 @@ export class GetTransactionsByMerchantId {
           transactionTypeId: rest.transactionTypeId,
           amount: rest.amount,
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
+          type: (rest as any).type || null,
           point: formatPointInfo(point, rest.amount, rest.transactionTypeId),
           sender: formatParticipant(
             sender,

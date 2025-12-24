@@ -11,7 +11,7 @@ import {
   RPC_SERVER_ERROR,
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
-import { Prisma } from '@prisma/client';
+import { Prisma, AssetType } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { CreateTransaction as CreateTransactionResponse } from '../types';
@@ -398,6 +398,7 @@ export class CreateTransactionB2C {
         transactionType: { connect: { id: finalTransactionTypeId } },
         txHash: txHashBuffer,
         eventId: eventId || null,
+        type: AssetType.POINT,
       });
 
       this.logger.log(

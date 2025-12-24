@@ -1,5 +1,6 @@
 /**
  * Script to remove duplicate customer tel values, keeping only the latest record
+ * AND resolve failed migration state
  *
  * Usage:
  *   npx ts-node scripts/remove-duplicate-customer-tel.ts
@@ -12,7 +13,44 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-async function main() {
+const MIGRATION_NAME = '20251217041144_make_customer_tel_unique';
+
+async function resolveFailedMigration() {
+  console.log('🔧 Checking for failed migrations...\n');
+
+  try {
+    // Check if migration is in failed state (started but not finished)
+    const failedMigrations = await prisma.$queryRaw<
+      { migration_name: string; finished_at: Date | null }[]
+    >`
+      SELECT migration_name, finished_at 
+      FROM "_prisma_migrations" 
+      WHERE migration_name = ${MIGRATION_NAME}
+      AND finished_at IS NULL
+    `;
+
+    if (failedMigrations.length > 0) {
+      console.log(`⚠️  Found failed migration: ${MIGRATION_NAME}`);
+      console.log('🔄 Removing failed migration record...\n');
+
+      // Delete the failed migration record so it can be re-applied
+      await prisma.$executeRaw`
+        DELETE FROM "_prisma_migrations" 
+        WHERE migration_name = ${MIGRATION_NAME}
+      `;
+
+      console.log(
+        '✅ Removed failed migration record. It will be re-applied.\n',
+      );
+    } else {
+      console.log('✅ No failed migrations found.\n');
+    }
+  } catch (error) {
+    console.log(`⚠️  Error checking migrations: ${error.message}\n`);
+  }
+}
+
+async function removeDuplicates() {
   console.log('🔍 Finding duplicate customer tel values...\n');
 
   // Find all duplicate tel values
@@ -25,7 +63,7 @@ async function main() {
   `;
 
   if (duplicates.length === 0) {
-    console.log('✅ No duplicate tel values found!');
+    console.log('✅ No duplicate tel values found!\n');
     return;
   }
 
@@ -110,8 +148,17 @@ async function main() {
     console.log('');
   }
 
-  console.log(`\n🎉 Done! Deleted ${totalDeleted} duplicate records.`);
-  console.log('\n📌 Now you can run: npx prisma migrate deploy');
+  console.log(`\n🎉 Done! Deleted ${totalDeleted} duplicate records.\n`);
+}
+
+async function main() {
+  // Step 1: Remove duplicates first
+  await removeDuplicates();
+
+  // Step 2: Resolve failed migration
+  await resolveFailedMigration();
+
+  console.log('📌 Now prisma migrate deploy should work!');
 }
 
 main()

@@ -14,6 +14,9 @@ COPY . .
 # Generate Prisma Client for linux musl
 RUN npx prisma generate
 
+# Compile scripts
+RUN npx tsc scripts/remove-duplicate-customer-tel.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
+
 # Build NestJS app
 RUN yarn run build
 
@@ -31,8 +34,6 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/node_modules ./node_
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=merchant-backoffice:nodejs /app/scripts ./scripts
-COPY --from=builder --chown=merchant-backoffice:nodejs /app/tsconfig.json ./tsconfig.json
 
 USER merchant-backoffice
 
@@ -45,7 +46,7 @@ EXPOSE 4000
 # "]
 # PROD MODE
 CMD ["sh", "-c", "\
-    npx ts-node scripts/remove-duplicate-customer-tel.ts && \
+    node dist/scripts/remove-duplicate-customer-tel.js && \
     npx prisma migrate deploy && \
     node dist/src/main \
 "]

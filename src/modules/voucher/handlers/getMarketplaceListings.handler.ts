@@ -48,7 +48,8 @@ export class GetMarketplaceListings {
         const beforeCount = blockchainListings.length;
         blockchainListings = blockchainListings.filter(
           (listing) =>
-            listing.paymentToken.toLowerCase() === this.thbAddress.toLowerCase(),
+            listing.paymentToken.toLowerCase() ===
+            this.thbAddress.toLowerCase(),
         );
         this.logger.log(
           `[GetMarketplaceListings] Filtered to ${blockchainListings.length} seller listings (from ${beforeCount}) using THB payment token`,

@@ -19,17 +19,17 @@ export enum TransactionTypeId {
 }
 
 /**
- * Transaction Category Enum
+ * Asset Type Enum
  * High-level classification of transactions
  * - POINT: Point-related transactions (mint, transfer, burn, earn)
  * - VOUCHER: Voucher-related transactions (purchase, redeem, transfer)
  */
-export { TransactionCategory } from '@prisma/client';
+export { AssetType } from '@prisma/client';
 
 /**
- * Mapping from TransactionTypeId to TransactionCategory
+ * Mapping from TransactionTypeId to AssetType
  */
-export const TRANSACTION_TYPE_TO_CATEGORY: Record<
+export const TRANSACTION_TYPE_TO_ASSET_TYPE: Record<
   TransactionTypeId,
   'POINT' | 'VOUCHER'
 > = {

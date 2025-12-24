@@ -1,18 +1,18 @@
 /**
- * Script to populate TransactionCategory for existing transactions
+ * Script to populate AssetType (type field) for existing transactions
  * Based on transactionTypeId:
  *   - MINT, TRANSFER, BURN, EARN → POINT
  *   - REDEEM, MARKETPLACE_PURCHASE, MERCHANT_PURCHASE_FROM_SELLER, VOUCHER_TRANSFER, VOUCHER_GIFT → VOUCHER
  *
  * Usage:
- *   npx ts-node scripts/populate-transaction-category.ts
+ *   npx ts-node scripts/populate-transaction-type.ts
  */
 
-import { PrismaClient, TransactionCategory } from '@prisma/client';
+import { PrismaClient, AssetType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Mapping transactionTypeId → category
+// Mapping transactionTypeId → type
 const POINT_TYPES = ['MINT', 'TRANSFER', 'BURN', 'EARN'];
 const VOUCHER_TYPES = [
   'REDEEM',
@@ -23,32 +23,28 @@ const VOUCHER_TYPES = [
 ];
 
 async function main() {
-  console.log(
-    '🔄 Populating TransactionCategory for existing transactions...\n',
-  );
+  console.log('🔄 Populating AssetType (type) for existing transactions...\n');
 
-  // Count transactions without category
-  const totalWithoutCategory = await prisma.transaction.count({
-    where: { category: null },
+  // Count transactions without type
+  const totalWithoutType = await prisma.transaction.count({
+    where: { type: null },
   });
 
-  if (totalWithoutCategory === 0) {
-    console.log('✅ All transactions already have category set!\n');
+  if (totalWithoutType === 0) {
+    console.log('✅ All transactions already have type set!\n');
     return;
   }
 
-  console.log(
-    `📊 Found ${totalWithoutCategory} transactions without category\n`,
-  );
+  console.log(`📊 Found ${totalWithoutType} transactions without type\n`);
 
   // Update POINT transactions
   console.log('🔵 Updating POINT transactions...');
   const pointResult = await prisma.transaction.updateMany({
     where: {
-      category: null,
+      type: null,
       transactionTypeId: { in: POINT_TYPES },
     },
-    data: { category: TransactionCategory.POINT },
+    data: { type: AssetType.POINT },
   });
   console.log(`   ✅ Updated ${pointResult.count} POINT transactions\n`);
 
@@ -56,10 +52,10 @@ async function main() {
   console.log('🟣 Updating VOUCHER transactions...');
   const voucherResult = await prisma.transaction.updateMany({
     where: {
-      category: null,
+      type: null,
       transactionTypeId: { in: VOUCHER_TYPES },
     },
-    data: { category: TransactionCategory.VOUCHER },
+    data: { type: AssetType.VOUCHER },
   });
   console.log(`   ✅ Updated ${voucherResult.count} VOUCHER transactions\n`);
 
@@ -67,10 +63,10 @@ async function main() {
   console.log('🔵 Checking transactions with pointId (fallback)...');
   const pointIdResult = await prisma.transaction.updateMany({
     where: {
-      category: null,
+      type: null,
       pointId: { not: null },
     },
-    data: { category: TransactionCategory.POINT },
+    data: { type: AssetType.POINT },
   });
   console.log(`   ✅ Updated ${pointIdResult.count} transactions by pointId\n`);
 
@@ -78,28 +74,28 @@ async function main() {
   console.log('🟣 Checking transactions with voucherCodeId (fallback)...');
   const voucherCodeResult = await prisma.transaction.updateMany({
     where: {
-      category: null,
+      type: null,
       voucherCodeId: { not: null },
     },
-    data: { category: TransactionCategory.VOUCHER },
+    data: { type: AssetType.VOUCHER },
   });
   console.log(
     `   ✅ Updated ${voucherCodeResult.count} transactions by voucherCodeId\n`,
   );
 
-  // Check remaining without category
+  // Check remaining without type
   const remaining = await prisma.transaction.count({
-    where: { category: null },
+    where: { type: null },
   });
 
   if (remaining > 0) {
     console.log(
-      `⚠️  ${remaining} transactions still without category (unknown type)`,
+      `⚠️  ${remaining} transactions still without type (unknown type)`,
     );
 
     // List them for debugging
     const unknownTxns = await prisma.transaction.findMany({
-      where: { category: null },
+      where: { type: null },
       select: {
         id: true,
         transactionTypeId: true,
@@ -115,17 +111,17 @@ async function main() {
       );
     });
   } else {
-    console.log('✅ All transactions now have category set!\n');
+    console.log('✅ All transactions now have type set!\n');
   }
 
   // Summary
   const summary = await prisma.transaction.groupBy({
-    by: ['category'],
+    by: ['type'],
     _count: true,
   });
   console.log('\n📊 Summary:');
   summary.forEach((s) => {
-    console.log(`   ${s.category || 'NULL'}: ${s._count} transactions`);
+    console.log(`   ${s.type || 'NULL'}: ${s._count} transactions`);
   });
 
   console.log('\n🎉 Done!');

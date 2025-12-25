@@ -242,6 +242,35 @@ model Voucher {
   voucherCodes   VoucherCode[] // ← 1 voucher มีหลาย codes
 }
 
+// Listing batch status enum
+enum ListingBatchStatus {
+  ACTIVE
+  SOLD_OUT
+  CANCELLED
+  EXPIRED
+}
+
+// Batch container for grouping multiple voucher listings together
+model ListingBatch {
+  id                  String             @id @default(cuid())
+  sellerWalletAddress String // ← Wallet address of seller who listed
+  name                String? // ← Optional batch name (e.g., "Christmas Sale Pack")
+  description         String? // ← Optional description
+  totalItems          Int // ← Total VoucherCodes in this batch
+  soldItems           Int                @default(0) // ← Total sold
+  totalValue          Float // ← Sum of all items' total values
+  currency            String             @default("THB") // ← Primary currency
+  status              ListingBatchStatus @default(ACTIVE)
+  createdAt           DateTime           @default(now()) @map(name: "created_at")
+  updatedAt           DateTime           @updatedAt @map(name: "updated_at")
+
+  voucherCodes VoucherCode[] // ← VoucherCodes in this batch
+
+  @@index([sellerWalletAddress])
+  @@index([status])
+  @@index([createdAt])
+}
+
 model VoucherCode {
   id             String        @id @default(cuid())
   code           String        @unique // ← Code ที่ไม่ซ้ำกัน
@@ -260,11 +289,16 @@ model VoucherCode {
   transactions   Transaction[] // ← Transaction history
   createdAt      DateTime      @default(now()) @map(name: "created_at")
 
+  // Batch listing reference (optional - for batch listings)
+  listingBatchId String? // ← FK to ListingBatch
+  listingBatch   ListingBatch? @relation(fields: [listingBatchId], references: [id], onDelete: SetNull)
+
   @@index([voucherId, isUsed])
   @@index([code])
   @@index([voucherGroupId])
   @@index([currentOwnerId, isUsed])
   @@index([pointId])
+  @@index([listingBatchId])
 }
 
 model Treasury {

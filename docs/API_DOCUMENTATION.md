@@ -279,6 +279,8 @@
 | merchantId | String | รหัสร้านค้า |
 | pointId | String | รหัสคะแนน |
 | transactionTypeId | String | ประเภทธุรกรรม (TRANSFER, MINT, BURN, etc.) |
+| type | String \| null | ประเภท asset: `POINT` หรือ `VOUCHER` |
+| transactionRefId | String \| null | UUID สำหรับ link transactions ที่เกี่ยวข้อง |
 | voucherCodeId | String \| null | รหัส voucher code (ถ้ามี) |
 | eventId | String \| null | รหัสอีเว้นท์ (ถ้ามี) |
 | senderId | String \| null | รหัสผู้ส่ง (null สำหรับ B2C) |
@@ -298,6 +300,8 @@
   "merchantId": "cmih1s6qu00050i01m3cactjj",
   "pointId": "cmiimp4g400015v01nv1ij7zf",
   "transactionTypeId": "TRANSFER",
+  "type": "POINT",
+  "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
   "voucherCodeId": null,
   "eventId": null,
   "senderId": null,
@@ -1529,6 +1533,56 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
+## Transaction Asset Type (type)
+
+ฟิลด์ `type` แสดงประเภทของ asset ในธุรกรรม:
+
+| Type | Description | Transaction Types |
+|------|-------------|-------------------|
+| **POINT** | ธุรกรรมเกี่ยวกับ Point token | TRANSFER, MINT, BURN, EARN, MARKETPLACE_PURCHASE |
+| **VOUCHER** | ธุรกรรมเกี่ยวกับ Voucher/Coupon | VOUCHER_TRANSFER, VOUCHER_GIFT, REDEEM, MERCHANT_PURCHASE_FROM_SELLER |
+
+### หมายเหตุ
+- `type` อาจเป็น `null` สำหรับ transactions เก่าที่สร้างก่อนการเพิ่ม field นี้
+- ใช้สำหรับ filter transactions ตามประเภท asset
+
+---
+
+## Transaction Reference ID (transactionRefId)
+
+ฟิลด์ `transactionRefId` เป็น UUID ที่ใช้เชื่อมโยง transactions ที่เกี่ยวข้องกัน:
+
+### Use Cases
+- **Marketplace Purchase:** เมื่อลูกค้าซื้อ voucher จะสร้าง 2 transactions ที่มี `transactionRefId` เดียวกัน:
+  1. `MARKETPLACE_PURCHASE` - หัก point จากลูกค้า
+  2. `VOUCHER_TRANSFER` - โอน voucher ให้ลูกค้า
+
+### ตัวอย่าง
+```json
+{
+  "transaction1": {
+    "id": "txn-001",
+    "transactionTypeId": "MARKETPLACE_PURCHASE",
+    "type": "POINT",
+    "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
+    "amount": 100
+  },
+  "transaction2": {
+    "id": "txn-002",
+    "transactionTypeId": "VOUCHER_TRANSFER",
+    "type": "VOUCHER",
+    "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
+    "amount": 1
+  }
+}
+```
+
+### หมายเหตุ
+- `transactionRefId` อาจเป็น `null` สำหรับ transactions ที่ไม่มีความสัมพันธ์กับ transactions อื่น
+- ใช้สำหรับ query transactions ที่เกิดขึ้นพร้อมกันจากการกระทำเดียว
+
+---
+
 ## Customer Registration
 
 ### Register Customer
@@ -2168,6 +2222,723 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 - `onChainBalance` แสดงจำนวน NFT ที่เหลือบน blockchain
 - รวม voucher ที่ซื้อแล้วและที่ redeem แล้ว (isUsed = true)
 - Pagination ทำงานหลังจาก filter status
+
+---
+
+## 18. Get Seller Marketplace Listings
+
+**Description:** ดึงรายการ voucher ที่ seller ขายบน marketplace (สำหรับ merchant ซื้อ) - กรอง listings ที่ใช้ THB เป็น payment token
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/coupon/merchant/seller-listings`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/coupon/merchant/seller-listings?page=1&limit=10`
+
+### Request Parameters
+
+#### Query Parameters
+
+| Parameter | Type | M/O | Description | Default |
+|-----------|------|-----|-------------|---------|
+| page | Number | O | หมายเลขหน้า | 1 |
+| limit | Number | O | จำนวนรายการต่อหน้า | 20 |
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| listings | Array | รายการ listings จาก blockchain marketplace |
+| listings[].listingId | String | รหัส listing บน marketplace |
+| listings[].seller | String | Wallet address ของ seller |
+| listings[].typeId | String | Token ID ของ coupon (ERC-1155) |
+| listings[].amount | String | จำนวน coupon ที่เหลือใน listing |
+| listings[].pricePerUnit | String | ราคาต่อหน่วย (THB) |
+| listings[].paymentToken | String | Contract address ของ THB token |
+| listings[].isActive | Boolean | สถานะ listing |
+| listings[].listedAt | Number | Unix timestamp ที่ list |
+| listings[].voucher | Object \| null | ข้อมูล voucher จาก database (ถ้ามี) |
+| listings[].voucher.id | String | รหัส voucher |
+| listings[].voucher.name | String | ชื่อ voucher |
+| listings[].voucher.description | String | รายละเอียด |
+| listings[].voucher.imageUrl | String | URL รูปภาพ |
+| listings[].voucher.valueType | String | ประเภทมูลค่า |
+| listings[].voucher.value | Number | มูลค่า |
+| pagination | Object | ข้อมูล pagination |
+| pagination.page | Number | หน้าปัจจุบัน |
+| pagination.limit | Number | จำนวนต่อหน้า |
+| pagination.total | Number | จำนวนทั้งหมด |
+| pagination.totalPages | Number | จำนวนหน้าทั้งหมด |
+
+#### Success Response (200)
+
+```json
+{
+  "listings": [
+    {
+      "listingId": "5",
+      "seller": "0xaa18f00e63efea1de8b18308bf74b740811b3c0f",
+      "typeId": "10",
+      "amount": "50",
+      "pricePerUnit": "100.0",
+      "paymentToken": "0x1234567890abcdef1234567890abcdef12345678",
+      "isActive": true,
+      "listedAt": 1735084800,
+      "voucher": {
+        "id": "cm123abc456",
+        "name": "Starbucks Gift Card 100 THB",
+        "description": "Redeem for any Starbucks drink",
+        "imageUrl": "https://example.com/starbucks.png",
+        "valueType": "cash",
+        "value": 100,
+        "merchant": null
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Seller listings retrieved |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- Endpoint นี้กรองเฉพาะ listings ที่มี payment token เป็น THB (seller -> merchant flow)
+- listings สำหรับ customer (Point token) จะไม่แสดงใน endpoint นี้
+- ข้อมูล voucher จะ null ถ้าไม่พบใน database (listing ยังไม่ sync)
+
+---
+
+## 19. Seller List Voucher on Marketplace
+
+**Description:** Seller ลง voucher ขายบน marketplace โดยใช้ THB เป็น payment token
+
+### Request
+
+**Method:** `POST`
+
+**URL:** `{{endpoint_url}}/coupon/seller/list-on-marketplace`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/coupon/seller/list-on-marketplace`
+
+
+### Request Parameters
+
+#### Request Body
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| voucherId | String | M | รหัส voucher ที่ต้องการขาย | cm123abc456 |
+| amount | Number | M | จำนวน voucher ที่ต้องการขาย | 100 |
+| pricePerUnitTHB | Number | M | ราคาต่อหน่วย (THB) | 50 |
+| sellerWalletAddress | String | M | Wallet address ของ seller | 0xaa18f00e63efea1de8b18308bf74b740811b3c0f |
+
+**Example Request Body:**
+```json
+{
+  "voucherId": "cm123abc456",
+  "amount": 100,
+  "pricePerUnitTHB": 50,
+  "sellerWalletAddress": "0xaa18f00e63efea1de8b18308bf74b740811b3c0f"
+}
+```
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| listing | Object | ข้อมูล listing ที่สร้าง |
+| listing.voucherId | String | รหัส voucher |
+| listing.voucherName | String | ชื่อ voucher |
+| listing.listingId | String | รหัส listing บน marketplace |
+| listing.tokenId | String | Token ID ของ coupon (ERC-1155) |
+| listing.amount | Number | จำนวนที่ list |
+| listing.pricePerUnitTHB | Number | ราคาต่อหน่วย (THB) |
+| listing.totalPriceTHB | Number | ราคารวม (THB) |
+| listing.paymentToken | String | Contract address ของ THB token |
+| listing.seller | String | Wallet address ของ seller |
+| blockchain | Object | ข้อมูล blockchain transaction |
+| blockchain.transactionHash | String | Transaction hash |
+| blockchain.blockNumber | Number | Block number |
+| nextSteps | Object | คำแนะนำขั้นตอนถัดไป |
+
+#### Success Response (200)
+
+```json
+{
+  "listing": {
+    "voucherId": "cm123abc456",
+    "voucherName": "Starbucks Gift Card",
+    "listingId": "5",
+    "tokenId": "10",
+    "amount": 100,
+    "pricePerUnitTHB": 50,
+    "totalPriceTHB": 5000,
+    "paymentToken": "0x1234567890abcdef1234567890abcdef12345678",
+    "seller": "0xaa18f00e63efea1de8b18308bf74b740811b3c0f"
+  },
+  "blockchain": {
+    "transactionHash": "0xabc123...",
+    "blockNumber": 12345678
+  },
+  "nextSteps": {
+    "message": "Vouchers are now listed on marketplace. Merchants can purchase using the listingId.",
+    "merchantEndpoint": "POST /coupon/merchant/buy-from-seller",
+    "requiredData": {
+      "listingId": "5",
+      "amount": "number of vouchers to buy",
+      "merchantId": "merchant ID"
+    }
+  }
+}
+```
+
+#### Error Responses
+
+**Voucher Not Found (404)**
+```json
+{
+  "statusCode": 404,
+  "message": "Voucher cm123abc456 not found"
+}
+```
+
+**Voucher Already Assigned (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "This voucher is already assigned to a merchant. Only unassigned vouchers can be listed by sellers."
+}
+```
+
+**No TokenId (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Voucher must have a tokenId. Please mint the NFT first."
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Voucher listed on marketplace |
+| 400 | 400 | Bad Request - Invalid data or voucher already assigned |
+| 404 | 404 | Not Found - Voucher not found |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- Seller ต้องมี wallet ที่ลงทะเบียนในระบบและมี private key
+- Voucher ที่ list ต้องยังไม่ถูก assign ให้ merchant (merchantId = null)
+- ระบบจะ auto-whitelist seller บน marketplace ถ้ายังไม่ได้ whitelist
+- ระบบจะ mint NFT ไปยัง seller wallet ก่อน list
+
+---
+
+## 20. Merchant Buy Voucher from Seller
+
+**Description:** Merchant ซื้อ voucher จาก seller บน marketplace โดยใช้ THB token
+
+### Request
+
+**Method:** `POST`
+
+**URL:** `{{endpoint_url}}/coupon/merchant/buy-from-seller`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/coupon/merchant/buy-from-seller`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Request Body
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| listingId | String | M | รหัส listing บน marketplace | 5 |
+| amount | Number | M | จำนวน voucher ที่ต้องการซื้อ | 10 |
+| merchantId | String | M | รหัส merchant | cmih1s6qu00050i01m3cactjj |
+
+**Example Request Body:**
+```json
+{
+  "listingId": "5",
+  "amount": 10,
+  "merchantId": "cmih1s6qu00050i01m3cactjj"
+}
+```
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| purchase | Object | ข้อมูลการซื้อ |
+| purchase.listingId | String | รหัส listing |
+| purchase.amount | Number | จำนวนที่ซื้อ |
+| purchase.merchantId | String | รหัส merchant |
+| purchase.merchantName | String | ชื่อ merchant |
+| purchase.tokenId | String | Token ID ของ coupon |
+| purchase.totalPriceWei | String | ราคารวม (Wei) |
+| purchase.totalPriceTHB | String | ราคารวม (THB) |
+| purchase.transactionId | String | รหัส transaction ในระบบ |
+| purchase.purchasedAt | String | วันที่ซื้อ |
+| blockchain | Object | ข้อมูล blockchain transaction |
+| blockchain.transactionHash | String | Transaction hash |
+| blockchain.blockNumber | Number | Block number |
+| blockchain.seller | String | Wallet address ของ seller |
+| blockchain.paymentToken | String | Contract address ของ THB token |
+| nextSteps | Object | คำแนะนำขั้นตอนถัดไป |
+
+#### Success Response (200)
+
+```json
+{
+  "purchase": {
+    "listingId": "5",
+    "amount": 10,
+    "merchantId": "cmih1s6qu00050i01m3cactjj",
+    "merchantName": "AIS Shop",
+    "tokenId": "10",
+    "totalPriceWei": "500000000000000000000",
+    "totalPriceTHB": "500.0",
+    "transactionId": "cm4abc123xyz",
+    "purchasedAt": "2025-12-25T10:30:00.000Z"
+  },
+  "blockchain": {
+    "transactionHash": "0xdef456...",
+    "blockNumber": 12345679,
+    "seller": "0xaa18f00e63efea1de8b18308bf74b740811b3c0f",
+    "paymentToken": "0x1234567890abcdef1234567890abcdef12345678"
+  },
+  "nextSteps": {
+    "message": "Coupons purchased successfully. Next, activate the voucher batch to list them for customers using Point tokens.",
+    "actionRequired": "Call activateVoucher endpoint to list for customers"
+  }
+}
+```
+
+#### Error Responses
+
+**Merchant Not Found (404)**
+```json
+{
+  "statusCode": 404,
+  "message": "Merchant cmih1s6qu00050i01m3cactjj not found"
+}
+```
+
+**Listing Not Active (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Listing is not active"
+}
+```
+
+**Not THB Listing (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "This listing is not a seller listing. Sellers must use THB token as payment."
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Voucher purchased |
+| 400 | 400 | Bad Request - Invalid listing or insufficient balance |
+| 404 | 404 | Not Found - Merchant or listing not found |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- **⚠️ PHASE 1 FEATURE:** ระบบจะ auto-mint THB token ให้ merchant หาก balance ไม่พอ
+- ใน Phase 2+ จะต้อง deposit เงินจริงก่อนซื้อ
+- Voucher จะถูก assign ให้ merchant และเปลี่ยน status เป็น "upcoming"
+- Merchant ต้อง activate voucher เพื่อขายให้ customer ต่อ
+
+---
+
+## 21. Customer Buy Voucher from Marketplace
+
+**Description:** Customer ซื้อ voucher จาก marketplace โดยใช้ Point token
+
+### Request
+
+**Method:** `POST`
+
+**URL:** `{{endpoint_url}}/coupon/marketplace/buy`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/coupon/marketplace/buy`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Request Body
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| voucherGroupId | String | M | รหัส listing/group บน marketplace | 5 |
+| pointId | String | M | รหัส point ที่ใช้จ่าย | cmiimp4g400015v01nv1ij7zf |
+| phone | String | M | เบอร์โทรศัพท์ของ customer | 0984360421 |
+
+**Example Request Body:**
+```json
+{
+  "voucherGroupId": "5",
+  "pointId": "cmiimp4g400015v01nv1ij7zf",
+  "phone": "0984360421"
+}
+```
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | สถานะความสำเร็จ |
+| message | String | ข้อความสถานะ |
+| purchase | Object | ข้อมูลการซื้อ |
+| purchase.voucherCodeId | String | รหัส voucher code ที่ได้รับ |
+| purchase.code | String | Code สำหรับใช้งาน |
+| purchase.pointsSpent | Number | จำนวน point ที่ใช้ |
+| purchase.currency | String | สกุล point |
+| voucher | Object | ข้อมูล voucher |
+| blockchain | Object | ข้อมูล blockchain transaction |
+| transactions | Object | รหัส transactions ในระบบ |
+| transactions.purchaseTransactionId | String | Transaction ID สำหรับ point deduction |
+| transactions.voucherTransferTransactionId | String | Transaction ID สำหรับ voucher transfer |
+
+#### Success Response (200)
+
+```json
+{
+  "success": true,
+  "message": "Voucher purchased successfully",
+  "purchase": {
+    "voucherCodeId": "cm4code123",
+    "code": "STARBUCKS-001",
+    "pointsSpent": 100,
+    "currency": "LAT"
+  },
+  "voucher": {
+    "id": "cm123abc456",
+    "name": "Starbucks Gift Card 100 THB",
+    "valueType": "cash",
+    "value": 100,
+    "merchant": {
+      "id": "cmih1s6qu00050i01m3cactjj",
+      "name": "AIS Shop"
+    }
+  },
+  "blockchain": {
+    "pointTransferHash": "0xabc123...",
+    "nftTransferHash": "0xdef456...",
+    "blockNumber": 12345680
+  },
+  "transactions": {
+    "purchaseTransactionId": "cm4txn1",
+    "voucherTransferTransactionId": "cm4txn2"
+  }
+}
+```
+
+#### Error Responses
+
+**Customer Not Found (404)**
+```json
+{
+  "statusCode": 404,
+  "message": "Customer with phone 0984360421 not found"
+}
+```
+
+**No Available Voucher (404)**
+```json
+{
+  "statusCode": 404,
+  "message": "No available voucher in group 5 that accepts point cmiimp4g400015v01nv1ij7zf"
+}
+```
+
+**Insufficient Balance (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Insufficient LAT balance. Required: 100, Available: 50"
+}
+```
+
+**Voucher Expired (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Voucher has expired on 2025-12-24T23:59:59.000Z"
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Voucher purchased |
+| 400 | 400 | Bad Request - Insufficient balance, expired, or not yet valid |
+| 404 | 404 | Not Found - Customer or voucher not found |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- Customer ต้องมี point balance เพียงพอ
+- ระบบจะสร้าง 2 transactions: MARKETPLACE_PURCHASE (point deduction) และ VOUCHER_TRANSFER (NFT transfer)
+- Voucher code จะถูก assign ให้ customer (currentOwnerId)
+- ใช้ transactionRefId เดียวกันสำหรับทั้ง 2 transactions
+
+---
+
+## 22. Get Treasury Balance
+
+**Description:** ดึงยอดคงเหลือของ treasury wallet สำหรับ point
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/treasury/:treasuryType/:pointId/balance`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/treasury/MERCHANT/cmiimp4g400015v01nv1ij7zf/balance`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| treasuryType | String | M | ประเภท treasury (MERCHANT, CUSTOMER, etc.) | MERCHANT |
+| pointId | String | M | รหัส point | cmiimp4g400015v01nv1ij7zf |
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| walletAddress | String | Wallet address ของ treasury |
+| pointId | String | รหัส point |
+| balance | String | ยอดคงเหลือ |
+| treasuryType | String | ประเภท treasury |
+
+#### Success Response (200)
+
+```json
+{
+  "walletAddress": "0x1234567890abcdef1234567890abcdef12345678",
+  "pointId": "cmiimp4g400015v01nv1ij7zf",
+  "balance": "50000.0",
+  "treasuryType": "MERCHANT"
+}
+```
+
+#### Error Response (404)
+
+```json
+{
+  "statusCode": 404,
+  "message": "Treasury with type 'UNKNOWN' not found"
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Balance retrieved |
+| 404 | 404 | Not Found - Treasury or Point not found |
+| 500 | 500 | Internal Server Error |
+
+---
+
+## 23. Get Wallet by Phone or Email
+
+**Description:** ค้นหา wallet ด้วยเบอร์โทรศัพท์หรืออีเมล (รองรับ THB balance check)
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/wallet/search`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/wallet/search?phone=0984360421`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Query Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| phone | String | O* | เบอร์โทรศัพท์ (ต้องระบุอย่างน้อย 1 อย่าง) | 0984360421 |
+| email | String | O* | อีเมล (ต้องระบุอย่างน้อย 1 อย่าง) | seller@example.com |
+
+*ต้องระบุอย่างน้อย phone หรือ email
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String | รหัส wallet |
+| walletAddress | String | Wallet address |
+| email | String \| null | อีเมล |
+| phoneNumber | String \| null | เบอร์โทรศัพท์ |
+| type | String | ประเภท wallet (customer, merchant, seller) |
+| status | String | สถานะ wallet (active, inactive) |
+| thbBalance | Object | ยอด THB token (ถ้ามี) |
+| thbBalance.balance | String | ยอดคงเหลือ (THB) |
+| thbBalance.balanceWei | String | ยอดคงเหลือ (Wei) |
+
+#### Success Response (200)
+
+```json
+{
+  "id": "cmwallet123",
+  "walletAddress": "0xaa18f00e63efea1de8b18308bf74b740811b3c0f",
+  "email": "seller@example.com",
+  "phoneNumber": null,
+  "type": "seller",
+  "status": "active",
+  "thbBalance": {
+    "address": "0xaa18f00e63efea1de8b18308bf74b740811b3c0f",
+    "balance": "10000.0",
+    "balanceWei": "10000000000000000000000"
+  }
+}
+```
+
+#### Error Responses
+
+**Missing Parameters (400)**
+```json
+{
+  "statusCode": 400,
+  "message": "Please provide either phone number or email"
+}
+```
+
+**Wallet Not Found (404)**
+```json
+{
+  "statusCode": 404,
+  "message": "Wallet not found"
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - Wallet found |
+| 400 | 400 | Bad Request - Missing parameters |
+| 404 | 404 | Not Found - Wallet not found |
+| 500 | 500 | Internal Server Error |
+
+### Notes
+
+- ใช้สำหรับค้นหา wallet ของ seller เพื่อดู THB balance
+- `thbBalance` จะ query จาก blockchain โดยตรง
+
+---
+
+## 24. Admin Mint THB to Merchant (Phase 1 Dev)
+
+**Description:** ⚠️ **PHASE 1 DEVELOPMENT ONLY** - Admin mint THB token ให้ merchant wallet
+
+### Request
+
+**Method:** `POST`
+
+**URL:** `{{endpoint_url}}/admin/mint-thb-to-merchant`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/admin/mint-thb-to-merchant`
+
+**Authentication:** ⚠️ Should be admin-only in production
+
+### Request Parameters
+
+#### Request Body
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| merchantId | String | M | รหัส merchant ที่จะรับ THB | cmih1s6qu00050i01m3cactjj |
+| amount | Number | M | จำนวน THB ที่จะ mint | 10000 |
+
+**Example Request Body:**
+```json
+{
+  "merchantId": "cmih1s6qu00050i01m3cactjj",
+  "amount": 10000
+}
+```
+
+### Response
+
+#### Success Response (200)
+
+```json
+{
+  "success": true,
+  "message": "THB minted successfully",
+  "merchantId": "cmih1s6qu00050i01m3cactjj",
+  "merchantWallet": "0xf5e40ec8bfa4818278c04489b34a486281658e5c",
+  "amountMinted": 10000,
+  "transactionHash": "0xabc123...",
+  "blockNumber": 12345678
+}
+```
+
+### Response Status Codes
+
+| HTTP Status | Status Code | Description |
+|-------------|-------------|-------------|
+| 200 | 200 | Success - THB minted |
+| 404 | 404 | Not Found - Merchant not found |
+| 500 | 500 | Internal Server Error |
+
+### ⚠️ Security Warning
+
+- **Endpoint นี้สำหรับ development/testing เท่านั้น**
+- ใน production ต้อง:
+  - ใช้ payment gateway จริง
+  - ต้องมี admin authentication
+  - ต้องมี rate limiting
+  - ต้องมี audit trail
 
 ---
 

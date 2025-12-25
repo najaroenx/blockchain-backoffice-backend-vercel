@@ -248,6 +248,28 @@ export class MerchantBuyCouponFromSeller {
           `[STEP 8] Removing seller placeholder codes for voucher ${voucher.id}`,
         );
 
+        // First, get the codes to find their listingBatchId before deletion
+        const codesToDelete = await this.prisma.voucherCode.findMany({
+          where: {
+            voucherId: voucher.id,
+            voucherGroupId: listingId,
+            pointId: null,
+            currentOwnerId: null,
+          },
+          select: {
+            id: true,
+            listingBatchId: true,
+          },
+        });
+
+        // Group by listingBatchId to update batch stats
+        const batchIds = new Set<string>();
+        for (const code of codesToDelete) {
+          if (code.listingBatchId) {
+            batchIds.add(code.listingBatchId);
+          }
+        }
+
         const deletedCodesResult = await this.prisma.voucherCode.deleteMany({
           where: {
             voucherId: voucher.id,
@@ -256,6 +278,30 @@ export class MerchantBuyCouponFromSeller {
             currentOwnerId: null, // Not yet owned by anyone
           },
         });
+
+        // Update ListingBatch soldItems for each affected batch
+        for (const batchId of batchIds) {
+          await this.prisma.listingBatch.update({
+            where: { id: batchId },
+            data: {
+              soldItems: { increment: deletedCodesResult.count },
+            },
+          });
+
+          // Check if batch is sold out
+          const batch = await this.prisma.listingBatch.findUnique({
+            where: { id: batchId },
+            select: { totalItems: true, soldItems: true },
+          });
+
+          if (batch && batch.soldItems >= batch.totalItems) {
+            await this.prisma.listingBatch.update({
+              where: { id: batchId },
+              data: { status: 'SOLD_OUT' },
+            });
+            this.logger.log(`[INFO] ListingBatch ${batchId} is now SOLD_OUT`);
+          }
+        }
 
         this.logger.log(
           `[STEP 8] Deleted ${deletedCodesResult.count} seller placeholder codes. Merchant will create new codes when activating.`,

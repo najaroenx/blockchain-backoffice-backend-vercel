@@ -21,6 +21,7 @@ import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 import { BuyCouponFromMarketplaceDto } from '../dtos/buy-coupon-marketplace.dto';
 import { MerchantBuyCouponFromSellerDto } from '../dtos/merchant-buy-coupon.dto';
 import { SellerListOnMarketplaceDto } from '../dtos/seller-list-marketplace.dto';
+import { BatchListOnMarketplaceDto } from '../dtos/batch-list-marketplace.dto';
 import {
   AddToWhitelistDto,
   BatchAddToWhitelistDto,
@@ -35,6 +36,9 @@ import { GetSellerVouchers } from '../handlers/getSellerVouchers.handler';
 import { AddToWhitelist } from '../handlers/addToWhitelist.handler';
 import { GetVoucherByListingId } from '../handlers/getVoucherByListingId.handler';
 import { GetVoucherByMerchantRef } from '../handlers/getVoucherByMerchantRef.handler';
+import { BatchListOnMarketplaceHandler } from '../handlers/batchListOnMarketplace.handler';
+import { GetSellerListingsHandler } from '../handlers/getSellerListings.handler';
+import { GetListingBatchDetailHandler } from '../handlers/getListingBatchDetail.handler';
 import { VoucherValueType } from '@prisma/client';
 
 @ApiTags('Voucher')
@@ -50,6 +54,9 @@ export class VoucherController {
     private readonly addToWhitelistHandler: AddToWhitelist,
     private readonly getVoucherByListingId: GetVoucherByListingId,
     private readonly getVoucherByMerchantRefHandler: GetVoucherByMerchantRef,
+    private readonly batchListHandler: BatchListOnMarketplaceHandler,
+    private readonly getSellerListingsHandler: GetSellerListingsHandler,
+    private readonly getListingBatchDetailHandler: GetListingBatchDetailHandler,
   ) {}
 
   @Get('/')
@@ -565,6 +572,67 @@ export class VoucherController {
       data.pricePerUnitTHB,
       data.sellerWalletAddress,
     );
+  }
+
+  /**
+   * Seller batch lists multiple voucher types on marketplace
+   * POST /coupon/seller/batch-list
+   * Body: { name?: string, description?: string, items: [{ voucherId, amount, pricePerUnitTHB }], sellerWalletAddress: string }
+   */
+  @Post('/seller/batch-list')
+  @Public()
+  @HttpCode(200)
+  async sellerBatchListOnMarketplace(@Body() data: BatchListOnMarketplaceDto) {
+    return this.batchListHandler.execute(data);
+  }
+
+  /**
+   * Get all listing batches for a seller
+   * GET /coupon/seller/listings?walletAddress=0x...&page=1&limit=20&status=ACTIVE
+   */
+  @Get('/seller/listings')
+  @Public()
+  @HttpCode(200)
+  async getSellerListings(
+    @Query('walletAddress') walletAddress: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+  ) {
+    if (!walletAddress) {
+      return {
+        statusCode: 400,
+        message: 'walletAddress is required',
+        data: null,
+      };
+    }
+
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const statusEnum = status as
+      | 'ACTIVE'
+      | 'SOLD_OUT'
+      | 'CANCELLED'
+      | 'EXPIRED'
+      | undefined;
+
+    return this.getSellerListingsHandler.execute(
+      walletAddress,
+      pageNum,
+      limitNum,
+      statusEnum,
+    );
+  }
+
+  /**
+   * Get listing batch detail by ID
+   * GET /coupon/seller/listings/:batchId
+   */
+  @Get('/seller/listings/:batchId')
+  @Public()
+  @HttpCode(200)
+  async getListingBatchDetail(@Param('batchId') batchId: string) {
+    return this.getListingBatchDetailHandler.execute(batchId);
   }
 
   /**

@@ -63,6 +63,7 @@ export class BuyCouponFromMarketplace {
           code: true,
           voucherId: true,
           voucherGroupId: true,
+          listingBatchId: true, // Include batch reference for updating stats
           pointsCost: true,
           pointId: true,
           currency: true,
@@ -413,6 +414,32 @@ export class BuyCouponFromMarketplace {
             } as any,
           }),
         ]);
+
+      // Update ListingBatch soldItems if this voucher code belongs to a batch
+      if (voucherCode.listingBatchId) {
+        await this.prisma.listingBatch.update({
+          where: { id: voucherCode.listingBatchId },
+          data: {
+            soldItems: { increment: 1 },
+          },
+        });
+
+        // Check if batch is sold out and update status
+        const batch = await this.prisma.listingBatch.findUnique({
+          where: { id: voucherCode.listingBatchId },
+          select: { totalItems: true, soldItems: true },
+        });
+
+        if (batch && batch.soldItems >= batch.totalItems) {
+          await this.prisma.listingBatch.update({
+            where: { id: voucherCode.listingBatchId },
+            data: { status: 'SOLD_OUT' },
+          });
+          this.logger.log(
+            `[INFO] ListingBatch ${voucherCode.listingBatchId} is now SOLD_OUT`,
+          );
+        }
+      }
 
       this.logger.log(
         `[SUCCESS] Coupon purchased successfully from marketplace. Payment Transaction ID: ${purchaseTransaction.id}, Transfer Transaction ID: ${transferTransaction.id}`,

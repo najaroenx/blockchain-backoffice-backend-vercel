@@ -19,6 +19,9 @@ import { TokenModule } from 'src/providers/token/token.module';
 import { GetVoucherByListingId } from './handlers/getVoucherByListingId.handler';
 import { GetVoucherById } from './handlers/getVoucherById.handler';
 import { GetVoucherByMerchantRef } from './handlers/getVoucherByMerchantRef.handler';
+import { BatchListOnMarketplaceHandler } from './handlers/batchListOnMarketplace.handler';
+import { GetSellerListingsHandler } from './handlers/getSellerListings.handler';
+import { GetListingBatchDetailHandler } from './handlers/getListingBatchDetail.handler';
 @Module({
   imports: [PrismaModule, BlockchainModule, TokenModule],
   controllers: [VoucherController],
@@ -39,6 +42,9 @@ import { GetVoucherByMerchantRef } from './handlers/getVoucherByMerchantRef.hand
     GetVoucherByListingId,
     GetVoucherById,
     GetVoucherByMerchantRef,
+    BatchListOnMarketplaceHandler,
+    GetSellerListingsHandler,
+    GetListingBatchDetailHandler,
   ],
   exports: [VoucherDBService],
 })

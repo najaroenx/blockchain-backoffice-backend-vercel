@@ -2942,6 +2942,268 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
+## 25. Seller Batch List on Marketplace
+
+List หลาย voucher types บน marketplace ใน 1 batch
+
+### Endpoint
+
+`POST /coupon/seller/batch-list`
+
+### Request Body
+
+| Field | Type | M/O | Description |
+|-------|------|-----|-------------|
+| name | String | O | ชื่อ batch (e.g., "Christmas Sale Pack") |
+| description | String | O | รายละเอียด batch |
+| items | Array | M | Array ของ vouchers ที่ต้องการ list |
+| items[].voucherId | String | M | Voucher ID |
+| items[].amount | Number | M | จำนวนที่ต้องการ list |
+| items[].pricePerUnitTHB | Number | M | ราคาต่อหน่วย (THB) |
+| sellerWalletAddress | String | M | Wallet address ของ seller |
+
+### Example Request
+
+```json
+{
+  "name": "Christmas Sale Pack",
+  "description": "Special holiday vouchers",
+  "items": [
+    {
+      "voucherId": "voucher-a-id",
+      "amount": 2,
+      "pricePerUnitTHB": 100
+    },
+    {
+      "voucherId": "voucher-b-id",
+      "amount": 3,
+      "pricePerUnitTHB": 50
+    }
+  ],
+  "sellerWalletAddress": "0x1234567890abcdef..."
+}
+```
+
+### Response
+
+```json
+{
+  "batch": {
+    "id": "clxxxxxxxxxx",
+    "name": "Christmas Sale Pack",
+    "description": "Special holiday vouchers",
+    "sellerWalletAddress": "0x1234...",
+    "totalItems": 5,
+    "totalValue": 350,
+    "currency": "THB",
+    "status": "ACTIVE"
+  },
+  "items": [
+    {
+      "voucherId": "voucher-a-id",
+      "voucherName": "คูปอง A",
+      "tokenId": "1",
+      "listingId": "listing-001",
+      "amount": 2,
+      "pricePerUnitTHB": 100,
+      "txHash": "0xabc...",
+      "blockNumber": 12345
+    },
+    {
+      "voucherId": "voucher-b-id",
+      "voucherName": "คูปอง B",
+      "tokenId": "2",
+      "listingId": "listing-002",
+      "amount": 3,
+      "pricePerUnitTHB": 50,
+      "txHash": "0xdef...",
+      "blockNumber": 12346
+    }
+  ],
+  "nextSteps": {
+    "message": "Successfully listed 5 vouchers in batch...",
+    "viewListingsEndpoint": "GET /voucher/seller/listings/clxxxxxxxxxx",
+    "merchantBuyEndpoint": "POST /voucher/merchant/buy-from-seller"
+  }
+}
+```
+
+---
+
+## 26. Get Seller Listings
+
+ดึง listing batches ทั้งหมดของ seller
+
+### Endpoint
+
+`GET /coupon/seller/listings`
+
+### Query Parameters
+
+| Field | Type | M/O | Description |
+|-------|------|-----|-------------|
+| walletAddress | String | M | Wallet address ของ seller |
+| page | Number | O | หน้าที่ต้องการ (default: 1) |
+| limit | Number | O | จำนวนต่อหน้า (default: 20) |
+| status | String | O | Filter by status: ACTIVE, SOLD_OUT, CANCELLED, EXPIRED |
+
+### Example Request
+
+```
+GET /coupon/seller/listings?walletAddress=0x1234...&page=1&limit=10&status=ACTIVE
+```
+
+### Response
+
+```json
+{
+  "listings": [
+    {
+      "id": "clxxxxxxxxxx",
+      "name": "Christmas Sale Pack",
+      "description": "Special holiday vouchers",
+      "sellerWalletAddress": "0x1234...",
+      "totalItems": 5,
+      "soldItems": 2,
+      "remainingItems": 3,
+      "totalValue": 350,
+      "currency": "THB",
+      "status": "ACTIVE",
+      "createdAt": "2025-12-25T10:00:00Z",
+      "voucherTypes": 2
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+## 27. Get Listing Batch Detail
+
+ดูรายละเอียด batch และ vouchers ทั้งหมดในนั้น
+
+### Endpoint
+
+`GET /coupon/seller/listings/:batchId`
+
+### Path Parameters
+
+| Field | Type | Description |
+|-------|------|-------------|
+| batchId | String | Listing batch ID |
+
+### Response
+
+```json
+{
+  "id": "clxxxxxxxxxx",
+  "name": "Christmas Sale Pack",
+  "description": "Special holiday vouchers",
+  "sellerWalletAddress": "0x1234...",
+  "totalItems": 5,
+  "soldItems": 2,
+  "remainingItems": 3,
+  "totalValue": 350,
+  "currency": "THB",
+  "status": "ACTIVE",
+  "createdAt": "2025-12-25T10:00:00Z",
+  "updatedAt": "2025-12-25T12:00:00Z",
+  "voucherTypes": [
+    {
+      "voucherId": "voucher-a-id",
+      "voucherName": "คูปอง A",
+      "voucherGroupId": "listing-001",
+      "tokenId": "1",
+      "totalAmount": 2,
+      "soldAmount": 1,
+      "remainingAmount": 1,
+      "pricePerUnit": 100,
+      "currency": "THB"
+    },
+    {
+      "voucherId": "voucher-b-id",
+      "voucherName": "คูปอง B",
+      "voucherGroupId": "listing-002",
+      "tokenId": "2",
+      "totalAmount": 3,
+      "soldAmount": 1,
+      "remainingAmount": 2,
+      "pricePerUnit": 50,
+      "currency": "THB"
+    }
+  ]
+}
+```
+
+---
+
+## Enums Reference
+
+### ListingBatchStatus
+
+สถานะของ Listing Batch ที่ seller สร้างขึ้น
+
+| Status | Value | Description | Trigger |
+|--------|-------|-------------|---------|
+| **ACTIVE** | `ACTIVE` | Listing ยังเปิดขายอยู่ | Default เมื่อสร้าง batch ใหม่ |
+| **SOLD_OUT** | `SOLD_OUT` | ขายหมดแล้ว | Auto-update เมื่อ `soldItems >= totalItems` |
+| **CANCELLED** | `CANCELLED` | ถูกยกเลิกโดย seller | Manual update โดย seller |
+| **EXPIRED** | `EXPIRED` | หมดอายุ | Manual/Cron job based on expiry date |
+
+### VoucherStatus
+
+สถานะของ Voucher
+
+| Status | Value | Description |
+|--------|-------|-------------|
+| **active** | `active` | Voucher พร้อมใช้งาน อยู่ใน marketplace |
+| **upcoming** | `upcoming` | Voucher ที่ยังไม่ถึงกำหนดเริ่มต้น หรือ merchant ซื้อจาก seller แล้วแต่ยังไม่ activate |
+
+### VoucherValueType
+
+ประเภทมูลค่าของ Voucher
+
+| Type | Value | Description | Example |
+|------|-------|-------------|---------|
+| **percentage** | `percentage` | ส่วนลดเป็นเปอร์เซ็นต์ | 10% off |
+| **cash** | `cash` | ส่วนลดเป็นเงิน | 100 THB off |
+| **gift** | `gift` | ของแถมฟรี | Free item |
+| **multiplier** | `multiplier` | ตัวคูณ point | 2x points |
+| **aispoint** | `aispoint` | แลก AIS Point | AIS Point redemption |
+
+### AssetType
+
+ประเภท asset ในธุรกรรม
+
+| Type | Value | Description | Transaction Types |
+|------|-------|-------------|-------------------|
+| **POINT** | `POINT` | ธุรกรรมเกี่ยวกับ Point token | TRANSFER, MINT, BURN, EARN |
+| **VOUCHER** | `VOUCHER` | ธุรกรรมเกี่ยวกับ Voucher/Coupon | VOUCHER_TRANSFER, REDEEM, MARKETPLACE_PURCHASE |
+
+### TransactionTypeId
+
+ประเภทธุรกรรมทั้งหมดในระบบ
+
+| Type ID | Description | Direction | Asset Type |
+|---------|-------------|-----------|------------|
+| **TRANSFER** | โอน Point แบบ B2C/C2C | OUTGOING/INCOMING | POINT |
+| **MINT** | สร้าง Point ใหม่ | INCOMING | POINT |
+| **BURN** | ทำลาย Point | OUTGOING | POINT |
+| **EARN** | ได้รับ Point จากการซื้อสินค้า | INCOMING | POINT |
+| **REDEEM** | ใช้งาน Voucher | - | VOUCHER |
+| **MARKETPLACE_PURCHASE** | ซื้อ Voucher จาก marketplace | OUTGOING | VOUCHER |
+| **VOUCHER_TRANSFER** | โอน Voucher ให้ customer | INCOMING | VOUCHER |
+| **MERCHANT_PURCHASE_FROM_SELLER** | Merchant ซื้อ voucher จาก seller | - | VOUCHER |
+| **VOUCHER_GIFT** | ให้ Voucher เป็นของขวัญ | OUTGOING/INCOMING | VOUCHER |
+
+---
+
 ## Notes
 
 - **M/O** = Mandatory/Optional

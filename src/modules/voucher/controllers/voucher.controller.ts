@@ -84,6 +84,30 @@ export class VoucherController {
     };
   }
 
+  /**
+   * Get seller listings from marketplace for merchants to purchase
+   * GET /coupon/merchant/seller-listings
+   * Filters only listings with THB payment token (seller -> merchant)
+   * Supports pagination via page and limit query params
+   * NOTE: Must be defined BEFORE /merchant/:merchantId to avoid route conflict
+   */
+  @Get('/merchant/seller-listings')
+  @Public()
+  @HttpCode(200)
+  async getSellerMarketplaceListings(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.getMarketplaceListings.execute(
+      undefined, // no merchantId filter
+      true, // sellerOnly = true
+      pageNum,
+      limitNum,
+    );
+  }
+
   @Get('/merchant/:merchantId')
   @Public()
   @HttpCode(200)
@@ -101,29 +125,6 @@ export class VoucherController {
   @HttpCode(200)
   async getSellerVouchers(@Query('walletAddress') walletAddress?: string) {
     return this.getSellerVouchersHandler.execute(walletAddress);
-  }
-
-  /**
-   * Get seller listings from marketplace for merchants to purchase
-   * GET /coupon/merchant/seller-listings
-   * Filters only listings with THB payment token (seller -> merchant)
-   * Supports pagination via page and limit query params
-   */
-  @Get('/merchant/seller-listings')
-  @Public()
-  @HttpCode(200)
-  async getSellerMarketplaceListings(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const pageNum = page ? parseInt(page, 10) : undefined;
-    const limitNum = limit ? parseInt(limit, 10) : undefined;
-    return this.getMarketplaceListings.execute(
-      undefined, // no merchantId filter
-      true, // sellerOnly = true
-      pageNum,
-      limitNum,
-    );
   }
 
   /**

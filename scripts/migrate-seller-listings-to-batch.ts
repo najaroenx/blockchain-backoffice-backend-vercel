@@ -43,9 +43,15 @@ async function main() {
 
   console.log(`Grouped into ${groups.size} listings\n`);
 
+  // Debug: Show group keys
+  console.log('Group keys:', Array.from(groups.keys()).join(', '));
+  console.log('');
+
   // 3. Create ListingBatch for each group
   let created = 0;
   let errors = 0;
+
+  console.log('Starting loop...\n');
 
   for (const [listingId, codes] of groups) {
     try {

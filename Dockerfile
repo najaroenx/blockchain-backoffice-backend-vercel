@@ -31,6 +31,7 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/node_modules ./node_
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=merchant-backoffice:nodejs /app/scripts ./scripts
 
 USER merchant-backoffice
 
@@ -44,5 +45,6 @@ EXPOSE 4000
 # PROD MODE
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
+    npx ts-node scripts/migrate-seller-listings-to-batch.ts || true && \
     node dist/src/main \
 "]

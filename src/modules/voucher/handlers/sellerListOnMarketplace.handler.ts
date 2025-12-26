@@ -7,6 +7,7 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { ConfigService } from '@nestjs/config';
+import { ListingBatchStatus } from '@prisma/client';
 
 @Injectable()
 export class SellerListOnMarketplace {
@@ -23,6 +24,8 @@ export class SellerListOnMarketplace {
     amount: number,
     pricePerUnitTHB: number,
     sellerWalletAddress: string,
+    name?: string,
+    description?: string,
   ): Promise<any> {
     try {
       this.logger.log(
@@ -157,6 +160,25 @@ export class SellerListOnMarketplace {
         `[STEP 6] Successfully listed on marketplace. ListingId: ${listResult.listingId}, TxHash: ${listResult.hash}`,
       );
 
+      // 6.5. Create ListingBatch record
+      this.logger.log(`[STEP 6.5] Creating ListingBatch record`);
+      const totalValue = pricePerUnitTHB * amount;
+
+      const listingBatch = await this.prisma.listingBatch.create({
+        data: {
+          sellerWalletAddress: sellerWalletAddress.toLowerCase(),
+          name: name || null,
+          description: description || null,
+          totalItems: amount,
+          soldItems: 0,
+          totalValue,
+          currency: 'THB',
+          status: 'ACTIVE',
+        },
+      });
+
+      this.logger.log(`[STEP 6.5] Created ListingBatch: ${listingBatch.id}`);
+
       // 7. Create VoucherCode records for this listing
       this.logger.log(
         `[STEP 7] Creating ${amount} voucher codes for listing ${listResult.listingId}`,
@@ -165,11 +187,12 @@ export class SellerListOnMarketplace {
       // Generate codes for this listing
       const voucherCodes = [];
       for (let i = 0; i < amount; i++) {
-        const code = `${voucher.tokenId}-SELLER-${listResult.listingId}-${i + 1}`;
+        const code = `${voucher.tokenId}-SELLER-${listingBatch.id}-${listResult.listingId}-${i + 1}`;
         voucherCodes.push({
           code,
           voucherId: voucher.id,
-          voucherGroupId: listResult.listingId, // Mark as listed on marketplace
+          voucherGroupId: listResult.listingId, // Blockchain listing ID
+          listingBatchId: listingBatch.id, // Link to ListingBatch
           pointsCost: Math.round(pricePerUnitTHB), // Store THB price as integer
           pointId: null, // No Point currency - using THB
           currency: 'THB', // Denormalized currency symbol
@@ -183,10 +206,20 @@ export class SellerListOnMarketplace {
       });
 
       this.logger.log(
-        `[STEP 7] Created ${amount} voucher codes with listing ID ${listResult.listingId}`,
+        `[STEP 7] Created ${amount} voucher codes linked to batch ${listingBatch.id}`,
       );
 
       return {
+        batch: {
+          id: listingBatch.id,
+          name: listingBatch.name,
+          description: listingBatch.description,
+          sellerWalletAddress: listingBatch.sellerWalletAddress,
+          totalItems: listingBatch.totalItems,
+          totalValue: listingBatch.totalValue,
+          currency: listingBatch.currency,
+          status: listingBatch.status,
+        },
         listing: {
           voucherId: voucher.id,
           voucherName: voucher.name,
@@ -205,6 +238,7 @@ export class SellerListOnMarketplace {
         nextSteps: {
           message:
             'Vouchers are now listed on marketplace. Merchants can purchase using the listingId.',
+          viewBatchEndpoint: `GET /coupon/seller/listings/${listingBatch.id}`,
           merchantEndpoint: 'POST /coupon/merchant/buy-from-seller',
           requiredData: {
             listingId: listResult.listingId,

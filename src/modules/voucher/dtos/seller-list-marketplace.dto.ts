@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsString, IsNumber, Min } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  Min,
+  IsOptional,
+} from 'class-validator';
 
 export class SellerListOnMarketplaceDto {
   @IsString()
@@ -16,4 +22,12 @@ export class SellerListOnMarketplaceDto {
   @IsString()
   @IsNotEmpty()
   sellerWalletAddress: string;
+
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 }

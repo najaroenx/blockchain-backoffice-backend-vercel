@@ -53,7 +53,11 @@ async function main() {
 
   console.log('Starting loop...\n');
 
-  for (const [listingId, codes] of groups) {
+  const groupEntries = Array.from(groups.entries());
+  console.log(`Processing ${groupEntries.length} groups...`);
+
+  for (let i = 0; i < groupEntries.length; i++) {
+    const [listingId, codes] = groupEntries[i];
     try {
       const totalItems = codes.length;
       const soldCount = codes.filter((c) => c.currentOwnerId !== null).length;
@@ -62,7 +66,7 @@ async function main() {
       const voucherName = codes[0]?.voucher?.name || 'Unknown';
 
       console.log(
-        `Processing listing ${listingId}: ${totalItems} codes, ${voucherName}...`,
+        `[${i + 1}/${groupEntries.length}] Processing listing ${listingId}: ${totalItems} codes, ${voucherName}...`,
       );
 
       const batch = await prisma.listingBatch.create({

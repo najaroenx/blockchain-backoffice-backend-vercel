@@ -560,7 +560,7 @@ export class VoucherController {
   /**
    * Seller lists vouchers on marketplace with THB as payment token
    * POST /coupon/seller/list-on-marketplace
-   * Body: { voucherId: string, amount: number, pricePerUnitTHB: number, sellerWalletAddress: string }
+   * Body: { voucherId: string, amount: number, pricePerUnitTHB: number, sellerWalletAddress: string, name?: string, description?: string }
    */
   @Post('/seller/list-on-marketplace')
   @Public()
@@ -571,6 +571,8 @@ export class VoucherController {
       data.amount,
       data.pricePerUnitTHB,
       data.sellerWalletAddress,
+      data.name,
+      data.description,
     );
   }
 

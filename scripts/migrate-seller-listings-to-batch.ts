@@ -23,7 +23,9 @@ async function main() {
     },
   });
 
-  console.log(`Found ${orphanedCodes.length} VoucherCodes without ListingBatch\n`);
+  console.log(
+    `Found ${orphanedCodes.length} VoucherCodes without ListingBatch\n`,
+  );
 
   if (orphanedCodes.length === 0) {
     console.log('✅ No migration needed.');
@@ -43,40 +45,52 @@ async function main() {
 
   // 3. Create ListingBatch for each group
   let created = 0;
+  let errors = 0;
 
   for (const [listingId, codes] of groups) {
-    const totalItems = codes.length;
-    const soldCount = codes.filter((c) => c.currentOwnerId !== null).length;
-    const totalValue = codes.reduce((sum, c) => sum + c.pointsCost, 0);
-    const status = soldCount >= totalItems ? 'SOLD_OUT' : 'ACTIVE';
-    const voucherName = codes[0]?.voucher?.name || 'Unknown';
+    try {
+      const totalItems = codes.length;
+      const soldCount = codes.filter((c) => c.currentOwnerId !== null).length;
+      const totalValue = codes.reduce((sum, c) => sum + c.pointsCost, 0);
+      const status = soldCount >= totalItems ? 'SOLD_OUT' : 'ACTIVE';
+      const voucherName = codes[0]?.voucher?.name || 'Unknown';
 
-    const batch = await prisma.listingBatch.create({
-      data: {
-        sellerWalletAddress: SELLER_WALLET_ADDRESS.toLowerCase(),
-        name: `Migrated: ${voucherName}`,
-        description: `Listing ID: ${listingId}`,
-        totalItems,
-        soldItems: soldCount,
-        totalValue,
-        currency: 'THB',
-        status,
-      },
-    });
+      console.log(
+        `Processing listing ${listingId}: ${totalItems} codes, ${voucherName}...`,
+      );
 
-    await prisma.voucherCode.updateMany({
-      where: { id: { in: codes.map((c) => c.id) } },
-      data: { listingBatchId: batch.id },
-    });
+      const batch = await prisma.listingBatch.create({
+        data: {
+          sellerWalletAddress: SELLER_WALLET_ADDRESS.toLowerCase(),
+          name: `Migrated: ${voucherName}`,
+          description: `Listing ID: ${listingId}`,
+          totalItems,
+          soldItems: soldCount,
+          totalValue,
+          currency: 'THB',
+          status,
+        },
+      });
 
-    console.log(
-      `[${listingId}] → batch ${batch.id} (${status}, ${soldCount}/${totalItems} sold, ${voucherName})`,
-    );
-    created++;
+      await prisma.voucherCode.updateMany({
+        where: { id: { in: codes.map((c) => c.id) } },
+        data: { listingBatchId: batch.id },
+      });
+
+      console.log(
+        `  ✅ [${listingId}] → batch ${batch.id} (${status}, ${soldCount}/${totalItems} sold)`,
+      );
+      created++;
+    } catch (error: any) {
+      errors++;
+      console.error(`  ❌ [${listingId}] Error: ${error.message}`);
+    }
   }
 
   console.log(`\n${'─'.repeat(50)}`);
-  console.log(`✅ Done! Created ${created} ListingBatch records`);
+  console.log(
+    `✅ Done! Created ${created} ListingBatch records, ${errors} errors`,
+  );
 
   await prisma.$disconnect();
 }

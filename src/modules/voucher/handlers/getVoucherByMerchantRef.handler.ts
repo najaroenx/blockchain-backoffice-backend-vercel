@@ -5,14 +5,27 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
+import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import {
+  GetTransactionsByCustomerIdResponseType,
+  TransactionDetail,
+  TransactionParticipant,
+  TransactionVoucherInfo,
+  CustomerWithWallet,
+  VoucherCodeWithVoucher,
+} from 'src/modules/transaction/types';
+import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 
 @Injectable()
 export class GetVoucherByMerchantRef {
   private logger = new Logger(GetVoucherByMerchantRef.name);
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(merchantRef: string) {
+  async execute(
+    merchantRef: string,
+  ): Promise<GetTransactionsByCustomerIdResponseType> {
     try {
+      // 1. Find voucher by merchantRef
       const voucher = await this.prisma.voucher.findFirst({
         where: {
           merchantRef: merchantRef,
@@ -22,6 +35,7 @@ export class GetVoucherByMerchantRef {
             select: {
               id: true,
               name: true,
+              website: true,
               wallet: {
                 select: {
                   walletAddress: true,
@@ -30,23 +44,8 @@ export class GetVoucherByMerchantRef {
             },
           },
           voucherCodes: {
-            where: {
-              isUsed: true,
-            },
             select: {
               id: true,
-              voucherGroupId: true,
-              isUsed: true,
-              currentOwnerId: true,
-              pointId: true,
-              point: {
-                select: {
-                  id: true,
-                  name: true,
-                  symbol: true,
-                  imageUrl: true,
-                },
-              },
             },
           },
         },
@@ -57,24 +56,184 @@ export class GetVoucherByMerchantRef {
           `Voucher with merchantRef ${merchantRef} not found`,
         );
       }
-      const response = {
-        id: voucher.id,
-        name: voucher.name,
-        description: voucher.description,
-        merchant: voucher.merchant,
-        amount: voucher.voucherCodes.length * voucher.value,
-        voucherCodes: voucher.voucherCodes,
+
+      // 2. Get voucherCode IDs
+      const voucherCodeIds = voucher.voucherCodes.map((vc) => vc.id);
+
+      if (voucherCodeIds.length === 0) {
+        return {
+          transactions: [],
+          counts: 0,
+        };
+      }
+
+      // 3. Find transactions related to these voucherCodes
+      const transactions = await this.prisma.transaction.findMany({
+        where: {
+          voucherCodeId: { in: voucherCodeIds },
+        },
+        include: {
+          sender: {
+            include: {
+              wallet: true,
+            },
+          },
+          receiver: {
+            include: {
+              wallet: true,
+            },
+          },
+          merchant: true,
+          point: true,
+          voucherCode: {
+            include: {
+              voucher: {
+                select: {
+                  id: true,
+                  name: true,
+                  valueType: true,
+                  value: true,
+                  imageUrl: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      // 4. Transform transactions to TransactionDetail format
+      const transformedTransactions: TransactionDetail[] = transactions.map(
+        (transaction) => {
+          const { sender, receiver, merchant, point, voucherCode, ...rest } =
+            transaction;
+
+          const formatParticipant = (
+            customer: CustomerWithWallet | null,
+            walletAddress: Uint8Array,
+            merchantWebsite: string,
+          ): TransactionParticipant => ({
+            id: customer?.id ?? voucher.merchant.id,
+            walletAddress: convertBufferToAddress(
+              customer?.wallet?.walletAddress
+                ? Buffer.from(
+                    customer.wallet.walletAddress.replace(/^0x/, ''),
+                    'hex',
+                  )
+                : walletAddress,
+            ),
+            emailOrWebsite: customer?.email ?? merchantWebsite,
+          });
+
+          const formatVoucherInfo = (
+            voucherCode: VoucherCodeWithVoucher | null,
+          ): TransactionVoucherInfo | null => {
+            if (!voucherCode?.voucher) return null;
+
+            return {
+              id: voucherCode.voucher.id,
+              name: voucherCode.voucher.name,
+              valueType: voucherCode.voucher.valueType,
+              value: voucherCode.voucher.value,
+              imageUrl: voucherCode.voucher.imageUrl || null,
+            };
+          };
+
+          const formatPointInfo = (
+            point: any,
+            amount: number,
+            transactionTypeId: string,
+            assetType?: string,
+          ) => {
+            // New structure: check type field first
+            if (assetType === 'VOUCHER') {
+              return null;
+            }
+
+            // Legacy: check transactionTypeId for backward compatibility
+            const voucherTransactionTypes = [
+              TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
+              TransactionTypeId.VOUCHER_TRANSFER,
+              TransactionTypeId.VOUCHER_GIFT,
+            ];
+
+            if (
+              voucherTransactionTypes.includes(
+                transactionTypeId as TransactionTypeId,
+              )
+            ) {
+              return null;
+            }
+
+            if (!point) return null;
+
+            return {
+              id: point.id,
+              name: point.name,
+              symbol: point.symbol,
+              merchantId: point.merchantId || null,
+              imageUrl: point.imageUrl || null,
+              balance: amount,
+            };
+          };
+
+          // Default direction for voucher transactions
+          const transactionDirection: 'SENT' | 'RECEIVED' = rest.senderId
+            ? 'SENT'
+            : 'RECEIVED';
+
+          return {
+            id: rest.id,
+            txHash: convertBufferToAddress(rest.txHash),
+            senderAddress: convertBufferToAddress(rest.senderAddress),
+            receiverAddress: convertBufferToAddress(rest.receiverAddress),
+            transactionTypeId: rest.transactionTypeId,
+            amount: rest.amount,
+            transactionDirection,
+            merchantId: rest.merchantId,
+            merchantName: merchant?.name || voucher.merchant.name || null,
+            point: formatPointInfo(
+              point,
+              rest.amount,
+              rest.transactionTypeId,
+              (rest as any).type,
+            ),
+            sender: formatParticipant(
+              sender as CustomerWithWallet,
+              rest.senderAddress,
+              merchant?.website || voucher.merchant.website || '',
+            ),
+            receiver: formatParticipant(
+              receiver as CustomerWithWallet,
+              rest.receiverAddress,
+              merchant?.website || voucher.merchant.website || '',
+            ),
+            voucher: formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
+            voucherCodeId: rest.voucherCodeId || null,
+            eventId: rest.eventId || null,
+            transactionRefId: (rest as any).transactionRefId || null,
+            createdAt: rest.createdAt,
+          };
+        },
+      );
+
+      return {
+        transactions: transformedTransactions,
+        counts: transformedTransactions.length,
       };
-      return response;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
       this.logger.error(
-        `Error fetching voucher with merchantRef ${merchantRef}:`,
+        `Error fetching transactions for merchantRef ${merchantRef}:`,
         error,
       );
-      throw new InternalServerErrorException('Error fetching voucher');
+      throw new InternalServerErrorException(
+        'Error fetching transactions by merchantRef',
+      );
     }
   }
 }

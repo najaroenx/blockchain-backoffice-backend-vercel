@@ -45,17 +45,30 @@ export class GetVoucherTransactionsByCustomerPhone {
 
       const totalTransactions = transactions.length;
 
-      // Filter only voucher ownership transactions (VOUCHER_TRANSFER, REDEEM)
+      // Filter to get only VOUCHER transactions
+      // New structure: type=VOUCHER for voucher transactions
+      // Also filter by transactionTypeId for backward compatibility with legacy data
       const voucherTransactions = transactions.filter((transaction) => {
         const transactionType = transaction.transactionTypeId;
-        return (
-          transactionType === 'VOUCHER_TRANSFER' || transactionType === 'REDEEM'
-        );
+        const assetType = (transaction as any).type;
+
+        // Include if type=VOUCHER (new structure)
+        if (assetType === 'VOUCHER') return true;
+
+        // Include legacy voucher transaction types
+        if (
+          transactionType === 'VOUCHER_TRANSFER' ||
+          transactionType === 'REDEEM'
+        ) {
+          return true;
+        }
+
+        return false;
       });
 
       const filteredCount = totalTransactions - voucherTransactions.length;
       this.logger.log(
-        `[SUCCESS] Filtered ${filteredCount} non-voucher transactions out of ${totalTransactions} total. Returning ${voucherTransactions.length} voucher ownership transactions`,
+        `[SUCCESS] Filtered ${filteredCount} non-voucher transactions out of ${totalTransactions} total. Returning ${voucherTransactions.length} voucher transactions`,
       );
 
       const res = voucherTransactions.map((transaction) => {
@@ -83,7 +96,14 @@ export class GetVoucherTransactionsByCustomerPhone {
           point: any,
           amount: number,
           transactionTypeId: string,
+          assetType?: string,
         ) => {
+          // New structure: check type field first
+          if (assetType === 'VOUCHER') {
+            return null;
+          }
+
+          // Legacy: check transactionTypeId for backward compatibility
           const voucherTransactionTypes = [
             TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
             TransactionTypeId.VOUCHER_TRANSFER,
@@ -122,7 +142,12 @@ export class GetVoucherTransactionsByCustomerPhone {
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
           merchantId: rest.merchantId,
           merchantName: merchant?.name || null,
-          point: formatPointInfo(point, rest.amount, rest.transactionTypeId),
+          point: formatPointInfo(
+            point,
+            rest.amount,
+            rest.transactionTypeId,
+            (rest as any).type,
+          ),
           sender: formatParticipant(
             sender,
             rest.senderAddress,

@@ -45,17 +45,32 @@ export class GetPointTransactionsByCustomerPhone {
 
       const totalTransactions = transactions.length;
 
-      // Filter out voucher ownership transactions (keep MARKETPLACE_PURCHASE as it involves point payment)
+      // Filter to get only POINT transactions
+      // New structure: type=POINT for point transactions, type=VOUCHER for voucher transactions
+      // Also filter by transactionTypeId for backward compatibility with legacy data
       const pointTransactions = transactions.filter((transaction) => {
         const transactionType = transaction.transactionTypeId;
-        return (
-          transactionType !== 'VOUCHER_TRANSFER' && transactionType !== 'REDEEM'
-        );
+        const assetType = (transaction as any).type;
+
+        // Include if type=POINT (new structure)
+        if (assetType === 'POINT') return true;
+
+        // Exclude voucher-only transaction types
+        if (
+          transactionType === 'VOUCHER_TRANSFER' ||
+          transactionType === 'REDEEM'
+        ) {
+          return false;
+        }
+
+        // Include MARKETPLACE_PURCHASE (deprecated but type=POINT)
+        // Include other point transaction types: TRANSFER, MINT, BURN, EARN
+        return true;
       });
 
       const filteredCount = totalTransactions - pointTransactions.length;
       this.logger.log(
-        `[SUCCESS] Filtered ${filteredCount} voucher ownership transactions out of ${totalTransactions} total. Returning ${pointTransactions.length} point transactions (including MARKETPLACE_PURCHASE)`,
+        `[SUCCESS] Filtered ${filteredCount} voucher transactions out of ${totalTransactions} total. Returning ${pointTransactions.length} point transactions`,
       );
 
       const res = pointTransactions.map((transaction) => {
@@ -83,7 +98,14 @@ export class GetPointTransactionsByCustomerPhone {
           point: any,
           amount: number,
           transactionTypeId: string,
+          assetType?: string,
         ) => {
+          // New structure: check type field first
+          if (assetType === 'VOUCHER') {
+            return null;
+          }
+
+          // Legacy: check transactionTypeId for backward compatibility
           const voucherTransactionTypes = [
             TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
             TransactionTypeId.VOUCHER_TRANSFER,
@@ -122,7 +144,12 @@ export class GetPointTransactionsByCustomerPhone {
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
           merchantId: rest.merchantId,
           merchantName: merchant?.name || null,
-          point: formatPointInfo(point, rest.amount, rest.transactionTypeId),
+          point: formatPointInfo(
+            point,
+            rest.amount,
+            rest.transactionTypeId,
+            (rest as any).type,
+          ),
           sender: formatParticipant(
             sender,
             rest.senderAddress,

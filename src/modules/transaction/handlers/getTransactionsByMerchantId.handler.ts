@@ -47,9 +47,16 @@ export class GetTransactionsByMerchantId {
           point: any,
           amount: number,
           transactionTypeId: string,
+          assetType?: string,
         ) => {
           if (!point) return null;
 
+          // New structure: check type field first
+          if (assetType === 'VOUCHER') {
+            return null;
+          }
+
+          // Legacy: check transactionTypeId for backward compatibility
           const voucherTransactionTypes = [
             TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
             TransactionTypeId.VOUCHER_TRANSFER,
@@ -96,7 +103,12 @@ export class GetTransactionsByMerchantId {
           amount: rest.amount,
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
           type: (rest as any).type || null,
-          point: formatPointInfo(point, rest.amount, rest.transactionTypeId),
+          point: formatPointInfo(
+            point,
+            rest.amount,
+            rest.transactionTypeId,
+            (rest as any).type,
+          ),
           sender: formatParticipant(
             sender,
             rest.senderAddress,

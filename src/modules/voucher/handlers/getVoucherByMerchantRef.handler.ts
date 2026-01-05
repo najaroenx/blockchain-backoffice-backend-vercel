@@ -67,10 +67,12 @@ export class GetVoucherByMerchantRef {
         };
       }
 
-      // 3. Find transactions related to these voucherCodes
+      // 3. Find REDEEM transactions related to these voucherCodes (type: VOUCHER)
       const transactions = await this.prisma.transaction.findMany({
         where: {
           voucherCodeId: { in: voucherCodeIds },
+          transactionTypeId: TransactionTypeId.REDEEM,
+          type: 'VOUCHER',
         },
         include: {
           sender: {

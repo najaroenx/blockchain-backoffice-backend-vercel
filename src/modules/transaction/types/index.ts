@@ -1,11 +1,4 @@
-import {
-  Customer,
-  CustomerPoint,
-  Merchant,
-  Point,
-  Transaction,
-  Wallet,
-} from '@prisma/client';
+import { Customer, Merchant, Point, Transaction, Wallet } from '@prisma/client';
 import { PointInfo } from 'src/modules/customer/types';
 
 export interface CustomerWithWallet extends Customer {

@@ -12,3 +12,11 @@ export {
   createMockConfigService,
   createMockTokenService,
 } from './prisma.mock';
+export {
+  createMockVoucherHandlers,
+  createMockPointHandlers,
+  createMockTransactionHandlers,
+  createMockCustomerHandlers,
+  createMockApiKeyHandlers,
+  getVoucherHandlerProviders,
+} from './handler-mocks.factory';

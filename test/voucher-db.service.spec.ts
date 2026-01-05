@@ -8,6 +8,7 @@ import { ActivateVoucher } from '../src/modules/voucher/handlers/activateVoucher
 import { RedeemVoucher } from '../src/modules/voucher/handlers/redeemVoucher.handler';
 import { BuyCouponFromMarketplace } from '../src/modules/voucher/handlers/buyCouponFromMarketplace.handler';
 import { GetCustomerOwnedVouchers } from '../src/modules/voucher/handlers/getCustomerOwnedVouchers.handler';
+import { GetVoucherById } from '../src/modules/voucher/handlers/getVoucherById.handler';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 
 describe('VoucherDBService', () => {
@@ -55,6 +56,10 @@ describe('VoucherDBService', () => {
     execute: jest.fn(),
   };
 
+  const mockGetVoucherById = {
+    execute: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -86,6 +91,10 @@ describe('VoucherDBService', () => {
         {
           provide: GetCustomerOwnedVouchers,
           useValue: mockGetCustomerOwnedVouchers,
+        },
+        {
+          provide: GetVoucherById,
+          useValue: mockGetVoucherById,
         },
         {
           provide: BlockchainService,
@@ -174,14 +183,14 @@ describe('VoucherDBService', () => {
         voucherCodes: [{ pointsCost: 50 }],
       };
 
-      mockVoucherRepository.findUnique.mockResolvedValue(mockVoucher);
-      mockPrismaService.voucherCode.count.mockResolvedValue(10);
+      // getVoucherById delegates to GetVoucherById handler
+      mockGetVoucherById.execute.mockResolvedValue(mockVoucher);
 
       const result = await service.getVoucherById(voucherId);
 
       expect(result).toBeDefined();
       expect(result.id).toBe(voucherId);
-      expect(mockVoucherRepository.findUnique).toHaveBeenCalled();
+      expect(mockGetVoucherById.execute).toHaveBeenCalledWith(voucherId);
     });
   });
 

@@ -45,10 +45,11 @@ describe('BurnTransaction', () => {
     },
     customerPoints: [
       {
-        id: 'cp-1',
+        id: mockPointId, // Must match point.id for handler's find logic: cp.id === point.id
         pointId: mockPointId,
         customerId: 'customer-123',
         balances: 1000,
+        balance: 1000, // Handler uses 'balance' property
       },
     ],
     customerMerChant: [
@@ -211,7 +212,7 @@ describe('BurnTransaction', () => {
       expect(updateCustomer.execute).toHaveBeenCalledWith(mockCustomer.id, {
         customerPoints: {
           update: {
-            where: { id: 'cp-1' },
+            where: { id: mockPointId }, // Handler uses cp.id === point.id
             data: { balances: 900 }, // 1000 - 100
           },
         },
@@ -226,10 +227,11 @@ describe('BurnTransaction', () => {
         ...mockCustomer,
         customerPoints: [
           {
-            id: 'cp-1',
+            id: mockPointId, // Must match point.id for handler's find logic
             pointId: mockPointId,
             customerId: 'customer-123',
             balances: 5000,
+            balance: 5000,
           },
         ],
       };
@@ -261,7 +263,7 @@ describe('BurnTransaction', () => {
         {
           customerPoints: {
             update: {
-              where: { id: 'cp-1' },
+              where: { id: mockPointId }, // Handler uses cp.id === point.id
               data: { balances: 4750 }, // 5000 - 250
             },
           },
@@ -546,7 +548,7 @@ describe('BurnTransaction', () => {
       expect(updateCustomer.execute).toHaveBeenCalledWith(mockCustomer.id, {
         customerPoints: {
           update: {
-            where: { id: 'cp-1' },
+            where: { id: mockPointId }, // Handler uses cp.id === point.id
             data: { balances: 0 }, // 1000 - 1000 = 0
           },
         },
@@ -585,7 +587,7 @@ describe('BurnTransaction', () => {
       expect(updateCustomer.execute).toHaveBeenCalledWith(mockCustomer.id, {
         customerPoints: {
           update: {
-            where: { id: 'cp-1' },
+            where: { id: mockPointId }, // Handler uses cp.id === point.id
             data: { balances: 999 }, // 1000 - 1
           },
         },

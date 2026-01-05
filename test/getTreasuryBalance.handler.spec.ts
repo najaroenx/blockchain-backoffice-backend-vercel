@@ -37,6 +37,21 @@ describe('GetTreasuryBalance', () => {
     imageUrl: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    // Required by GetPointById handler response type
+    merchant: {
+      id: 'merchant-1',
+      name: 'Test Merchant',
+      description: null,
+      imageUrl: null,
+      website: null,
+    },
+    statistics: {
+      totalTransactions: 0,
+      totalCustomers: 0,
+      totalBalance: 0,
+      initialSupply: 1000000,
+      circulatingSupply: 0,
+    },
   };
 
   beforeEach(async () => {

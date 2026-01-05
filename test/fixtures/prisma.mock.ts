@@ -79,6 +79,15 @@ export const createMockPrismaClient = () => ({
     update: jest.fn(),
     delete: jest.fn(),
   },
+  listingBatch: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
   $transaction: jest.fn((callback) => {
     // Mock transaction callback
     if (typeof callback === 'function') {
@@ -150,6 +159,15 @@ export const createMockPrismaClient = () => ({
           update: jest.fn(),
           delete: jest.fn(),
         },
+        listingBatch: {
+          findUnique: jest.fn(),
+          findFirst: jest.fn(),
+          findMany: jest.fn(),
+          create: jest.fn(),
+          update: jest.fn(),
+          delete: jest.fn(),
+          count: jest.fn(),
+        },
       });
     }
     return Promise.resolve();
@@ -167,6 +185,7 @@ export const createMockBlockchainService = () => ({
   mintNFT: jest.fn(),
   transferNFT: jest.fn(),
   transferToken: jest.fn(),
+  transaction: jest.fn(),
   createMarketplaceListing: jest.fn(),
   buyFromMarketplace: jest.fn(),
   addToWhitelist: jest.fn(),
@@ -185,6 +204,7 @@ export const createMockBlockchainService = () => ({
   approveTHB: jest.fn(),
   mintTHB: jest.fn(),
   getUserCouponBalance: jest.fn(),
+  getUserTHBBalance: jest.fn(), // Added for merchant buy tests
   addToMarketplaceWhitelist: jest.fn(),
 });
 
@@ -223,6 +243,7 @@ export const createMockConfigService = () => ({
       DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
       BACKEND_PRIVATE_KEY: '0xtest-backend-private-key',
       THB_TOKEN_ADDRESS: '0xtest-thb-token-address',
+      SALT: 'test-salt-12345678901234567890',
     };
     return config[key];
   }),

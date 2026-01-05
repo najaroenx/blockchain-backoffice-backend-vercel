@@ -107,6 +107,41 @@ export const MockDataFactory = {
   }),
 
   /**
+   * Create mock point with full relations (for handler responses)
+   * Includes merchant and statistics required by GetPointById handler
+   */
+  createMockPointWithRelations: (overrides = {}) => ({
+    id: 'point-123',
+    name: 'Test Points',
+    symbol: 'TST',
+    merchantId: 'merchant-123',
+    decimal: 18,
+    initialSupply: 1000000,
+    contractAddress: '0x1234567890123456789012345678901234567890',
+    startDate: new Date('2025-01-01'),
+    endDate: new Date('2025-12-31'),
+    epochDuration: 259200,
+    imageUrl: 'https://example.com/point.png',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    merchant: {
+      id: 'merchant-123',
+      name: 'Test Merchant',
+      description: null,
+      imageUrl: null,
+      website: null,
+    },
+    statistics: {
+      totalTransactions: 0,
+      totalCustomers: 0,
+      totalBalance: 0,
+      initialSupply: 1000000,
+      circulatingSupply: 0,
+    },
+    ...overrides,
+  }),
+
+  /**
    * Create mock transaction
    */
   createMockTransaction: (overrides = {}) => ({
@@ -242,6 +277,47 @@ export const MockDataFactory = {
   createMockNFTBalance: (overrides = {}) => ({
     balance: '200',
     tokenId: '12345',
+    ...overrides,
+  }),
+
+  /**
+   * Create mock listing batch
+   */
+  createMockListingBatch: (overrides = {}) => ({
+    id: 'batch-123',
+    sellerWalletAddress: '0xf5e40ec8bfa4818278c04489b34a486281658e5c',
+    name: 'Test Batch Listing',
+    description: 'Test batch description',
+    totalItems: 100,
+    soldItems: 0,
+    totalValue: 10000,
+    currency: 'THB',
+    status: 'ACTIVE',
+    createdAt: new Date('2025-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2025-01-01T00:00:00.000Z'),
+    voucherCodes: [],
+    ...overrides,
+  }),
+
+  /**
+   * Create mock seller wallet
+   */
+  createMockSellerWallet: (overrides = {}) => ({
+    id: 'wallet-seller-123',
+    walletAddress: '0xf5e40ec8bfa4818278c04489b34a486281658e5c',
+    privateKey: 'encrypted-seller-private-key-123',
+    type: 'seller',
+    status: 'active',
+    ...overrides,
+  }),
+
+  /**
+   * Create mock listing result from blockchain
+   */
+  createMockListingResult: (overrides = {}) => ({
+    listingId: 'listing-456',
+    hash: '0xabc123def456',
+    blockNumber: 12345,
     ...overrides,
   }),
 };

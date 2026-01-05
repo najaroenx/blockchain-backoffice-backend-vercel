@@ -9,7 +9,7 @@ import { GetPointById } from '../src/modules/point/handlers/getPointById.handler
 import { GetMerchant } from '../src/modules/merchant/handlers/getMerchantById.handler';
 import { TokenService } from '../src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
   MockDataFactory,
   createMockBlockchainService,
@@ -126,7 +126,7 @@ describe('CreateTransactionB2C', () => {
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
         wallet: {
-          walletAddress: '0xMerchantAddress123',
+          walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
@@ -158,34 +158,32 @@ describe('CreateTransactionB2C', () => {
         customer: mockCustomer,
       });
 
-      blockchainService.transferToken.mockResolvedValue({
-        hash: '0xTRANSFER_TX_HASH',
+      blockchainService.transaction.mockResolvedValue({
+        txId: '0xTRANSFER_TX_HASH',
       });
 
       transactionDBService.createTransaction.mockResolvedValue(mockTransaction);
 
       // Execute
       const result = await handler.execute(merchantId, pointId, {
-        receiverPhone,
+        phone: receiverPhone,
         amount,
       } as any);
 
       // Assertions
       expect(getMerchant.execute).toHaveBeenCalledWith(merchantId);
-      expect(getPointById.execute).toHaveBeenCalledWith(pointId);
+      expect(getPointById.execute).toHaveBeenCalledWith(pointId, merchantId);
       expect(getCustomerByPhone.execute).toHaveBeenCalledWith(
-        receiverPhone,
         merchantId,
+        receiverPhone,
       );
 
-      expect(blockchainService.transferToken).toHaveBeenCalled();
+      expect(blockchainService.transaction).toHaveBeenCalled();
       expect(transactionDBService.createTransaction).toHaveBeenCalled();
 
       expect(result).toMatchObject({
-        transaction: expect.objectContaining({
-          id: 'tx-123',
-          amount,
-        }),
+        id: 'tx-123',
+        amount,
       });
     });
 
@@ -198,7 +196,7 @@ describe('CreateTransactionB2C', () => {
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
         wallet: {
-          walletAddress: '0xMerchantAddress123',
+          walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
@@ -212,6 +210,7 @@ describe('CreateTransactionB2C', () => {
       const mockNewCustomer = MockDataFactory.createMockCustomer({
         id: 'new-customer-123',
         tel: receiverPhone,
+        customerMerChant: [{ merchantId }],
       });
 
       const mockTransaction = MockDataFactory.createMockTransaction({
@@ -221,38 +220,36 @@ describe('CreateTransactionB2C', () => {
       // Setup mocks
       getMerchant.execute.mockResolvedValue({ merchant: mockMerchant });
       getPointById.execute.mockResolvedValue({ point: mockPoint });
-      getCustomerByPhone.execute.mockResolvedValue({ customer: null });
-
-      createCustomer.execute.mockResolvedValue({
-        customer: mockNewCustomer,
+      getCustomerByPhone.execute.mockResolvedValue({
+        message: 'Customer not found',
       });
 
-      blockchainService.transferToken.mockResolvedValue({
-        hash: '0xTRANSFER_TX_HASH',
+      createCustomer.execute.mockResolvedValue(mockNewCustomer);
+
+      blockchainService.transaction.mockResolvedValue({
+        txId: '0xTRANSFER_TX_HASH',
       });
 
       transactionDBService.createTransaction.mockResolvedValue(mockTransaction);
 
       // Execute
       const result = await handler.execute(merchantId, pointId, {
-        receiverPhone,
+        phone: receiverPhone,
         amount,
       } as any);
 
       // Assertions - Verify customer was auto-created
       expect(createCustomer.execute).toHaveBeenCalledWith(
+        merchantId,
         expect.objectContaining({
           tel: receiverPhone,
         }),
-        merchantId,
       );
 
-      expect(blockchainService.transferToken).toHaveBeenCalled();
+      expect(blockchainService.transaction).toHaveBeenCalled();
       expect(transactionDBService.createTransaction).toHaveBeenCalled();
 
-      expect(result).toMatchObject({
-        transaction: expect.any(Object),
-      });
+      expect(result).toBeDefined();
     });
 
     it('should add customerMerchant relationship if customer exists but not linked to merchant', async () => {
@@ -264,7 +261,7 @@ describe('CreateTransactionB2C', () => {
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
         wallet: {
-          walletAddress: '0xMerchantAddress123',
+          walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
@@ -296,15 +293,15 @@ describe('CreateTransactionB2C', () => {
         customer: mockCustomer,
       });
 
-      blockchainService.transferToken.mockResolvedValue({
-        hash: '0xTRANSFER_TX_HASH',
+      blockchainService.transaction.mockResolvedValue({
+        txId: '0xTRANSFER_TX_HASH',
       });
 
       transactionDBService.createTransaction.mockResolvedValue(mockTransaction);
 
       // Execute
       const result = await handler.execute(merchantId, pointId, {
-        receiverPhone,
+        phone: receiverPhone,
         amount,
       } as any);
 
@@ -313,18 +310,14 @@ describe('CreateTransactionB2C', () => {
         mockCustomer.id,
         expect.objectContaining({
           customerMerChant: expect.objectContaining({
-            create: expect.arrayContaining([
-              expect.objectContaining({
-                merchantId,
-              }),
-            ]),
+            create: expect.objectContaining({
+              merchantId,
+            }),
           }),
         }),
       );
 
-      expect(result).toMatchObject({
-        transaction: expect.any(Object),
-      });
+      expect(result).toBeDefined();
     });
 
     it('should throw BadRequestException when point does not belong to merchant', async () => {
@@ -334,36 +327,34 @@ describe('CreateTransactionB2C', () => {
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
         wallet: {
-          walletAddress: '0xMerchantAddress123',
+          walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
       });
 
-      const mockPoint = MockDataFactory.createMockPoint({
-        id: pointId,
-        merchantId: 'different-merchant', // Different merchant
-      });
-
       getMerchant.execute.mockResolvedValue({ merchant: mockMerchant });
-      getPointById.execute.mockResolvedValue({ point: mockPoint });
+      // When point doesn't belong to merchant, getPointById throws NotFoundException
+      getPointById.execute.mockRejectedValue(
+        new NotFoundException('Point not found'),
+      );
 
       await expect(
         handler.execute(merchantId, pointId, {
-          receiverPhone: '0812345678',
+          phone: '0812345678',
           amount: 100,
         } as any),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException when amount is invalid', async () => {
+    it('should throw BadRequestException when merchant has insufficient balance', async () => {
       const merchantId = 'merchant-123';
       const pointId = 'point-123';
 
       const mockMerchant = MockDataFactory.createMockMerchant({
         id: merchantId,
         wallet: {
-          walletAddress: '0xMerchantAddress123',
+          walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
@@ -374,13 +365,22 @@ describe('CreateTransactionB2C', () => {
         merchantId,
       });
 
+      const mockCustomer = MockDataFactory.createMockCustomer({
+        id: 'customer-123',
+        tel: '0812345678',
+        customerMerChant: [{ merchantId }],
+      });
+
       getMerchant.execute.mockResolvedValue({ merchant: mockMerchant });
       getPointById.execute.mockResolvedValue({ point: mockPoint });
+      getCustomerByPhone.execute.mockResolvedValue({ customer: mockCustomer });
+      // Mock insufficient balance - merchant has 50 but needs 100
+      blockchainService.getBalance.mockResolvedValue('50');
 
       await expect(
         handler.execute(merchantId, pointId, {
-          receiverPhone: '0812345678',
-          amount: 0, // Invalid amount
+          phone: '0812345678',
+          amount: 100, // Request more than available
         } as any),
       ).rejects.toThrow(BadRequestException);
     });

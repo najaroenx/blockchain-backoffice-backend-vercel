@@ -393,7 +393,7 @@ describe('GetVoucherTransactionsByCustomerPhone', () => {
 
       const result = await handler.execute(merchantId, phone);
 
-      expect((result.transactions[0] as any).point).toEqual({
+      expect((result.transactions[0] as any).point).toMatchObject({
         id: 'point-123',
         name: 'Test Points',
         symbol: 'TST',

@@ -296,7 +296,8 @@ describe('GetPointTransactionsByCustomerPhone', () => {
 
       const result = await handler.execute(merchantId, phone);
 
-      expect((result.transactions[0] as any).point).toEqual({
+      // Handler may add extra fields like balance and merchantId
+      expect((result.transactions[0] as any).point).toMatchObject({
         id: 'point-123',
         name: 'Test Points',
         symbol: 'TST',

@@ -199,24 +199,36 @@ describe('PointDBService', () => {
 
   describe('getPointById', () => {
     it('should return point by ID without merchantId', async () => {
-      repository.findUnique.mockResolvedValue(mockPoint);
+      repository.findFirst.mockResolvedValue(mockPoint);
 
       const result = await service.getPointById('point-1');
 
-      expect(result).toEqual(mockPoint);
-      expect(repository.findUnique).toHaveBeenCalledWith({
+      // Service adds statistics field
+      expect(result).toMatchObject({
+        id: 'point-1',
+        name: 'Test Point',
+        symbol: 'TST',
+      });
+      expect(repository.findFirst).toHaveBeenCalledWith({
         where: { id: 'point-1' },
+        include: expect.any(Object),
       });
     });
 
     it('should return point by ID with merchantId', async () => {
-      repository.findUnique.mockResolvedValue(mockPoint);
+      repository.findFirst.mockResolvedValue(mockPoint);
 
       const result = await service.getPointById('point-1', 'merchant-1');
 
-      expect(result).toEqual(mockPoint);
-      expect(repository.findUnique).toHaveBeenCalledWith({
+      // Service adds statistics field
+      expect(result).toMatchObject({
+        id: 'point-1',
+        name: 'Test Point',
+        symbol: 'TST',
+      });
+      expect(repository.findFirst).toHaveBeenCalledWith({
         where: { id: 'point-1', merchantId: 'merchant-1' },
+        include: expect.any(Object),
       });
     });
 

@@ -9,6 +9,10 @@ import { SellerListOnMarketplace } from '../src/modules/voucher/handlers/sellerL
 import { GetSellerVouchers } from '../src/modules/voucher/handlers/getSellerVouchers.handler';
 import { AddToWhitelist } from '../src/modules/voucher/handlers/addToWhitelist.handler';
 import { GetVoucherByListingId } from '../src/modules/voucher/handlers/getVoucherByListingId.handler';
+import { GetVoucherByMerchantRef } from '../src/modules/voucher/handlers/getVoucherByMerchantRef.handler';
+import { BatchListOnMarketplaceHandler } from '../src/modules/voucher/handlers/batchListOnMarketplace.handler';
+import { GetSellerListingsHandler } from '../src/modules/voucher/handlers/getSellerListings.handler';
+import { GetListingBatchDetailHandler } from '../src/modules/voucher/handlers/getListingBatchDetail.handler';
 
 describe('VoucherController', () => {
   let controller: VoucherController;
@@ -54,6 +58,22 @@ describe('VoucherController', () => {
     execute: jest.fn(),
   };
 
+  const mockGetVoucherByMerchantRef = {
+    execute: jest.fn(),
+  };
+
+  const mockBatchListHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockGetSellerListingsHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockGetListingBatchDetailHandler = {
+    execute: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [VoucherController],
@@ -89,6 +109,22 @@ describe('VoucherController', () => {
         {
           provide: GetVoucherByListingId,
           useValue: mockGetVoucherByListingId,
+        },
+        {
+          provide: GetVoucherByMerchantRef,
+          useValue: mockGetVoucherByMerchantRef,
+        },
+        {
+          provide: BatchListOnMarketplaceHandler,
+          useValue: mockBatchListHandler,
+        },
+        {
+          provide: GetSellerListingsHandler,
+          useValue: mockGetSellerListingsHandler,
+        },
+        {
+          provide: GetListingBatchDetailHandler,
+          useValue: mockGetListingBatchDetailHandler,
         },
       ],
     }).compile();

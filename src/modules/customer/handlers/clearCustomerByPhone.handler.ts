@@ -38,15 +38,6 @@ export class ClearCustomerByPhone {
 
       // 2. Use transaction to ensure atomicity
       const result = await this.prisma.$transaction(async (tx) => {
-        // 3. Clear voucher ownership (set currentOwnerId to null)
-        this.logger.log(
-          `[STEP 2] Clearing voucher ownership for customer: ${customer.id}`,
-        );
-        await tx.voucherCode.updateMany({
-          where: { currentOwnerId: customer.id },
-          data: { currentOwnerId: null },
-        });
-
         // 4. Delete customer (cascades to: CustomerMerChant, CustomerPoint, Transactions)
         this.logger.log(`[STEP 3] Deleting customer: ${customer.id}`);
         const deletedCustomer = await tx.customer.delete({

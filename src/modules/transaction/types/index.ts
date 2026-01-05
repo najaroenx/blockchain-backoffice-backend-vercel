@@ -1,11 +1,4 @@
-import {
-  Customer,
-  CustomerPoint,
-  Merchant,
-  Point,
-  Transaction,
-  Wallet,
-} from '@prisma/client';
+import { Customer, Merchant, Point, Transaction, Wallet } from '@prisma/client';
 import { PointInfo } from 'src/modules/customer/types';
 
 export interface CustomerWithWallet extends Customer {
@@ -35,6 +28,7 @@ export interface TransactionVoucherInfo {
   valueType: string;
   value: number;
   imageUrl: string | null;
+  voucherCodeId: string | null;
 }
 
 export interface TransactionDetail {
@@ -51,7 +45,6 @@ export interface TransactionDetail {
   sender: TransactionParticipant;
   receiver: TransactionParticipant;
   voucher: TransactionVoucherInfo | null;
-  voucherCodeId: string | null;
   eventId: string | null;
   transactionRefId: string | null;
   createdAt: Date;
@@ -71,6 +64,7 @@ export type GetTransactionByMerchantIdResponseType = {
       | 'receiverId'
       | 'merchantSenderId'
       | 'merchantReceiverId'
+      | 'voucherCodeId'
     > & {
       txHash: string;
       receiverAddress: string;

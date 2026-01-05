@@ -35,6 +35,7 @@ export interface TransactionVoucherInfo {
   valueType: string;
   value: number;
   imageUrl: string | null;
+  voucherCodeId: string | null;
 }
 
 export interface TransactionDetail {
@@ -51,7 +52,6 @@ export interface TransactionDetail {
   sender: TransactionParticipant;
   receiver: TransactionParticipant;
   voucher: TransactionVoucherInfo | null;
-  voucherCodeId: string | null;
   eventId: string | null;
   transactionRefId: string | null;
   createdAt: Date;
@@ -71,6 +71,7 @@ export type GetTransactionByMerchantIdResponseType = {
       | 'receiverId'
       | 'merchantSenderId'
       | 'merchantReceiverId'
+      | 'voucherCodeId'
     > & {
       txHash: string;
       receiverAddress: string;

@@ -70,6 +70,7 @@ export class GetTransactionById {
           valueType: voucherCode.voucher.valueType,
           value: voucherCode.voucher.value,
           imageUrl: voucherCode.voucher.imageUrl || null,
+          voucherCodeId: voucherCode.id || null,
         };
       };
 
@@ -143,7 +144,6 @@ export class GetTransactionById {
           merchant?.website,
         ),
         voucher: formatVoucherInfo(voucherCode),
-        voucherCodeId: rest.voucherCodeId || null,
         eventId: rest.eventId || null,
         transactionRefId: (rest as any).transactionRefId || null,
         createdAt: rest.createdAt,

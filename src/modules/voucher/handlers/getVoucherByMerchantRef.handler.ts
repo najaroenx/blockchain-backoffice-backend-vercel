@@ -140,6 +140,7 @@ export class GetVoucherByMerchantRef {
               valueType: voucherCode.voucher.valueType,
               value: voucherCode.voucher.value,
               imageUrl: voucherCode.voucher.imageUrl || null,
+              voucherCodeId: voucherCode.id || null,
             };
           };
 
@@ -213,7 +214,6 @@ export class GetVoucherByMerchantRef {
               merchant?.website || voucher.merchant.website || '',
             ),
             voucher: formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
-            voucherCodeId: rest.voucherCodeId || null,
             eventId: rest.eventId || null,
             transactionRefId: (rest as any).transactionRefId || null,
             createdAt: rest.createdAt,

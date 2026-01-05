@@ -165,9 +165,9 @@ export class GetVoucherTransactionsByCustomerPhone {
                 valueType: (voucherCode as any).voucher.valueType || null,
                 value: (voucherCode as any).voucher.value || null,
                 imageUrl: (voucherCode as any).voucher.imageUrl || null,
+                voucherCodeId: (voucherCode as any).id || null,
               }
             : null,
-          voucherCodeId: rest.voucherCodeId || null,
           eventId: rest.eventId || null,
           transactionRefId: (rest as any).transactionRefId || null,
           createdAt: rest.createdAt,

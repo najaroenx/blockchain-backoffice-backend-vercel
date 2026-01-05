@@ -376,7 +376,7 @@ export class BuyCouponFromMarketplace {
             },
           }),
 
-          // Transaction 1: MARKETPLACE_PURCHASE - Payment from customer to merchant
+          // Transaction 1: TRANSFER (type: POINT) - Payment from customer to merchant
           this.prisma.transaction.create({
             data: {
               txHash: txHashBuffer,
@@ -389,13 +389,13 @@ export class BuyCouponFromMarketplace {
               receiverId: null, // Merchant is receiver but not a customer
               merchantReceiverId: voucherCode.voucher.merchantId, // Merchant received payment
               voucherCodeId: voucherCodeId,
-              transactionTypeId: TransactionTypeId.MARKETPLACE_PURCHASE,
-              type: AssetType.VOUCHER,
+              transactionTypeId: TransactionTypeId.TRANSFER,
+              type: AssetType.POINT,
               transactionRefId,
             } as any,
           }),
 
-          // Transaction 2: VOUCHER_TRANSFER - Voucher ownership transfer to customer
+          // Transaction 2: TRANSFER (type: VOUCHER) - Voucher ownership transfer to customer
           this.prisma.transaction.create({
             data: {
               txHash: txHashBuffer,
@@ -408,7 +408,7 @@ export class BuyCouponFromMarketplace {
               receiverId: customerId, // Customer receives voucher
               merchantReceiverId: null,
               voucherCodeId: voucherCodeId,
-              transactionTypeId: TransactionTypeId.VOUCHER_TRANSFER,
+              transactionTypeId: TransactionTypeId.TRANSFER,
               type: AssetType.VOUCHER,
               transactionRefId,
             } as any,
@@ -461,7 +461,8 @@ export class BuyCouponFromMarketplace {
         transactions: {
           payment: {
             id: purchaseTransaction.id,
-            type: TransactionTypeId.MARKETPLACE_PURCHASE,
+            type: TransactionTypeId.TRANSFER,
+            assetType: 'POINT',
             amount: voucherCode.pointsCost,
             from: walletAddress,
             to: merchantWallet.walletAddress,
@@ -469,7 +470,8 @@ export class BuyCouponFromMarketplace {
           },
           transfer: {
             id: transferTransaction.id,
-            type: TransactionTypeId.VOUCHER_TRANSFER,
+            type: TransactionTypeId.TRANSFER,
+            assetType: 'VOUCHER',
             amount: 1,
             from: merchantWallet.walletAddress,
             to: walletAddress,

@@ -120,7 +120,11 @@ export class GetCustomerOwnedVouchers {
                   where: {
                     receiverId: customerId,
                     transactionTypeId: {
-                      in: ['MARKETPLACE_PURCHASE', 'VOUCHER_TRANSFER'],
+                      in: [
+                        'TRANSFER',
+                        'MARKETPLACE_PURCHASE',
+                        'VOUCHER_TRANSFER',
+                      ],
                     },
                   },
                   orderBy: { createdAt: 'desc' },
@@ -179,7 +183,12 @@ export class GetCustomerOwnedVouchers {
             where: {
               receiverId: customerId,
               transactionTypeId: {
-                in: ['MARKETPLACE_PURCHASE', 'VOUCHER_TRANSFER', 'REDEEM'],
+                in: [
+                  'TRANSFER',
+                  'MARKETPLACE_PURCHASE',
+                  'VOUCHER_TRANSFER',
+                  'REDEEM',
+                ],
               },
             },
             orderBy: { createdAt: 'desc' },

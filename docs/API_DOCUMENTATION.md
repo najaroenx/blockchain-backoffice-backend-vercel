@@ -356,10 +356,10 @@
 
 | Field | Type | Description |
 |-------|------|-------------|
-| transactions | Array | รายการ point transactions (MINT, TRANSFER, BURN, EARN, MARKETPLACE_PURCHASE) |
+| transactions | Array | รายการ point transactions (MINT, TRANSFER, BURN, EARN) |
 | transactions[].id | String | รหัสธุรกรรม |
 | transactions[].transactionHash | String | Transaction hash บน blockchain |
-| transactions[].transactionTypeId | String | ประเภทธุรกรรม (MINT, TRANSFER, BURN, EARN, MARKETPLACE_PURCHASE) |
+| transactions[].transactionTypeId | String | ประเภทธุรกรรม (MINT, TRANSFER, BURN, EARN) |
 | transactions[].amount | Number | จำนวน point |
 | transactions[].direction | String | ทิศทางจากมุมมองลูกค้า: `SENT` หรือ `RECEIVED` |
 | transactions[].point | Object | ข้อมูล point |
@@ -367,7 +367,7 @@
 | transactions[].point.name | String | ชื่อ point |
 | transactions[].point.symbol | String | สัญลักษณ์ point |
 | transactions[].point.imageUrl | String \| null | URL รูปภาพ point logo |
-| transactions[].voucher | Object \| null | ข้อมูล voucher (สำหรับ MARKETPLACE_PURCHASE) |
+| transactions[].voucher | Object \| null | ข้อมูล voucher (สำหรับการซื้อ voucher - link ด้วย transactionRefId) |
 | transactions[].voucher.id | String | รหัส voucher |
 | transactions[].voucher.name | String | ชื่อ voucher |
 | transactions[].voucher.valueType | String | ประเภทมูลค่า (cash, percent, free) |
@@ -396,23 +396,18 @@
     {
       "id": "cm4p9kv7j003y7w5xhps7krvz",
       "transactionHash": "0xc24bec9dc9eade84bd15d55386c79b0d858c3b18700be655d17e060eadaadfaf",
-      "transactionTypeId": "MARKETPLACE_PURCHASE",
+      "transactionTypeId": "TRANSFER",
       "amount": 100,
       "transactionDirection": "SENT",
+      "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
       "point": {
         "id": "cm4ohkm5l000099b5ebs3eltd",
         "name": "AIS Points",
         "symbol": "AISP",
         "imageUrl": "https://example.com/images/ais-point.png"
       },
-      "voucher": {
-        "id": "cm4p9abc123xyz",
-        "name": "Starbucks 100 THB",
-        "valueType": "cash",
-        "value": 100,
-        "imageUrl": "https://example.com/images/starbucks.png"
-      },
-      "voucherCodeId": "cm4p9code123",
+      "voucher": null,
+      "voucherCodeId": null,
       "sender": {
         "id": "cmiisvgqn0007xk01efv8szbq",
         "walletAddress": "0x50581102beb5cdeb68cb5f84acde46fa2deb842e",
@@ -474,8 +469,8 @@
 
 ### Notes
 
-- **Transaction Types Included:** MINT, TRANSFER, BURN, EARN, MARKETPLACE_PURCHASE
-- **MARKETPLACE_PURCHASE:** แสดง point deduction พร้อม voucher details ใน `voucher` object
+- **Transaction Types Included:** MINT, TRANSFER, BURN, EARN
+- **Voucher Purchase:** ใช้ `transactionRefId` (UUID) เชื่อมโยง TRANSFER (point) กับ VOUCHER_TRANSFER (voucher)
 - **Image URLs:** ทั้ง `point.imageUrl` และ `voucher.imageUrl` จะแสดงเมื่อมีข้อมูล
 
 ---
@@ -594,7 +589,7 @@
 ### Notes
 
 - **Transaction Types Included:** VOUCHER_TRANSFER, REDEEM only
-- **Excludes MARKETPLACE_PURCHASE:** ไม่แสดงการซื้อ voucher (อยู่ใน point transactions แทน)
+- **Voucher Purchase:** การซื้อ voucher จะแสดงเป็น TRANSFER (type: POINT) และ VOUCHER_TRANSFER เชื่อมด้วย transactionRefId
 - **Voucher Object:** มีข้อมูลครบถ้วนทุก transaction
 
 ---
@@ -641,7 +636,8 @@ Same as **Section 3** (Get Point Transactions by Customer Phone) but includes tr
   "transactions": [
     {
       "id": "cm4p9kv7j003y7w5xhps7krvz",
-      "transactionTypeId": "MARKETPLACE_PURCHASE",
+      "transactionTypeId": "TRANSFER",
+      "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
       "amount": 100,
       "transactionDirection": "SENT",
       "point": {
@@ -649,13 +645,6 @@ Same as **Section 3** (Get Point Transactions by Customer Phone) but includes tr
         "name": "AIS Points",
         "symbol": "AISP",
         "imageUrl": "https://example.com/ais-point.png"
-      },
-      "voucher": {
-        "id": "cm4voucher1",
-        "name": "Starbucks 100 THB",
-        "valueType": "cash",
-        "value": 100,
-        "imageUrl": "https://example.com/starbucks.png"
       },
       "merchant": {
         "id": "merchant_ais",
@@ -1526,7 +1515,6 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 | **BURN** | ทำลายคะแนน | - ลบคะแนนออกจากระบบ |
 | **EARN** | รับคะแนนจากกิจกรรม | - รับคะแนนจากการทำภารกิจ/event |
 | **REDEEM** | แลกของรางวัล | - ลูกค้าใช้คะแนนแลกของรางวัล |
-| **MARKETPLACE_PURCHASE** | ซื้อ voucher จาก marketplace | - ลูกค้าซื้อ voucher ด้วยคะแนน |
 | **MERCHANT_PURCHASE_FROM_SELLER** | Merchant ซื้อ voucher จาก seller | - ร้านค้าซื้อ voucher ด้วย THB |
 | **VOUCHER_TRANSFER** | โอน voucher | - โอน voucher ระหว่าง user |
 | **VOUCHER_GIFT** | ให้ voucher เป็นของขวัญ | - ส่ง voucher เป็นของขวัญ |
@@ -1539,7 +1527,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 | Type | Description | Transaction Types |
 |------|-------------|-------------------|
-| **POINT** | ธุรกรรมเกี่ยวกับ Point token | TRANSFER, MINT, BURN, EARN, MARKETPLACE_PURCHASE |
+| **POINT** | ธุรกรรมเกี่ยวกับ Point token | TRANSFER, MINT, BURN, EARN |
 | **VOUCHER** | ธุรกรรมเกี่ยวกับ Voucher/Coupon | VOUCHER_TRANSFER, VOUCHER_GIFT, REDEEM, MERCHANT_PURCHASE_FROM_SELLER |
 
 ### หมายเหตุ
@@ -1554,15 +1542,15 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ### Use Cases
 - **Marketplace Purchase:** เมื่อลูกค้าซื้อ voucher จะสร้าง 2 transactions ที่มี `transactionRefId` เดียวกัน:
-  1. `MARKETPLACE_PURCHASE` - หัก point จากลูกค้า
-  2. `VOUCHER_TRANSFER` - โอน voucher ให้ลูกค้า
+  1. `TRANSFER` (type: POINT) - หัก point จากลูกค้า
+  2. `VOUCHER_TRANSFER` (type: VOUCHER) - โอน voucher ให้ลูกค้า
 
 ### ตัวอย่าง
 ```json
 {
   "transaction1": {
     "id": "txn-001",
-    "transactionTypeId": "MARKETPLACE_PURCHASE",
+    "transactionTypeId": "TRANSFER",
     "type": "POINT",
     "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
     "amount": 100
@@ -2168,7 +2156,8 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
       "pointsCost": 100,
       "currency": "LAT",
       "purchasedAt": "2025-01-15T10:30:00.000Z",
-      "purchaseType": "MARKETPLACE_PURCHASE",
+      "purchaseType": "TRANSFER",
+      "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
       "onChainBalance": "1",
       "voucher": {
         "id": "cm123abc456",
@@ -2713,7 +2702,8 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 ### Notes
 
 - Customer ต้องมี point balance เพียงพอ
-- ระบบจะสร้าง 2 transactions: MARKETPLACE_PURCHASE (point deduction) และ VOUCHER_TRANSFER (NFT transfer)
+- ระบบจะสร้าง 2 transactions: TRANSFER (type: POINT, point deduction) และ VOUCHER_TRANSFER (type: VOUCHER, NFT transfer)
+- ทั้ง 2 transactions จะ link กันด้วย `transactionRefId` (UUID)
 - Voucher code จะถูก assign ให้ customer (currentOwnerId)
 - ใช้ transactionRefId เดียวกันสำหรับทั้ง 2 transactions
 
@@ -3184,7 +3174,7 @@ GET /coupon/seller/listings?walletAddress=0x1234...&page=1&limit=10&status=ACTIV
 | Type | Value | Description | Transaction Types |
 |------|-------|-------------|-------------------|
 | **POINT** | `POINT` | ธุรกรรมเกี่ยวกับ Point token | TRANSFER, MINT, BURN, EARN |
-| **VOUCHER** | `VOUCHER` | ธุรกรรมเกี่ยวกับ Voucher/Coupon | VOUCHER_TRANSFER, REDEEM, MARKETPLACE_PURCHASE |
+| **VOUCHER** | `VOUCHER` | ธุรกรรมเกี่ยวกับ Voucher/Coupon | VOUCHER_TRANSFER, REDEEM, MERCHANT_PURCHASE_FROM_SELLER |
 
 ### TransactionTypeId
 
@@ -3197,7 +3187,6 @@ GET /coupon/seller/listings?walletAddress=0x1234...&page=1&limit=10&status=ACTIV
 | **BURN** | ทำลาย Point | OUTGOING | POINT |
 | **EARN** | ได้รับ Point จากการซื้อสินค้า | INCOMING | POINT |
 | **REDEEM** | ใช้งาน Voucher | - | VOUCHER |
-| **MARKETPLACE_PURCHASE** | ซื้อ Voucher จาก marketplace | OUTGOING | VOUCHER |
 | **VOUCHER_TRANSFER** | โอน Voucher ให้ customer | INCOMING | VOUCHER |
 | **MERCHANT_PURCHASE_FROM_SELLER** | Merchant ซื้อ voucher จาก seller | - | VOUCHER |
 | **VOUCHER_GIFT** | ให้ Voucher เป็นของขวัญ | OUTGOING/INCOMING | VOUCHER |

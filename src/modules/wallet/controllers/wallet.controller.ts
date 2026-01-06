@@ -2,16 +2,21 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
   Query,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { GetWalletByPhoneOrEmail } from '../handlers/getWalletByPhoneOrEmail.handler';
+import { GetThbBalance } from '../handlers/getThbBalance.handler';
 import { Public } from 'src/modules/auth/public.decorator';
 
+@ApiTags('Wallet')
 @Controller('wallet')
 export class WalletController {
   constructor(
     private readonly getWalletByPhoneOrEmailHandler: GetWalletByPhoneOrEmail,
+    private readonly getThbBalanceHandler: GetThbBalance,
   ) {}
 
   @Get('/search')
@@ -28,5 +33,29 @@ export class WalletController {
     }
 
     return this.getWalletByPhoneOrEmailHandler.execute(phoneNumber, email);
+  }
+
+  @Get('/:walletAddress/thb-balance')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get THB Balance',
+    description: 'ดึงยอด THB token ของ wallet address จาก blockchain',
+  })
+  @ApiParam({
+    name: 'walletAddress',
+    description: 'Wallet address (0x...)',
+    example: '0xaa18f00e63efea1de8b18308bf74b740811b3c0f',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Balance retrieved successfully',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error',
+  })
+  async getThbBalance(@Param('walletAddress') walletAddress: string) {
+    return this.getThbBalanceHandler.execute(walletAddress);
   }
 }

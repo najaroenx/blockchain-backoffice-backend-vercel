@@ -136,11 +136,16 @@ export class GetVoucherByMerchantRef {
 
             return {
               id: voucherCode.voucher.id,
+              tokenId: (voucherCode.voucher as any).tokenId || null,
               name: voucherCode.voucher.name,
+              description: (voucherCode.voucher as any).description || null,
               valueType: voucherCode.voucher.valueType,
               value: voucherCode.voucher.value,
+              currency: (voucherCode.voucher as any).currency || null,
               imageUrl: voucherCode.voucher.imageUrl || null,
-              voucherCodeId: voucherCode.id || null,
+              startDate: (voucherCode.voucher as any).startDate || null,
+              endDate: (voucherCode.voucher as any).endDate || null,
+              merchantRef: (voucherCode.voucher as any).merchantRef || null,
             };
           };
 
@@ -195,8 +200,11 @@ export class GetVoucherByMerchantRef {
             transactionTypeId: rest.transactionTypeId,
             amount: rest.amount,
             transactionDirection,
-            merchantId: rest.merchantId,
-            merchantName: merchant?.name || voucher.merchant.name || null,
+            merchant: {
+              id: rest.merchantId || voucher.merchant.id,
+              name: merchant?.name || voucher.merchant.name || null,
+              imageUrl: (merchant as any)?.imageUrl || (voucher.merchant as any)?.imageUrl || null,
+            },
             point: formatPointInfo(
               point,
               rest.amount,
@@ -216,6 +224,7 @@ export class GetVoucherByMerchantRef {
             voucher: formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
             eventId: rest.eventId || null,
             transactionRefId: (rest as any).transactionRefId || null,
+            typeAsset: (rest as any).type || null,
             createdAt: rest.createdAt,
           };
         },

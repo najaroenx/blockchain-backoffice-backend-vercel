@@ -16,7 +16,6 @@ export type CustomerOwnedVoucherInfo = {
   startDate: Date | null;
   endDate: Date | null;
   merchantRef: string | null;
-  merchant: CustomerOwnedVoucherMerchant;
 };
 
 export type CustomerOwnedVoucherItem = {
@@ -30,6 +29,7 @@ export type CustomerOwnedVoucherItem = {
   purchaseType: string;
   onChainBalance: string;
   voucher: CustomerOwnedVoucherInfo;
+  merchant: CustomerOwnedVoucherMerchant;
 };
 
 export type CustomerOwnedVouchersPagination = {

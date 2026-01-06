@@ -1,0 +1,161 @@
+{
+  "info": {
+    "_postman_id": "get-voucher-by-merchantref",
+    "name": "Get Voucher By Merchant Ref",
+    "description": "API สำหรับดึง transactions ของ voucher ตาม merchantRef\n\n## Response Format\n- transactions: รายการ transactions ที่เกี่ยวข้องกับ voucher\n- counts: จำนวน transactions ทั้งหมด\n\n## Transaction Types\n- TRANSFER (type: POINT) - การจ่าย point\n- TRANSFER (type: VOUCHER) - การโอน voucher",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Voucher Transactions by Merchant Ref",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/coupon/coupon-by-merchant/{{merchantRef}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "coupon",
+            "coupon-by-merchant",
+            "{{merchantRef}}"
+          ]
+        },
+        "description": "ดึง transactions ทั้งหมดที่เกี่ยวข้องกับ voucher ตาม merchantRef\n\n- Public endpoint (ไม่ต้องใช้ API Key)\n- Response แสดง transactions ที่เกี่ยวข้องกับ voucherCodes ของ voucher นั้น"
+      },
+      "response": [
+        {
+          "name": "Success - Found Transactions",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coupon/coupon-by-merchant/merchant-ref-001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coupon",
+                "coupon-by-merchant",
+                "merchant-ref-001"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"transactions\": [\n    {\n      \"id\": \"cm4p9kv7j003y7w5xhps7krvz\",\n      \"txHash\": \"0x1234567890abcdef\",\n      \"senderAddress\": \"0xCustomerAddress\",\n      \"receiverAddress\": \"0xMerchantAddress\",\n      \"transactionTypeId\": \"TRANSFER\",\n      \"amount\": 100,\n      \"transactionDirection\": \"SENT\",\n      \"merchantId\": \"merchant_ais\",\n      \"merchantName\": \"AIS Shop\",\n      \"point\": {\n        \"id\": \"cm4ohkm5l000099b5ebs3eltd\",\n        \"name\": \"AIS Points\",\n        \"symbol\": \"AISP\",\n        \"merchantId\": \"merchant_ais\",\n        \"imageUrl\": \"https://example.com/ais-point.png\",\n        \"balance\": 100\n      },\n      \"sender\": {\n        \"id\": \"customer_001\",\n        \"walletAddress\": \"0xCustomerAddress\",\n        \"emailOrWebsite\": \"customer@example.com\"\n      },\n      \"receiver\": {\n        \"id\": \"merchant_ais\",\n        \"walletAddress\": \"0xMerchantAddress\",\n        \"emailOrWebsite\": \"https://ais.co.th\"\n      },\n      \"voucher\": {\n        \"id\": \"cm4voucher1\",\n        \"name\": \"Starbucks 100 THB\",\n        \"valueType\": \"cash\",\n        \"value\": 100,\n        \"imageUrl\": \"https://example.com/starbucks.png\"\n      },\n      \"voucherCodeId\": \"cm4vouchercode1\",\n      \"eventId\": null,\n      \"transactionRefId\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"createdAt\": \"2025-12-11T10:30:00.000Z\"\n    },\n    {\n      \"id\": \"cm4p9kv7j003y7w5xhps7krvw\",\n      \"txHash\": \"0x1234567890abcdef\",\n      \"senderAddress\": \"0xMerchantAddress\",\n      \"receiverAddress\": \"0xCustomerAddress\",\n      \"transactionTypeId\": \"TRANSFER\",\n      \"amount\": 1,\n      \"transactionDirection\": \"RECEIVED\",\n      \"merchantId\": \"merchant_ais\",\n      \"merchantName\": \"AIS Shop\",\n      \"point\": null,\n      \"sender\": {\n        \"id\": \"merchant_ais\",\n        \"walletAddress\": \"0xMerchantAddress\",\n        \"emailOrWebsite\": \"https://ais.co.th\"\n      },\n      \"receiver\": {\n        \"id\": \"customer_001\",\n        \"walletAddress\": \"0xCustomerAddress\",\n        \"emailOrWebsite\": \"customer@example.com\"\n      },\n      \"voucher\": {\n        \"id\": \"cm4voucher1\",\n        \"name\": \"Starbucks 100 THB\",\n        \"valueType\": \"cash\",\n        \"value\": 100,\n        \"imageUrl\": \"https://example.com/starbucks.png\"\n      },\n      \"voucherCodeId\": \"cm4vouchercode1\",\n      \"eventId\": null,\n      \"transactionRefId\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"createdAt\": \"2025-12-11T10:30:00.000Z\"\n    }\n  ],\n  \"counts\": 2\n}"
+        },
+        {
+          "name": "Success - No Transactions",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coupon/coupon-by-merchant/new-merchant-ref",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coupon",
+                "coupon-by-merchant",
+                "new-merchant-ref"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"transactions\": [],\n  \"counts\": 0\n}"
+        },
+        {
+          "name": "Not Found - Voucher Not Found",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coupon/coupon-by-merchant/invalid-merchant-ref",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coupon",
+                "coupon-by-merchant",
+                "invalid-merchant-ref"
+              ]
+            }
+          },
+          "status": "Not Found",
+          "code": 404,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"statusCode\": 404,\n  \"message\": \"Voucher with merchantRef invalid-merchant-ref not found\",\n  \"error\": \"Not Found\"\n}"
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"Status code is 200\", function () {",
+          "    pm.response.to.have.status(200);",
+          "});",
+          "",
+          "pm.test(\"Response has transactions array\", function () {",
+          "    var jsonData = pm.response.json();",
+          "    pm.expect(jsonData).to.have.property('transactions');",
+          "    pm.expect(jsonData.transactions).to.be.an('array');",
+          "});",
+          "",
+          "pm.test(\"Response has counts\", function () {",
+          "    var jsonData = pm.response.json();",
+          "    pm.expect(jsonData).to.have.property('counts');",
+          "    pm.expect(jsonData.counts).to.be.a('number');",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "merchantRef",
+      "value": "merchant-ref-001",
+      "type": "string"
+    }
+  ]
+}

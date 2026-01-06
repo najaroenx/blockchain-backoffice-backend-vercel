@@ -1,5 +1,9 @@
 import { Customer, Merchant, Point, Transaction, Wallet } from '@prisma/client';
 import { PointInfo } from 'src/modules/customer/types';
+import {
+  CustomerOwnedVoucherInfo,
+  CustomerOwnedVoucherMerchant,
+} from 'src/modules/voucher/types';
 
 export interface CustomerWithWallet extends Customer {
   wallet?: Wallet | null;
@@ -13,6 +17,17 @@ export interface VoucherCodeWithVoucher {
     valueType: string;
     value: number;
     imageUrl?: string;
+    tokenId?: string | null;
+    description?: string | null;
+    currency?: string | null;
+    startDate?: Date | null;
+    endDate?: Date | null;
+    merchantRef?: string | null;
+    merchant?: {
+      id: string;
+      name: string;
+      imageUrl?: string | null;
+    };
   };
 }
 
@@ -22,13 +37,29 @@ export interface TransactionParticipant {
   emailOrWebsite: string | null;
 }
 
+// Re-export for backward compatibility
+export { CustomerOwnedVoucherInfo, CustomerOwnedVoucherMerchant };
+
+// Transaction-specific merchant info
+export interface TransactionMerchant {
+  id: string | null;
+  name: string | null;
+  imageUrl: string | null;
+}
+
+// Transaction-specific voucher info (without merchant - use TransactionDetail.merchant)
 export interface TransactionVoucherInfo {
   id: string;
+  tokenId: string | null;
   name: string;
+  description: string | null;
   valueType: string;
   value: number;
+  currency: string | null;
   imageUrl: string | null;
-  voucherCodeId: string | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  merchantRef: string | null;
 }
 
 export interface TransactionDetail {
@@ -39,39 +70,19 @@ export interface TransactionDetail {
   transactionTypeId: string;
   amount: number;
   transactionDirection: 'SENT' | 'RECEIVED';
-  merchantId: string | null;
-  merchantName: string | null;
-  point: PointInfo;
+  merchant: TransactionMerchant;
+  point: PointInfo | null;
   sender: TransactionParticipant;
   receiver: TransactionParticipant;
   voucher: TransactionVoucherInfo | null;
   eventId: string | null;
   transactionRefId: string | null;
+  typeAsset: string | null;
   createdAt: Date;
 }
 
 export type GetTransactionByMerchantIdResponseType = {
-  transactions: Array<
-    Omit<
-      Transaction,
-      | 'txHash'
-      | 'receiverAddress'
-      | 'senderAddress'
-      | 'merchantId'
-      | 'pointId'
-      | 'updatedAt'
-      | 'senderId'
-      | 'receiverId'
-      | 'merchantSenderId'
-      | 'merchantReceiverId'
-      | 'voucherCodeId'
-    > & {
-      txHash: string;
-      receiverAddress: string;
-      senderAddress: string;
-      transactionDirection: 'SENT' | 'RECEIVED';
-    }
-  >;
+  transactions: TransactionDetail[];
   counts: number;
 };
 

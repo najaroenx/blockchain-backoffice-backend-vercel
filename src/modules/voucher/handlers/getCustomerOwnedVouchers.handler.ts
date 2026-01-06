@@ -314,11 +314,11 @@ export class GetCustomerOwnedVouchers {
               startDate: voucher.startDate,
               endDate: voucher.endDate,
               merchantRef: voucher.merchantRef,
-              merchant: {
-                id: voucher.merchant?.id,
-                name: voucher.merchant?.name || voucher.merchantName,
-                imageUrl: voucher.merchant?.imageUrl,
-              },
+            },
+            merchant: {
+              id: voucher.merchant?.id,
+              name: voucher.merchant?.name || voucher.merchantName,
+              imageUrl: voucher.merchant?.imageUrl,
             },
           };
         }),

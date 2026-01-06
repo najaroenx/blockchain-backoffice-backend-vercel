@@ -1090,14 +1090,20 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 | transaction.transactionTypeId | Number | รหัสประเภท transaction |
 | transaction.amount | Number | จำนวนที่โอน |
 | transaction.transactionDirection | String | ทิศทางการทำธุรกรรม (SENT/RECEIVED) |
-| transaction.merchantId | String | รหัสร้านค้า |
-| transaction.merchantName | String | ชื่อร้านค้า |
+| transaction.merchant | Object | ข้อมูลร้านค้า |
+| transaction.merchant.id | String | รหัสร้านค้า |
+| transaction.merchant.name | String | ชื่อร้านค้า |
+| transaction.merchant.imageUrl | String \| null | URL รูปภาพร้านค้า |
 | transaction.point | Object \| null | ข้อมูลคะแนน/สกุลเงิน |
 | transaction.sender | Object | ข้อมูลผู้ส่ง |
 | transaction.receiver | Object | ข้อมูลผู้รับ |
-| transaction.voucherCodeId | String | รหัส voucher code |
-| transaction.valueType | String | ประเภทส่วนลด |
-| transaction.value | Number | มูลค่าส่วนลด |
+| transaction.voucher | Object \| null | ข้อมูล voucher |
+| transaction.voucher.id | String | รหัส voucher |
+| transaction.voucher.name | String | ชื่อ voucher |
+| transaction.voucher.valueType | String | ประเภทส่วนลด |
+| transaction.voucher.value | Number | มูลค่าส่วนลด |
+| transaction.voucher.merchantRef | String \| null | รหัสอ้างอิงจาก merchant |
+| transaction.typeAsset | String | ประเภท asset (POINT หรือ VOUCHER) |
 | transaction.createdAt | String | วันที่สร้าง transaction (ISO 8601) |
 | blockchain | Object | ข้อมูล blockchain transaction |
 | blockchain.transactionHash | String | Transaction hash บน blockchain |
@@ -1135,13 +1141,12 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
     "transactionTypeId": 7,
     "amount": 1,
     "transactionDirection": "SENT",
-    "merchantId": "merchant123",
-    "merchantName": "Test Merchant",
-    "point": {
-      "id": "point123",
-      "name": "POINT",
-      "symbol": "POINT"
+    "merchant": {
+      "id": "merchant123",
+      "name": "Test Merchant",
+      "imageUrl": "https://example.com/merchant.png"
     },
+    "point": null,
     "sender": {
       "id": "cmiisvgqn0007xk01efv8szbq",
       "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
@@ -1152,10 +1157,22 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
       "walletAddress": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
       "emailOrWebsite": "merchant@example.com"
     },
-    "voucherCodeId": "code123",
-    "valueType": "percentage",
-    "value": 20,
+    "voucher": {
+      "id": "voucher-mock-1",
+      "tokenId": "123",
+      "name": "Welcome Discount 20%",
+      "description": "Get 20% off on your first purchase",
+      "valueType": "percentage",
+      "value": 20,
+      "currency": null,
+      "imageUrl": "https://example.com/voucher.jpg",
+      "startDate": "2025-11-28T11:50:32.760Z",
+      "endDate": "2025-12-28T11:50:32.760Z",
+      "merchantRef": "merchant-ref-001"
+    },
     "eventId": null,
+    "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
+    "typeAsset": "VOUCHER",
     "createdAt": "2025-12-01T06:30:00.000Z"
   },
   "blockchain": {
@@ -1287,13 +1304,12 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
       "transactionTypeId": 7,
       "amount": 1,
       "transactionDirection": "SENT",
-      "merchantId": "merchant123",
-      "merchantName": "AIS Shop",
-      "point": {
-        "id": "ais-point-123",
-        "name": "AIS_POINT",
-        "symbol": "AIS_POINT"
+      "merchant": {
+        "id": "merchant123",
+        "name": "AIS Shop",
+        "imageUrl": "https://example.com/ais-merchant.png"
       },
+      "point": null,
       "sender": {
         "id": "customer-id-123",
         "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
@@ -1304,10 +1320,22 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
         "walletAddress": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
         "emailOrWebsite": "ais@example.com"
       },
-      "voucherCodeId": "code123",
-      "valueType": "aispoint",
-      "value": 100,
+      "voucher": {
+        "id": "voucher123",
+        "tokenId": "456",
+        "name": "AIS Point 100",
+        "description": "Get 100 AIS Points",
+        "valueType": "aispoint",
+        "value": 100,
+        "currency": null,
+        "imageUrl": "https://example.com/ais-voucher.jpg",
+        "startDate": "2024-01-01T00:00:00.000Z",
+        "endDate": "2024-12-31T23:59:59.000Z",
+        "merchantRef": "AIS-VOUCHER-001"
+      },
       "eventId": null,
+      "transactionRefId": "550e8400-e29b-41d4-a716-446655440001",
+      "typeAsset": "VOUCHER",
       "createdAt": "2024-12-04T10:30:00.000Z"
     },
     "blockchain": {
@@ -1806,13 +1834,27 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 | transactionTypeId | String | ประเภท transaction |
 | amount | Number | จำนวน |
 | transactionDirection | String | ทิศทาง: `SENT` หรือ `RECEIVED` |
-| merchantId | String \| null | รหัส Merchant |
-| merchantName | String \| null | ชื่อ Merchant |
+| merchant | Object \| null | ข้อมูล Merchant |
+| merchant.id | String | รหัส Merchant |
+| merchant.name | String | ชื่อ Merchant |
+| merchant.imageUrl | String \| null | URL รูป Merchant |
 | point | Object \| null | ข้อมูล Point (null สำหรับ voucher transactions) |
 | sender | Object \| null | ข้อมูลผู้ส่ง |
 | receiver | Object \| null | ข้อมูลผู้รับ |
 | voucher | Object \| null | ข้อมูล Voucher (ถ้ามี) |
-| voucherCodeId | String \| null | รหัส Voucher Code |
+| voucher.id | String | รหัส Voucher |
+| voucher.tokenId | String | Token ID บน blockchain |
+| voucher.name | String | ชื่อ Voucher |
+| voucher.description | String | คำอธิบาย Voucher |
+| voucher.valueType | String | ประเภทมูลค่า |
+| voucher.value | Number | มูลค่า |
+| voucher.currency | String \| null | สกุลเงิน |
+| voucher.imageUrl | String \| null | URL รูป Voucher |
+| voucher.startDate | String | วันที่เริ่มต้น |
+| voucher.endDate | String | วันที่สิ้นสุด |
+| voucher.merchantRef | String \| null | Merchant Reference |
+| typeAsset | String | ประเภท Asset: `POINT` หรือ `VOUCHER` |
+| transactionRefId | String \| null | Reference ID สำหรับอ้างอิง |
 | eventId | String \| null | รหัส Event |
 | createdAt | String | วันที่สร้าง |
 
@@ -1827,8 +1869,11 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
   "transactionTypeId": "B2C",
   "amount": 100,
   "transactionDirection": "SENT",
-  "merchantId": "cmih1s6qu00050i01m3cactjj",
-  "merchantName": "Example Merchant",
+  "merchant": {
+    "id": "cmih1s6qu00050i01m3cactjj",
+    "name": "Example Merchant",
+    "imageUrl": "https://example.com/merchant.png"
+  },
   "point": {
     "id": "cmiimp4g400015v01nv1ij7zf",
     "name": "LAT",
@@ -1848,8 +1893,9 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
     "emailOrWebsite": "customer@example.com"
   },
   "voucher": null,
-  "voucherCodeId": null,
   "eventId": null,
+  "transactionRefId": null,
+  "typeAsset": "POINT",
   "createdAt": "2025-01-01T00:00:00.000Z"
 }
 ```
@@ -2126,7 +2172,10 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 | vouchers[].voucher.startDate | String \| null | วันเริ่มต้น |
 | vouchers[].voucher.endDate | String \| null | วันหมดอายุ |
 | vouchers[].voucher.merchantRef | String \| null | Reference ID |
-| vouchers[].voucher.merchant | Object | ข้อมูล Merchant |
+| vouchers[].merchant | Object | ข้อมูล Merchant |
+| vouchers[].merchant.id | String | รหัส Merchant |
+| vouchers[].merchant.name | String | ชื่อ Merchant |
+| vouchers[].merchant.imageUrl | String \| null | URL รูป Merchant |
 
 #### Success Response (200)
 
@@ -2170,12 +2219,12 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
         "imageUrl": "https://example.com/voucher.png",
         "startDate": "2025-01-01T00:00:00.000Z",
         "endDate": "2026-01-01T00:00:00.000Z",
-        "merchantRef": "VOUCHER-001",
-        "merchant": {
-          "id": "cmih1s6qu00050i01m3cactjj",
-          "name": "Example Merchant",
-          "imageUrl": "https://example.com/merchant.png"
-        }
+        "merchantRef": "VOUCHER-001"
+      },
+      "merchant": {
+        "id": "cmih1s6qu00050i01m3cactjj",
+        "name": "Example Merchant",
+        "imageUrl": "https://example.com/merchant.png"
       }
     }
   ]

@@ -203,7 +203,10 @@ export class GetVoucherByMerchantRef {
             merchant: {
               id: rest.merchantId || voucher.merchant.id,
               name: merchant?.name || voucher.merchant.name || null,
-              imageUrl: (merchant as any)?.imageUrl || (voucher.merchant as any)?.imageUrl || null,
+              imageUrl:
+                (merchant as any)?.imageUrl ||
+                (voucher.merchant as any)?.imageUrl ||
+                null,
             },
             point: formatPointInfo(
               point,

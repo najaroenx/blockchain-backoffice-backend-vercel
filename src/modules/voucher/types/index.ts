@@ -25,8 +25,8 @@ export type CustomerOwnedVoucherItem = {
   usedAt: Date | null;
   pointsCost: number;
   currency: string;
-  purchasedAt: Date | null;
-  purchaseType: string;
+  receivedAt: Date | null;
+  transactionTypeId: string | null;
   onChainBalance: string;
   voucher: CustomerOwnedVoucherInfo;
   merchant: CustomerOwnedVoucherMerchant;

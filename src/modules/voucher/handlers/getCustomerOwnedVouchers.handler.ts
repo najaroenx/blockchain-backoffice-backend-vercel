@@ -297,10 +297,9 @@ export class GetCustomerOwnedVouchers {
             usedAt: code?.usedAt || null,
             pointsCost: pointsCost,
             currency: currency,
-            purchasedAt:
+            receivedAt:
               purchaseTransaction?.createdAt || code?.createdAt || null,
-            purchaseType:
-              purchaseTransaction?.transactionType?.name || 'Unknown',
+            transactionTypeId: purchaseTransaction?.transactionTypeId || null,
             onChainBalance: onChainBalance,
             voucher: {
               id: voucher.id,

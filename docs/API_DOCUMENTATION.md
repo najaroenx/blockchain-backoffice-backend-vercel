@@ -2157,8 +2157,8 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 | vouchers[].usedAt | String \| null | วันที่ใช้ |
 | vouchers[].pointsCost | Number | ราคา (points) |
 | vouchers[].currency | String | สกุลเงินของ point |
-| vouchers[].purchasedAt | String \| null | วันที่ซื้อ |
-| vouchers[].purchaseType | String | ประเภทการซื้อ |
+| vouchers[].receivedAt | String \| null | วันที่ได้รับ voucher |
+| vouchers[].transactionTypeId | String \| null | ประเภท transaction (เช่น TRANSFER) |
 | vouchers[].onChainBalance | String | ยอดบน blockchain |
 | vouchers[].voucher | Object | ข้อมูล voucher |
 | vouchers[].voucher.id | String | รหัส Voucher |
@@ -2204,8 +2204,8 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
       "usedAt": null,
       "pointsCost": 100,
       "currency": "LAT",
-      "purchasedAt": "2025-01-15T10:30:00.000Z",
-      "purchaseType": "TRANSFER",
+      "receivedAt": "2025-01-15T10:30:00.000Z",
+      "transactionTypeId": "TRANSFER",
       "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
       "onChainBalance": "1",
       "voucher": {

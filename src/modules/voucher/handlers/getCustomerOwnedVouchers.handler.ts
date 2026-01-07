@@ -297,10 +297,9 @@ export class GetCustomerOwnedVouchers {
             usedAt: code?.usedAt || null,
             pointsCost: pointsCost,
             currency: currency,
-            purchasedAt:
+            receivedAt:
               purchaseTransaction?.createdAt || code?.createdAt || null,
-            purchaseType:
-              purchaseTransaction?.transactionType?.name || 'Unknown',
+            transactionTypeId: purchaseTransaction?.transactionTypeId || null,
             onChainBalance: onChainBalance,
             voucher: {
               id: voucher.id,
@@ -314,11 +313,11 @@ export class GetCustomerOwnedVouchers {
               startDate: voucher.startDate,
               endDate: voucher.endDate,
               merchantRef: voucher.merchantRef,
-              merchant: {
-                id: voucher.merchant?.id,
-                name: voucher.merchant?.name || voucher.merchantName,
-                imageUrl: voucher.merchant?.imageUrl,
-              },
+            },
+            merchant: {
+              id: voucher.merchant?.id,
+              name: voucher.merchant?.name || voucher.merchantName,
+              imageUrl: voucher.merchant?.imageUrl,
             },
           };
         }),

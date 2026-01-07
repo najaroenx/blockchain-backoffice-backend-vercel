@@ -123,6 +123,7 @@ model Transaction {
   updatedAt         DateTime         @updatedAt @map(name: "updated_at")
   merchant          Merchant?        @relation("TransactionMerchant", fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantId        String?
+  merchantRef       String?
   point             Point?           @relation(fields: [pointId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   pointId           String?
   transactionType   TransactionType? @relation(fields: [transactionTypeId], references: [id])

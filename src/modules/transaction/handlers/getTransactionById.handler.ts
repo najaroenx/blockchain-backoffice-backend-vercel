@@ -66,11 +66,16 @@ export class GetTransactionById {
 
         return {
           id: voucherCode.voucher.id,
+          tokenId: voucherCode.voucher.tokenId || null,
           name: voucherCode.voucher.name,
+          description: voucherCode.voucher.description || null,
           valueType: voucherCode.voucher.valueType,
           value: voucherCode.voucher.value,
+          currency: voucherCode.voucher.currency || null,
           imageUrl: voucherCode.voucher.imageUrl || null,
-          voucherCodeId: voucherCode.id || null,
+          startDate: voucherCode.voucher.startDate || null,
+          endDate: voucherCode.voucher.endDate || null,
+          merchantRef: voucherCode.voucher.merchantRef || null,
         };
       };
 
@@ -125,8 +130,11 @@ export class GetTransactionById {
         transactionTypeId: rest.transactionTypeId,
         amount: rest.amount,
         transactionDirection,
-        merchantId: rest.merchantId,
-        merchantName: merchant?.name || null,
+        merchant: {
+          id: rest.merchantId,
+          name: merchant?.name || null,
+          imageUrl: merchant?.imageUrl || null,
+        },
         point: formatPointInfo(
           point,
           rest.amount,
@@ -146,6 +154,7 @@ export class GetTransactionById {
         voucher: formatVoucherInfo(voucherCode),
         eventId: rest.eventId || null,
         transactionRefId: (rest as any).transactionRefId || null,
+        typeAsset: (rest as any).type || null,
         createdAt: rest.createdAt,
       };
 

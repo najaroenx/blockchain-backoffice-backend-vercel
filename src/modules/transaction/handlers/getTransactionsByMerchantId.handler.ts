@@ -7,7 +7,11 @@ import { TransactionDBService } from '../services/transaction-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
-import { GetTransactionByMerchantIdResponseType } from '../types';
+import {
+  GetTransactionByMerchantIdResponseType,
+  VoucherCodeWithVoucher,
+  TransactionVoucherInfo,
+} from '../types';
 
 @Injectable()
 export class GetTransactionsByMerchantId {
@@ -94,6 +98,26 @@ export class GetTransactionsByMerchantId {
             ? 'SENT'
             : 'RECEIVED';
 
+        const formatVoucherInfo = (
+          voucherCode: VoucherCodeWithVoucher | null,
+        ): TransactionVoucherInfo | null => {
+          if (!voucherCode?.voucher) return null;
+
+          return {
+            id: voucherCode.voucher.id,
+            tokenId: voucherCode.voucher.tokenId || null,
+            name: voucherCode.voucher.name,
+            description: voucherCode.voucher.description || null,
+            valueType: voucherCode.voucher.valueType,
+            value: voucherCode.voucher.value,
+            currency: voucherCode.voucher.currency || null,
+            imageUrl: voucherCode.voucher.imageUrl || null,
+            startDate: voucherCode.voucher.startDate || null,
+            endDate: voucherCode.voucher.endDate || null,
+            merchantRef: voucherCode.voucher.merchantRef || null,
+          };
+        };
+
         return {
           id: rest.id,
           txHash: convertBufferToAddress(rest.txHash),
@@ -102,7 +126,11 @@ export class GetTransactionsByMerchantId {
           transactionTypeId: rest.transactionTypeId,
           amount: rest.amount,
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
-          type: (rest as any).type || null,
+          merchant: {
+            id: merchantId,
+            name: merchant?.name || null,
+            imageUrl: merchant?.imageUrl || null,
+          },
           point: formatPointInfo(
             point,
             rest.amount,
@@ -119,18 +147,10 @@ export class GetTransactionsByMerchantId {
             rest.receiverAddress,
             merchant.website,
           ),
-          voucher: voucherCode?.voucher
-            ? {
-                id: (voucherCode as any).voucher.id || null,
-                name: (voucherCode as any).voucher.name || null,
-                valueType: (voucherCode as any).voucher.valueType || null,
-                value: (voucherCode as any).voucher.value || null,
-                imageUrl: (voucherCode as any).voucher.imageUrl || null,
-                voucherCodeId: (voucherCode as any).id || null,
-              }
-            : null,
+          voucher: formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
           eventId: rest.eventId || null,
           transactionRefId: (rest as any).transactionRefId || null,
+          typeAsset: (rest as any).type || null,
           createdAt: rest.createdAt,
         };
       });

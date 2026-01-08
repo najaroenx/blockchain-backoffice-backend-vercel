@@ -17,9 +17,6 @@ RUN npx prisma generate
 # Build NestJS app
 RUN yarn run build
 
-# Compile migration scripts
-RUN npx tsc scripts/migrate-seller-listings-to-batch.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck || true
-
 # Stage 2: Production image
 FROM node:20-alpine
 
@@ -47,6 +44,5 @@ EXPOSE 4000
 # PROD MODE
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    node dist/scripts/migrate-seller-listings-to-batch.js || true && \
     node dist/src/main \
 "]

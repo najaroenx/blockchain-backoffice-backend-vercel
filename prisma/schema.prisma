@@ -1,3 +1,9 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
@@ -8,293 +14,183 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model ApiKey {
-  id          String    @id
-  name        String?
-  description String?
-  apiKey      String    @unique
-  merchantId  String?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime
-  Merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-}
-
-model Customer {
-  id                                           String             @id
-  email                                        String
-  firstName                                    String?
-  lastName                                     String?
-  tel                                          String             @unique
-  created_at                                   DateTime           @default(now())
-  updated_at                                   DateTime
-  walletId                                     String?            @unique
-  Wallet                                       Wallet?            @relation(fields: [walletId], references: [id])
-  CustomerMerChant                             CustomerMerChant[]
-  CustomerPoint                                CustomerPoint[]
-  Transaction_Transaction_receiverIdToCustomer Transaction[]      @relation("Transaction_receiverIdToCustomer")
-  Transaction_Transaction_senderIdToCustomer   Transaction[]      @relation("Transaction_senderIdToCustomer")
-  VoucherCode                                  VoucherCode[]
-}
-
-model CustomerMerChant {
-  id         String    @id
-  customerId String?
-  merchantId String?
-  Customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  Merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-}
-
-model CustomerPoint {
-  id         String    @id
-  customerId String?
-  pointId    String?
-  balances   Int       @default(0)
-  Customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  Point      Point?    @relation(fields: [pointId], references: [id], onDelete: Cascade)
-
-  @@unique([customerId, pointId])
-}
-
-model ListingBatch {
-  id                  String             @id
-  sellerWalletAddress String
-  name                String?
-  description         String?
-  totalItems          Int
-  soldItems           Int                @default(0)
-  totalValue          Float
-  currency            String             @default("THB")
-  status              ListingBatchStatus @default(ACTIVE)
-  created_at          DateTime           @default(now())
-  updated_at          DateTime
-  VoucherCode         VoucherCode[]
-
-  @@index([created_at])
-  @@index([sellerWalletAddress])
-  @@index([status])
-}
-
-model Merchant {
-  id                                                   String             @id
-  name                                                 String
-  website                                              String
-  created_at                                           DateTime           @default(now())
-  updated_at                                           DateTime
-  description                                          String?
-  imageUrl                                             String?
-  location                                             String?
-  points                                               Int                @default(0)
-  voucherIds                                           String[]           @default([])
-  tel                                                  String
-  walletId                                             String?            @unique
-  ApiKey                                               ApiKey[]
-  CustomerMerChant                                     CustomerMerChant[]
-  Wallet                                               Wallet?            @relation(fields: [walletId], references: [id])
-  Point                                                Point[]
-  Transaction_Transaction_merchantIdToMerchant         Transaction[]      @relation("Transaction_merchantIdToMerchant")
-  Transaction_Transaction_merchantReceiverIdToMerchant Transaction[]      @relation("Transaction_merchantReceiverIdToMerchant")
-  Transaction_Transaction_merchantSenderIdToMerchant   Transaction[]      @relation("Transaction_merchantSenderIdToMerchant")
-  UserMerchant                                         UserMerchant[]
-  Voucher                                              Voucher[]
-}
-
 model Point {
-  id              String          @id
+  id              String          @id @default(cuid())
   name            String
   symbol          String
   contractAddress Bytes
   initialSupply   Int
   decimal         Int
-  created_at      DateTime        @default(now())
-  updated_at      DateTime
-  merchantId      String?
+  startDate       DateTime?       // วันเริ่มต้น (optional)
+  endDate         DateTime        // วันหมดอายุ (required)
+  epochDuration   Int             @default(259200) // ระยะเวลา 1 epoch (seconds) - default 3 วัน, แต่ configurable
   imageUrl        String?
-  startDate       DateTime?
-  endDate         DateTime
-  epochDuration   Int             @default(259200)
-  CustomerPoint   CustomerPoint[]
-  Merchant        Merchant?       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  Transaction     Transaction[]
-  VoucherCode     VoucherCode[]
+  createdAt       DateTime        @default(now()) @map(name: "created_at")
+  updatedAt       DateTime        @updatedAt @map(name: "updated_at")
+  merchant        Merchant?       @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  merchantId      String?
+  transactions    Transaction[]
+  customerPoints  CustomerPoint[]
+  voucherCodes    VoucherCode[] // ← Voucher codes that use this point currency
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  password     String
+  createdAt    DateTime       @default(now()) @map(name: "created_at")
+  updatedAt    DateTime       @updatedAt @map(name: "updated_at")
+  userMerchant UserMerchant[]
+  session      Session[]
 }
 
 model Session {
-  id         String   @id
-  token      String
-  created_at DateTime @default(now())
-  updated_at DateTime
-  userId     String?
-  User       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  token     String
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  updatedAt DateTime @updatedAt @map(name: "updated_at")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId    String?
 }
 
-model TempLinkCreateUser {
-  id          String   @id
-  uid         String   @unique
-  expire      DateTime
-  phoneNumber String
-  merchantId  String
-  created_at  DateTime @default(now())
-  updated_at  DateTime
-  otp         String?
+model UserMerchant {
+  id String @id @default(cuid())
 
-  @@index([expire])
-  @@index([merchantId])
-  @@index([phoneNumber])
-  @@index([uid])
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId     String?
+  merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  merchantId String?
+}
+
+model Wallet {
+  id            String    @id @default(cuid())
+  walletAddress String    @unique
+  privateKey    String
+  email         String
+  phoneNumber   String
+  type          String
+  status        String
+  // relations
+  customer      Customer?
+  merchant      Merchant?
+}
+
+model Merchant {
+  id               String             @id @default(cuid())
+  name             String
+  description      String?
+  imageUrl         String?
+  points           Int                @default(0)
+  location         String?
+  website          String
+  voucherIds       String[]           @default([])
+  createdAt        DateTime           @default(now()) @map(name: "created_at")
+  updatedAt        DateTime           @updatedAt @map(name: "updated_at")
+  userMerchant     UserMerchant[]
+  point            Point[]
+  apiKey           ApiKey[]
+  transactions     Transaction[]      @relation("TransactionMerchant")
+  customerMerChant CustomerMerChant[]
+  vouchers         Voucher[]
+  tel              String
+  walletId         String?            @unique
+  wallet           Wallet?            @relation(fields: [walletId], references: [id])
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  name        String?
+  description String?
+  apiKey      String    @unique
+  merchantId  String?
+  createdAt   DateTime  @default(now()) @map(name: "created_at")
+  updatedAt   DateTime  @updatedAt @map(name: "updated_at")
+  merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Transaction {
-  id                                                String           @id
-  txHash                                            Bytes
-  senderAddress                                     Bytes
-  receiverAddress                                   Bytes
-  amount                                            Int
-  created_at                                        DateTime         @default(now())
-  updated_at                                        DateTime
-  merchantId                                        String?
-  pointId                                           String?
-  transactionTypeId                                 String?
-  senderId                                          String?
-  receiverId                                        String?
-  voucherCodeId                                     String?
-  eventId                                           String?
-  merchantSenderId                                  String?
-  merchantReceiverId                                String?
-  type                                              AssetType?
-  transactionRefId                                  String?
-  merchantRef                                       String?
-  receiverType                                      ParticipantType?
-  senderType                                        ParticipantType?
-  Merchant_Transaction_merchantIdToMerchant         Merchant?        @relation("Transaction_merchantIdToMerchant", fields: [merchantId], references: [id], onDelete: Cascade)
-  Merchant_Transaction_merchantReceiverIdToMerchant Merchant?        @relation("Transaction_merchantReceiverIdToMerchant", fields: [merchantReceiverId], references: [id], onDelete: Cascade)
-  Merchant_Transaction_merchantSenderIdToMerchant   Merchant?        @relation("Transaction_merchantSenderIdToMerchant", fields: [merchantSenderId], references: [id], onDelete: Cascade)
-  Point                                             Point?           @relation(fields: [pointId], references: [id], onDelete: Cascade)
-  Customer_Transaction_receiverIdToCustomer         Customer?        @relation("Transaction_receiverIdToCustomer", fields: [receiverId], references: [id], onDelete: Cascade)
-  Customer_Transaction_senderIdToCustomer           Customer?        @relation("Transaction_senderIdToCustomer", fields: [senderId], references: [id], onDelete: Cascade)
-  TransactionType                                   TransactionType? @relation(fields: [transactionTypeId], references: [id])
-  VoucherCode                                       VoucherCode?     @relation(fields: [voucherCodeId], references: [id])
+  id                String           @id @default(cuid())
+  txHash            Bytes
+  senderAddress     Bytes
+  receiverAddress   Bytes
+  amount            Int
+  eventId           String? // Event ID for tracking redemption events
+  createdAt         DateTime         @default(now()) @map(name: "created_at")
+  updatedAt         DateTime         @updatedAt @map(name: "updated_at")
+  merchant          Merchant?        @relation("TransactionMerchant", fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  merchantId        String?
+  merchantRef       String?
+  point             Point?           @relation(fields: [pointId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  pointId           String?
+  transactionType   TransactionType? @relation(fields: [transactionTypeId], references: [id])
+  transactionTypeId String?
+  voucherCode       VoucherCode?     @relation(fields: [voucherCodeId], references: [id])
+  voucherCodeId     String?
 
-  @@index([eventId])
-  @@index([receiverType])
-  @@index([senderType])
-  @@index([transactionRefId])
-  @@index([type])
+  // Unified sender/receiver - ID can be Customer, Merchant, or System
+  // Use senderType/receiverType to determine which table to lookup
+  senderId     String?          // ID of sender (Customer ID or Merchant ID)
+  senderType   ParticipantType? // CUSTOMER | MERCHANT | SYSTEM
+  receiverId   String?          // ID of receiver (Customer ID or Merchant ID)
+  receiverType ParticipantType? // CUSTOMER | MERCHANT | SYSTEM
+
+  // Asset type: POINT or VOUCHER
+  type AssetType?
+
+  // Transaction reference ID for grouping related transactions
+  transactionRefId String?
+
   @@index([voucherCodeId])
+  @@index([eventId])
+  @@index([type])
+  @@index([transactionRefId])
+  @@index([senderType])
+  @@index([receiverType])
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model Customer {
+  id               String             @id @default(cuid())
+  email            String
+  firstName        String?
+  lastName         String?
+  tel              String             @unique
+  createdAt        DateTime           @default(now()) @map(name: "created_at")
+  updatedAt        DateTime           @updatedAt @map(name: "updated_at")
+  customerMerChant CustomerMerChant[]
+  customerPoints   CustomerPoint[]
+
+  ownedVouchers VoucherCode[] @relation("OwnedVouchers")
+
+  walletId String? @unique
+  wallet   Wallet? @relation(fields: [walletId], references: [id])
+}
+
+model CustomerMerChant {
+  id         String    @id @default(cuid())
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customerId String?
+  merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  merchantId String?
+}
+
+model CustomerPoint {
+  id         String    @id @default(cuid())
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customerId String?
+  point      Point?    @relation(fields: [pointId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  pointId    String?
+  balances   Int       @default(0)
+
+  @@unique([customerId, pointId])
 }
 
 model TransactionType {
   id          String        @id @unique
   name        String
   description String
-  Transaction Transaction[]
-}
-
-model Treasury {
-  id            String   @id
-  walletAddress String   @unique
-  type          String   @unique
-  created_at    DateTime @default(now())
-  updated_at    DateTime
-}
-
-model User {
-  id           String         @id
-  email        String         @unique
-  password     String
-  created_at   DateTime       @default(now())
-  updated_at   DateTime
-  Session      Session[]
-  UserMerchant UserMerchant[]
-}
-
-model UserMerchant {
-  id         String    @id
-  userId     String?
-  merchantId String?
-  Merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  User       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Voucher {
-  id             String           @id
-  name           String
-  description    String
-  status         VoucherStatus
-  merchantName   String
-  merchantId     String?
-  valueType      VoucherValueType
-  value          Float
-  currency       String?
-  startDate      DateTime
-  endDate        DateTime
-  totalIssued    Int
-  totalRedeemed  Int
-  imageUrl       String?
-  limitPerMember Int?
-  created_at     DateTime         @default(now())
-  updated_at     DateTime
-  tokenId        String?          @unique
-  merchantRef    String?
-  Merchant       Merchant?        @relation(fields: [merchantId], references: [id])
-  VoucherCode    VoucherCode[]
-}
-
-model VoucherCode {
-  id             String        @id
-  code           String        @unique
-  voucherId      String
-  isUsed         Boolean       @default(false)
-  usedBy         String?
-  usedAt         DateTime?
-  created_at     DateTime      @default(now())
-  pointsCost     Int
-  voucherGroupId String?
-  currentOwnerId String?
-  currency       String?
-  pointId        String?
-  listingBatchId String?
-  Transaction    Transaction[]
-  Customer       Customer?     @relation(fields: [currentOwnerId], references: [id])
-  ListingBatch   ListingBatch? @relation(fields: [listingBatchId], references: [id])
-  Point          Point?        @relation(fields: [pointId], references: [id])
-  Voucher        Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
-
-  @@index([code])
-  @@index([currentOwnerId, isUsed])
-  @@index([listingBatchId])
-  @@index([pointId])
-  @@index([voucherGroupId])
-  @@index([voucherId, isUsed])
-}
-
-model Wallet {
-  id            String    @id
-  privateKey    String
-  email         String
-  phoneNumber   String
-  type          String
-  status        String
-  walletAddress String    @unique
-  Customer      Customer?
-  Merchant      Merchant?
-}
-
-enum AssetType {
-  POINT
-  VOUCHER
-}
-
-enum ListingBatchStatus {
-  ACTIVE
-  SOLD_OUT
-  CANCELLED
-  EXPIRED
-}
-
-enum ParticipantType {
-  CUSTOMER
-  MERCHANT
-  SYSTEM
+  transaction Transaction[]
 }
 
 enum VoucherStatus {
@@ -308,4 +204,124 @@ enum VoucherValueType {
   gift
   multiplier
   aispoint
+}
+
+// Asset type enum for distinguishing point vs voucher transactions
+enum AssetType {
+  POINT
+  VOUCHER
+}
+
+// Participant type enum for identifying sender/receiver type
+enum ParticipantType {
+  CUSTOMER
+  MERCHANT
+  SYSTEM
+}
+
+model Voucher {
+  id             String           @id
+  name           String
+  description    String
+  status         VoucherStatus
+  merchantName   String
+  merchantId     String?
+  merchant       Merchant?        @relation(fields: [merchantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  merchantRef    String? // ← Reference ID from merchant system for verification
+  tokenId        String?          @unique // ← ERC-1155 Coupon Type ID from smart contract createCouponType()
+  valueType      VoucherValueType
+  value          Float
+  currency       String?
+  startDate      DateTime
+  endDate        DateTime
+  totalIssued    Int
+  totalRedeemed  Int
+  imageUrl       String?
+  limitPerMember Int?
+  createdAt      DateTime         @default(now()) @map(name: "created_at")
+  updatedAt      DateTime         @updatedAt @map(name: "updated_at")
+  voucherCodes   VoucherCode[] // ← 1 voucher มีหลาย codes
+}
+
+// Listing batch status enum
+enum ListingBatchStatus {
+  ACTIVE
+  SOLD_OUT
+  CANCELLED
+  EXPIRED
+}
+
+// Batch container for grouping multiple voucher listings together
+model ListingBatch {
+  id                  String             @id @default(cuid())
+  sellerWalletAddress String // ← Wallet address of seller who listed
+  name                String? // ← Optional batch name (e.g., "Christmas Sale Pack")
+  description         String? // ← Optional description
+  totalItems          Int // ← Total VoucherCodes in this batch
+  soldItems           Int                @default(0) // ← Total sold
+  totalValue          Float // ← Sum of all items' total values
+  currency            String             @default("THB") // ← Primary currency
+  status              ListingBatchStatus @default(ACTIVE)
+  createdAt           DateTime           @default(now()) @map(name: "created_at")
+  updatedAt           DateTime           @updatedAt @map(name: "updated_at")
+
+  voucherCodes VoucherCode[] // ← VoucherCodes in this batch
+
+  @@index([sellerWalletAddress])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model VoucherCode {
+  id             String        @id @default(cuid())
+  code           String        @unique // ← Code ที่ไม่ซ้ำกัน
+  voucherId      String
+  voucher        Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  voucherGroupId String? // ← Marketplace listing ID from listCoupon() - each activation batch has unique listingId
+  pointsCost     Int // ← ราคาเป็น points
+  pointId        String? // ← Point currency ที่ใช้ซื้อ (FK to Point)
+  point          Point?        @relation(fields: [pointId], references: [id], onDelete: SetNull)
+  currency       String? // ← Point.symbol (e.g., "GOLD", "SILVER") - denormalized for query performance
+  isUsed         Boolean       @default(false)
+  usedBy         String? // ← Customer ID ที่ใช้
+  usedAt         DateTime?
+  currentOwnerId String? // ← Customer ID ของเจ้าของปัจจุบัน
+  currentOwner   Customer?     @relation("OwnedVouchers", fields: [currentOwnerId], references: [id])
+  transactions   Transaction[] // ← Transaction history
+  createdAt      DateTime      @default(now()) @map(name: "created_at")
+
+  // Batch listing reference (optional - for batch listings)
+  listingBatchId String? // ← FK to ListingBatch
+  listingBatch   ListingBatch? @relation(fields: [listingBatchId], references: [id], onDelete: SetNull)
+
+  @@index([voucherId, isUsed])
+  @@index([code])
+  @@index([voucherGroupId])
+  @@index([currentOwnerId, isUsed])
+  @@index([pointId])
+  @@index([listingBatchId])
+}
+
+model Treasury {
+  id            String   @id @default(cuid())
+  walletAddress String   @unique
+  type          String   @unique // "burner", "reserve", "treasury"
+  createdAt     DateTime @default(now()) @map(name: "created_at")
+  updatedAt     DateTime @updatedAt @map(name: "updated_at")
+}
+
+model TempLinkCreateUser {
+  id          String   @id @default(cuid())
+  uid         String   @unique
+  expire      DateTime
+  phoneNumber String
+  merchantId  String
+  otp         String?
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+
+  @@index([uid])
+  @@index([phoneNumber])
+  @@index([merchantId])
+  @@index([expire])
 }

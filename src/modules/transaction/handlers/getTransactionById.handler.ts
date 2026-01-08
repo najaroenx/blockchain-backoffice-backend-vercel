@@ -35,27 +35,19 @@ export class GetTransactionById {
         );
       }
 
-      const { sender, receiver, merchant, point, voucherCode, ...rest } =
-        transaction;
+      const { merchant, point, voucherCode, ...rest } = transaction;
 
       const formatParticipant = (
-        customer: CustomerWithWallet | null,
         walletAddress: Uint8Array,
+        participantId: string | null,
         merchantWebsite: string | null,
       ): TransactionParticipant | null => {
-        if (!customer && !merchant) return null;
+        if (!participantId && !merchant) return null;
 
         return {
-          id: customer?.id ?? merchant?.id,
-          walletAddress: convertBufferToAddress(
-            customer?.wallet?.walletAddress
-              ? Buffer.from(
-                  customer.wallet.walletAddress.replace(/^0x/, ''),
-                  'hex',
-                )
-              : walletAddress,
-          ),
-          emailOrWebsite: customer?.email ?? merchantWebsite,
+          id: participantId ?? merchant?.id ?? null,
+          walletAddress: convertBufferToAddress(walletAddress),
+          emailOrWebsite: merchantWebsite,
         };
       };
 
@@ -114,11 +106,11 @@ export class GetTransactionById {
         };
       };
 
-      // Determine direction if sender/receiver exists
+      // Determine direction based on senderId
       let transactionDirection: 'SENT' | 'RECEIVED' = 'SENT';
-      if (rest.senderId && sender) {
+      if (rest.senderId) {
         transactionDirection = 'SENT';
-      } else if (rest.receiverId && receiver) {
+      } else if (rest.receiverId) {
         transactionDirection = 'RECEIVED';
       }
 
@@ -130,6 +122,8 @@ export class GetTransactionById {
         transactionTypeId: rest.transactionTypeId,
         amount: rest.amount,
         transactionDirection,
+        senderId: rest.senderId || null,
+        receiverId: rest.receiverId || null,
         merchant: {
           id: rest.merchantId,
           name: merchant?.name || null,
@@ -142,19 +136,21 @@ export class GetTransactionById {
           (rest as any).type,
         ),
         sender: formatParticipant(
-          sender,
           rest.senderAddress,
+          rest.senderId,
           merchant?.website,
         ),
         receiver: formatParticipant(
-          receiver,
           rest.receiverAddress,
+          rest.receiverId,
           merchant?.website,
         ),
         voucher: formatVoucherInfo(voucherCode),
         eventId: rest.eventId || null,
         transactionRefId: (rest as any).transactionRefId || null,
         typeAsset: (rest as any).type || null,
+        senderType: (rest as any).senderType || null,
+        receiverType: (rest as any).receiverType || null,
         createdAt: rest.createdAt,
       };
 

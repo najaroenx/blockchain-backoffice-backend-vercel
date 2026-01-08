@@ -10,7 +10,7 @@ import {
   RPC_SERVER_ERROR,
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
-import { Prisma, AssetType } from '@prisma/client';
+import { Prisma, AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 // import { createBufferFromHex } from 'src/libs/createBufferFromHex';
@@ -107,7 +107,8 @@ export class MintTransaction {
         ),
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
-        receiver: { connect: { id: customer.id } },
+        receiverId: customer.id,
+        receiverType: ParticipantType.CUSTOMER,
         transactionType: { connect: { id: TransactionTypeId.MINT } },
         // txHash: createBufferFromHex(txId),
         txHash: Uint8Array.from(Buffer.from(txId.replace(/^0x/, ''), 'hex')),

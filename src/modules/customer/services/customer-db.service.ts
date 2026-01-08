@@ -12,10 +12,14 @@ import {
   Wallet,
 } from '@prisma/client';
 import { PageOptionsDto } from 'src/common/dtos';
+import { PrismaService } from '../../../../prisma/prisma.service';
 
 @Injectable()
 export class CustomerDBService {
-  constructor(private readonly repository: CustomerRepository) {}
+  constructor(
+    private readonly repository: CustomerRepository,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async updateCustomer(
     customerId: string,
@@ -270,52 +274,10 @@ export class CustomerDBService {
     return customer;
   }
 
-  async getCustomerById(
-    merchantId: string,
-    customerId: string,
-  ): Promise<
-    Customer & {
-      wallet?: Wallet | null;
-      receivedTxns: Array<
-        Transaction & {
-          sender: Customer;
-          receiver: Customer;
-          merchant: Merchant;
-          amount: number;
-        }
-      >;
-      sentTxns: Array<
-        Transaction & {
-          sender: Customer;
-          receiver: Customer;
-          merchant: Merchant;
-          amount: number;
-        }
-      >;
-      customerPoints: {
-        point: Point;
-        balances: number;
-      }[];
-    }
-  > {
+  async getCustomerById(merchantId: string, customerId: string): Promise<any> {
+    // First get customer with customerPoints (without transaction relations)
     const customer = await this.repository.findUnique<
       Customer & {
-        sentTxns: Array<
-          Transaction & {
-            sender: Customer;
-            receiver: Customer;
-            merchant: Merchant;
-            amount: number;
-          }
-        >;
-        receivedTxns: Array<
-          Transaction & {
-            sender: Customer;
-            receiver: Customer;
-            merchant: Merchant;
-            amount: number;
-          }
-        >;
         customerPoints: {
           point: Point;
           balances: number;
@@ -331,66 +293,6 @@ export class CustomerDBService {
         firstName: true,
         lastName: true,
         wallet: true,
-        sentTxns: {
-          where: {
-            merchantId,
-          },
-          select: {
-            id: true,
-            txHash: true,
-            createdAt: true,
-            transactionTypeId: true,
-            receiver: {
-              select: {
-                email: true,
-                wallet: true,
-              },
-            },
-            sender: {
-              select: {
-                email: true,
-                wallet: true,
-              },
-            },
-            merchant: {
-              select: {
-                name: true,
-                website: true,
-              },
-            },
-            amount: true,
-          },
-        },
-        receivedTxns: {
-          where: {
-            merchantId,
-          },
-          select: {
-            id: true,
-            txHash: true,
-            createdAt: true,
-            transactionTypeId: true,
-            receiver: {
-              select: {
-                email: true,
-                wallet: true,
-              },
-            },
-            sender: {
-              select: {
-                email: true,
-                wallet: true,
-              },
-            },
-            merchant: {
-              select: {
-                name: true,
-                website: true,
-              },
-            },
-            amount: true,
-          },
-        },
         customerPoints: {
           where: {
             customer: {
@@ -413,7 +315,69 @@ export class CustomerDBService {
       },
     });
 
-    return customer;
+    if (!customer) {
+      return null;
+    }
+
+    // Query sent transactions using senderId (unified field)
+    const sentTxns = await this.prisma.transaction.findMany({
+      where: {
+        senderId: customerId,
+        merchantId,
+      },
+      select: {
+        id: true,
+        txHash: true,
+        createdAt: true,
+        transactionTypeId: true,
+        senderId: true,
+        senderType: true,
+        receiverId: true,
+        receiverType: true,
+        senderAddress: true,
+        receiverAddress: true,
+        merchant: {
+          select: {
+            name: true,
+            website: true,
+          },
+        },
+        amount: true,
+      },
+    });
+
+    // Query received transactions using receiverId (unified field)
+    const receivedTxns = await this.prisma.transaction.findMany({
+      where: {
+        receiverId: customerId,
+        merchantId,
+      },
+      select: {
+        id: true,
+        txHash: true,
+        createdAt: true,
+        transactionTypeId: true,
+        senderId: true,
+        senderType: true,
+        receiverId: true,
+        receiverType: true,
+        senderAddress: true,
+        receiverAddress: true,
+        merchant: {
+          select: {
+            name: true,
+            website: true,
+          },
+        },
+        amount: true,
+      },
+    });
+
+    return {
+      ...customer,
+      sentTxns: sentTxns as any,
+      receivedTxns: receivedTxns as any,
+    };
   }
 
   async getCustomerByPhoneDetailed(phone: string): Promise<any> {

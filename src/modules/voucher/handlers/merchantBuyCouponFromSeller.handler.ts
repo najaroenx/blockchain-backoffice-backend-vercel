@@ -9,7 +9,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
-import { AssetType } from '@prisma/client';
+import { AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { ethers } from 'ethers';
 
@@ -204,13 +204,13 @@ export class MerchantBuyCouponFromSeller {
           amount: amountTHB,
           pointId: null, // THB purchase, not point-based
           merchantId: merchantId,
-          senderId: null,
-          receiverId: null,
-          merchantSenderId: merchantId, // Merchant paid
-          merchantReceiverId: null, // Seller not tracked in DB
+          senderId: merchantId, // Merchant paid
+          receiverId: null, // Seller not tracked in DB
           voucherCodeId: null,
           transactionTypeId: TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
           type: AssetType.VOUCHER,
+          senderType: ParticipantType.MERCHANT,
+          receiverType: ParticipantType.SYSTEM,
           transactionRefId: randomUUID(),
         } as any,
       });

@@ -9,7 +9,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
-import { AssetType } from '@prisma/client';
+import { AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
@@ -386,11 +386,12 @@ export class BuyCouponFromMarketplace {
               pointId: voucherCode.pointId,
               merchantId: voucherCode.voucher.merchantId,
               senderId: customerId,
-              receiverId: null, // Merchant is receiver but not a customer
-              merchantReceiverId: voucherCode.voucher.merchantId, // Merchant received payment
+              receiverId: voucherCode.voucher.merchantId, // Merchant received payment
               voucherCodeId: voucherCodeId,
               transactionTypeId: TransactionTypeId.TRANSFER,
               type: AssetType.POINT,
+              senderType: ParticipantType.CUSTOMER,
+              receiverType: ParticipantType.MERCHANT,
               transactionRefId,
             } as any,
           }),
@@ -404,12 +405,13 @@ export class BuyCouponFromMarketplace {
               amount: 1, // 1 voucher unit
               pointId: voucherCode.pointId,
               merchantId: voucherCode.voucher.merchantId,
-              senderId: null, // Merchant is sender but not a customer
+              senderId: voucherCode.voucher.merchantId, // Merchant sends voucher
               receiverId: customerId, // Customer receives voucher
-              merchantReceiverId: null,
               voucherCodeId: voucherCodeId,
               transactionTypeId: TransactionTypeId.TRANSFER,
               type: AssetType.VOUCHER,
+              senderType: ParticipantType.MERCHANT,
+              receiverType: ParticipantType.CUSTOMER,
               transactionRefId,
             } as any,
           }),

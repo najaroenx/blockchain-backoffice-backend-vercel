@@ -38,12 +38,17 @@ export class GetCustomerById {
 
       const formattedTransactions = mergeTransaction.map((tx) => ({
         id: tx.id,
-        sender: tx.sender?.email ?? tx.merchant?.website ?? 'Unknown',
-        receiver: tx.receiver?.email ?? tx.merchant?.website ?? 'Unknown',
+        senderId: tx.senderId,
+        senderType: tx.senderType,
+        receiverId: tx.receiverId,
+        receiverType: tx.receiverType,
+        senderAddress: convertBufferToAddress(tx.senderAddress),
+        receiverAddress: convertBufferToAddress(tx.receiverAddress),
         txHash: convertBufferToAddress(tx.txHash),
         amount: tx.amount,
         createdAt: tx.createdAt,
         transactionTypeId: tx.transactionTypeId,
+        merchant: tx.merchant,
       }));
 
       const customerWalletAddress = customer.wallet?.walletAddress || '';

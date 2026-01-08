@@ -99,8 +99,7 @@ export class GetVoucherByMerchantRef {
       // 4. Transform transactions to TransactionDetail format
       const transformedTransactions: TransactionDetail[] = transactions.map(
         (transaction) => {
-          const { merchant, point, voucherCode, ...rest } =
-            transaction;
+          const { merchant, point, voucherCode, ...rest } = transaction;
 
           const formatParticipant = (
             walletAddress: Uint8Array,
@@ -184,7 +183,8 @@ export class GetVoucherByMerchantRef {
             amount: rest.amount,
             transactionDirection,
             senderId: rest.senderId || (rest as any).merchantSenderId || null,
-            receiverId: rest.receiverId || (rest as any).merchantReceiverId || null,
+            receiverId:
+              rest.receiverId || (rest as any).merchantReceiverId || null,
             merchant: {
               id: rest.merchantId || voucher.merchant.id,
               name: merchant?.name || voucher.merchant.name || null,

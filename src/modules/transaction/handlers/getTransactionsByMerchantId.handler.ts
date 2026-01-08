@@ -81,7 +81,8 @@ export class GetTransactionsByMerchantId {
         // SENT when senderType === MERCHANT and senderId === merchantId
         // RECEIVED when receiverType === MERCHANT and receiverId === merchantId
         const transactionDirection =
-          ((rest as any).senderType === 'MERCHANT' && rest.senderId === merchantId)
+          (rest as any).senderType === 'MERCHANT' &&
+          rest.senderId === merchantId
             ? 'SENT'
             : 'RECEIVED';
 

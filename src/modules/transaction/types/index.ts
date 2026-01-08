@@ -1,4 +1,11 @@
-import { Customer, Merchant, Point, Transaction, Wallet, ParticipantType } from '@prisma/client';
+import {
+  Customer,
+  Merchant,
+  Point,
+  Transaction,
+  Wallet,
+  ParticipantType,
+} from '@prisma/client';
 import { PointInfo } from 'src/modules/customer/types';
 import {
   CustomerOwnedVoucherInfo,

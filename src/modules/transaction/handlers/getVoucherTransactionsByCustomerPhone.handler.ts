@@ -76,24 +76,16 @@ export class GetVoucherTransactionsByCustomerPhone {
       );
 
       const res = voucherTransactions.map((transaction) => {
-        const { sender, receiver, merchant, point, voucherCode, ...rest } =
-          transaction;
+        const { merchant, point, voucherCode, ...rest } = transaction;
 
         const formatParticipant = (
-          customer,
-          walletAddress,
-          merchantWebsite,
+          walletAddress: Uint8Array,
+          participantId: string | null,
+          merchantWebsite: string | null,
         ) => ({
-          id: customer?.id ?? merchant?.id,
-          walletAddress: convertBufferToAddress(
-            (customer as any)?.wallet?.walletAddress
-              ? Buffer.from(
-                  (customer as any).wallet.walletAddress.replace(/^0x/, ''),
-                  'hex',
-                )
-              : walletAddress,
-          ),
-          emailOrWebsite: customer?.email ?? merchantWebsite,
+          id: participantId ?? merchant?.id ?? null,
+          walletAddress: convertBufferToAddress(walletAddress),
+          emailOrWebsite: merchantWebsite,
         });
 
         const formatPointInfo = (
@@ -164,6 +156,8 @@ export class GetVoucherTransactionsByCustomerPhone {
           transactionTypeId: rest.transactionTypeId,
           amount: rest.amount,
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
+          senderId: rest.senderId || null,
+          receiverId: rest.receiverId || null,
           merchant: {
             id: rest.merchantId,
             name: merchant?.name || null,
@@ -176,19 +170,21 @@ export class GetVoucherTransactionsByCustomerPhone {
             (rest as any).type,
           ),
           sender: formatParticipant(
-            sender,
             rest.senderAddress,
+            rest.senderId,
             merchant?.website,
           ),
           receiver: formatParticipant(
-            receiver,
             rest.receiverAddress,
+            rest.receiverId,
             merchant?.website,
           ),
           voucher: formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
           eventId: rest.eventId || null,
           transactionRefId: (rest as any).transactionRefId || null,
           typeAsset: (rest as any).type || null,
+          senderType: (rest as any).senderType || null,
+          receiverType: (rest as any).receiverType || null,
           createdAt: rest.createdAt,
         };
       });

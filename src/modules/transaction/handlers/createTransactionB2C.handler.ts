@@ -11,7 +11,7 @@ import {
   RPC_SERVER_ERROR,
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
-import { Prisma, AssetType } from '@prisma/client';
+import { Prisma, AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
@@ -394,12 +394,14 @@ export class CreateTransactionB2C {
         receiverAddress: receiverAddressBuffer,
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
-        // senderId is null for B2C (merchant is not a customer)
-        receiver: { connect: { id: customer.id } },
+        senderId: merchantId,
+        receiverId: customer.id,
         transactionType: { connect: { id: finalTransactionTypeId } },
         txHash: txHashBuffer,
         eventId: eventId || null,
         type: AssetType.POINT,
+        senderType: ParticipantType.MERCHANT,
+        receiverType: ParticipantType.CUSTOMER,
         transactionRefId: randomUUID(),
       });
 

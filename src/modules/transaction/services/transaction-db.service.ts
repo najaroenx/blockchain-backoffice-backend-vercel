@@ -23,10 +23,6 @@ export class TransactionDBService {
         },
         include: {
           merchant: true,
-          sender: true,
-          receiver: true,
-          merchantSender: true,
-          merchantReceiver: true,
           point: true,
           voucherCode: {
             include: {
@@ -57,8 +53,6 @@ export class TransactionDBService {
         },
         include: {
           merchant: true,
-          sender: true,
-          receiver: true,
           point: true,
           voucherCode: {
             include: {
@@ -92,10 +86,6 @@ export class TransactionDBService {
         },
         include: {
           merchant: true,
-          sender: true,
-          receiver: true,
-          merchantSender: true,
-          merchantReceiver: true,
           point: true,
           voucherCode: {
             include: {
@@ -147,10 +137,6 @@ export class TransactionDBService {
         },
         include: {
           merchant: true,
-          sender: true,
-          receiver: true,
-          merchantSender: true,
-          merchantReceiver: true,
           point: true,
         },
       });
@@ -174,10 +160,6 @@ export class TransactionDBService {
         },
         include: {
           merchant: true,
-          sender: true,
-          receiver: true,
-          merchantSender: true,
-          merchantReceiver: true,
           point: true,
         },
       });
@@ -190,16 +172,6 @@ export class TransactionDBService {
       where: { id },
       include: {
         merchant: true,
-        sender: {
-          include: {
-            wallet: true,
-          },
-        },
-        receiver: {
-          include: {
-            wallet: true,
-          },
-        },
         point: true,
         voucherCode: {
           include: {

@@ -27,24 +27,16 @@ export class GetTransactionsByMerchantId {
         await this.db.getTransactionsByMerchantId(merchantId);
 
       const res = transactions.map((transaction) => {
-        const { sender, receiver, merchant, point, voucherCode, ...rest } =
-          transaction;
+        const { merchant, point, voucherCode, ...rest } = transaction;
 
         const formatParticipant = (
-          customer,
-          walletAddress,
-          merchantWebsite,
+          walletAddress: Uint8Array,
+          participantId: string | null,
+          merchantWebsite: string,
         ) => ({
-          id: customer?.id ?? merchantId,
-          walletAddress: convertBufferToAddress(
-            (customer as any)?.wallet?.walletAddress
-              ? Buffer.from(
-                  (customer as any).wallet.walletAddress.replace(/^0x/, ''),
-                  'hex',
-                )
-              : walletAddress,
-          ),
-          emailOrWebsite: customer?.email ?? merchantWebsite,
+          id: participantId ?? merchantId,
+          walletAddress: convertBufferToAddress(walletAddress),
+          emailOrWebsite: merchantWebsite,
         });
 
         const formatPointInfo = (
@@ -86,15 +78,11 @@ export class GetTransactionsByMerchantId {
         };
 
         // Determine transaction direction from merchant's perspective
-        // SENT when:
-        // - senderId === null (B2C: Merchant sent to customer)
-        // - merchantSenderId === merchantId (Merchant is sender, e.g., bought voucher)
-        // RECEIVED when:
-        // - senderId !== null (Customer sent to merchant)
-        // - merchantReceiverId === merchantId (Merchant is receiver, e.g., received voucher)
+        // SENT when senderType === MERCHANT and senderId === merchantId
+        // RECEIVED when receiverType === MERCHANT and receiverId === merchantId
         const transactionDirection =
-          rest.senderId === null ||
-          (rest as any).merchantSenderId === merchantId
+          (rest as any).senderType === 'MERCHANT' &&
+          rest.senderId === merchantId
             ? 'SENT'
             : 'RECEIVED';
 
@@ -126,6 +114,8 @@ export class GetTransactionsByMerchantId {
           transactionTypeId: rest.transactionTypeId,
           amount: rest.amount,
           transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
+          senderId: rest.senderId || null,
+          receiverId: rest.receiverId || null,
           merchant: {
             id: merchantId,
             name: merchant?.name || null,
@@ -138,19 +128,21 @@ export class GetTransactionsByMerchantId {
             (rest as any).type,
           ),
           sender: formatParticipant(
-            sender,
             rest.senderAddress,
+            rest.senderId,
             merchant.website,
           ),
           receiver: formatParticipant(
-            receiver,
             rest.receiverAddress,
+            rest.receiverId,
             merchant.website,
           ),
           voucher: formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
           eventId: rest.eventId || null,
           transactionRefId: (rest as any).transactionRefId || null,
           typeAsset: (rest as any).type || null,
+          senderType: (rest as any).senderType || null,
+          receiverType: (rest as any).receiverType || null,
           createdAt: rest.createdAt,
         };
       });

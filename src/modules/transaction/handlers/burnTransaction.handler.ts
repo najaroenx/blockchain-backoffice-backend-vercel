@@ -14,7 +14,7 @@ import {
   CustomerType,
   PointType,
 } from '../types';
-import { Prisma, AssetType } from '@prisma/client';
+import { Prisma, AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
@@ -95,7 +95,8 @@ export class BurnTransaction {
         ),
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
-        sender: { connect: { id: sender.id } },
+        senderId: sender.id,
+        senderType: ParticipantType.CUSTOMER,
         transactionType: { connect: { id: TransactionTypeId.BURN } },
         // txHash: createBufferFromHex(txId),
         txHash: new Uint8Array(createBufferFromHex(txId)),

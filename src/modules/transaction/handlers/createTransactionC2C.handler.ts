@@ -15,7 +15,7 @@ import {
   PointType,
   CustomerWithWallet,
 } from '../types';
-import { Prisma, AssetType } from '@prisma/client';
+import { Prisma, AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
@@ -113,11 +113,13 @@ export class CreateTransactionC2C {
         receiverAddress: receiverAddressBuffer,
         merchant: { connect: { id: merchantId } },
         point: { connect: { id: pointId } },
-        sender: { connect: { id: sender.id } },
-        receiver: { connect: { id: receiver.id } },
+        senderId: sender.id,
+        receiverId: receiver.id,
         transactionType: { connect: { id: TransactionTypeId.TRANSFER } },
         txHash: txHashBuffer,
         type: AssetType.POINT,
+        senderType: ParticipantType.CUSTOMER,
+        receiverType: ParticipantType.CUSTOMER,
         transactionRefId: randomUUID(),
       });
 

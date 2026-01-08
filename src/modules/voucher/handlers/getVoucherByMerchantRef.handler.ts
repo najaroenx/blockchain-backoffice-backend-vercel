@@ -75,16 +75,6 @@ export class GetVoucherByMerchantRef {
           type: 'VOUCHER',
         },
         include: {
-          sender: {
-            include: {
-              wallet: true,
-            },
-          },
-          receiver: {
-            include: {
-              wallet: true,
-            },
-          },
           merchant: true,
           point: true,
           voucherCode: {
@@ -109,24 +99,16 @@ export class GetVoucherByMerchantRef {
       // 4. Transform transactions to TransactionDetail format
       const transformedTransactions: TransactionDetail[] = transactions.map(
         (transaction) => {
-          const { sender, receiver, merchant, point, voucherCode, ...rest } =
-            transaction;
+          const { merchant, point, voucherCode, ...rest } = transaction;
 
           const formatParticipant = (
-            customer: CustomerWithWallet | null,
             walletAddress: Uint8Array,
+            participantId: string | null,
             merchantWebsite: string,
           ): TransactionParticipant => ({
-            id: customer?.id ?? voucher.merchant.id,
-            walletAddress: convertBufferToAddress(
-              customer?.wallet?.walletAddress
-                ? Buffer.from(
-                    customer.wallet.walletAddress.replace(/^0x/, ''),
-                    'hex',
-                  )
-                : walletAddress,
-            ),
-            emailOrWebsite: customer?.email ?? merchantWebsite,
+            id: participantId ?? voucher.merchant.id,
+            walletAddress: convertBufferToAddress(walletAddress),
+            emailOrWebsite: merchantWebsite,
           });
 
           const formatVoucherInfo = (
@@ -200,6 +182,9 @@ export class GetVoucherByMerchantRef {
             transactionTypeId: rest.transactionTypeId,
             amount: rest.amount,
             transactionDirection,
+            senderId: rest.senderId || (rest as any).merchantSenderId || null,
+            receiverId:
+              rest.receiverId || (rest as any).merchantReceiverId || null,
             merchant: {
               id: rest.merchantId || voucher.merchant.id,
               name: merchant?.name || voucher.merchant.name || null,
@@ -215,19 +200,21 @@ export class GetVoucherByMerchantRef {
               (rest as any).type,
             ),
             sender: formatParticipant(
-              sender as CustomerWithWallet,
               rest.senderAddress,
+              rest.senderId,
               merchant?.website || voucher.merchant.website || '',
             ),
             receiver: formatParticipant(
-              receiver as CustomerWithWallet,
               rest.receiverAddress,
+              rest.receiverId,
               merchant?.website || voucher.merchant.website || '',
             ),
             voucher: formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
             eventId: rest.eventId || null,
             transactionRefId: (rest as any).transactionRefId || null,
             typeAsset: (rest as any).type || null,
+            senderType: (rest as any).senderType || null,
+            receiverType: (rest as any).receiverType || null,
             createdAt: rest.createdAt,
           };
         },

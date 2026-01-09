@@ -3,11 +3,11 @@
  * These IDs match the TransactionType records in the database
  * Use these constants when creating transactions to ensure consistency
  *
- * New structure (2026):
- * - TRANSFER is now used for both POINT and VOUCHER transactions
+ * Structure:
+ * - TRANSFER is used for both POINT and VOUCHER transactions
  * - Use the `type` field (AssetType) to distinguish between POINT and VOUCHER
- * - type=POINT + enum=TRANSFER: Point transfer (replaces MARKETPLACE_PURCHASE)
- * - type=VOUCHER + enum=TRANSFER: Voucher transfer (replaces VOUCHER_TRANSFER, VOUCHER_GIFT)
+ * - type=POINT + TRANSFER: Point transfer between wallets
+ * - type=VOUCHER + TRANSFER: Voucher transfer (merchant buy from seller, etc.)
  */
 export enum TransactionTypeId {
   // Core transaction type (used for both POINT and VOUCHER)
@@ -20,14 +20,10 @@ export enum TransactionTypeId {
 
   // Voucher-only transactions
   REDEEM = 'REDEEM',
-  MERCHANT_PURCHASE_FROM_SELLER = 'MERCHANT_PURCHASE_FROM_SELLER',
 
-  /** @deprecated Use TRANSFER with type=POINT instead. Kept for backward compatibility */
-  MARKETPLACE_PURCHASE = 'MARKETPLACE_PURCHASE',
-  /** @deprecated Use TRANSFER with type=VOUCHER instead. Kept for backward compatibility */
-  VOUCHER_TRANSFER = 'VOUCHER_TRANSFER',
-  /** @deprecated Use TRANSFER with type=VOUCHER instead. Kept for backward compatibility */
-  VOUCHER_GIFT = 'VOUCHER_GIFT',
+  // THB Token transactions
+  THB_MINT = 'THB_MINT', // Auto-mint THB for merchant
+  THB_BUY = 'THB_BUY', // Merchant buy voucher from seller using THB
 }
 
 /**
@@ -46,7 +42,7 @@ export { AssetType } from '@prisma/client';
  */
 export const TRANSACTION_TYPE_TO_ASSET_TYPE: Record<
   TransactionTypeId,
-  'POINT' | 'VOUCHER'
+  'POINT' | 'VOUCHER' | 'THB_TOKEN'
 > = {
   // Core - defaults to POINT but check `type` field for actual value
   [TransactionTypeId.TRANSFER]: 'POINT',
@@ -58,10 +54,8 @@ export const TRANSACTION_TYPE_TO_ASSET_TYPE: Record<
 
   // Voucher-only
   [TransactionTypeId.REDEEM]: 'VOUCHER',
-  [TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER]: 'VOUCHER',
 
-  // Deprecated - kept for backward compatibility
-  [TransactionTypeId.MARKETPLACE_PURCHASE]: 'POINT',
-  [TransactionTypeId.VOUCHER_TRANSFER]: 'VOUCHER',
-  [TransactionTypeId.VOUCHER_GIFT]: 'VOUCHER',
+  // THB Token
+  [TransactionTypeId.THB_MINT]: 'THB_TOKEN',
+  [TransactionTypeId.THB_BUY]: 'THB_TOKEN',
 };

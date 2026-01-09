@@ -173,6 +173,7 @@ model CustomerMerChant {
   customerId String?
   merchant   Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   merchantId String?
+  createdAt  DateTime? // Track when customer joined merchant (nullable for old data)
 }
 
 model CustomerPoint {
@@ -210,6 +211,7 @@ enum VoucherValueType {
 enum AssetType {
   POINT
   VOUCHER
+  THB_TOKEN
 }
 
 // Participant type enum for identifying sender/receiver type

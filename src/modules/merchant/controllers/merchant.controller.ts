@@ -18,6 +18,7 @@ import { CreateMerchant } from '../handlers/createMerchant.handler';
 import { UpdateMerchant } from '../handlers/updateMerchant.handler';
 import { GetMerchant } from '../handlers/getMerchantById.handler';
 import { DeleteMerchant } from '../handlers/deleteMerchant.handler';
+import { GetMerchantDashboardStats } from '../handlers/getMerchantDashboardStats.handler';
 import { Public } from 'src/modules/auth/public.decorator';
 import { MerchantDBService } from '../services/merchant-db.service';
 
@@ -29,6 +30,7 @@ export class MerchantController {
     private readonly updateMerchantHandler: UpdateMerchant,
     private readonly getMerchantHandler: GetMerchant,
     private readonly deleteMerchantHandler: DeleteMerchant,
+    private readonly getMerchantDashboardStatsHandler: GetMerchantDashboardStats,
     private readonly merchantDBService: MerchantDBService,
   ) {}
 
@@ -97,6 +99,18 @@ export class MerchantController {
     @Param('merchantId') merchantId: string,
   ) {
     return this.updateMerchantHandler.execute(merchantId, data);
+  }
+
+  /**
+   * Get merchant dashboard statistics
+   * GET /merchant/:merchantId/dashboard-stats
+   * Returns comprehensive statistics including vouchers, end users, transactions, points, and THB token
+   */
+  @Get('/:merchantId/dashboard-stats')
+  @Public()
+  @HttpCode(200)
+  async getDashboardStats(@Param('merchantId') merchantId: string) {
+    return this.getMerchantDashboardStatsHandler.execute(merchantId);
   }
 
   @Get('/:merchantId')

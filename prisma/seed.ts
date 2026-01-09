@@ -73,26 +73,16 @@ async function seedTransactionTypes() {
       name: 'Redeem',
       description: 'Redeem points for rewards',
     },
-    // Voucher-related transactions
+    // THB Token transactions
     {
-      id: 'MARKETPLACE_PURCHASE',
-      name: 'Marketplace Purchase',
-      description: 'Purchase voucher from marketplace',
+      id: 'THB_MINT',
+      name: 'THB Mint',
+      description: 'Auto-mint THB token for merchant',
     },
     {
-      id: 'MERCHANT_PURCHASE_FROM_SELLER',
-      name: 'Merchant Purchase From Seller',
-      description: 'Merchant purchases vouchers from seller using THB token',
-    },
-    {
-      id: 'VOUCHER_TRANSFER',
-      name: 'Voucher Transfer',
-      description: 'Transfer voucher to another customer',
-    },
-    {
-      id: 'VOUCHER_GIFT',
-      name: 'Voucher Gift',
-      description: 'Gift voucher to another customer',
+      id: 'THB_BUY',
+      name: 'THB Buy',
+      description: 'Merchant buy voucher from seller using THB',
     },
   ];
 
@@ -336,6 +326,7 @@ async function seedVouchers() {
         id: `${customer.id}-${customer.merchantId}`,
         customerId: customer.id,
         merchantId: customer.merchantId,
+        createdAt: new Date(),
       },
     });
 

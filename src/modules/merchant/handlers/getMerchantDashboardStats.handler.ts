@@ -416,29 +416,40 @@ export class GetMerchantDashboardStats {
   private async getThbStats(
     merchantId: string,
   ): Promise<MerchantDashboardStatsResponse['thbToken']> {
-    // Sum of THB_MINT transactions (auto-minted THB)
-    const mintStats = await this.prisma.transaction.aggregate({
-      where: {
-        merchantId,
-        transactionTypeId: TransactionTypeId.THB_MINT,
-        type: 'THB_TOKEN' as any,
-      },
-      _sum: { amount: true },
-    });
+    try {
+      // Sum of THB_MINT transactions (auto-minted THB)
+      const mintStats = await this.prisma.transaction.aggregate({
+        where: {
+          merchantId,
+          transactionTypeId: TransactionTypeId.THB_MINT,
+          type: 'THB_TOKEN' as any,
+        },
+        _sum: { amount: true },
+      });
 
-    // Sum of THB_BUY transactions (THB spent on seller purchases)
-    const buyStats = await this.prisma.transaction.aggregate({
-      where: {
-        merchantId,
-        transactionTypeId: TransactionTypeId.THB_BUY,
-        type: 'THB_TOKEN' as any,
-      },
-      _sum: { amount: true },
-    });
+      // Sum of THB_BUY transactions (THB spent on seller purchases)
+      const buyStats = await this.prisma.transaction.aggregate({
+        where: {
+          merchantId,
+          transactionTypeId: TransactionTypeId.THB_BUY,
+          type: 'THB_TOKEN' as any,
+        },
+        _sum: { amount: true },
+      });
 
-    return {
-      deposited: mintStats._sum.amount || 0,
-      purchasedFromSeller: buyStats._sum.amount || 0,
-    };
+      return {
+        deposited: mintStats._sum.amount || 0,
+        purchasedFromSeller: buyStats._sum.amount || 0,
+      };
+    } catch (error) {
+      // If THB_TOKEN enum doesn't exist in database yet, return default values
+      this.logger.warn(
+        '[THB_STATS] THB_TOKEN enum not available in database, returning default values',
+      );
+      return {
+        deposited: 0,
+        purchasedFromSeller: 0,
+      };
+    }
   }
 }

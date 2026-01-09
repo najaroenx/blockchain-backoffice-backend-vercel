@@ -41,9 +41,10 @@ EXPOSE 4000
 #     npx prisma migrate reset --force --skip-generate && \
 #     node dist/src/main \
 # "]
-# PROD MODE (migrate + seed + start)
+# PROD MODE (migrate + custom SQL + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
+    npx prisma db execute --file ./prisma/migrations/add_thb_token_enum.sql || true && \
     npx prisma db seed && \
     node dist/src/main \
 "]

@@ -137,23 +137,8 @@ export class GetVoucherByMerchantRef {
             transactionTypeId: string,
             assetType?: string,
           ) => {
-            // New structure: check type field first
+            // New structure: check type field - if VOUCHER, no point info
             if (assetType === 'VOUCHER') {
-              return null;
-            }
-
-            // Legacy: check transactionTypeId for backward compatibility
-            const voucherTransactionTypes = [
-              TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
-              TransactionTypeId.VOUCHER_TRANSFER,
-              TransactionTypeId.VOUCHER_GIFT,
-            ];
-
-            if (
-              voucherTransactionTypes.includes(
-                transactionTypeId as TransactionTypeId,
-              )
-            ) {
               return null;
             }
 

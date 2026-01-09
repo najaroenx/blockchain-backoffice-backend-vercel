@@ -161,6 +161,41 @@ export class MerchantBuyCouponFromSeller {
         this.logger.warn(
           `[STEP 4] ✅ Auto-minted ${ethers.formatEther(shortage)} THB. TxHash: ${mintResult.hash}`,
         );
+
+        // Record THB auto-mint transaction in database
+        const mintTxHashBuffer = Buffer.from(mintResult.hash.slice(2), 'hex');
+        const merchantAddressBuffer = Buffer.from(
+          merchantWallet.walletAddress.slice(2),
+          'hex',
+        );
+        const systemAddressBuffer = Buffer.alloc(20, 0); // System/zero address for mint
+
+        const shortageAmountTHB = Math.round(
+          parseFloat(ethers.formatEther(shortage)),
+        );
+
+        await this.prisma.transaction.create({
+          data: {
+            txHash: mintTxHashBuffer,
+            senderAddress: systemAddressBuffer,
+            receiverAddress: merchantAddressBuffer,
+            amount: shortageAmountTHB,
+            pointId: null,
+            merchantId: merchantId,
+            senderId: null, // System mint
+            receiverId: merchantId,
+            voucherCodeId: null,
+            transactionTypeId: TransactionTypeId.THB_MINT,
+            type: AssetType.THB_TOKEN,
+            senderType: ParticipantType.SYSTEM,
+            receiverType: ParticipantType.MERCHANT,
+            transactionRefId: randomUUID(),
+          } as any,
+        });
+
+        this.logger.log(
+          `[STEP 4] ✅ THB_MINT transaction recorded. Amount: ${shortageAmountTHB} THB`,
+        );
       } else {
         this.logger.log(
           `[STEP 4] ✅ Sufficient THB balance. No auto-mint needed.`,
@@ -195,7 +230,10 @@ export class MerchantBuyCouponFromSeller {
       );
       const receiverAddressBuffer = Buffer.from(listing.seller.slice(2), 'hex');
 
-      // Create transaction record for payment
+      // Generate transaction reference ID for linking related transactions
+      const transactionRefId = randomUUID();
+
+      // Create THB_BUY transaction record (merchant pays THB to seller/vault)
       const transaction = await this.prisma.transaction.create({
         data: {
           txHash: txHashBuffer,
@@ -205,18 +243,18 @@ export class MerchantBuyCouponFromSeller {
           pointId: null, // THB purchase, not point-based
           merchantId: merchantId,
           senderId: merchantId, // Merchant paid
-          receiverId: null, // Seller not tracked in DB
+          receiverId: null, // Seller not tracked in DB (goes to Vault)
           voucherCodeId: null,
-          transactionTypeId: TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
-          type: AssetType.VOUCHER,
+          transactionTypeId: TransactionTypeId.THB_BUY,
+          type: AssetType.THB_TOKEN,
           senderType: ParticipantType.MERCHANT,
           receiverType: ParticipantType.SYSTEM,
-          transactionRefId: randomUUID(),
+          transactionRefId: transactionRefId,
         } as any,
       });
 
       this.logger.log(
-        `[STEP 6] Transaction created. Payment ID: ${transaction.id}`,
+        `[STEP 6] THB_BUY transaction created. ID: ${transaction.id}`,
       );
 
       // 7. Update voucher status to 'upcoming' and assign to merchant

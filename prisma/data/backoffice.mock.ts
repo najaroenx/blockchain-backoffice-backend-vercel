@@ -72,7 +72,7 @@ export type TransactionSeed = {
   senderAddress: string;
   receiverAddress: string;
   amount: number;
-  transactionTypeId: 'MINT' | 'BURN' | 'TRANSFER' | 'EARN' | 'REDEEM' | 'MARKETPLACE_PURCHASE' | 'VOUCHER_TRANSFER' | 'VOUCHER_GIFT';
+  transactionTypeId: 'MINT' | 'BURN' | 'TRANSFER' | 'EARN' | 'REDEEM' | 'THB_MINT' | 'THB_BUY';
   merchantId: string;
   pointId?: string;
   senderCustomerId?: string;

@@ -53,21 +53,9 @@ export class GetVoucherTransactionsByCustomerPhone {
       // New structure: type=VOUCHER for voucher transactions
       // Also filter by transactionTypeId for backward compatibility with legacy data
       const voucherTransactions = transactions.filter((transaction) => {
-        const transactionType = transaction.transactionTypeId;
         const assetType = (transaction as any).type;
-
-        // Include if type=VOUCHER (new structure)
-        if (assetType === 'VOUCHER') return true;
-
-        // Include legacy voucher transaction types
-        if (
-          transactionType === 'VOUCHER_TRANSFER' ||
-          transactionType === 'REDEEM'
-        ) {
-          return true;
-        }
-
-        return false;
+        // Include if type=VOUCHER
+        return assetType === 'VOUCHER';
       });
 
       const filteredCount = totalTransactions - voucherTransactions.length;
@@ -94,23 +82,8 @@ export class GetVoucherTransactionsByCustomerPhone {
           transactionTypeId: string,
           assetType?: string,
         ) => {
-          // New structure: check type field first
+          // New structure: check type field - if VOUCHER, no point info
           if (assetType === 'VOUCHER') {
-            return null;
-          }
-
-          // Legacy: check transactionTypeId for backward compatibility
-          const voucherTransactionTypes = [
-            TransactionTypeId.MERCHANT_PURCHASE_FROM_SELLER,
-            TransactionTypeId.VOUCHER_TRANSFER,
-            TransactionTypeId.VOUCHER_GIFT,
-          ];
-
-          if (
-            voucherTransactionTypes.includes(
-              transactionTypeId as TransactionTypeId,
-            )
-          ) {
             return null;
           }
 

@@ -64,7 +64,7 @@ export class CreateCustomer {
           };
         } else {
           await this.db.updateCustomer(customer.id, {
-            customerMerChant: { create: { merchantId } },
+            customerMerChant: { create: { merchantId, createdAt: new Date() } },
           });
           // Re-fetch customer with wallet to get walletAddress
           const updatedCustomer = await this.db.getCustomersByEmail(
@@ -104,7 +104,7 @@ export class CreateCustomer {
           data: {
             ...data,
             walletId: wallet.id,
-            customerMerChant: { create: { merchantId } },
+            customerMerChant: { create: { merchantId, createdAt: new Date() } },
           },
           include: {
             wallet: true,

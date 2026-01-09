@@ -8,6 +8,7 @@ import { CreateMerchant } from './handlers/createMerchant.handler';
 import { UpdateMerchant } from './handlers/updateMerchant.handler';
 import { GetMerchant } from './handlers/getMerchantById.handler';
 import { DeleteMerchant } from './handlers/deleteMerchant.handler';
+import { GetMerchantDashboardStats } from './handlers/getMerchantDashboardStats.handler';
 import { PrismaModule } from 'prisma/prisma.module';
 import { TokenModule } from 'src/providers/token/token.module';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
@@ -22,6 +23,7 @@ import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
     UpdateMerchant,
     GetMerchant,
     DeleteMerchant,
+    GetMerchantDashboardStats,
     MerchantDBService,
   ],
   imports: [ApiKeyModule, PrismaModule, TokenModule, BlockchainModule],

@@ -31,6 +31,7 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/node_modules ./node_
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=merchant-backoffice:nodejs /app/scripts ./scripts
 
 USER merchant-backoffice
 
@@ -41,9 +42,10 @@ EXPOSE 4000
 #     npx prisma migrate reset --force --skip-generate && \
 #     node dist/src/main \
 # "]
-# PROD MODE (migrate + custom SQL + seed + start)
+# PROD MODE (migrate + custom script + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
+    npx ts-node scripts/migrate-customer-merchant-created-at.ts && \
     npx prisma db seed && \
     node dist/src/main \
 "]

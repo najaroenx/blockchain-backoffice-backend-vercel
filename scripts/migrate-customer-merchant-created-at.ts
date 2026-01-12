@@ -120,13 +120,14 @@ async function migrateCustomerMerchantCreatedAt() {
         if (stats.updated % 100 === 0) {
           console.log(`[PROGRESS] Updated ${stats.updated} records...`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         stats.errors++;
         stats.errorDetails.push({
           recordId: record.id,
-          error: error.message,
+          error: errorMessage,
         });
-        console.error(`[ERROR] Record ${record.id}: ${error.message}`);
+        console.error(`[ERROR] Record ${record.id}: ${errorMessage}`);
       }
     }
 

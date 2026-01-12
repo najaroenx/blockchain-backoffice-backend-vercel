@@ -17,9 +17,6 @@ RUN npx prisma generate
 # Build NestJS app
 RUN yarn run build
 
-# Compile migration scripts to JS
-RUN npx tsc scripts/migrate-customer-merchant-created-at.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
-
 # Stage 2: Production image
 FROM node:20-alpine
 
@@ -34,6 +31,7 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/node_modules ./node_
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=merchant-backoffice:nodejs /app/scripts ./scripts
 
 USER merchant-backoffice
 
@@ -47,7 +45,7 @@ EXPOSE 4000
 # PROD MODE (migrate + custom script + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    node dist/scripts/migrate-customer-merchant-created-at.js && \
+    npx ts-node scripts/migrate-customer-merchant-created-at.ts && \
     npx prisma db seed && \
     node dist/src/main \
 "]

@@ -46,6 +46,9 @@ export class TransactionDBService {
             },
           },
         },
+        orderBy: {
+          createdAt: 'asc',
+        },
       });
 
     return transactions;
@@ -85,7 +88,7 @@ export class TransactionDBService {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          createdAt: 'asc',
         },
       });
 
@@ -116,6 +119,9 @@ export class TransactionDBService {
               },
             },
           },
+        },
+        orderBy: {
+          createdAt: 'asc',
         },
       });
 

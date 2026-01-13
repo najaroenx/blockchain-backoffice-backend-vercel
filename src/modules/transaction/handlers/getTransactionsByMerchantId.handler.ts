@@ -136,13 +136,13 @@ export class GetTransactionsByMerchantId {
         };
       });
 
-      // Sort: by createdAt desc, then POINT before VOUCHER (if same time)
+      // Sort: by createdAt desc, then VOUCHER before POINT (if same time)
       const sortedRes = res.sort((a, b) => {
         const dateCompare =
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         if (dateCompare !== 0) return dateCompare;
-        if (a.typeAsset === 'POINT' && b.typeAsset === 'VOUCHER') return -1;
-        if (a.typeAsset === 'VOUCHER' && b.typeAsset === 'POINT') return 1;
+        if (a.typeAsset === 'VOUCHER' && b.typeAsset === 'POINT') return -1;
+        if (a.typeAsset === 'POINT' && b.typeAsset === 'VOUCHER') return 1;
         return 0;
       });
 

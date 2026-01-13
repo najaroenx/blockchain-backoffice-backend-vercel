@@ -47,13 +47,13 @@ export class BuyCouponFromMarketplace {
       const customerId = customer.id;
       this.logger.log(`[START] Customer found: ${customerId}`);
 
-      // 1. หา available voucher code จาก listingBatchId และ validate point
+      // 1. หา available voucher code จาก voucherGroupId (on-chain listingId) และ validate point
       this.logger.log(
         `[STEP 1] Finding available voucher code in listing: ${listingId} with pointId: ${pointId}`,
       );
       const voucherCode = await this.prisma.voucherCode.findFirst({
         where: {
-          listingBatchId: listingId,
+          voucherGroupId: listingId, // voucherGroupId stores on-chain listingId
           pointId, // ต้อง match กับ point ที่เลือกจ่าย
           isUsed: false,
           currentOwnerId: null,

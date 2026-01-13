@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-async function clearTransactions() {
+async function clearTransactions(force: boolean = false) {
   console.log('🗑️  Starting transaction cleanup...\n');
 
   try {
@@ -15,11 +15,16 @@ async function clearTransactions() {
       return;
     }
 
-    // Confirm before deletion
-    console.log('\n⚠️  This will delete ALL transactions from the database.');
-    console.log('   Press Ctrl+C to cancel, or wait 5 seconds to continue...\n');
-
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    // Confirm before deletion (skip if --force flag is passed)
+    if (!force) {
+      console.log(
+        '\n⚠️  This will delete ALL transactions from the database.',
+      );
+      console.log(
+        '   Press Ctrl+C to cancel, or wait 5 seconds to continue...\n',
+      );
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
 
     // Delete all transactions
     console.log('🔄 Deleting transactions...');
@@ -111,6 +116,7 @@ async function clearTransactionsByDateRange(startDate: Date, endDate: Date) {
 // Parse command line arguments
 const args = process.argv.slice(2);
 const command = args[0];
+const forceFlag = args.includes('--force');
 
 switch (command) {
   case '--merchant':
@@ -132,9 +138,10 @@ switch (command) {
     clearTransactionsByDateRange(new Date(args[1]), new Date(args[2]));
     break;
 
+  case '--force':
   case '--all':
   case undefined:
-    clearTransactions();
+    clearTransactions(forceFlag);
     break;
 
   case '--help':
@@ -143,12 +150,14 @@ Usage: npx ts-node scripts/clear-transactions.ts [options]
 
 Options:
   --all                          Clear ALL transactions (default)
+  --force                        Skip confirmation delay (for deployment)
   --merchant <merchantId>        Clear transactions for specific merchant
   --date-range <start> <end>     Clear transactions in date range
   --help                         Show this help message
 
 Examples:
   npx ts-node scripts/clear-transactions.ts --all
+  npx ts-node scripts/clear-transactions.ts --force
   npx ts-node scripts/clear-transactions.ts --merchant merch_123
   npx ts-node scripts/clear-transactions.ts --date-range 2026-01-01 2026-01-31
     `);

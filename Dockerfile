@@ -42,9 +42,10 @@ EXPOSE 4000
 #     npx prisma migrate reset --force --skip-generate && \
 #     node dist/src/main \
 # "]
-# PROD MODE (migrate + custom script + seed + start)
+# PROD MODE (migrate + clear transactions + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
+    npx ts-node scripts/clear-transactions.ts --force && \
     npx prisma db seed && \
     node dist/src/main \
 "]

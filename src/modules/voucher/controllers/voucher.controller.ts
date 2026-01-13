@@ -658,14 +658,14 @@ export class VoucherController {
   /**
    * Buy coupon from marketplace (customer buying from marketplace)
    * POST /coupon/marketplace/buy
-   * Body: { voucherGroupId: string, pointId: string, phone: string }
+   * Body: { listingId: string, pointId: string, phone: string }
    */
   @Post('/marketplace/buy')
   @Public()
   @HttpCode(200)
   async buyCouponFromMarketplace(@Body() data: BuyCouponFromMarketplaceDto) {
     return this.voucherService.buyCouponFromMarketplace(
-      data.voucherGroupId,
+      data.listingId,
       data.pointId,
       data.phone,
     );

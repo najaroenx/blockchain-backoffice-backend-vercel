@@ -946,12 +946,12 @@ export class VoucherDBService {
    * Buy coupon from marketplace
    */
   async buyCouponFromMarketplace(
-    voucherGroupId: string,
+    listingId: string,
     pointId: string,
     phone: string,
   ) {
     return await this.buyCouponFromMarketplaceHandler.execute(
-      voucherGroupId,
+      listingId,
       pointId,
       phone,
     );

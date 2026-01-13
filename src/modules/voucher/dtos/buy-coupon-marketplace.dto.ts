@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString } from 'class-validator';
 export class BuyCouponFromMarketplaceDto {
   @IsNotEmpty()
   @IsString()
-  voucherGroupId: string;
+  listingId: string;
 
   @IsNotEmpty()
   @IsString()

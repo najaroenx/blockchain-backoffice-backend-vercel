@@ -15,7 +15,7 @@ COPY . .
 RUN npx prisma generate
 
 # Compile migration scripts to JS
-RUN npx tsc scripts/clear-transactions.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
+# RUN npx tsc scripts/clear-transactions.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
 
 # Build NestJS app
 RUN yarn run build
@@ -48,7 +48,6 @@ EXPOSE 4000
 # PROD MODE (migrate + clear transactions + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    node dist/scripts/clear-transactions.js --force && \
     npx prisma db seed && \
     node dist/src/main \
 "]

@@ -21,6 +21,7 @@ export interface CustomerWithWallet extends Customer {
 
 export interface VoucherCodeWithVoucher {
   id: string;
+  currency?: string | null; // VoucherCode currency (fallback for voucher.currency)
   voucher: {
     id: string;
     name: string;

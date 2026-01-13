@@ -1,0 +1,350 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Blockchain Backoffice - Merchant Dashboard API",
+    "description": "API สำหรับดึงข้อมูลสถิติ Merchant Dashboard",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development"
+    },
+    {
+      "url": "https://api.staging.example.com",
+      "description": "Staging"
+    }
+  ],
+  "paths": {
+    "/merchant/{merchantId}/dashboard-stats": {
+      "get": {
+        "tags": ["Merchant"],
+        "summary": "Get Merchant Dashboard Statistics",
+        "description": "ดึงข้อมูลสถิติทั้งหมดของ Merchant สำหรับแสดงใน Dashboard รวมถึง Vouchers, End Users, Transactions, Points และ THB Token",
+        "operationId": "getMerchantDashboardStats",
+        "parameters": [
+          {
+            "name": "merchantId",
+            "in": "path",
+            "required": true,
+            "description": "Merchant ID (UUID format)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "สถิติ Dashboard สำเร็จ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardStatsResponse"
+                },
+                "example": {
+                  "vouchers": {
+                    "total": 150,
+                    "active": 120,
+                    "inactive": 20,
+                    "expired": 10
+                  },
+                  "voucherValue": {
+                    "totalValue": 75000,
+                    "activeValue": 60000,
+                    "redeemedValue": 15000
+                  },
+                  "endUsers": {
+                    "total": 500,
+                    "thisMonth": 45,
+                    "lastMonth": 38
+                  },
+                  "transactions": {
+                    "merchantPointTransfers": [
+                      {
+                        "pointId": "point-uuid-1",
+                        "pointName": "Starbucks Points",
+                        "symbol": "SBP",
+                        "totalTransactions": 150,
+                        "totalAmount": 25000
+                      },
+                      {
+                        "pointId": "point-uuid-2",
+                        "pointName": "Coffee Rewards",
+                        "symbol": "CFR",
+                        "totalTransactions": 80,
+                        "totalAmount": 12000
+                      }
+                    ],
+                    "aisPointRedeems": {
+                      "totalTransactions": 200,
+                      "totalAmount": 50000
+                    }
+                  },
+                  "points": [
+                    {
+                      "id": "point-uuid-1",
+                      "name": "Starbucks Points",
+                      "symbol": "SBP",
+                      "balance": 100000,
+                      "status": "ACTIVE"
+                    },
+                    {
+                      "id": "point-uuid-2",
+                      "name": "Coffee Rewards",
+                      "symbol": "CFR",
+                      "balance": 50000,
+                      "status": "ACTIVE"
+                    }
+                  ],
+                  "thbToken": {
+                    "balance": 250000,
+                    "totalMinted": 300000,
+                    "totalSpent": 50000
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ไม่พบ Merchant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "statusCode": 404,
+                  "message": "Merchant not found",
+                  "error": "Not Found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DashboardStatsResponse": {
+        "type": "object",
+        "properties": {
+          "vouchers": {
+            "$ref": "#/components/schemas/VoucherStats"
+          },
+          "voucherValue": {
+            "$ref": "#/components/schemas/VoucherValueStats"
+          },
+          "endUsers": {
+            "$ref": "#/components/schemas/EndUserStats"
+          },
+          "transactions": {
+            "$ref": "#/components/schemas/TransactionStats"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PointData"
+            }
+          },
+          "thbToken": {
+            "$ref": "#/components/schemas/ThbTokenStats"
+          }
+        }
+      },
+      "VoucherStats": {
+        "type": "object",
+        "description": "สถิติจำนวน Voucher",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "จำนวน Voucher ทั้งหมด"
+          },
+          "active": {
+            "type": "integer",
+            "description": "จำนวน Voucher ที่ active อยู่"
+          },
+          "inactive": {
+            "type": "integer",
+            "description": "จำนวน Voucher ที่ inactive"
+          },
+          "expired": {
+            "type": "integer",
+            "description": "จำนวน Voucher ที่หมดอายุ"
+          }
+        }
+      },
+      "VoucherValueStats": {
+        "type": "object",
+        "description": "สถิติมูลค่า Voucher",
+        "properties": {
+          "totalValue": {
+            "type": "number",
+            "description": "มูลค่า Voucher ทั้งหมด"
+          },
+          "activeValue": {
+            "type": "number",
+            "description": "มูลค่า Voucher ที่ active"
+          },
+          "redeemedValue": {
+            "type": "number",
+            "description": "มูลค่า Voucher ที่ถูก redeem แล้ว"
+          }
+        }
+      },
+      "EndUserStats": {
+        "type": "object",
+        "description": "สถิติ End Users (ลูกค้าที่ซื้อ Voucher ด้วย Points)",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "จำนวน End Users ทั้งหมด"
+          },
+          "thisMonth": {
+            "type": "integer",
+            "description": "จำนวน End Users ใหม่เดือนนี้"
+          },
+          "lastMonth": {
+            "type": "integer",
+            "description": "จำนวน End Users ใหม่เดือนที่แล้ว"
+          }
+        }
+      },
+      "TransactionStats": {
+        "type": "object",
+        "description": "สถิติ Transactions แยกตามประเภท",
+        "properties": {
+          "merchantPointTransfers": {
+            "type": "array",
+            "description": "รายการ Point Transfer จาก Merchant ไปยัง End User แยกตาม Point",
+            "items": {
+              "$ref": "#/components/schemas/MerchantPointTransfer"
+            }
+          },
+          "aisPointRedeems": {
+            "$ref": "#/components/schemas/AisPointRedeems"
+          }
+        }
+      },
+      "MerchantPointTransfer": {
+        "type": "object",
+        "description": "สถิติ Point Transfer แยกตาม Point ID",
+        "properties": {
+          "pointId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Point ID"
+          },
+          "pointName": {
+            "type": "string",
+            "description": "ชื่อ Point"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "สัญลักษณ์ Point"
+          },
+          "totalTransactions": {
+            "type": "integer",
+            "description": "จำนวน Transactions ทั้งหมด"
+          },
+          "totalAmount": {
+            "type": "number",
+            "description": "จำนวน Point ทั้งหมดที่โอน"
+          }
+        }
+      },
+      "AisPointRedeems": {
+        "type": "object",
+        "description": "สถิติ AIS Point Redeems (End User ใช้ AIS Points ซื้อ Voucher)",
+        "properties": {
+          "totalTransactions": {
+            "type": "integer",
+            "description": "จำนวน Transactions ทั้งหมด"
+          },
+          "totalAmount": {
+            "type": "number",
+            "description": "จำนวน AIS Points ทั้งหมดที่ถูก redeem"
+          }
+        }
+      },
+      "PointData": {
+        "type": "object",
+        "description": "ข้อมูล Point ของ Merchant",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Point ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "ชื่อ Point"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "สัญลักษณ์ Point"
+          },
+          "balance": {
+            "type": "number",
+            "description": "ยอดคงเหลือ"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "INACTIVE"],
+            "description": "สถานะ Point"
+          }
+        }
+      },
+      "ThbTokenStats": {
+        "type": "object",
+        "description": "สถิติ THB Token (ใช้ซื้อ Voucher จาก Seller)",
+        "properties": {
+          "balance": {
+            "type": "number",
+            "description": "ยอดคงเหลือ THB Token"
+          },
+          "totalMinted": {
+            "type": "number",
+            "description": "จำนวน THB Token ที่ถูก mint ทั้งหมด"
+          },
+          "totalSpent": {
+            "type": "number",
+            "description": "จำนวน THB Token ที่ใช้ไปทั้งหมด (ซื้อ Voucher จาก Seller)"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Merchant",
+      "description": "Merchant Management APIs"
+    }
+  ]
+}

@@ -1,0 +1,405 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Dashboard API",
+    "version": "1.0.0",
+    "description": "Dashboard APIs for Seller and MerchantRef"
+  },
+  "servers": [
+    {
+      "url": "https://your-api-domain.com",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/dashboard/seller/{walletAddress}": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Seller Dashboard",
+        "description": "Returns listing statistics, sales data, and marketer breakdown for a seller",
+        "operationId": "getSellerDashboard",
+        "parameters": [
+          {
+            "name": "walletAddress",
+            "in": "path",
+            "required": true,
+            "description": "The seller's wallet address",
+            "schema": {
+              "type": "string",
+              "example": "0x1234567890abcdef1234567890abcdef12345678"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Start date for filtering (ISO date format)",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-01-01"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "End date for filtering (ISO date format)",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-01-12"
+            }
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "required": false,
+            "description": "Time series granularity",
+            "schema": {
+              "type": "string",
+              "enum": ["daily", "weekly", "monthly"],
+              "default": "daily"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerDashboardResponse"
+                },
+                "example": {
+                  "dateRange": {
+                    "startDate": "2026-01-01",
+                    "endDate": "2026-01-12",
+                    "granularity": "daily"
+                  },
+                  "walletAddress": "0x1234567890abcdef1234567890abcdef12345678",
+                  "overview": {
+                    "coupons": {
+                      "listed": 100,
+                      "soldToMarketer": 45,
+                      "available": 55
+                    },
+                    "value": {
+                      "listed": 50000,
+                      "soldToMarketer": 22500,
+                      "available": 27500,
+                      "currency": "THB"
+                    }
+                  },
+                  "byMarketer": [
+                    {
+                      "merchantId": "merchant_123",
+                      "merchantName": "Coffee Shop A",
+                      "couponsBought": 20,
+                      "valueBought": 10000
+                    }
+                  ],
+                  "timeSeries": [
+                    {
+                      "period": "2026-01-01",
+                      "label": "Jan 1",
+                      "listed": 10,
+                      "sold": 5
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/merchantref/{merchantRef}": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "MerchantRef Dashboard",
+        "description": "Returns voucher statistics, end user data, and redemption breakdown by merchantRef",
+        "operationId": "getMerchantRefDashboard",
+        "parameters": [
+          {
+            "name": "merchantRef",
+            "in": "path",
+            "required": true,
+            "description": "The merchant reference identifier",
+            "schema": {
+              "type": "string",
+              "example": "STORE_001"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Start date for filtering (ISO date format)",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-01-01"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "End date for filtering (ISO date format)",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-01-12"
+            }
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "required": false,
+            "description": "Time series granularity",
+            "schema": {
+              "type": "string",
+              "enum": ["daily", "weekly", "monthly"],
+              "default": "daily"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantRefDashboardResponse"
+                },
+                "example": {
+                  "dateRange": {
+                    "startDate": "2026-01-01",
+                    "endDate": "2026-01-12",
+                    "granularity": "monthly"
+                  },
+                  "merchantRef": "STORE_001",
+                  "overview": {
+                    "coupons": {
+                      "purchasedNotUsed": 30,
+                      "redeemed": 70
+                    }
+                  },
+                  "endUsers": {
+                    "total": 150,
+                    "purchased": 100,
+                    "couponsSold": 200,
+                    "couponsNotUsed": 30,
+                    "couponsRedeemed": 70
+                  },
+                  "timeSeries": [
+                    {
+                      "period": "2026-01",
+                      "label": "January",
+                      "couponsSold": 200,
+                      "couponsRedeemed": 70,
+                      "newUsers": 50
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DateRangeInfo": {
+        "type": "object",
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "granularity": {
+            "type": "string",
+            "enum": ["daily", "weekly", "monthly"]
+          }
+        }
+      },
+      "SellerDashboardResponse": {
+        "type": "object",
+        "properties": {
+          "dateRange": {
+            "$ref": "#/components/schemas/DateRangeInfo"
+          },
+          "walletAddress": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "object",
+            "properties": {
+              "coupons": {
+                "type": "object",
+                "properties": {
+                  "listed": {
+                    "type": "integer",
+                    "description": "คูปองที่ลงขายทั้งหมด"
+                  },
+                  "soldToMarketer": {
+                    "type": "integer",
+                    "description": "Marketer ซื้อไปแล้ว"
+                  },
+                  "available": {
+                    "type": "integer",
+                    "description": "ยังไม่ขาย"
+                  }
+                }
+              },
+              "value": {
+                "type": "object",
+                "properties": {
+                  "listed": {
+                    "type": "number",
+                    "description": "มูลค่าที่ลงขาย (THB)"
+                  },
+                  "soldToMarketer": {
+                    "type": "number",
+                    "description": "มูลค่าที่ขายได้"
+                  },
+                  "available": {
+                    "type": "number",
+                    "description": "มูลค่าคงเหลือ"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": ["THB"]
+                  }
+                }
+              }
+            }
+          },
+          "byMarketer": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "merchantId": {
+                  "type": "string"
+                },
+                "merchantName": {
+                  "type": "string"
+                },
+                "couponsBought": {
+                  "type": "integer"
+                },
+                "valueBought": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "timeSeries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "listed": {
+                  "type": "integer"
+                },
+                "sold": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "MerchantRefDashboardResponse": {
+        "type": "object",
+        "properties": {
+          "dateRange": {
+            "$ref": "#/components/schemas/DateRangeInfo"
+          },
+          "merchantRef": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "object",
+            "properties": {
+              "coupons": {
+                "type": "object",
+                "properties": {
+                  "purchasedNotUsed": {
+                    "type": "integer",
+                    "description": "End User ซื้อแต่ยังไม่ใช้"
+                  },
+                  "redeemed": {
+                    "type": "integer",
+                    "description": "End User redeem แล้วจริง ๆ"
+                  }
+                }
+              }
+            }
+          },
+          "endUsers": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "description": "จำนวน customers ที่เรามี"
+              },
+              "purchased": {
+                "type": "integer",
+                "description": "คนที่ซื้อ"
+              },
+              "couponsSold": {
+                "type": "integer",
+                "description": "จำนวนคูปองที่ขายทั้งหมด"
+              },
+              "couponsNotUsed": {
+                "type": "integer",
+                "description": "End User ซื้อแต่ยังไม่ใช้"
+              },
+              "couponsRedeemed": {
+                "type": "integer",
+                "description": "End User redeem แล้วจริง ๆ"
+              }
+            }
+          },
+          "timeSeries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "couponsSold": {
+                  "type": "integer"
+                },
+                "couponsRedeemed": {
+                  "type": "integer"
+                },
+                "newUsers": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -45,7 +45,6 @@ EXPOSE 4000
 # PROD MODE (migrate + custom script + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    npx ts-node scripts/migrate-customer-merchant-created-at.ts && \
     npx prisma db seed && \
     node dist/src/main \
 "]

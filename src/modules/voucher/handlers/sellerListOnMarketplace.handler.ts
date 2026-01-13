@@ -43,6 +43,7 @@ export class SellerListOnMarketplace {
           totalIssued: true,
           status: true,
           merchantId: true,
+          currency: true,
         },
       });
 
@@ -204,6 +205,17 @@ export class SellerListOnMarketplace {
       await this.prisma.voucherCode.createMany({
         data: voucherCodes,
       });
+
+      // Sync Voucher.currency with VoucherCode.currency for consistency
+      if (voucher.currency !== 'THB') {
+        await this.prisma.voucher.update({
+          where: { id: voucher.id },
+          data: { currency: 'THB' },
+        });
+        this.logger.log(
+          `[STEP 7.1] Updated voucher.currency to 'THB' for consistency`,
+        );
+      }
 
       this.logger.log(
         `[STEP 7] Created ${amount} voucher codes linked to batch ${listingBatch.id}`,

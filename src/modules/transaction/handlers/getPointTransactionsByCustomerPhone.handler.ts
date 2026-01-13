@@ -113,7 +113,8 @@ export class GetPointTransactionsByCustomerPhone {
             description: voucherCode.voucher.description || null,
             valueType: voucherCode.voucher.valueType,
             value: voucherCode.voucher.value,
-            currency: voucherCode.voucher.currency || null,
+            currency:
+              voucherCode.voucher.currency || voucherCode.currency || null,
             imageUrl: voucherCode.voucher.imageUrl || null,
             startDate: voucherCode.voucher.startDate || null,
             endDate: voucherCode.voucher.endDate || null,
@@ -153,7 +154,10 @@ export class GetPointTransactionsByCustomerPhone {
             rest.receiverId,
             merchant?.website,
           ),
-          voucher: formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
+          voucher:
+            (rest as any).type === 'POINT'
+              ? null
+              : formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
           eventId: rest.eventId || null,
           transactionRefId: (rest as any).transactionRefId || null,
           typeAsset: (rest as any).type || null,

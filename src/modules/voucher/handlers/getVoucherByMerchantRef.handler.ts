@@ -194,7 +194,10 @@ export class GetVoucherByMerchantRef {
               rest.receiverId,
               merchant?.website || voucher.merchant.website || '',
             ),
-            voucher: formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
+            voucher:
+              (rest as any).type === 'POINT'
+                ? null
+                : formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
             eventId: rest.eventId || null,
             transactionRefId: (rest as any).transactionRefId || null,
             typeAsset: (rest as any).type || null,

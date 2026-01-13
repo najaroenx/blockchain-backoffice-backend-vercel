@@ -193,6 +193,17 @@ export class BatchListOnMarketplaceHandler {
           data: voucherCodes,
         });
 
+        // Sync Voucher.currency with VoucherCode.currency for consistency
+        if (voucher.currency !== 'THB') {
+          await this.prisma.voucher.update({
+            where: { id: voucher.id },
+            data: { currency: 'THB' },
+          });
+          this.logger.log(
+            `[SYNC] Updated voucher ${voucher.id} currency to 'THB' for consistency`,
+          );
+        }
+
         listedItems.push({
           voucherId: voucher.id,
           voucherName: voucher.name,
@@ -241,7 +252,13 @@ export class BatchListOnMarketplaceHandler {
   ): Promise<
     Map<
       string,
-      { id: string; name: string; tokenId: string | null; totalIssued: number }
+      {
+        id: string;
+        name: string;
+        tokenId: string | null;
+        totalIssued: number;
+        currency: string | null;
+      }
     >
   > {
     const voucherIds = items.map((item) => item.voucherId);
@@ -254,6 +271,7 @@ export class BatchListOnMarketplaceHandler {
         tokenId: true,
         totalIssued: true,
         merchantId: true,
+        currency: true,
       },
     });
 
@@ -288,7 +306,13 @@ export class BatchListOnMarketplaceHandler {
 
     return voucherMap as Map<
       string,
-      { id: string; name: string; tokenId: string; totalIssued: number }
+      {
+        id: string;
+        name: string;
+        tokenId: string;
+        totalIssued: number;
+        currency: string | null;
+      }
     >;
   }
 }

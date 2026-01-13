@@ -25,7 +25,9 @@ export class TransactionDBService {
           merchant: true,
           point: true,
           voucherCode: {
-            include: {
+            select: {
+              id: true,
+              currency: true, // VoucherCode currency as fallback
               voucher: {
                 select: {
                   id: true,
@@ -61,7 +63,9 @@ export class TransactionDBService {
           merchant: true,
           point: true,
           voucherCode: {
-            include: {
+            select: {
+              id: true,
+              currency: true, // VoucherCode currency as fallback
               voucher: {
                 select: {
                   id: true,

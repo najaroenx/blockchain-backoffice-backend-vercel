@@ -29,10 +29,16 @@ export class TransactionDBService {
               voucher: {
                 select: {
                   id: true,
+                  tokenId: true,
                   name: true,
+                  description: true,
                   valueType: true,
                   value: true,
+                  currency: true,
                   imageUrl: true,
+                  startDate: true,
+                  endDate: true,
+                  merchantRef: true,
                 },
               },
             },
@@ -59,10 +65,16 @@ export class TransactionDBService {
               voucher: {
                 select: {
                   id: true,
+                  tokenId: true,
                   name: true,
+                  description: true,
                   valueType: true,
                   value: true,
+                  currency: true,
                   imageUrl: true,
+                  startDate: true,
+                  endDate: true,
+                  merchantRef: true,
                 },
               },
             },

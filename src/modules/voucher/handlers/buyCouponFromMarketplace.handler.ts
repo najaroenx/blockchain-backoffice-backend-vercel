@@ -24,10 +24,10 @@ export class BuyCouponFromMarketplace {
     private configService: ConfigService,
   ) {}
 
-  async execute(listingId: string, pointId: string, phone: string) {
+  async execute(voucherGroupId: string, pointId: string, phone: string) {
     try {
       this.logger.log(
-        `[START] Buying coupon from marketplace. ListingId: ${listingId}, PointId: ${pointId}, Buyer phone: ${phone}`,
+        `[START] Buying coupon from marketplace. GroupId: ${voucherGroupId}, PointId: ${pointId}, Buyer phone: ${phone}`,
       );
 
       // Find customer by phone (tel field)
@@ -47,13 +47,13 @@ export class BuyCouponFromMarketplace {
       const customerId = customer.id;
       this.logger.log(`[START] Customer found: ${customerId}`);
 
-      // 1. หา available voucher code จาก voucherGroupId (on-chain listingId) และ validate point
+      // 1. หา available voucher code จาก group และ validate point
       this.logger.log(
-        `[STEP 1] Finding available voucher code in listing: ${listingId} with pointId: ${pointId}`,
+        `[STEP 1] Finding available voucher code in group: ${voucherGroupId} with pointId: ${pointId}`,
       );
       const voucherCode = await this.prisma.voucherCode.findFirst({
         where: {
-          voucherGroupId: listingId, // voucherGroupId stores on-chain listingId
+          voucherGroupId,
           pointId, // ต้อง match กับ point ที่เลือกจ่าย
           isUsed: false,
           currentOwnerId: null,
@@ -106,16 +106,16 @@ export class BuyCouponFromMarketplace {
 
       if (!voucherCode) {
         this.logger.error(
-          `[ERROR] No available voucher in listing: ${listingId} for pointId: ${pointId}`,
+          `[ERROR] No available voucher in group: ${voucherGroupId} for pointId: ${pointId}`,
         );
         throw new NotFoundException(
-          `No available voucher in listing ${listingId} that accepts point ${pointId}`,
+          `No available voucher in group ${voucherGroupId} that accepts point ${pointId}`,
         );
       }
 
       const voucherCodeId = voucherCode.id;
       this.logger.log(
-        `[STEP 1] Found available code: ${voucherCodeId} in listing ${listingId} for point ${pointId}`,
+        `[STEP 1] Found available code: ${voucherCodeId} in group ${voucherGroupId} for point ${pointId}`,
       );
 
       // 2. Backward Compatibility: ตรวจสอบ pointId

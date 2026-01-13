@@ -155,9 +155,19 @@ export class GetTransactionsByCustomerId {
         };
       });
 
+      // Sort: by createdAt desc, then POINT before VOUCHER (if same time)
+      const sortedRes = res.sort((a, b) => {
+        const dateCompare =
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        if (dateCompare !== 0) return dateCompare;
+        if (a.typeAsset === 'POINT' && b.typeAsset === 'VOUCHER') return -1;
+        if (a.typeAsset === 'VOUCHER' && b.typeAsset === 'POINT') return 1;
+        return 0;
+      });
+
       return {
-        transactions: res,
-        counts: res.length,
+        transactions: sortedRes,
+        counts: sortedRes.length,
       };
     } catch (error) {
       this.logger.error(
@@ -281,9 +291,19 @@ export class GetTransactionsByCustomerId {
         };
       });
 
+      // Sort: by createdAt desc, then POINT before VOUCHER (if same time)
+      const sortedRes = res.sort((a, b) => {
+        const dateCompare =
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        if (dateCompare !== 0) return dateCompare;
+        if (a.typeAsset === 'POINT' && b.typeAsset === 'VOUCHER') return -1;
+        if (a.typeAsset === 'VOUCHER' && b.typeAsset === 'POINT') return 1;
+        return 0;
+      });
+
       return {
-        transactions: res,
-        counts: res.length,
+        transactions: sortedRes,
+        counts: sortedRes.length,
       };
     } catch (error) {
       this.logger.error(

@@ -195,6 +195,7 @@ export class SellerListOnMarketplace {
           voucherGroupId: listResult.listingId, // Blockchain listing ID
           listingBatchId: listingBatch.id, // Link to ListingBatch
           pointsCost: Math.round(pricePerUnitTHB), // Store THB price as integer
+          thbPrice: pricePerUnitTHB, // ราคา THB ที่ Seller ลิส
           pointId: null, // No Point currency - using THB
           currency: 'THB', // Denormalized currency symbol
           isUsed: false,

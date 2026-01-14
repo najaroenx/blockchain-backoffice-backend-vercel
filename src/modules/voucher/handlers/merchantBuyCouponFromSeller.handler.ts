@@ -268,17 +268,21 @@ export class MerchantBuyCouponFromSeller {
       });
 
       if (voucher) {
+        // Calculate THB price per unit
+        const thbPricePerUnit = parseFloat(listing.pricePerUnit);
+
         await this.prisma.voucher.update({
           where: { id: voucher.id },
           data: {
             status: 'upcoming',
             merchantId: merchantId,
             merchantName: merchant.name,
+            thbPurchasePrice: thbPricePerUnit, // บันทึกราคา THB ต่อ unit ที่ซื้อมา
           },
         });
 
         this.logger.log(
-          `[STEP 7] Voucher ${voucher.id} updated to 'upcoming' and assigned to merchant ${merchant.name} (merchantName updated)`,
+          `[STEP 7] Voucher ${voucher.id} updated to 'upcoming' and assigned to merchant ${merchant.name} (thbPurchasePrice: ${thbPricePerUnit} THB)`,
         );
 
         // 8. ลบ codes ตามจำนวน amount ที่ซื้อ (ไม่ใช่ทั้งหมด)

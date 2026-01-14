@@ -211,7 +211,7 @@ export class GetMarketerDashboardHandler {
         pointsCost: true,
         currentOwnerId: true,
         isUsed: true,
-        voucher: { select: { value: true } },
+        voucher: { select: { value: true, thbPurchasePrice: true } },
       },
     });
 
@@ -224,21 +224,19 @@ export class GetMarketerDashboardHandler {
     const redeemedCodes = allCodes.filter((c) => c.isUsed);
     const redeemed = redeemedCodes.length;
 
-    // Calculate values using voucher.value (THB)
-    const totalValue = allCodes.reduce(
-      (sum, c) => sum + (c.voucher?.value || 0),
-      0,
-    );
-    const soldValue = soldCodes.reduce(
-      (sum, c) => sum + (c.voucher?.value || 0),
-      0,
-    );
+    // Calculate values using voucher.thbPurchasePrice (THB ที่ Marketer ซื้อจาก Seller)
+    // fallback ไป voucher.value ถ้าไม่มี thbPurchasePrice (กรณี Marketer สร้างเอง)
+    const getThbPrice = (c: (typeof allCodes)[0]) =>
+      c.voucher?.thbPurchasePrice ?? c.voucher?.value ?? 0;
+
+    const totalValue = allCodes.reduce((sum, c) => sum + getThbPrice(c), 0);
+    const soldValue = soldCodes.reduce((sum, c) => sum + getThbPrice(c), 0);
     const pendingValue = pendingCodes.reduce(
-      (sum, c) => sum + (c.voucher?.value || 0),
+      (sum, c) => sum + getThbPrice(c),
       0,
     );
     const redeemedValue = redeemedCodes.reduce(
-      (sum, c) => sum + (c.voucher?.value || 0),
+      (sum, c) => sum + getThbPrice(c),
       0,
     );
 

@@ -182,6 +182,7 @@ export class BatchListOnMarketplaceHandler {
             voucherGroupId: listResult.listingId, // Blockchain listing ID
             listingBatchId: listingBatch.id, // Link to batch
             pointsCost: Math.round(item.pricePerUnitTHB),
+            thbPrice: item.pricePerUnitTHB, // ราคา THB ที่ Seller ลิส
             pointId: null,
             currency: 'THB',
             isUsed: false,

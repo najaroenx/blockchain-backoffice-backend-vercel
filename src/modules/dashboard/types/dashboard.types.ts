@@ -18,62 +18,77 @@ export interface TimeSeriesData {
 export interface MarketerDashboardResponse {
   dateRange: DateRangeInfo;
 
-  // Section 1: Voucher Overview (Donut Chart)
-  vouchers: {
-    total: number; // รวม
-    sold: number; // ขายที่สนใจ
-    pending: number; // รอใช้งาน
-    redeemed: number; // Redeem แล้ว
+  // ============================================
+  // Section 1: ข้อมูลภาพรวมร้านของตนเอง
+  // ============================================
+
+  // 1.1 จำนวนคูปอง
+  couponCount: {
+    owned: number; // จำนวนคูปองที่เรามี
+    purchased: number; // จำนวนคูปองที่ซื้อมา (= owned)
+    sold: number; // จำนวนคูปองที่ขายทั้งหมด (เอาไปให้ End User ใช้)
+    pending: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
+    redeemed: number; // จำนวนคูปองที่ End User redeem แล้วจริง ๆ
   };
 
-  // Section 2: Voucher Value (Horizontal Bar Chart)
-  voucherValue: {
-    total: number; // มูลค่าคูปองที่มีทั้งหมด (THB)
-    sold: number; // มูลค่าที่ขายได้
-    redeemed: number; // มูลค่าที่ Redeem แล้ว
-    currency: 'THB';
+  // 1.2 มูลค่าคูปอง (THB)
+  couponValueTHB: {
+    owned: number; // มูลค่าคูปองที่เรามี (THB)
+    sold: number; // มูลค่าคูปองที่ขายทั้งหมด (THB)
+    pending: number; // มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้ (THB)
+    redeemed: number; // มูลค่าคูปองที่ End User redeem แล้วจริง ๆ (THB)
   };
 
-  // Section 3 & 4: End User Stats + Growth
+  // 1.3 มูลค่าคูปอง (Point)
+  couponValuePoint: {
+    sold: number; // มูลค่าคูปองที่ขายทั้งหมด (Point)
+    pending: number; // มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้ (Point)
+    redeemed: number; // มูลค่าคูปองที่ End User redeem แล้วจริง ๆ (Point)
+  };
+
+  // ============================================
+  // Section 2: ข้อมูล End User
+  // ============================================
   endUsers: {
-    total: number; // จำนวนที่สร้าง
-    purchased: number; // คนซื้อ
-    couponsPurchased: number; // คูปองซื้อ
-    pending: number; // จ่ายใบ
-    redeemed: number; // Redeem แล้ว
-    growth: (TimeSeriesData & {
-      newUsers: number;
-      activeUsers: number;
-    })[];
+    total: number; // จำนวน End User ทั้งหมด (ตั้งขายให้ End User ทั้งหมด)
+    purchased: number; // จำนวน End User ที่ซื้อ (ตั้งขายให้ End User และ End User มาซื้อ)
+    couponsSold: number; // จำนวนคูปองที่ขายทั้งหมด (เอาไปให้ End User ใช้)
+    pending: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
+    redeemed: number; // จำนวน End User ที่ redeem แล้วจริง ๆ
   };
 
-  // Section 5: Transaction (Pie Chart)
+  // ============================================
+  // Section 3: Transaction
+  // ============================================
   transactions: {
     total: number;
-    buyPoint: { count: number; percentage: number };
-    redeemPoint: { count: number; percentage: number };
+    transferPoint: { count: number; percentage: number }; // โอน Point
+    redeemPoint: { count: number; percentage: number }; // Redeem Point
   };
 
-  // Section 6: Point (Donut Chart)
+  // ============================================
+  // Section 4: Point
+  // ============================================
   points: {
-    totalCirculation: number;
     byType: {
-      type: string; // "Loyalty Point", "Bonus Point", "Referral Point"
-      value: number;
+      // ประเภท Point ที่มี (Point อะไรบ้าง)
+      type: string;
+      initialSupply: number; // จำนวน Point เริ่มต้น
+      remaining: number; // จำนวน Point คงเหลือ
     }[];
   };
 
-  // Section 7: THB Token (Bar Chart)
+  // ============================================
+  // Section 5: THB Token
+  // ============================================
   thbToken: {
     summary: {
-      deposited: number;
-      spent: number;
-      usedForRedeem: number;
+      deposited: number; // THB Token ที่เติมเข้าไป
+      spent: number; // THB Token ที่ใช้จองคูปองจาก Promotion Seller
     };
     monthly: (TimeSeriesData & {
       deposited: number;
       spent: number;
-      usedForRedeem: number;
     })[];
   };
 }

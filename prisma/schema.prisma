@@ -222,27 +222,28 @@ enum ParticipantType {
 }
 
 model Voucher {
-  id             String           @id
-  name           String
-  description    String
-  status         VoucherStatus
-  merchantName   String
-  merchantId     String?
-  merchant       Merchant?        @relation(fields: [merchantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  merchantRef    String? // ← Reference ID from merchant system for verification
-  tokenId        String?          @unique // ← ERC-1155 Coupon Type ID from smart contract createCouponType()
-  valueType      VoucherValueType
-  value          Float
-  currency       String?
-  startDate      DateTime
-  endDate        DateTime
-  totalIssued    Int
-  totalRedeemed  Int
-  imageUrl       String?
-  limitPerMember Int?
-  createdAt      DateTime         @default(now()) @map(name: "created_at")
-  updatedAt      DateTime         @updatedAt @map(name: "updated_at")
-  voucherCodes   VoucherCode[] // ← 1 voucher มีหลาย codes
+  id               String           @id
+  name             String
+  description      String
+  status           VoucherStatus
+  merchantName     String
+  merchantId       String?
+  merchant         Merchant?        @relation(fields: [merchantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  merchantRef      String? // ← Reference ID from merchant system for verification
+  tokenId          String?          @unique // ← ERC-1155 Coupon Type ID from smart contract createCouponType()
+  valueType        VoucherValueType
+  value            Float
+  thbPurchasePrice Float? // ← ราคา THB ต่อ unit ที่ Marketer ซื้อจาก Seller
+  currency         String?
+  startDate        DateTime
+  endDate          DateTime
+  totalIssued      Int
+  totalRedeemed    Int
+  imageUrl         String?
+  limitPerMember   Int?
+  createdAt        DateTime         @default(now()) @map(name: "created_at")
+  updatedAt        DateTime         @updatedAt @map(name: "updated_at")
+  voucherCodes     VoucherCode[] // ← 1 voucher มีหลาย codes
 }
 
 // Listing batch status enum
@@ -281,6 +282,7 @@ model VoucherCode {
   voucher        Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
   voucherGroupId String? // ← Marketplace listing ID from listCoupon() - each activation batch has unique listingId
   pointsCost     Int // ← ราคาเป็น points
+  thbPrice       Float? // ← ราคา THB ที่ Seller ลิส (สำหรับคำนวณมูลค่าที่ซื้อมา)
   pointId        String? // ← Point currency ที่ใช้ซื้อ (FK to Point)
   point          Point?        @relation(fields: [pointId], references: [id], onDelete: SetNull)
   currency       String? // ← Point.symbol (e.g., "GOLD", "SILVER") - denormalized for query performance

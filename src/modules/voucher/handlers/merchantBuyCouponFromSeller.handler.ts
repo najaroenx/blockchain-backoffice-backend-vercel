@@ -306,10 +306,13 @@ export class MerchantBuyCouponFromSeller {
         });
 
         // Group by listingBatchId to update batch stats
-        const batchIds = new Set<string>();
+        const batchCounts = new Map<string, number>();
         for (const code of codesToDelete) {
           if (code.listingBatchId) {
-            batchIds.add(code.listingBatchId);
+            batchCounts.set(
+              code.listingBatchId,
+              (batchCounts.get(code.listingBatchId) || 0) + 1,
+            );
           }
         }
 
@@ -322,11 +325,11 @@ export class MerchantBuyCouponFromSeller {
         });
 
         // Update ListingBatch soldItems for each affected batch
-        for (const batchId of batchIds) {
+        for (const [batchId, count] of batchCounts) {
           await this.prisma.listingBatch.update({
             where: { id: batchId },
             data: {
-              soldItems: { increment: deletedCodesResult.count },
+              soldItems: { increment: count },
             },
           });
 

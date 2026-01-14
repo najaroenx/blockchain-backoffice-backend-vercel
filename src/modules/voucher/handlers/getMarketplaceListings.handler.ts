@@ -153,8 +153,14 @@ export class GetMarketplaceListings {
               );
             }
 
-            // Count total available codes for this listing
-            const totalAvailableCodes = await this.prisma.voucherCode.count({
+            // For seller listings (THB payment), use blockchain amount as source of truth
+            // because VoucherCodes are deleted after purchase
+            const isSellerListing =
+              listing.paymentToken.toLowerCase() ===
+              this.thbAddress.toLowerCase();
+
+            // Count available codes from database
+            const dbAvailableCodes = await this.prisma.voucherCode.count({
               where: {
                 voucherGroupId: listingId,
                 currentOwnerId: null, // Not yet purchased
@@ -162,8 +168,14 @@ export class GetMarketplaceListings {
               },
             });
 
+            // For seller listings: use blockchain amount (source of truth after purchase)
+            // For others: use database count
+            const totalAvailableCodes = isSellerListing
+              ? parseInt(listing.amount, 10)
+              : dbAvailableCodes;
+
             this.logger.log(
-              `[GetMarketplaceListings] Listing ${listingId} has ${totalAvailableCodes} available codes in database`,
+              `[GetMarketplaceListings] Listing ${listingId}: db=${dbAvailableCodes}, blockchain=${listing.amount}, totalAvailableCodes=${totalAvailableCodes}`,
             );
 
             return {
@@ -171,7 +183,7 @@ export class GetMarketplaceListings {
               seller: listing.seller,
               typeId: listing.typeId,
               amountOnChain: listing.amount, // Amount left on blockchain
-              totalAvailableCodes, // Amount in database
+              totalAvailableCodes, // Final available amount after purchase
               pricePerUnit: listing.pricePerUnit,
               paymentToken: listing.paymentToken,
               isActive: listing.isActive,

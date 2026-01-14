@@ -200,11 +200,11 @@ export class GetMarketerDashboardHandler {
       };
     }
 
-    // Get all voucher codes for these vouchers within date range
+    // Get all voucher codes for these vouchers (no date filter on createdAt)
+    // Date filter will be applied to transactions, not code creation
     const allCodes = await this.prisma.voucherCode.findMany({
       where: {
         voucherId: { in: voucherIds },
-        createdAt: { gte: startDate, lte: endDate },
       },
       select: {
         id: true,
@@ -215,6 +215,10 @@ export class GetMarketerDashboardHandler {
       },
     });
 
+    this.logger.log(
+      `[getVoucherStats] Found ${allCodes.length} voucher codes for merchant`,
+    );
+
     // Calculate statistics
     const total = allCodes.length;
     const soldCodes = allCodes.filter((c) => c.currentOwnerId !== null);
@@ -224,10 +228,14 @@ export class GetMarketerDashboardHandler {
     const redeemedCodes = allCodes.filter((c) => c.isUsed);
     const redeemed = redeemedCodes.length;
 
+    this.logger.log(
+      `[getVoucherStats] Stats: total=${total}, sold=${sold}, pending=${pending}, redeemed=${redeemed}`,
+    );
+
     // Calculate values using voucher.thbPurchasePrice (THB ที่ Marketer ซื้อจาก Seller)
-    // fallback ไป voucher.value ถ้าไม่มี thbPurchasePrice (กรณี Marketer สร้างเอง)
+    // ถ้าไม่มี thbPurchasePrice ก็เป็น 0 (ไม่ fallback ไป voucher.value)
     const getThbPrice = (c: (typeof allCodes)[0]) =>
-      c.voucher?.thbPurchasePrice ?? c.voucher?.value ?? 0;
+      c.voucher?.thbPurchasePrice ?? 0;
 
     const totalValue = allCodes.reduce((sum, c) => sum + getThbPrice(c), 0);
     const soldValue = soldCodes.reduce((sum, c) => sum + getThbPrice(c), 0);

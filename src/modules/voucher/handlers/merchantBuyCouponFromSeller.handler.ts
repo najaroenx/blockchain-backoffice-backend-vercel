@@ -281,12 +281,12 @@ export class MerchantBuyCouponFromSeller {
           `[STEP 7] Voucher ${voucher.id} updated to 'upcoming' and assigned to merchant ${merchant.name} (merchantName updated)`,
         );
 
-        // 8. ลบ codes ที่ seller สร้างไว้ (placeholder codes จาก marketplace listing)
+        // 8. ลบ codes ตามจำนวน amount ที่ซื้อ (ไม่ใช่ทั้งหมด)
         this.logger.log(
-          `[STEP 8] Removing seller placeholder codes for voucher ${voucher.id}`,
+          `[STEP 8] Removing ${amount} seller placeholder codes for voucher ${voucher.id}`,
         );
 
-        // First, get the codes to find their listingBatchId before deletion
+        // First, get the codes to find their listingBatchId before deletion (limit to amount)
         const codesToDelete = await this.prisma.voucherCode.findMany({
           where: {
             voucherId: voucher.id,
@@ -298,6 +298,7 @@ export class MerchantBuyCouponFromSeller {
             id: true,
             listingBatchId: true,
           },
+          take: amount, // Only take the amount being purchased
         });
 
         // Group by listingBatchId to update batch stats
@@ -308,12 +309,11 @@ export class MerchantBuyCouponFromSeller {
           }
         }
 
+        // Delete only the specific codes (by ID) that were selected
+        const codeIdsToDelete = codesToDelete.map((code) => code.id);
         const deletedCodesResult = await this.prisma.voucherCode.deleteMany({
           where: {
-            voucherId: voucher.id,
-            voucherGroupId: listingId, // Seller codes have listingId as voucherGroupId
-            pointId: null, // Seller codes don't have pointId (using THB)
-            currentOwnerId: null, // Not yet owned by anyone
+            id: { in: codeIdsToDelete },
           },
         });
 

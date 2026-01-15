@@ -253,6 +253,9 @@ export class GetCustomerOwnedVouchers {
         `[SUCCESS] Returning ${paginatedVouchers.length} vouchers (page ${page}, limit ${limit})`,
       );
 
+      // Group vouchers by voucherGroupId and status (like getCustomerPhoneDevForResp)
+      const groupedVouchers = this.groupVouchersByGroupId(paginatedVouchers);
+
       return {
         phone,
         walletAddress,
@@ -269,47 +272,7 @@ export class GetCustomerOwnedVouchers {
           unused: unusedCount,
           used: usedCount,
         },
-        vouchers: paginatedVouchers.map((item) => {
-          const {
-            voucher,
-            code,
-            onChainBalance,
-            pointsCost,
-            currency,
-            purchaseTransaction,
-          } = item;
-
-          return {
-            codeId: code?.id || null,
-            code: code?.code || null,
-            isUsed: code?.isUsed || false,
-            usedAt: code?.usedAt || null,
-            pointsCost: pointsCost,
-            currency: currency,
-            receivedAt:
-              purchaseTransaction?.createdAt || code?.createdAt || null,
-            transactionTypeId: purchaseTransaction?.transactionTypeId || null,
-            onChainBalance: onChainBalance,
-            voucher: {
-              id: voucher.id,
-              tokenId: voucher.tokenId,
-              name: voucher.name,
-              description: voucher.description,
-              valueType: voucher.valueType,
-              value: voucher.value,
-              currency: voucher.currency,
-              imageUrl: voucher.imageUrl,
-              startDate: voucher.startDate,
-              endDate: voucher.endDate,
-              merchantRef: voucher.merchantRef,
-            },
-            merchant: {
-              id: voucher.merchant?.id,
-              name: voucher.merchant?.name || voucher.merchantName,
-              imageUrl: voucher.merchant?.imageUrl,
-            },
-          };
-        }),
+        vouchers: groupedVouchers,
       };
     } catch (error) {
       this.logger.error(
@@ -318,5 +281,69 @@ export class GetCustomerOwnedVouchers {
       );
       throw error;
     }
+  }
+
+  /**
+   * Group vouchers by voucherGroupId and status
+   * Same logic as getCustomerPhoneDevForResp.handler.ts
+   */
+  private groupVouchersByGroupId(vouchersWithBalance: any[]): any[] {
+    const groupedMap = new Map<string, any>();
+    const now = new Date();
+
+    for (const item of vouchersWithBalance) {
+      const { voucher, code, onChainBalance, pointsCost, currency } = item;
+
+      const groupId = code?.voucherGroupId || voucher.id;
+      const isExpired = voucher.endDate && new Date(voucher.endDate) < now;
+
+      // Determine status: expired > used > unused
+      let codeStatus: 'unused' | 'used' | 'expired' = 'unused';
+      if (isExpired) {
+        codeStatus = 'expired';
+      } else if (code?.isUsed) {
+        codeStatus = 'used';
+      }
+
+      const key = `${groupId}|${codeStatus}`;
+
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, {
+          voucherGroupId: groupId,
+          latestVoucher: {
+            id: voucher.id,
+            name: voucher.name,
+            description: voucher.description,
+            imageUrl: voucher.imageUrl || null,
+            value: voucher.value,
+            valueType: voucher.valueType,
+            status: voucher.status,
+            startDate: voucher.startDate,
+            endDate: voucher.endDate,
+            merchantRef: voucher.merchantRef || null,
+            merchantId: voucher.merchantId || voucher.merchant?.id || null,
+            merchantName: voucher.merchantName || voucher.merchant?.name || null,
+            merchantImageUrl: voucher.merchant?.imageUrl || null,
+            latestCode: code?.code || null,
+            codeStatus: codeStatus,
+            pointsCost: pointsCost || 0,
+            currency: currency || null,
+            onChainBalance: onChainBalance,
+          },
+          totalCodes: 0,
+        });
+      }
+
+      const group = groupedMap.get(key);
+
+      // Set latestCode to the first code encountered (since we already ordered by createdAt desc)
+      if (!group.latestVoucher.latestCode && code?.code) {
+        group.latestVoucher.latestCode = code.code;
+      }
+
+      group.totalCodes += 1;
+    }
+
+    return Array.from(groupedMap.values());
   }
 }

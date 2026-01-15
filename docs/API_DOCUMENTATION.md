@@ -2103,7 +2103,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ## 17. Get Customer Owned Vouchers
 
-**Description:** ดึงรายการ Vouchers ที่ลูกค้าเป็นเจ้าของ (lookup จาก phone -> wallet -> on-chain balance)
+**Description:** ดึงรายการ Vouchers ที่ลูกค้าเป็นเจ้าของ (lookup จาก phone -> wallet -> on-chain balance) โดย group ตาม voucherGroupId และ codeStatus
 
 ### Request
 
@@ -2150,32 +2150,28 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 | summary.total | Number | จำนวน vouchers ทั้งหมด |
 | summary.unused | Number | จำนวนที่ยังไม่ได้ใช้ |
 | summary.used | Number | จำนวนที่ใช้แล้ว |
-| vouchers | Array | รายการ vouchers |
-| vouchers[].codeId | String \| null | รหัส Voucher Code |
-| vouchers[].code | String \| null | Code |
-| vouchers[].isUsed | Boolean | ใช้แล้วหรือยัง |
-| vouchers[].usedAt | String \| null | วันที่ใช้ |
-| vouchers[].pointsCost | Number | ราคา (points) |
-| vouchers[].currency | String | สกุลเงินของ point |
-| vouchers[].receivedAt | String \| null | วันที่ได้รับ voucher |
-| vouchers[].transactionTypeId | String \| null | ประเภท transaction (เช่น TRANSFER) |
-| vouchers[].onChainBalance | String | ยอดบน blockchain |
-| vouchers[].voucher | Object | ข้อมูล voucher |
-| vouchers[].voucher.id | String | รหัส Voucher |
-| vouchers[].voucher.tokenId | String \| null | Token ID |
-| vouchers[].voucher.name | String | ชื่อ Voucher |
-| vouchers[].voucher.description | String \| null | คำอธิบาย |
-| vouchers[].voucher.valueType | String | ประเภทมูลค่า |
-| vouchers[].voucher.value | Number | มูลค่า |
-| vouchers[].voucher.currency | String \| null | สกุลเงิน |
-| vouchers[].voucher.imageUrl | String \| null | URL รูปภาพ |
-| vouchers[].voucher.startDate | String \| null | วันเริ่มต้น |
-| vouchers[].voucher.endDate | String \| null | วันหมดอายุ |
-| vouchers[].voucher.merchantRef | String \| null | Reference ID |
-| vouchers[].merchant | Object | ข้อมูล Merchant |
-| vouchers[].merchant.id | String | รหัส Merchant |
-| vouchers[].merchant.name | String | ชื่อ Merchant |
-| vouchers[].merchant.imageUrl | String \| null | URL รูป Merchant |
+| vouchers | Array | รายการ vouchers (grouped by voucherGroupId และ codeStatus) |
+| vouchers[].voucherGroupId | String | รหัสกลุ่ม voucher (ใช้จัดกลุ่ม voucher ที่เหมือนกัน) |
+| vouchers[].totalCodes | Number | จำนวน code ทั้งหมดในกลุ่มนี้ที่มีสถานะเดียวกัน |
+| vouchers[].latestVoucher | Object | ข้อมูล voucher ล่าสุดในกลุ่ม |
+| vouchers[].latestVoucher.id | String | รหัส Voucher |
+| vouchers[].latestVoucher.name | String | ชื่อ Voucher |
+| vouchers[].latestVoucher.description | String \| null | คำอธิบาย |
+| vouchers[].latestVoucher.imageUrl | String \| null | URL รูปภาพ |
+| vouchers[].latestVoucher.value | Number | มูลค่า |
+| vouchers[].latestVoucher.valueType | String | ประเภทมูลค่า (percentage, cash, gift, multiplier, aispoint) |
+| vouchers[].latestVoucher.status | String | สถานะ voucher (active, upcoming) |
+| vouchers[].latestVoucher.startDate | String \| null | วันเริ่มต้น |
+| vouchers[].latestVoucher.endDate | String \| null | วันหมดอายุ |
+| vouchers[].latestVoucher.merchantRef | String \| null | Reference ID ของร้านค้า |
+| vouchers[].latestVoucher.merchantId | String \| null | รหัส Merchant |
+| vouchers[].latestVoucher.merchantName | String \| null | ชื่อ Merchant |
+| vouchers[].latestVoucher.merchantImageUrl | String \| null | URL รูป Merchant |
+| vouchers[].latestVoucher.latestCode | String \| null | รหัส voucher code ล่าสุดในกลุ่มนี้ |
+| vouchers[].latestVoucher.codeStatus | String | สถานะของ code ในกลุ่ม: `unused`, `used`, `expired` |
+| vouchers[].latestVoucher.pointsCost | Number | จำนวนคะแนนที่ใช้ซื้อ |
+| vouchers[].latestVoucher.currency | String \| null | สกุลเงินหรือคะแนนที่ใช้ซื้อ |
+| vouchers[].latestVoucher.onChainBalance | String | ยอดบน blockchain |
 
 #### Success Response (200)
 
@@ -2198,33 +2194,51 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
   },
   "vouchers": [
     {
-      "codeId": "cmxyz789",
-      "code": "DISC10-001",
-      "isUsed": false,
-      "usedAt": null,
-      "pointsCost": 100,
-      "currency": "LAT",
-      "receivedAt": "2025-01-15T10:30:00.000Z",
-      "transactionTypeId": "TRANSFER",
-      "transactionRefId": "550e8400-e29b-41d4-a716-446655440000",
-      "onChainBalance": "1",
-      "voucher": {
+      "voucherGroupId": "cm123abc456",
+      "totalCodes": 2,
+      "latestVoucher": {
         "id": "cm123abc456",
-        "tokenId": "1",
         "name": "Discount 10%",
         "description": "Get 10% off on your next purchase",
-        "valueType": "percentage",
-        "value": 10,
-        "currency": "THB",
         "imageUrl": "https://example.com/voucher.png",
+        "value": 10,
+        "valueType": "percentage",
+        "status": "active",
         "startDate": "2025-01-01T00:00:00.000Z",
         "endDate": "2026-01-01T00:00:00.000Z",
-        "merchantRef": "VOUCHER-001"
-      },
-      "merchant": {
-        "id": "cmih1s6qu00050i01m3cactjj",
-        "name": "Example Merchant",
-        "imageUrl": "https://example.com/merchant.png"
+        "merchantRef": "VOUCHER-001",
+        "merchantId": "cmih1s6qu00050i01m3cactjj",
+        "merchantName": "Example Merchant",
+        "merchantImageUrl": "https://example.com/merchant.png",
+        "latestCode": "DISC10-001",
+        "codeStatus": "unused",
+        "pointsCost": 100,
+        "currency": "LAT",
+        "onChainBalance": "2"
+      }
+    },
+    {
+      "voucherGroupId": "cm456def789",
+      "totalCodes": 1,
+      "latestVoucher": {
+        "id": "cm456def789",
+        "name": "Free Coffee",
+        "description": "Redeem for a free coffee",
+        "imageUrl": "https://example.com/coffee.png",
+        "value": 1,
+        "valueType": "gift",
+        "status": "active",
+        "startDate": "2025-01-01T00:00:00.000Z",
+        "endDate": "2026-01-01T00:00:00.000Z",
+        "merchantRef": "VOUCHER-002",
+        "merchantId": "cmih1s6qu00050i01m3cactjj",
+        "merchantName": "Example Merchant",
+        "merchantImageUrl": "https://example.com/merchant.png",
+        "latestCode": "COFFEE-001",
+        "codeStatus": "used",
+        "pointsCost": 50,
+        "currency": "LAT",
+        "onChainBalance": "0"
       }
     }
   ]
@@ -2257,9 +2271,12 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 ### Notes
 
 - Endpoint นี้จะ query on-chain balance จาก blockchain ด้วย
+- Vouchers จะถูก group ตาม `voucherGroupId` และ `codeStatus` (unused/used/expired)
+- `totalCodes` แสดงจำนวน voucher codes ทั้งหมดในกลุ่มที่มีสถานะเดียวกัน
 - `onChainBalance` แสดงจำนวน NFT ที่เหลือบน blockchain
-- รวม voucher ที่ซื้อแล้วและที่ redeem แล้ว (isUsed = true)
+- รวม voucher ที่ซื้อแล้วและที่ redeem แล้ว (codeStatus = "used")
 - Pagination ทำงานหลังจาก filter status
+- Format เดียวกับ API ข้อ 1 (Get Customer Wallet by Phone) ในส่วน ownedVouchers
 
 ---
 

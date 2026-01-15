@@ -1,3 +1,5 @@
+import { GroupedVoucher } from 'src/modules/customer/types';
+
 export type CustomerOwnedVoucherMerchant = {
   id: string | undefined;
   name: string | undefined;
@@ -52,5 +54,5 @@ export type GetCustomerOwnedVouchersResponseType = {
   status: 'unused' | 'used' | 'all';
   pagination: CustomerOwnedVouchersPagination;
   summary: CustomerOwnedVouchersSummary;
-  vouchers: CustomerOwnedVoucherItem[];
+  vouchers: GroupedVoucher[];
 };

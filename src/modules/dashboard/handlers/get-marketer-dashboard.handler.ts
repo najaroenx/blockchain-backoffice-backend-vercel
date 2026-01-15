@@ -157,6 +157,9 @@ export class GetMarketerDashboardHandler {
 
   /**
    * Get voucher statistics for the merchant
+   * - couponCount: นับจาก Transaction ตาม date range
+   * - couponValueTHB: รวม amount จาก Transaction (THB purchase price per unit)
+   * - couponValuePoint: รวม amount จาก Transaction (Points)
    */
   private async getVoucherStats(
     merchantId: string,
@@ -169,10 +172,10 @@ export class GetMarketerDashboardHandler {
     const startDate = new Date(dateRange.startDate);
     const endDate = new Date(dateRange.endDate);
 
-    // Get all vouchers for this merchant
+    // Get all vouchers for this merchant (for owned count - all time)
     const vouchers = await this.prisma.voucher.findMany({
       where: { merchantId },
-      select: { id: true, value: true },
+      select: { id: true, value: true, thbPurchasePrice: true },
     });
 
     const voucherIds = vouchers.map((v) => v.id);
@@ -200,8 +203,7 @@ export class GetMarketerDashboardHandler {
       };
     }
 
-    // Get all voucher codes for these vouchers (no date filter on createdAt)
-    // Date filter will be applied to transactions, not code creation
+    // Get all voucher codes for these vouchers (for owned count - all time)
     const allCodes = await this.prisma.voucherCode.findMany({
       where: {
         voucherId: { in: voucherIds },
@@ -215,71 +217,144 @@ export class GetMarketerDashboardHandler {
       },
     });
 
-    this.logger.log(
-      `[getVoucherStats] Found ${allCodes.length} voucher codes for merchant`,
-    );
-
-    // Calculate statistics
+    const allCodeIds = allCodes.map((c) => c.id);
     const total = allCodes.length;
-    const soldCodes = allCodes.filter((c) => c.currentOwnerId !== null);
-    const sold = soldCodes.length;
-    const pendingCodes = soldCodes.filter((c) => !c.isUsed);
-    const pending = pendingCodes.length;
-    const redeemedCodes = allCodes.filter((c) => c.isUsed);
-    const redeemed = redeemedCodes.length;
 
-    this.logger.log(
-      `[getVoucherStats] Stats: total=${total}, sold=${sold}, pending=${pending}, redeemed=${redeemed}`,
-    );
-
-    // Calculate values using voucher.thbPurchasePrice (THB ที่ Marketer ซื้อจาก Seller)
-    // ถ้าไม่มี thbPurchasePrice ก็เป็น 0 (ไม่ fallback ไป voucher.value)
+    // Calculate owned value using voucher.thbPurchasePrice (all time, ไม่ filter date)
     const getThbPrice = (c: (typeof allCodes)[0]) =>
       c.voucher?.thbPurchasePrice ?? 0;
+    const ownedValue = allCodes.reduce((sum, c) => sum + getThbPrice(c), 0);
 
-    const totalValue = allCodes.reduce((sum, c) => sum + getThbPrice(c), 0);
-    const soldValue = soldCodes.reduce((sum, c) => sum + getThbPrice(c), 0);
-    const pendingValue = pendingCodes.reduce(
-      (sum, c) => sum + getThbPrice(c),
-      0,
-    );
-    const redeemedValue = redeemedCodes.reduce(
-      (sum, c) => sum + getThbPrice(c),
-      0,
+    this.logger.log(
+      `[getVoucherStats] Found ${total} voucher codes for merchant, ownedValue=${ownedValue}`,
     );
 
-    // Calculate values using pointsCost (Point)
-    const soldPointValue = soldCodes.reduce(
-      (sum, c) => sum + (c.pointsCost || 0),
-      0,
+    // === Query Transaction data with date range filter ===
+    // Run all aggregate queries in parallel for performance
+
+    const [
+      // Merchant purchased from seller (THB_BUY transactions)
+      purchasedStats,
+      // Sold to customer (TRANSFER + VOUCHER, receiverType = CUSTOMER)
+      soldStats,
+      // Redeemed (REDEEM transactions)
+      redeemedStats,
+      // Point values for sold vouchers
+      soldPointStats,
+      // Point values for redeemed vouchers
+      redeemedPointStats,
+    ] = await Promise.all([
+      // 1. Merchant purchased from seller - THB_BUY transactions
+      this.prisma.transaction.aggregate({
+        where: {
+          merchantId,
+          transactionTypeId: TransactionTypeId.THB_BUY,
+          type: 'THB_TOKEN' as any,
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        _count: { id: true },
+        _sum: { amount: true },
+      }),
+
+      // 2. Sold to customer - TRANSFER + VOUCHER transactions
+      this.prisma.transaction.aggregate({
+        where: {
+          merchantId,
+          transactionTypeId: TransactionTypeId.TRANSFER,
+          type: 'VOUCHER' as any,
+          receiverType: 'CUSTOMER',
+          voucherCodeId: { in: allCodeIds.length > 0 ? allCodeIds : undefined },
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        _count: { id: true },
+        _sum: { amount: true },
+      }),
+
+      // 3. Redeemed - REDEEM transactions
+      this.prisma.transaction.aggregate({
+        where: {
+          merchantId,
+          transactionTypeId: TransactionTypeId.REDEEM,
+          voucherCodeId: { in: allCodeIds.length > 0 ? allCodeIds : undefined },
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        _count: { id: true },
+        _sum: { amount: true },
+      }),
+
+      // 4. Point values for sold vouchers - TRANSFER + POINT transactions
+      this.prisma.transaction.aggregate({
+        where: {
+          merchantId,
+          transactionTypeId: TransactionTypeId.TRANSFER,
+          type: 'POINT' as any,
+          receiverType: 'MERCHANT',
+          senderType: 'CUSTOMER',
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        _sum: { amount: true },
+      }),
+
+      // 5. Point values for redeemed vouchers - join with REDEEM via transactionRefId
+      // Note: REDEEM transactions store the thbPurchasePrice, not point value
+      // We need to get the corresponding TRANSFER POINT transaction
+      this.prisma.transaction.aggregate({
+        where: {
+          merchantId,
+          transactionTypeId: TransactionTypeId.REDEEM,
+          voucherCodeId: { in: allCodeIds.length > 0 ? allCodeIds : undefined },
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    // Extract counts from transaction data
+    const purchased = purchasedStats._count.id || 0;
+    const sold = soldStats._count.id || 0;
+    const redeemed = redeemedStats._count.id || 0;
+    const pending = sold - redeemed > 0 ? sold - redeemed : 0;
+
+    // Extract THB values from transaction data
+    const purchasedValue = purchasedStats._sum.amount || 0;
+    const soldValue = soldStats._sum.amount || 0;
+    const redeemedValue = redeemedStats._sum.amount || 0;
+    const pendingValue =
+      soldValue - redeemedValue > 0 ? soldValue - redeemedValue : 0;
+
+    // Extract Point values from transaction data
+    const soldPointValue = soldPointStats._sum.amount || 0;
+    const redeemedPointValue = redeemedPointStats._sum.amount || 0;
+    const pendingPointValue =
+      soldPointValue - redeemedPointValue > 0
+        ? soldPointValue - redeemedPointValue
+        : 0;
+
+    this.logger.log(
+      `[getVoucherStats] Transaction stats: purchased=${purchased}, sold=${sold}, pending=${pending}, redeemed=${redeemed}`,
     );
-    const pendingPointValue = pendingCodes.reduce(
-      (sum, c) => sum + (c.pointsCost || 0),
-      0,
-    );
-    const redeemedPointValue = redeemedCodes.reduce(
-      (sum, c) => sum + (c.pointsCost || 0),
-      0,
+    this.logger.log(
+      `[getVoucherStats] THB values: purchasedValue=${purchasedValue}, soldValue=${soldValue}, pendingValue=${pendingValue}, redeemedValue=${redeemedValue}`,
     );
 
     return {
       couponCount: {
-        owned: total,
-        purchased: total,
-        sold,
-        pending,
-        redeemed,
+        owned: total, // All time
+        purchased, // From THB_BUY in date range
+        sold, // From TRANSFER+VOUCHER in date range
+        pending, // sold - redeemed in date range
+        redeemed, // From REDEEM in date range
       },
       couponValueTHB: {
-        owned: totalValue,
-        sold: soldValue,
-        pending: pendingValue,
-        redeemed: redeemedValue,
+        owned: ownedValue, // All time, from voucher.thbPurchasePrice
+        sold: soldValue, // From TRANSFER+VOUCHER amount in date range
+        pending: pendingValue, // sold - redeemed value
+        redeemed: redeemedValue, // From REDEEM amount in date range
       },
       couponValuePoint: {
-        sold: soldPointValue,
-        pending: pendingPointValue,
-        redeemed: redeemedPointValue,
+        sold: soldPointValue, // From TRANSFER+POINT in date range
+        pending: pendingPointValue, // sold - redeemed point value
+        redeemed: redeemedPointValue, // Calculated from REDEEM
       },
     };
   }
@@ -289,7 +364,7 @@ export class GetMarketerDashboardHandler {
    */
   private async getEndUserStats(
     merchantId: string,
-    dateRange: DateRangeInfo,
+    _dateRange: DateRangeInfo,
   ): Promise<MarketerDashboardResponse['endUsers']> {
     // Total end users associated with merchant
     const total = await this.prisma.customerMerChant.count({

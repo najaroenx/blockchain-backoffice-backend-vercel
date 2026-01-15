@@ -7,7 +7,6 @@ import {
   Merchant,
   Point,
   Prisma,
-  Transaction,
   VoucherCode,
   Wallet,
 } from '@prisma/client';
@@ -215,11 +214,6 @@ export class CustomerDBService {
           where: {
             customer: {
               tel: phone,
-            },
-            point: {
-              merchant: {
-                id: merchantId,
-              },
             },
           },
           select: {

@@ -1,4 +1,5 @@
 import { Point } from '@prisma/client';
+import { PointInfo } from 'src/modules/customer/types';
 
 export type GetPointsResponseType = {
   points: Array<Omit<Point, 'contractAddress'> & { contractAddress: string }>;
@@ -37,4 +38,8 @@ export type GetPointByIdResponseType = {
     merchant: PointMerchantInfo | null;
     statistics: PointStatistics;
   };
+};
+
+export type GetPointByPhoneResponseType = {
+  customerPoints: PointInfo[];
 };

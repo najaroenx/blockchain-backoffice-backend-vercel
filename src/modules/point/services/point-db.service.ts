@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Point, Prisma } from '@prisma/client';
+import { PrismaService } from 'prisma/prisma.service';
 import { PointRepository } from '../point.repository';
 
 type GetPointsOptions = {
@@ -11,7 +12,10 @@ type GetPointsOptions = {
 
 @Injectable()
 export class PointDBService {
-  constructor(private readonly repository: PointRepository) {}
+  constructor(
+    private readonly repository: PointRepository,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async getPointsByMerchant(
     merchantId: string,
@@ -233,6 +237,52 @@ export class PointDBService {
       page,
       limit,
       totalPages,
+    };
+  }
+
+  async getPointByPhone(phone: string): Promise<any> {
+    const customer = await this.prisma.customer.findFirst({
+      where: { tel: phone },
+      include: {
+        customerPoints: {
+          include: {
+            point: {
+              include: {
+                merchant: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    imageUrl: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!customer) {
+      return {
+        phone,
+        customerId: null,
+        points: [],
+      };
+    }
+
+    return {
+      phone,
+      customerId: customer.id,
+      points: customer.customerPoints.map((cp) => ({
+        pointId: cp.point?.id,
+        name: cp.point?.name,
+        symbol: cp.point?.symbol,
+        imageUrl: cp.point?.imageUrl,
+        balance: cp.balances,
+        merchantId: cp.point?.merchantId,
+        merchant: cp.point?.merchant,
+      })),
     };
   }
 }

@@ -294,11 +294,11 @@ export class GetCustomerOwnedVouchers {
     for (const item of vouchersWithBalance) {
       const { voucher, code, onChainBalance, pointsCost, currency } = item;
 
-      const groupId = code?.voucherGroupId || voucher.id;
+      const groupId = code?.voucherGroupId;
       const isExpired = voucher.endDate && new Date(voucher.endDate) < now;
 
       // Determine status: expired > used > unused
-      let codeStatus: 'unused' | 'used' | 'expired' = 'unused';
+      let codeStatus = 'unused';
       if (isExpired) {
         codeStatus = 'expired';
       } else if (code?.isUsed) {
@@ -322,7 +322,8 @@ export class GetCustomerOwnedVouchers {
             endDate: voucher.endDate,
             merchantRef: voucher.merchantRef || null,
             merchantId: voucher.merchantId || voucher.merchant?.id || null,
-            merchantName: voucher.merchantName || voucher.merchant?.name || null,
+            merchantName:
+              voucher.merchantName || voucher.merchant?.name || null,
             merchantImageUrl: voucher.merchant?.imageUrl || null,
             latestCode: code?.code || null,
             codeStatus: codeStatus,

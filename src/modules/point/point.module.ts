@@ -7,9 +7,11 @@ import { PointDBService } from './services/point-db.service';
 import { MerchantModule } from '../merchant/merchant.module';
 import { GetPointsByMerchantId } from './handlers/getPointsByMerchantId.handler';
 import { GetPointById } from './handlers/getPointById.handler';
+import { GetPointByPhone } from './handlers/getPointByPhone.handler';
 import { UpdatePoint } from './handlers/updatePoint.handler';
 import { CreatePoint } from './handlers/createPoint.handler';
 import { DeletePoint } from './handlers/deletePoint.handler';
+import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
   controllers: [PointController, GlobalPointController],
@@ -18,11 +20,12 @@ import { DeletePoint } from './handlers/deletePoint.handler';
     PointDBService,
     GetPointsByMerchantId,
     GetPointById,
+    GetPointByPhone,
     UpdatePoint,
     CreatePoint,
     DeletePoint,
   ],
-  imports: [BlockchainModule, MerchantModule],
+  imports: [BlockchainModule, MerchantModule, PrismaModule],
   exports: [UpdatePoint, GetPointById],
 })
 export class PointModule {}

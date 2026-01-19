@@ -7,7 +7,7 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
-import { DashboardQueryDto, Granularity } from '../dtos/dashboard-query.dto';
+import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
   MarketerDashboardResponse,
   DateRangeInfo,
@@ -91,12 +91,10 @@ export class GetMarketerDashboardHandler {
     const endDate = query.endDate
       ? endOfDay(new Date(query.endDate))
       : endOfDay(now);
-    const granularity = query.granularity || Granularity.MONTHLY;
 
     return {
       startDate: format(startDate, 'yyyy-MM-dd'),
       endDate: format(endDate, 'yyyy-MM-dd'),
-      granularity,
     };
   }
 

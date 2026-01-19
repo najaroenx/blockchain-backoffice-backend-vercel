@@ -3,7 +3,6 @@
 export interface DateRangeInfo {
   startDate: string;
   endDate: string;
-  granularity: 'daily' | 'weekly' | 'monthly';
 }
 
 export interface TimeSeriesData {
@@ -80,38 +79,50 @@ export interface MarketerDashboardResponse {
 // Seller Dashboard Types
 // ============================================
 
+/**
+ * Coupon count breakdown for seller dashboard
+ * - total: Total coupons created by seller (all-time)
+ * - owned: Coupons still owned by Seller (not purchased by any merchant) (all-time)
+ * - sold: Coupons sold to merchants (filtered by date range)
+ * - reservedByMarketer: Coupons merchants hold but not sold to end users (filtered by date range)
+ * - redeemedByEndUser: Coupons end users have redeemed (filtered by date range)
+ */
+export interface SellerCouponCount {
+  total: number;
+  owned: number;
+  sold: number;
+  reservedByMarketer: number;
+  redeemedByEndUser: number;
+}
+
+export interface SellerCouponValue {
+  total: number;
+  owned: number;
+  sold: number;
+  reservedByMarketer: number;
+  redeemedByEndUser: number;
+}
+
+export interface SellerCouponValueWithCurrency extends SellerCouponValue {
+  currency: string;
+}
+
+export interface SellerOverallSummary {
+  couponCount: SellerCouponCount;
+  couponValue: SellerCouponValue;
+}
+
+export interface SellerMerchantBreakdown {
+  merchantId: string;
+  merchantName: string;
+  couponCount: SellerCouponCount;
+  couponValue: SellerCouponValueWithCurrency;
+}
+
 export interface SellerDashboardResponse {
   dateRange: DateRangeInfo;
-  walletAddress: string;
-
-  overview: {
-    // จำนวนคูปอง
-    coupons: {
-      listed: number; // คูปองที่ลงขายทั้งหมด
-      soldToMarketer: number; // Marketer ซื้อไปแล้ว
-      available: number; // ยังไม่ขาย
-    };
-    // มูลค่าคูปอง
-    value: {
-      listed: number; // มูลค่าที่ลงขาย (THB)
-      soldToMarketer: number; // มูลค่าที่ขายได้
-      available: number; // มูลค่าคงเหลือ
-      currency: 'THB';
-    };
-  };
-
-  // แยกตาม Merchant ที่ซื้อไป
-  byMarketer: {
-    merchantId: string;
-    merchantName: string;
-    couponsBought: number;
-    valueBought: number;
-  }[];
-
-  timeSeries?: (TimeSeriesData & {
-    listed: number;
-    sold: number;
-  })[];
+  overallSummary: SellerOverallSummary;
+  merchants: SellerMerchantBreakdown[];
 }
 
 // ============================================
@@ -138,9 +149,4 @@ export interface MerchantRefDashboardResponse {
     couponsNotUsed: number; // End User ซื้อแต่ยังไม่ใช้
     couponsRedeemed: number; // End User redeem แล้วจริง ๆ
   };
-
-  timeSeries?: (TimeSeriesData & {
-    couponsSold: number;
-    couponsRedeemed: number;
-  })[];
 }

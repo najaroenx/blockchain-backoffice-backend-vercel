@@ -1,10 +1,4 @@
-import { IsDateString, IsEnum, IsOptional } from 'class-validator';
-
-export enum Granularity {
-  DAILY = 'daily',
-  WEEKLY = 'weekly',
-  MONTHLY = 'monthly',
-}
+import { IsDateString, IsOptional } from 'class-validator';
 
 export class DashboardQueryDto {
   @IsOptional()
@@ -14,8 +8,4 @@ export class DashboardQueryDto {
   @IsOptional()
   @IsDateString()
   endDate?: string; // Default: today
-
-  @IsOptional()
-  @IsEnum(Granularity)
-  granularity?: Granularity; // Default: monthly
 }

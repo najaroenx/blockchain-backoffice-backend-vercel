@@ -24,72 +24,55 @@ export interface MarketerDashboardResponse {
 
   // 1.1 จำนวนคูปอง
   couponCount: {
-    owned: number; // จำนวนคูปองที่เรามี
-    purchased: number; // จำนวนคูปองที่ซื้อมา (= owned)
-    sold: number; // จำนวนคูปองที่ขายทั้งหมด (เอาไปให้ End User ใช้)
-    pending: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
+    total: number; // จำนวนคูปองทั้งหมดที่เรามี
+    purchased: number; // จำนวนคูปองที่ซื้อมาจาก Seller
+    soldToEndUser: number; // จำนวนคูปองที่ขายให้ End User
+    pendingUse: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
     redeemed: number; // จำนวนคูปองที่ End User redeem แล้วจริง ๆ
   };
 
   // 1.2 มูลค่าคูปอง (THB)
-  couponValueTHB: {
-    owned: number; // มูลค่าคูปองที่เรามี (THB)
+  couponValue: {
+    total: number; // มูลค่าคูปองทั้งหมดที่เรามี (THB)
     sold: number; // มูลค่าคูปองที่ขายทั้งหมด (THB)
-    pending: number; // มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้ (THB)
+    pendingUse: number; // มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้ (THB)
     redeemed: number; // มูลค่าคูปองที่ End User redeem แล้วจริง ๆ (THB)
-  };
-
-  // 1.3 มูลค่าคูปอง (Point)
-  couponValuePoint: {
-    sold: number; // มูลค่าคูปองที่ขายทั้งหมด (Point)
-    pending: number; // มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้ (Point)
-    redeemed: number; // มูลค่าคูปองที่ End User redeem แล้วจริง ๆ (Point)
   };
 
   // ============================================
   // Section 2: ข้อมูล End User
   // ============================================
   endUsers: {
-    total: number; // จำนวน End User ทั้งหมด (ตั้งขายให้ End User ทั้งหมด)
-    purchased: number; // จำนวน End User ที่ซื้อ (ตั้งขายให้ End User และ End User มาซื้อ)
-    couponsSold: number; // จำนวนคูปองที่ขายทั้งหมด (เอาไปให้ End User ใช้)
-    pending: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
-    redeemed: number; // จำนวน End User ที่ redeem แล้วจริง ๆ
+    total: number; // จำนวน End User ทั้งหมด
+    buyers: number; // จำนวน End User ที่ซื้อคูปอง
+    couponsSold: number; // จำนวนคูปองที่ขายให้ End User
+    pendingUsers: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
+    redeemedUsers: number; // จำนวน End User ที่ redeem แล้วจริง ๆ
   };
 
   // ============================================
   // Section 3: Transaction
   // ============================================
   transactions: {
-    total: number;
-    transferPoint: { count: number; percentage: number }; // โอน Point
-    redeemPoint: { count: number; percentage: number }; // Redeem Point
+    transferPoint: number; // จำนวน Point ที่โอน
+    redeemPoint: number; // จำนวน Point ที่ Redeem
   };
 
   // ============================================
   // Section 4: Point
   // ============================================
   points: {
-    byType: {
-      // ประเภท Point ที่มี (Point อะไรบ้าง)
-      type: string;
-      initialSupply: number; // จำนวน Point เริ่มต้น
-      remaining: number; // จำนวน Point คงเหลือ
-    }[];
+    total: number; // จำนวน Point ทั้งหมด (initial supply รวม)
+    types: string[]; // ประเภท Point ที่มี
   };
 
   // ============================================
   // Section 5: THB Token
   // ============================================
   thbToken: {
-    summary: {
-      deposited: number; // THB Token ที่เติมเข้าไป
-      spent: number; // THB Token ที่ใช้จองคูปองจาก Promotion Seller
-    };
-    monthly: (TimeSeriesData & {
-      deposited: number;
-      spent: number;
-    })[];
+    deposited: number; // THB Token ที่เติมเข้าไป
+    usedForPromotion: number; // THB Token ที่ใช้ซื้อคูปองจาก Seller
+    usedForRedeem: number; // THB Token สำหรับ redeem
   };
 }
 
@@ -159,6 +142,5 @@ export interface MerchantRefDashboardResponse {
   timeSeries?: (TimeSeriesData & {
     couponsSold: number;
     couponsRedeemed: number;
-    newUsers: number;
   })[];
 }

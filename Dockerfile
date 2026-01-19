@@ -5,9 +5,9 @@ RUN apk update && apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json yarn.lock ./
 COPY prisma ./prisma/
-RUN yarn install --production=false
+RUN yarn install --frozen-lockfile --production=false
 
 COPY . .
 

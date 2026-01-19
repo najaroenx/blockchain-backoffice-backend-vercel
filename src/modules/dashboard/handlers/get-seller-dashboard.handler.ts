@@ -6,21 +6,16 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
-import { AssetType } from '@prisma/client';
-import { DashboardQueryDto, Granularity } from '../dtos/dashboard-query.dto';
+import { AssetType, ParticipantType } from '@prisma/client';
+import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
   SellerDashboardResponse,
+  SellerOverallSummary,
+  SellerMerchantBreakdown,
+  SellerCouponCount,
   DateRangeInfo,
 } from '../types/dashboard.types';
-import {
-  startOfMonth,
-  endOfDay,
-  startOfDay,
-  format,
-  eachMonthOfInterval,
-  eachWeekOfInterval,
-  eachDayOfInterval,
-} from 'date-fns';
+import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
 
 @Injectable()
 export class GetSellerDashboardHandler {
@@ -37,15 +32,147 @@ export class GetSellerDashboardHandler {
         `[START] Getting seller dashboard for wallet: ${walletAddress}`,
       );
 
-      // Parse date range
+      const normalizedWallet = walletAddress.toLowerCase();
       const dateRange = this.parseDateRange(query);
+      const startDate = new Date(dateRange.startDate);
+      const endDate = new Date(dateRange.endDate);
 
-      // Execute all queries in parallel
-      const [listingStats, marketerBreakdown, timeSeries] = await Promise.all([
-        this.getListingStats(walletAddress, dateRange),
-        this.getMarketerBreakdown(walletAddress, dateRange),
-        this.getTimeSeries(walletAddress, dateRange),
-      ]);
+      // Get all listing batches for this seller (ALL-TIME for total/owned)
+      const listingBatches = await this.prisma.listingBatch.findMany({
+        where: {
+          sellerWalletAddress: normalizedWallet,
+        },
+        select: {
+          id: true,
+          totalItems: true,
+          soldItems: true,
+          totalValue: true,
+          currency: true,
+        },
+      });
+
+      const listingBatchIds = listingBatches.map((b) => b.id);
+
+      if (listingBatchIds.length === 0) {
+        this.logger.log(
+          `[INFO] No listing batches found for seller ${walletAddress}`,
+        );
+        return { dateRange, ...this.getEmptyResponse() };
+      }
+
+      // Get all voucher codes from seller's listing batches (ALL-TIME)
+      const voucherCodes = await this.prisma.voucherCode.findMany({
+        where: {
+          listingBatchId: { in: listingBatchIds },
+        },
+        select: {
+          id: true,
+          thbPrice: true,
+          currentOwnerId: true,
+          isUsed: true,
+          listingBatchId: true,
+          voucher: {
+            select: {
+              merchantId: true,
+              thbPurchasePrice: true,
+            },
+          },
+        },
+      });
+
+      // Get merchant info for vouchers that have been sold
+      const merchantIds = [
+        ...new Set(
+          voucherCodes
+            .map((vc) => vc.voucher?.merchantId)
+            .filter((id): id is string => id !== null && id !== undefined),
+        ),
+      ];
+
+      const merchants = await this.prisma.merchant.findMany({
+        where: { id: { in: merchantIds } },
+        select: { id: true, name: true },
+      });
+
+      const merchantMap = new Map(merchants.map((m) => [m.id, m.name]));
+
+      // Get TRANSFER+VOUCHER transactions (merchant to customer sales) - FILTERED BY DATE
+      const transferTransactions = await this.prisma.transaction.findMany({
+        where: {
+          transactionTypeId: TransactionTypeId.TRANSFER,
+          type: AssetType.VOUCHER,
+          senderType: ParticipantType.MERCHANT,
+          receiverType: ParticipantType.CUSTOMER,
+          voucherCodeId: { in: voucherCodes.map((vc) => vc.id) },
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        select: {
+          id: true,
+          merchantId: true,
+          voucherCodeId: true,
+          amount: true,
+        },
+      });
+
+      // Get REDEEM transactions - FILTERED BY DATE
+      const redeemTransactions = await this.prisma.transaction.findMany({
+        where: {
+          transactionTypeId: TransactionTypeId.REDEEM,
+          type: AssetType.VOUCHER,
+          voucherCodeId: { in: voucherCodes.map((vc) => vc.id) },
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        select: {
+          id: true,
+          merchantId: true,
+          voucherCodeId: true,
+          amount: true,
+        },
+      });
+
+      // Get THB_BUY transactions (merchant bought from seller) - FILTERED BY DATE
+      const thbBuyTransactions = await this.prisma.transaction.findMany({
+        where: {
+          transactionTypeId: TransactionTypeId.THB_BUY,
+          type: AssetType.THB_TOKEN,
+          voucherCodeId: { in: voucherCodes.map((vc) => vc.id) },
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        select: {
+          id: true,
+          merchantId: true,
+          voucherCodeId: true,
+          amount: true,
+        },
+      });
+
+      // Build sets for lookup
+      const soldVoucherCodeIds = new Set(
+        thbBuyTransactions.map((tx) => tx.voucherCodeId),
+      );
+      const transferredVoucherCodeIds = new Set(
+        transferTransactions.map((tx) => tx.voucherCodeId),
+      );
+      const redeemedVoucherCodeIds = new Set(
+        redeemTransactions.map((tx) => tx.voucherCodeId),
+      );
+
+      // Calculate overall summary
+      const overallSummary = this.calculateOverallSummary(
+        voucherCodes,
+        listingBatches,
+        soldVoucherCodeIds,
+        transferredVoucherCodeIds,
+        redeemedVoucherCodeIds,
+      );
+
+      // Calculate per-merchant breakdown
+      const merchantBreakdown = this.calculateMerchantBreakdown(
+        voucherCodes,
+        merchantMap,
+        soldVoucherCodeIds,
+        redeemedVoucherCodeIds,
+      );
 
       this.logger.log(
         `[SUCCESS] Seller dashboard retrieved for wallet: ${walletAddress}`,
@@ -53,10 +180,8 @@ export class GetSellerDashboardHandler {
 
       return {
         dateRange,
-        walletAddress,
-        overview: listingStats,
-        byMarketer: marketerBreakdown,
-        timeSeries,
+        overallSummary,
+        merchants: merchantBreakdown,
       };
     } catch (error) {
       this.logger.error(
@@ -76,219 +201,210 @@ export class GetSellerDashboardHandler {
     const endDate = query.endDate
       ? endOfDay(new Date(query.endDate))
       : endOfDay(now);
-    const granularity = query.granularity || Granularity.MONTHLY;
 
     return {
       startDate: format(startDate, 'yyyy-MM-dd'),
       endDate: format(endDate, 'yyyy-MM-dd'),
-      granularity,
     };
   }
 
-  private generateTimePeriods(
-    dateRange: DateRangeInfo,
-  ): { period: string; label: string; start: Date; end: Date }[] {
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-    const periods: { period: string; label: string; start: Date; end: Date }[] =
-      [];
-
-    if (dateRange.granularity === Granularity.DAILY) {
-      const days = eachDayOfInterval({ start: startDate, end: endDate });
-      for (const day of days) {
-        periods.push({
-          period: format(day, 'yyyy-MM-dd'),
-          label: format(day, 'MMM d'),
-          start: startOfDay(day),
-          end: endOfDay(day),
-        });
-      }
-    } else if (dateRange.granularity === Granularity.WEEKLY) {
-      const weeks = eachWeekOfInterval({ start: startDate, end: endDate });
-      for (let i = 0; i < weeks.length; i++) {
-        const weekStart = weeks[i];
-        const weekEnd = i < weeks.length - 1 ? weeks[i + 1] : endDate;
-        periods.push({
-          period: format(weekStart, "yyyy-'W'ww"),
-          label: `Week ${format(weekStart, 'w')}`,
-          start: weekStart,
-          end: weekEnd,
-        });
-      }
-    } else {
-      const months = eachMonthOfInterval({ start: startDate, end: endDate });
-      for (const month of months) {
-        const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-        periods.push({
-          period: format(month, 'yyyy-MM'),
-          label: format(month, 'MMMM'),
-          start: startOfDay(month),
-          end: endOfDay(monthEnd),
-        });
-      }
-    }
-
-    return periods;
-  }
-
-  /**
-   * Get listing statistics for the seller
-   * Seller lists items via ListingBatch
-   */
-  private async getListingStats(
-    walletAddress: string,
-    dateRange: DateRangeInfo,
-  ): Promise<SellerDashboardResponse['overview']> {
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-
-    // Get all listing batches for this seller
-    const listingBatches = await this.prisma.listingBatch.findMany({
-      where: {
-        sellerWalletAddress: walletAddress,
-        createdAt: { gte: startDate, lte: endDate },
-      },
-      select: {
-        id: true,
-        totalItems: true,
-        soldItems: true,
-        totalValue: true,
-        status: true,
-      },
-    });
-
-    if (listingBatches.length === 0) {
-      return {
-        coupons: { listed: 0, soldToMarketer: 0, available: 0 },
-        value: { listed: 0, soldToMarketer: 0, available: 0, currency: 'THB' },
-      };
-    }
-
-    const listed = listingBatches.reduce((sum, b) => sum + b.totalItems, 0);
-    const totalValue = listingBatches.reduce((sum, b) => sum + b.totalValue, 0);
-    const soldToMarketer = listingBatches.reduce(
-      (sum, b) => sum + (b.soldItems || 0),
-      0,
-    );
-
-    // Calculate sold value proportionally
-    const soldValue = listed > 0 ? (totalValue / listed) * soldToMarketer : 0;
-    const available = listed - soldToMarketer;
-    const availableValue = totalValue - soldValue;
-
+  private getEmptyResponse(): Omit<SellerDashboardResponse, 'dateRange'> {
     return {
-      coupons: { listed, soldToMarketer, available },
-      value: {
-        listed: totalValue,
-        soldToMarketer: soldValue,
-        available: availableValue,
-        currency: 'THB',
-      },
-    };
-  }
-
-  /**
-   * Get breakdown by marketer (merchant who bought from seller)
-   */
-  private async getMarketerBreakdown(
-    walletAddress: string,
-    dateRange: DateRangeInfo,
-  ): Promise<SellerDashboardResponse['byMarketer']> {
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-
-    // Get all THB_BUY transactions for this seller, grouped by merchant
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        receiverId: walletAddress,
-        transactionTypeId: TransactionTypeId.THB_BUY,
-        type: AssetType.THB_TOKEN,
-        createdAt: { gte: startDate, lte: endDate },
-      },
-      select: {
-        merchantId: true,
-        amount: true,
-        merchant: {
-          select: {
-            id: true,
-            name: true,
-          },
+      overallSummary: {
+        couponCount: {
+          total: 0,
+          owned: 0,
+          sold: 0,
+          reservedByMarketer: 0,
+          redeemedByEndUser: 0,
+        },
+        couponValue: {
+          total: 0,
+          owned: 0,
+          sold: 0,
+          reservedByMarketer: 0,
+          redeemedByEndUser: 0,
         },
       },
-    });
+      merchants: [],
+    };
+  }
 
-    // Group by merchant
-    const merchantMap = new Map<
+  /**
+   * Calculate overall summary across all voucher codes
+   * - total/owned: ALL-TIME
+   * - sold/reservedByMarketer/redeemedByEndUser: FILTERED BY DATE RANGE
+   */
+  private calculateOverallSummary(
+    voucherCodes: Array<{
+      id: string;
+      thbPrice: number | null;
+      currentOwnerId: string | null;
+      isUsed: boolean;
+      voucher: {
+        merchantId: string | null;
+        thbPurchasePrice: number | null;
+      } | null;
+    }>,
+    listingBatches: Array<{
+      totalItems: number;
+      totalValue: number;
+    }>,
+    soldVoucherCodeIds: Set<string | null>,
+    transferredVoucherCodeIds: Set<string | null>,
+    redeemedVoucherCodeIds: Set<string | null>,
+  ): SellerOverallSummary {
+    // Total from listing batches (ALL-TIME)
+    const totalCount = listingBatches.reduce((sum, b) => sum + b.totalItems, 0);
+    const totalValue = listingBatches.reduce((sum, b) => sum + b.totalValue, 0);
+
+    // Calculate owned (ALL-TIME) - vouchers not yet sold to any merchant
+    let ownedCount = 0;
+    let ownedValue = 0;
+
+    // Calculate date-filtered stats
+    let soldCount = 0;
+    let soldValue = 0;
+    let reservedByMarketerCount = 0;
+    let reservedByMarketerValue = 0;
+    let redeemedByEndUserCount = 0;
+    let redeemedByEndUserValue = 0;
+
+    for (const vc of voucherCodes) {
+      const price = vc.thbPrice ?? vc.voucher?.thbPurchasePrice ?? 0;
+      const hasMerchant = vc.voucher?.merchantId !== null;
+
+      if (!hasMerchant) {
+        // Still owned by seller (ALL-TIME count)
+        ownedCount++;
+        ownedValue += price;
+      }
+
+      // Check if sold in date range
+      if (soldVoucherCodeIds.has(vc.id)) {
+        soldCount++;
+        soldValue += price;
+
+        // Check redemption status in date range
+        if (redeemedVoucherCodeIds.has(vc.id)) {
+          redeemedByEndUserCount++;
+          redeemedByEndUserValue += price;
+        } else {
+          // Merchant still holds it (not redeemed in date range)
+          reservedByMarketerCount++;
+          reservedByMarketerValue += price;
+        }
+      }
+    }
+
+    return {
+      couponCount: {
+        total: totalCount,
+        owned: ownedCount,
+        sold: soldCount,
+        reservedByMarketer: reservedByMarketerCount,
+        redeemedByEndUser: redeemedByEndUserCount,
+      },
+      couponValue: {
+        total: totalValue,
+        owned: ownedValue,
+        sold: soldValue,
+        reservedByMarketer: reservedByMarketerValue,
+        redeemedByEndUser: redeemedByEndUserValue,
+      },
+    };
+  }
+
+  /**
+   * Calculate breakdown per merchant who bought from seller
+   */
+  private calculateMerchantBreakdown(
+    voucherCodes: Array<{
+      id: string;
+      thbPrice: number | null;
+      currentOwnerId: string | null;
+      isUsed: boolean;
+      voucher: {
+        merchantId: string | null;
+        thbPurchasePrice: number | null;
+      } | null;
+    }>,
+    merchantMap: Map<string, string>,
+    soldVoucherCodeIds: Set<string | null>,
+    redeemedVoucherCodeIds: Set<string | null>,
+  ): SellerMerchantBreakdown[] {
+    // Group voucher codes by merchant (only those sold in date range)
+    const merchantGroups = new Map<
       string,
       {
-        merchantId: string;
-        merchantName: string;
-        couponsBought: number;
-        valueBought: number;
+        codes: typeof voucherCodes;
+        name: string;
       }
     >();
 
-    for (const tx of transactions) {
-      const key = tx.merchantId;
-      if (!key) continue;
+    for (const vc of voucherCodes) {
+      const merchantId = vc.voucher?.merchantId;
+      if (!merchantId) continue; // Skip codes not sold to merchants
+      if (!soldVoucherCodeIds.has(vc.id)) continue; // Skip if not sold in date range
 
-      const existing = merchantMap.get(key);
-      if (existing) {
-        existing.couponsBought += 1;
-        existing.valueBought += tx.amount || 0;
-      } else {
-        merchantMap.set(key, {
-          merchantId: key,
-          merchantName: tx.merchant?.name || 'Unknown',
-          couponsBought: 1,
-          valueBought: tx.amount || 0,
+      if (!merchantGroups.has(merchantId)) {
+        merchantGroups.set(merchantId, {
+          codes: [],
+          name: merchantMap.get(merchantId) || 'Unknown',
         });
       }
+      merchantGroups.get(merchantId)!.codes.push(vc);
     }
 
-    return Array.from(merchantMap.values()).sort(
-      (a, b) => b.valueBought - a.valueBought,
-    );
-  }
+    // Calculate stats per merchant
+    const result: SellerMerchantBreakdown[] = [];
 
-  /**
-   * Get time series data for listings and sales
-   */
-  private async getTimeSeries(
-    walletAddress: string,
-    dateRange: DateRangeInfo,
-  ): Promise<SellerDashboardResponse['timeSeries']> {
-    const periods = this.generateTimePeriods(dateRange);
+    for (const [merchantId, group] of merchantGroups) {
+      const couponCount: SellerCouponCount = {
+        total: group.codes.length,
+        owned: 0, // For merchant view, "owned by seller" is 0 since these are already sold
+        sold: group.codes.length,
+        reservedByMarketer: 0,
+        redeemedByEndUser: 0,
+      };
 
-    return Promise.all(
-      periods.map(async (period) => {
-        // Count listings created in this period
-        const listingsAgg = await this.prisma.listingBatch.aggregate({
-          where: {
-            sellerWalletAddress: walletAddress,
-            createdAt: { gte: period.start, lte: period.end },
-          },
-          _sum: { totalItems: true },
-        });
+      let totalValue = 0;
+      let reservedByMarketerValue = 0;
+      let redeemedByEndUserValue = 0;
 
-        // Count sales in this period
-        const salesAgg = await this.prisma.transaction.aggregate({
-          where: {
-            receiverId: walletAddress,
-            transactionTypeId: TransactionTypeId.THB_BUY,
-            type: AssetType.THB_TOKEN,
-            createdAt: { gte: period.start, lte: period.end },
-          },
-          _count: { id: true },
-        });
+      for (const vc of group.codes) {
+        const price = vc.thbPrice ?? vc.voucher?.thbPurchasePrice ?? 0;
+        totalValue += price;
 
-        return {
-          period: period.period,
-          label: period.label,
-          listed: listingsAgg._sum.totalItems || 0,
-          sold: salesAgg._count.id || 0,
-        };
-      }),
-    );
+        const isRedeemed = redeemedVoucherCodeIds.has(vc.id);
+
+        if (isRedeemed) {
+          couponCount.redeemedByEndUser++;
+          redeemedByEndUserValue += price;
+        } else {
+          couponCount.reservedByMarketer++;
+          reservedByMarketerValue += price;
+        }
+      }
+
+      result.push({
+        merchantId,
+        merchantName: group.name,
+        couponCount,
+        couponValue: {
+          total: totalValue,
+          owned: 0,
+          sold: totalValue,
+          reservedByMarketer: reservedByMarketerValue,
+          redeemedByEndUser: redeemedByEndUserValue,
+          currency: 'THB_TOKEN',
+        },
+      });
+    }
+
+    // Sort by total value descending
+    result.sort((a, b) => b.couponValue.total - a.couponValue.total);
+
+    return result;
   }
 }

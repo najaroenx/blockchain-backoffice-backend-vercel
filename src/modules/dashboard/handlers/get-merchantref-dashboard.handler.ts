@@ -5,22 +5,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
-import { TransactionTypeId } from 'src/constants/transaction-types.enum';
-import { AssetType } from '@prisma/client';
-import { DashboardQueryDto, Granularity } from '../dtos/dashboard-query.dto';
+import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
   MerchantRefDashboardResponse,
   DateRangeInfo,
 } from '../types/dashboard.types';
-import {
-  startOfMonth,
-  endOfDay,
-  startOfDay,
-  format,
-  eachMonthOfInterval,
-  eachWeekOfInterval,
-  eachDayOfInterval,
-} from 'date-fns';
+import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
 
 @Injectable()
 export class GetMerchantRefDashboardHandler {
@@ -41,10 +31,9 @@ export class GetMerchantRefDashboardHandler {
       const dateRange = this.parseDateRange(query);
 
       // Execute all queries in parallel
-      const [overview, endUserStats, timeSeries] = await Promise.all([
+      const [overview, endUserStats] = await Promise.all([
         this.getOverview(merchantRef, dateRange),
         this.getEndUserStats(merchantRef, dateRange),
-        this.getTimeSeries(merchantRef, dateRange),
       ]);
 
       this.logger.log(
@@ -56,7 +45,6 @@ export class GetMerchantRefDashboardHandler {
         merchantRef,
         overview,
         endUsers: endUserStats,
-        timeSeries,
       };
     } catch (error) {
       this.logger.error(
@@ -76,59 +64,11 @@ export class GetMerchantRefDashboardHandler {
     const endDate = query.endDate
       ? endOfDay(new Date(query.endDate))
       : endOfDay(now);
-    const granularity = query.granularity || Granularity.MONTHLY;
 
     return {
       startDate: format(startDate, 'yyyy-MM-dd'),
       endDate: format(endDate, 'yyyy-MM-dd'),
-      granularity,
     };
-  }
-
-  private generateTimePeriods(
-    dateRange: DateRangeInfo,
-  ): { period: string; label: string; start: Date; end: Date }[] {
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-    const periods: { period: string; label: string; start: Date; end: Date }[] =
-      [];
-
-    if (dateRange.granularity === Granularity.DAILY) {
-      const days = eachDayOfInterval({ start: startDate, end: endDate });
-      for (const day of days) {
-        periods.push({
-          period: format(day, 'yyyy-MM-dd'),
-          label: format(day, 'MMM d'),
-          start: startOfDay(day),
-          end: endOfDay(day),
-        });
-      }
-    } else if (dateRange.granularity === Granularity.WEEKLY) {
-      const weeks = eachWeekOfInterval({ start: startDate, end: endDate });
-      for (let i = 0; i < weeks.length; i++) {
-        const weekStart = weeks[i];
-        const weekEnd = i < weeks.length - 1 ? weeks[i + 1] : endDate;
-        periods.push({
-          period: format(weekStart, "yyyy-'W'ww"),
-          label: `Week ${format(weekStart, 'w')}`,
-          start: weekStart,
-          end: weekEnd,
-        });
-      }
-    } else {
-      const months = eachMonthOfInterval({ start: startDate, end: endDate });
-      for (const month of months) {
-        const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-        periods.push({
-          period: format(month, 'yyyy-MM'),
-          label: format(month, 'MMMM'),
-          start: startOfDay(month),
-          end: endOfDay(monthEnd),
-        });
-      }
-    }
-
-    return periods;
   }
 
   /**
@@ -234,73 +174,5 @@ export class GetMerchantRefDashboardHandler {
       couponsNotUsed,
       couponsRedeemed,
     };
-  }
-
-  /**
-   * Get time series data for sales and redemptions
-   */
-  private async getTimeSeries(
-    merchantRef: string,
-    dateRange: DateRangeInfo,
-  ): Promise<MerchantRefDashboardResponse['timeSeries']> {
-    // Get all vouchers with this merchantRef
-    const vouchers = await this.prisma.voucher.findMany({
-      where: { merchantRef },
-      select: { id: true, merchantId: true },
-    });
-
-    const voucherIds = vouchers.map((v) => v.id);
-    const merchantId = vouchers[0]?.merchantId;
-
-    if (voucherIds.length === 0) {
-      return [];
-    }
-
-    const periods = this.generateTimePeriods(dateRange);
-
-    return Promise.all(
-      periods.map(async (period) => {
-        // Count TRANSFER transactions with VOUCHER type
-        const salesCount = await this.prisma.transaction.count({
-          where: {
-            transactionTypeId: TransactionTypeId.TRANSFER,
-            type: AssetType.VOUCHER,
-            receiverType: 'CUSTOMER',
-            createdAt: { gte: period.start, lte: period.end },
-            voucherCode: {
-              voucherId: { in: voucherIds },
-            },
-          },
-        });
-
-        // Count redeemed voucher codes
-        const redeemedCount = await this.prisma.voucherCode.count({
-          where: {
-            voucherId: { in: voucherIds },
-            isUsed: true,
-            usedAt: { gte: period.start, lte: period.end },
-          },
-        });
-
-        // Count new users associated with the merchant
-        let newUsersCount = 0;
-        if (merchantId) {
-          newUsersCount = await this.prisma.customerMerChant.count({
-            where: {
-              merchantId,
-              createdAt: { gte: period.start, lte: period.end },
-            },
-          });
-        }
-
-        return {
-          period: period.period,
-          label: period.label,
-          couponsSold: salesCount,
-          couponsRedeemed: redeemedCount,
-          newUsers: newUsersCount,
-        };
-      }),
-    );
   }
 }

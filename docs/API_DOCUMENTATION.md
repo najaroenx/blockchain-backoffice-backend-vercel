@@ -1799,7 +1799,112 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 14. Get Transaction by ID
+## 14. Get Customer Points by Phone
+
+**Description:** ดึงรายการ Points ทั้งหมดของลูกค้าด้วยเบอร์โทรศัพท์ พร้อม balance แต่ละ point
+
+### Request
+
+**Method:** `GET`
+
+**URL:** `{{endpoint_url}}/points/my-points/:phone`
+
+**Example:** `https://dlp-backofficebe-testnet.adldigitalservice.com/points/my-points/0984360421`
+
+**Authentication:** Public (ไม่ต้องใช้ API Key)
+
+### Request Parameters
+
+#### Path Parameters
+
+| Parameter | Type | M/O | Description | Example |
+|-----------|------|-----|-------------|---------|
+| phone | String | M | เบอร์โทรศัพท์ลูกค้า (10 digits) | 0984360421 |
+
+### Response
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| customerPoints | Object | ข้อมูล Points ของลูกค้า |
+| customerPoints.phone | String | เบอร์โทรศัพท์ |
+| customerPoints.customerId | String \| null | รหัสลูกค้า (null ถ้าไม่พบ) |
+| customerPoints.points | Array | รายการ Points |
+| customerPoints.points[].pointId | String | รหัส Point |
+| customerPoints.points[].name | String | ชื่อ Point |
+| customerPoints.points[].symbol | String | Symbol ของ Point |
+| customerPoints.points[].imageUrl | String \| null | URL รูปภาพ |
+| customerPoints.points[].balance | Number | ยอดคะแนนคงเหลือ |
+| customerPoints.points[].merchantId | String \| null | รหัส Merchant |
+| customerPoints.points[].merchant | Object \| null | ข้อมูล Merchant |
+| customerPoints.points[].merchant.id | String | รหัส Merchant |
+| customerPoints.points[].merchant.name | String | ชื่อ Merchant |
+| customerPoints.points[].merchant.description | String \| null | คำอธิบาย |
+| customerPoints.points[].merchant.imageUrl | String \| null | URL รูปภาพ |
+
+#### Success Response (200)
+
+```json
+{
+  "customerPoints": {
+    "phone": "0984360421",
+    "customerId": "cmiisvgqn0007xk01efv8szbq",
+    "points": [
+      {
+        "pointId": "cmiimp4g400015v01nv1ij7zf",
+        "name": "LAT",
+        "symbol": "LAT",
+        "imageUrl": "https://example.com/point.png",
+        "balance": 5000,
+        "merchantId": "cmih1s6qu00050i01m3cactjj",
+        "merchant": {
+          "id": "cmih1s6qu00050i01m3cactjj",
+          "name": "Example Merchant",
+          "description": "A sample merchant",
+          "imageUrl": "https://example.com/merchant.png"
+        }
+      },
+      {
+        "pointId": "cmxyz123abc",
+        "name": "GOLD",
+        "symbol": "GLD",
+        "imageUrl": "https://example.com/gold.png",
+        "balance": 1200,
+        "merchantId": "cmxyz456def",
+        "merchant": {
+          "id": "cmxyz456def",
+          "name": "Gold Merchant",
+          "description": null,
+          "imageUrl": null
+        }
+      }
+    ]
+  }
+}
+```
+
+#### Response when customer not found (200)
+
+```json
+{
+  "customerPoints": {
+    "phone": "0984360421",
+    "customerId": null,
+    "points": []
+  }
+}
+```
+
+### Notes
+
+- Endpoint นี้จะดึง Points จากทุก Merchant ที่ลูกค้ามี
+- `balance` คือยอดคะแนนคงเหลือของ Point นั้นๆ
+- ถ้าไม่พบลูกค้า จะ return `customerId: null` และ `points: []`
+
+---
+
+## 15. Get Transaction by ID
 
 **Description:** ดึงข้อมูล Transaction ด้วย ID
 
@@ -1911,7 +2016,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 15. Clear Customer by Phone
+## 16. Clear Customer by Phone
 
 **Description:** ลบข้อมูลลูกค้าทั้งหมดโดยใช้เบอร์โทรศัพท์ (ลบ wallet, transactions, temp links, clear voucher ownership)
 
@@ -1984,7 +2089,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 16. Get Voucher by ID
+## 17. Get Voucher by ID
 
 **Description:** ดึงข้อมูล Voucher ด้วย ID พร้อม merchant info และ voucher codes
 
@@ -2101,7 +2206,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 17. Get Customer Owned Vouchers
+## 18. Get Customer Owned Vouchers
 
 **Description:** ดึงรายการ Vouchers ที่ลูกค้าเป็นเจ้าของ (lookup จาก phone -> wallet -> on-chain balance) โดย group ตาม voucherGroupId และ codeStatus
 
@@ -2280,7 +2385,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 18. Get Seller Marketplace Listings
+## 19. Get Seller Marketplace Listings
 
 **Description:** ดึงรายการ voucher ที่ seller ขายบน marketplace (สำหรับ merchant ซื้อ) - กรอง listings ที่ใช้ THB เป็น payment token
 
@@ -2378,7 +2483,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 19. Seller List Voucher on Marketplace
+## 20. Seller List Voucher on Marketplace
 
 **Description:** Seller ลง voucher ขายบน marketplace โดยใช้ THB เป็น payment token
 
@@ -2508,7 +2613,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 20. Merchant Buy Voucher from Seller
+## 21. Merchant Buy Voucher from Seller
 
 **Description:** Merchant ซื้อ voucher จาก seller บน marketplace โดยใช้ THB token
 
@@ -2636,7 +2741,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 21. Customer Buy Voucher from Marketplace
+## 22. Customer Buy Voucher from Marketplace
 
 **Description:** Customer ซื้อ voucher จาก marketplace โดยใช้ Point token
 
@@ -2775,7 +2880,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 22. Get Treasury Balance
+## 23. Get Treasury Balance
 
 **Description:** ดึงยอดคงเหลือของ treasury wallet สำหรับ point
 
@@ -2839,7 +2944,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 23. Get Wallet by Phone or Email
+## 24. Get Wallet by Phone or Email
 
 **Description:** ค้นหา wallet ด้วยเบอร์โทรศัพท์หรืออีเมล (รองรับ THB balance check)
 
@@ -2932,7 +3037,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 24. Admin Mint THB to Merchant (Phase 1 Dev)
+## 25. Admin Mint THB to Merchant (Phase 1 Dev)
 
 **Description:** ⚠️ **PHASE 1 DEVELOPMENT ONLY** - Admin mint THB token ให้ merchant wallet
 
@@ -2998,7 +3103,7 @@ Same as **Section 4** (Get Voucher Transactions by Customer Phone) but includes 
 
 ---
 
-## 25. Seller Batch List on Marketplace
+## 26. Seller Batch List on Marketplace
 
 List หลาย voucher types บน marketplace ใน 1 batch
 
@@ -3086,7 +3191,7 @@ List หลาย voucher types บน marketplace ใน 1 batch
 
 ---
 
-## 26. Get Seller Listings
+## 27. Get Seller Listings
 
 ดึง listing batches ทั้งหมดของ seller
 
@@ -3140,7 +3245,7 @@ GET /coupon/seller/listings?walletAddress=0x1234...&page=1&limit=10&status=ACTIV
 
 ---
 
-## 27. Get Listing Batch Detail
+## 28. Get Listing Batch Detail
 
 ดูรายละเอียด batch และ vouchers ทั้งหมดในนั้น
 

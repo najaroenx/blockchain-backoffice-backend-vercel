@@ -12,15 +12,7 @@ import {
   MarketerDashboardResponse,
   DateRangeInfo,
 } from '../types/dashboard.types';
-import {
-  startOfMonth,
-  endOfDay,
-  startOfDay,
-  format,
-  eachMonthOfInterval,
-  eachWeekOfInterval,
-  eachDayOfInterval,
-} from 'date-fns';
+import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
 
 @Injectable()
 export class GetMarketerDashboardHandler {
@@ -59,7 +51,7 @@ export class GetMarketerDashboardHandler {
         thbStats,
       ] = await Promise.all([
         this.getVoucherStats(merchantId, dateRange),
-        this.getEndUserStats(merchantId, dateRange),
+        this.getEndUserStats(merchantId),
         this.getTransactionStats(merchantId, dateRange),
         this.getPointsData(merchantId),
         this.getThbStats(merchantId, dateRange),
@@ -72,8 +64,7 @@ export class GetMarketerDashboardHandler {
       return {
         dateRange,
         couponCount: voucherStats.couponCount,
-        couponValueTHB: voucherStats.couponValueTHB,
-        couponValuePoint: voucherStats.couponValuePoint,
+        couponValue: voucherStats.couponValue,
         endUsers: endUserStats,
         transactions: transactionStats,
         points: pointsData,
@@ -109,65 +100,17 @@ export class GetMarketerDashboardHandler {
     };
   }
 
-  private generateTimePeriods(
-    dateRange: DateRangeInfo,
-  ): { period: string; label: string; start: Date; end: Date }[] {
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-    const periods: { period: string; label: string; start: Date; end: Date }[] =
-      [];
-
-    if (dateRange.granularity === Granularity.DAILY) {
-      const days = eachDayOfInterval({ start: startDate, end: endDate });
-      for (const day of days) {
-        periods.push({
-          period: format(day, 'yyyy-MM-dd'),
-          label: format(day, 'MMM d'),
-          start: startOfDay(day),
-          end: endOfDay(day),
-        });
-      }
-    } else if (dateRange.granularity === Granularity.WEEKLY) {
-      const weeks = eachWeekOfInterval({ start: startDate, end: endDate });
-      for (let i = 0; i < weeks.length; i++) {
-        const weekStart = weeks[i];
-        const weekEnd = i < weeks.length - 1 ? weeks[i + 1] : endDate;
-        periods.push({
-          period: format(weekStart, "yyyy-'W'ww"),
-          label: `Week ${format(weekStart, 'w')}`,
-          start: weekStart,
-          end: weekEnd,
-        });
-      }
-    } else {
-      const months = eachMonthOfInterval({ start: startDate, end: endDate });
-      for (const month of months) {
-        const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-        periods.push({
-          period: format(month, 'yyyy-MM'),
-          label: format(month, 'MMMM'),
-          start: startOfDay(month),
-          end: endOfDay(monthEnd),
-        });
-      }
-    }
-
-    return periods;
-  }
-
   /**
    * Get voucher statistics for the merchant
    * - couponCount: นับจาก Transaction ตาม date range
-   * - couponValueTHB: รวม amount จาก Transaction (THB purchase price per unit)
-   * - couponValuePoint: รวม amount จาก Transaction (Points)
+   * - couponValue: รวม amount จาก Transaction (THB purchase price per unit)
    */
   private async getVoucherStats(
     merchantId: string,
     dateRange: DateRangeInfo,
   ): Promise<{
     couponCount: MarketerDashboardResponse['couponCount'];
-    couponValueTHB: MarketerDashboardResponse['couponValueTHB'];
-    couponValuePoint: MarketerDashboardResponse['couponValuePoint'];
+    couponValue: MarketerDashboardResponse['couponValue'];
   }> {
     const startDate = new Date(dateRange.startDate);
     const endDate = new Date(dateRange.endDate);
@@ -183,21 +126,16 @@ export class GetMarketerDashboardHandler {
     if (voucherIds.length === 0) {
       return {
         couponCount: {
-          owned: 0,
+          total: 0,
           purchased: 0,
-          sold: 0,
-          pending: 0,
+          soldToEndUser: 0,
+          pendingUse: 0,
           redeemed: 0,
         },
-        couponValueTHB: {
-          owned: 0,
+        couponValue: {
+          total: 0,
           sold: 0,
-          pending: 0,
-          redeemed: 0,
-        },
-        couponValuePoint: {
-          sold: 0,
-          pending: 0,
+          pendingUse: 0,
           redeemed: 0,
         },
       };
@@ -239,10 +177,6 @@ export class GetMarketerDashboardHandler {
       soldStats,
       // Redeemed (REDEEM transactions)
       redeemedStats,
-      // Point values for sold vouchers
-      soldPointStats,
-      // Point values for redeemed vouchers
-      redeemedPointStats,
     ] = await Promise.all([
       // 1. Merchant purchased from seller - THB_BUY transactions
       this.prisma.transaction.aggregate({
@@ -281,80 +215,42 @@ export class GetMarketerDashboardHandler {
         _count: { id: true },
         _sum: { amount: true },
       }),
-
-      // 4. Point values for sold vouchers - TRANSFER + POINT transactions
-      this.prisma.transaction.aggregate({
-        where: {
-          merchantId,
-          transactionTypeId: TransactionTypeId.TRANSFER,
-          type: 'POINT' as any,
-          receiverType: 'MERCHANT',
-          senderType: 'CUSTOMER',
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        _sum: { amount: true },
-      }),
-
-      // 5. Point values for redeemed vouchers - join with REDEEM via transactionRefId
-      // Note: REDEEM transactions store the thbPurchasePrice, not point value
-      // We need to get the corresponding TRANSFER POINT transaction
-      this.prisma.transaction.aggregate({
-        where: {
-          merchantId,
-          transactionTypeId: TransactionTypeId.REDEEM,
-          voucherCodeId: { in: allCodeIds.length > 0 ? allCodeIds : undefined },
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        _sum: { amount: true },
-      }),
     ]);
 
     // Extract counts from transaction data
     const purchased = purchasedStats._count.id || 0;
-    const sold = soldStats._count.id || 0;
+    const soldToEndUser = soldStats._count.id || 0;
     const redeemed = redeemedStats._count.id || 0;
-    const pending = sold - redeemed > 0 ? sold - redeemed : 0;
+    const pendingUse =
+      soldToEndUser - redeemed > 0 ? soldToEndUser - redeemed : 0;
 
     // Extract THB values from transaction data
-    const purchasedValue = purchasedStats._sum.amount || 0;
+    const totalValue = ownedValue;
     const soldValue = soldStats._sum.amount || 0;
     const redeemedValue = redeemedStats._sum.amount || 0;
     const pendingValue =
       soldValue - redeemedValue > 0 ? soldValue - redeemedValue : 0;
 
-    // Extract Point values from transaction data
-    const soldPointValue = soldPointStats._sum.amount || 0;
-    const redeemedPointValue = redeemedPointStats._sum.amount || 0;
-    const pendingPointValue =
-      soldPointValue - redeemedPointValue > 0
-        ? soldPointValue - redeemedPointValue
-        : 0;
-
     this.logger.log(
-      `[getVoucherStats] Transaction stats: purchased=${purchased}, sold=${sold}, pending=${pending}, redeemed=${redeemed}`,
+      `[getVoucherStats] Transaction stats: purchased=${purchased}, soldToEndUser=${soldToEndUser}, pendingUse=${pendingUse}, redeemed=${redeemed}`,
     );
     this.logger.log(
-      `[getVoucherStats] THB values: purchasedValue=${purchasedValue}, soldValue=${soldValue}, pendingValue=${pendingValue}, redeemedValue=${redeemedValue}`,
+      `[getVoucherStats] THB values: totalValue=${totalValue}, soldValue=${soldValue}, pendingValue=${pendingValue}, redeemedValue=${redeemedValue}`,
     );
 
     return {
       couponCount: {
-        owned: total, // All time
+        total, // All time - total voucher codes
         purchased, // From THB_BUY in date range
-        sold, // From TRANSFER+VOUCHER in date range
-        pending, // sold - redeemed in date range
+        soldToEndUser, // From TRANSFER+VOUCHER in date range
+        pendingUse, // sold - redeemed in date range
         redeemed, // From REDEEM in date range
       },
-      couponValueTHB: {
-        owned: ownedValue, // All time, from voucher.thbPurchasePrice
+      couponValue: {
+        total: totalValue, // All time, from voucher.thbPurchasePrice
         sold: soldValue, // From TRANSFER+VOUCHER amount in date range
-        pending: pendingValue, // sold - redeemed value
+        pendingUse: pendingValue, // sold - redeemed value
         redeemed: redeemedValue, // From REDEEM amount in date range
-      },
-      couponValuePoint: {
-        sold: soldPointValue, // From TRANSFER+POINT in date range
-        pending: pendingPointValue, // sold - redeemed point value
-        redeemed: redeemedPointValue, // Calculated from REDEEM
       },
     };
   }
@@ -364,7 +260,6 @@ export class GetMarketerDashboardHandler {
    */
   private async getEndUserStats(
     merchantId: string,
-    _dateRange: DateRangeInfo,
   ): Promise<MarketerDashboardResponse['endUsers']> {
     // Total end users associated with merchant
     const total = await this.prisma.customerMerChant.count({
@@ -382,10 +277,10 @@ export class GetMarketerDashboardHandler {
     if (voucherIds.length === 0) {
       return {
         total,
-        purchased: 0,
+        buyers: 0,
         couponsSold: 0,
-        pending: 0,
-        redeemed: 0,
+        pendingUsers: 0,
+        redeemedUsers: 0,
       };
     }
 
@@ -401,22 +296,28 @@ export class GetMarketerDashboardHandler {
     const uniquePurchasedCustomers = new Set(
       voucherCodes.map((c) => c.currentOwnerId),
     );
-    const purchased = uniquePurchasedCustomers.size;
-    const couponsPurchased = voucherCodes.length;
-    const pending = voucherCodes.filter((c) => !c.isUsed).length;
-    const redeemed = voucherCodes.filter((c) => c.isUsed).length;
+    const buyers = uniquePurchasedCustomers.size;
+    const couponsSold = voucherCodes.length;
+
+    // Count unique users by status
+    const pendingCodes = voucherCodes.filter((c) => !c.isUsed);
+    const redeemedCodes = voucherCodes.filter((c) => c.isUsed);
+    const pendingUsers = new Set(pendingCodes.map((c) => c.currentOwnerId))
+      .size;
+    const redeemedUsers = new Set(redeemedCodes.map((c) => c.currentOwnerId))
+      .size;
 
     return {
       total,
-      purchased,
-      couponsSold: couponsPurchased,
-      pending,
-      redeemed,
+      buyers,
+      couponsSold,
+      pendingUsers,
+      redeemedUsers,
     };
   }
 
   /**
-   * Get transaction statistics (Pie chart: Buy Point vs Redeem Point)
+   * Get transaction statistics (Point amounts)
    */
   private async getTransactionStats(
     merchantId: string,
@@ -433,7 +334,6 @@ export class GetMarketerDashboardHandler {
         type: 'POINT' as any,
         createdAt: { gte: startDate, lte: endDate },
       },
-      _count: { id: true },
       _sum: { amount: true },
     });
 
@@ -444,27 +344,20 @@ export class GetMarketerDashboardHandler {
         transactionTypeId: TransactionTypeId.REDEEM,
         createdAt: { gte: startDate, lte: endDate },
       },
-      _count: { id: true },
       _sum: { amount: true },
     });
 
-    const transferCount = transferPointStats._count.id || 0;
-    const redeemCount = redeemStats._count.id || 0;
-    const total = transferCount + redeemCount;
-
-    const transferPercentage =
-      total > 0 ? Math.round((transferCount / total) * 100) : 0;
-    const redeemPercentage = total > 0 ? 100 - transferPercentage : 0;
+    const transferPoint = transferPointStats._sum.amount || 0;
+    const redeemPoint = redeemStats._sum.amount || 0;
 
     return {
-      total,
-      transferPoint: { count: transferCount, percentage: transferPercentage },
-      redeemPoint: { count: redeemCount, percentage: redeemPercentage },
+      transferPoint,
+      redeemPoint,
     };
   }
 
   /**
-   * Get points data for the merchant (Donut chart)
+   * Get points data for the merchant
    */
   private async getPointsData(
     merchantId: string,
@@ -476,40 +369,20 @@ export class GetMarketerDashboardHandler {
         name: true,
         symbol: true,
         initialSupply: true,
-        contractAddress: true,
       },
     });
 
-    // Calculate remaining for each point type
-    const byType = await Promise.all(
-      points.map(async (p) => {
-        // Get total spent (transferred out) for this point
-        const spentResult = await this.prisma.transaction.aggregate({
-          where: {
-            pointId: p.id,
-            merchantId: merchantId,
-            transactionTypeId: TransactionTypeId.TRANSFER,
-            senderType: 'MERCHANT',
-          },
-          _sum: { amount: true },
-        });
+    // Calculate total initial supply
+    const total = points.reduce((sum, p) => sum + p.initialSupply, 0);
 
-        const spent = spentResult._sum.amount || 0;
-        const remaining = p.initialSupply - spent;
+    // Get point type names
+    const types = points.map((p) => p.name);
 
-        return {
-          type: p.name,
-          initialSupply: p.initialSupply,
-          remaining: remaining > 0 ? remaining : 0,
-        };
-      }),
-    );
-
-    return { byType };
+    return { total, types };
   }
 
   /**
-   * Get THB token statistics for the merchant (Bar chart)
+   * Get THB token statistics for the merchant
    */
   private async getThbStats(
     merchantId: string,
@@ -530,7 +403,7 @@ export class GetMarketerDashboardHandler {
         _sum: { amount: true },
       });
 
-      // Sum of THB_BUY transactions (spent)
+      // Sum of THB_BUY transactions (used for promotion - buying vouchers from seller)
       const buyStats = await this.prisma.transaction.aggregate({
         where: {
           merchantId,
@@ -541,53 +414,30 @@ export class GetMarketerDashboardHandler {
         _sum: { amount: true },
       });
 
-      const summary = {
+      // Sum of REDEEM transactions with THB (used for redeem)
+      const redeemStats = await this.prisma.transaction.aggregate({
+        where: {
+          merchantId,
+          transactionTypeId: TransactionTypeId.REDEEM,
+          type: 'THB_TOKEN' as any,
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        _sum: { amount: true },
+      });
+
+      return {
         deposited: mintStats._sum.amount || 0,
-        spent: buyStats._sum.amount || 0,
+        usedForPromotion: buyStats._sum.amount || 0,
+        usedForRedeem: redeemStats._sum.amount || 0,
       };
-
-      // Generate monthly time series
-      const periods = this.generateTimePeriods(dateRange);
-      const monthly = await Promise.all(
-        periods.map(async (period) => {
-          const [mintSum, buySum] = await Promise.all([
-            this.prisma.transaction.aggregate({
-              where: {
-                merchantId,
-                transactionTypeId: TransactionTypeId.THB_MINT,
-                type: 'THB_TOKEN' as any,
-                createdAt: { gte: period.start, lte: period.end },
-              },
-              _sum: { amount: true },
-            }),
-            this.prisma.transaction.aggregate({
-              where: {
-                merchantId,
-                transactionTypeId: TransactionTypeId.THB_BUY,
-                type: 'THB_TOKEN' as any,
-                createdAt: { gte: period.start, lte: period.end },
-              },
-              _sum: { amount: true },
-            }),
-          ]);
-
-          return {
-            period: period.period,
-            label: period.label,
-            deposited: mintSum._sum.amount || 0,
-            spent: buySum._sum.amount || 0,
-          };
-        }),
-      );
-
-      return { summary, monthly };
     } catch {
       this.logger.warn(
         '[THB_STATS] Error getting THB stats, returning defaults',
       );
       return {
-        summary: { deposited: 0, spent: 0 },
-        monthly: [],
+        deposited: 0,
+        usedForPromotion: 0,
+        usedForRedeem: 0,
       };
     }
   }

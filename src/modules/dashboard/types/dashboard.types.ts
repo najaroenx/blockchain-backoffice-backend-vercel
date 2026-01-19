@@ -129,24 +129,27 @@ export interface SellerDashboardResponse {
 // MerchantRef Dashboard Types
 // ============================================
 
+export interface MerchantRefCouponSummary {
+  soldToEndUser: number; // จำนวนคูปองที่ขายให้ End User
+  pendingUse: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
+  redeemed: number; // จำนวนคูปองที่ End User redeem แล้วจริง ๆ
+}
+
+export interface MerchantRefEndUserSummary {
+  total: number; // จำนวน End User ทั้งหมด
+  buyers: number; // จำนวน End User ที่ซื้อคูปอง
+  couponsSold: number; // จำนวนคูปองที่ขายให้ End User
+  pendingUsers: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
+  redeemedUsers: number; // จำนวน End User ที่ redeem แล้ว
+}
+
+export interface MerchantRefMerchantSummary {
+  coupon: MerchantRefCouponSummary;
+  endUser: MerchantRefEndUserSummary;
+}
+
 export interface MerchantRefDashboardResponse {
   dateRange: DateRangeInfo;
   merchantRef: string;
-
-  // Section 1: ข้อมูลภาพรวมร้านของตนเอง
-  overview: {
-    coupons: {
-      purchasedNotUsed: number; // End User ซื้อแต่ยังไม่ใช้
-      redeemed: number; // End User redeem แล้วจริง ๆ
-    };
-  };
-
-  // Section 2: ข้อมูล End User
-  endUsers: {
-    total: number; // จำนวน customers ที่เรามี
-    purchased: number; // คนที่ซื้อ
-    couponsSold: number; // จำนวนคูปองที่ขายทั้งหมด
-    couponsNotUsed: number; // End User ซื้อแต่ยังไม่ใช้
-    couponsRedeemed: number; // End User redeem แล้วจริง ๆ
-  };
+  myMerchantSummary: MerchantRefMerchantSummary;
 }

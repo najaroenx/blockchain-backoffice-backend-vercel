@@ -8,6 +8,8 @@ import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
   MerchantRefDashboardResponse,
+  MerchantRefCouponSummary,
+  MerchantRefEndUserSummary,
   DateRangeInfo,
 } from '../types/dashboard.types';
 import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
@@ -30,11 +32,11 @@ export class GetMerchantRefDashboardHandler {
       // Parse date range
       const dateRange = this.parseDateRange(query);
 
-      // Execute all queries in parallel
-      const [overview, endUserStats] = await Promise.all([
-        this.getOverview(merchantRef, dateRange),
-        this.getEndUserStats(merchantRef, dateRange),
-      ]);
+      // Get voucher codes data
+      const { couponSummary, endUserSummary } = await this.getMerchantSummary(
+        merchantRef,
+        dateRange,
+      );
 
       this.logger.log(
         `[SUCCESS] MerchantRef dashboard retrieved for ref: ${merchantRef}`,
@@ -43,8 +45,10 @@ export class GetMerchantRefDashboardHandler {
       return {
         dateRange,
         merchantRef,
-        overview,
-        endUsers: endUserStats,
+        myMerchantSummary: {
+          coupon: couponSummary,
+          endUser: endUserSummary,
+        },
       };
     } catch (error) {
       this.logger.error(
@@ -72,13 +76,15 @@ export class GetMerchantRefDashboardHandler {
   }
 
   /**
-   * Get overview statistics for the merchantRef
-   * MerchantRef sees: vouchers purchased by end users and redeemed
+   * Get merchant summary including coupon and end user statistics
    */
-  private async getOverview(
+  private async getMerchantSummary(
     merchantRef: string,
     dateRange: DateRangeInfo,
-  ): Promise<MerchantRefDashboardResponse['overview']> {
+  ): Promise<{
+    couponSummary: MerchantRefCouponSummary;
+    endUserSummary: MerchantRefEndUserSummary;
+  }> {
     const startDate = new Date(dateRange.startDate);
     const endDate = new Date(dateRange.endDate);
 
@@ -92,65 +98,26 @@ export class GetMerchantRefDashboardHandler {
 
     if (voucherIds.length === 0) {
       return {
-        coupons: { purchasedNotUsed: 0, redeemed: 0 },
+        couponSummary: {
+          soldToEndUser: 0,
+          pendingUse: 0,
+          redeemed: 0,
+        },
+        endUserSummary: {
+          total: 0,
+          buyers: 0,
+          couponsSold: 0,
+          pendingUsers: 0,
+          redeemedUsers: 0,
+        },
       };
     }
 
-    // Get all voucher codes for these vouchers
+    // Get all voucher codes for these vouchers (sold to end users)
     const voucherCodes = await this.prisma.voucherCode.findMany({
       where: {
         voucherId: { in: voucherIds },
         currentOwnerId: { not: null }, // Purchased by end user
-        createdAt: { gte: startDate, lte: endDate },
-      },
-      select: {
-        id: true,
-        isUsed: true,
-      },
-    });
-
-    const purchasedNotUsed = voucherCodes.filter((c) => !c.isUsed).length;
-    const redeemed = voucherCodes.filter((c) => c.isUsed).length;
-
-    return {
-      coupons: { purchasedNotUsed, redeemed },
-    };
-  }
-
-  /**
-   * Get end user statistics for the merchantRef
-   * End users who purchased vouchers with this merchantRef
-   */
-  private async getEndUserStats(
-    merchantRef: string,
-    dateRange: DateRangeInfo,
-  ): Promise<MerchantRefDashboardResponse['endUsers']> {
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-
-    // Get all vouchers with this merchantRef
-    const vouchers = await this.prisma.voucher.findMany({
-      where: { merchantRef },
-      select: { id: true },
-    });
-
-    const voucherIds = vouchers.map((v) => v.id);
-
-    if (voucherIds.length === 0) {
-      return {
-        total: 0,
-        purchased: 0,
-        couponsSold: 0,
-        couponsNotUsed: 0,
-        couponsRedeemed: 0,
-      };
-    }
-
-    // Get all voucher codes for these vouchers
-    const voucherCodes = await this.prisma.voucherCode.findMany({
-      where: {
-        voucherId: { in: voucherIds },
-        currentOwnerId: { not: null },
         createdAt: { gte: startDate, lte: endDate },
       },
       select: {
@@ -159,20 +126,34 @@ export class GetMerchantRefDashboardHandler {
       },
     });
 
-    // Unique purchasers
+    // Coupon summary
+    const soldToEndUser = voucherCodes.length;
+    const pendingUse = voucherCodes.filter((c) => !c.isUsed).length;
+    const redeemed = voucherCodes.filter((c) => c.isUsed).length;
+
+    // End user summary
     const allPurchasers = new Set(voucherCodes.map((c) => c.currentOwnerId));
-    const total = allPurchasers.size;
-    const purchased = allPurchasers.size;
-    const couponsSold = voucherCodes.length;
-    const couponsNotUsed = voucherCodes.filter((c) => !c.isUsed).length;
-    const couponsRedeemed = voucherCodes.filter((c) => c.isUsed).length;
+    const usedCodes = voucherCodes.filter((c) => c.isUsed);
+    const unusedCodes = voucherCodes.filter((c) => !c.isUsed);
+
+    const usersWithUnusedCodes = new Set(
+      unusedCodes.map((c) => c.currentOwnerId),
+    );
+    const usersWithUsedCodes = new Set(usedCodes.map((c) => c.currentOwnerId));
 
     return {
-      total,
-      purchased,
-      couponsSold,
-      couponsNotUsed,
-      couponsRedeemed,
+      couponSummary: {
+        soldToEndUser,
+        pendingUse,
+        redeemed,
+      },
+      endUserSummary: {
+        total: allPurchasers.size,
+        buyers: allPurchasers.size,
+        couponsSold: soldToEndUser,
+        pendingUsers: usersWithUnusedCodes.size,
+        redeemedUsers: usersWithUsedCodes.size,
+      },
     };
   }
 }

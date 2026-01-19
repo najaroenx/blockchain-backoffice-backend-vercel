@@ -65,7 +65,8 @@
     "passport-strategy": "^1.0.0",
     "prisma": "^6.19.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "tar": "^7.5.3"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

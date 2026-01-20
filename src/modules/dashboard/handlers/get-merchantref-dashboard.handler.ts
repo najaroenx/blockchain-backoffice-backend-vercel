@@ -1,10 +1,5 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
   MerchantRefDashboardResponse,
@@ -24,40 +19,64 @@ export class GetMerchantRefDashboardHandler {
     merchantRef: string,
     query: DashboardQueryDto,
   ): Promise<MerchantRefDashboardResponse> {
-    try {
-      this.logger.log(
-        `[START] Getting merchantRef dashboard for ref: ${merchantRef}`,
-      );
- 
-      // Parse date range
-      const dateRange = this.parseDateRange(query);
+    // Parse date range for mock response
+    const dateRange = this.parseDateRange(query);
 
-      // Get voucher codes data
-      const { couponSummary, endUserSummary } = await this.getMerchantSummary(
-        merchantRef,
-        dateRange,
-      );
-
-      this.logger.log(
-        `[SUCCESS] MerchantRef dashboard retrieved for ref: ${merchantRef}`,
-      );
-
-      return {
-        dateRange,
-        merchantRef,
-        myMerchantSummary: {
-          coupon: couponSummary,
-          endUser: endUserSummary,
+    // Return mock data with all fields as 0
+    return {
+      dateRange,
+      merchantRef,
+      myMerchantSummary: {
+        coupon: {
+          soldToEndUser: 0,
+          pendingUse: 0,
+          redeemed: 0,
         },
-      };
-    } catch (error) {
-      this.logger.error(
-        `[ERROR] Failed to get merchantRef dashboard: ${error.message}`,
-        error.stack,
-      );
+        endUser: {
+          total: 0,
+          buyers: 0,
+          couponsSold: 0,
+          pendingUsers: 0,
+          redeemedUsers: 0,
+        },
+      },
+    };
 
-      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-    }
+    // === Commented out: Original implementation ===
+    // try {
+    //   this.logger.log(
+    //     `[START] Getting merchantRef dashboard for ref: ${merchantRef}`,
+    //   );
+
+    //   // Parse date range
+    //   const dateRange = this.parseDateRange(query);
+
+    //   // Get voucher codes data
+    //   const { couponSummary, endUserSummary } = await this.getMerchantSummary(
+    //     merchantRef,
+    //     dateRange,
+    //   );
+
+    //   this.logger.log(
+    //     `[SUCCESS] MerchantRef dashboard retrieved for ref: ${merchantRef}`,
+    //   );
+
+    //   return {
+    //     dateRange,
+    //     merchantRef,
+    //     myMerchantSummary: {
+    //       coupon: couponSummary,
+    //       endUser: endUserSummary,
+    //     },
+    //   };
+    // } catch (error) {
+    //   this.logger.error(
+    //     `[ERROR] Failed to get merchantRef dashboard: ${error.message}`,
+    //     error.stack,
+    //   );
+
+    //   throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+    // }
   }
 
   private parseDateRange(query: DashboardQueryDto): DateRangeInfo {

@@ -27,170 +27,219 @@ export class GetSellerDashboardHandler {
     walletAddress: string,
     query: DashboardQueryDto,
   ): Promise<SellerDashboardResponse> {
-    try {
-      this.logger.log(
-        `[START] Getting seller dashboard for wallet: ${walletAddress}`,
-      );
+    // Parse date range for mock response
+    const dateRange = this.parseDateRange(query);
 
-      const normalizedWallet = walletAddress.toLowerCase();
-      const dateRange = this.parseDateRange(query);
-      const startDate = new Date(dateRange.startDate);
-      const endDate = new Date(dateRange.endDate);
-
-      // Get all listing batches for this seller (ALL-TIME for total/owned)
-      const listingBatches = await this.prisma.listingBatch.findMany({
-        where: {
-          sellerWalletAddress: normalizedWallet,
+    // Return mock data with all fields as 0 or empty arrays
+    return {
+      dateRange,
+      overallSummary: {
+        couponCount: {
+          total: 0,
+          unsold: 0,
+          sold: 0,
+          unreserved: 0,
+          reserved: 0,
+          unredeemed: 0,
+          redeemed: 0,
         },
-        select: {
-          id: true,
-          totalItems: true,
-          soldItems: true,
-          totalValue: true,
-          currency: true,
+        couponValue: {
+          sold: 0,
+          unreserved: 0,
+          reserved: 0,
+          unredeemed: 0,
+          redeemed: 0,
         },
-      });
-
-      const listingBatchIds = listingBatches.map((b) => b.id);
-
-      if (listingBatchIds.length === 0) {
-        this.logger.log(
-          `[INFO] No listing batches found for seller ${walletAddress}`,
-        );
-        return { dateRange, ...this.getEmptyResponse() };
-      }
-
-      // Get all voucher codes from seller's listing batches (ALL-TIME)
-      const voucherCodes = await this.prisma.voucherCode.findMany({
-        where: {
-          listingBatchId: { in: listingBatchIds },
-        },
-        select: {
-          id: true,
-          thbPrice: true,
-          currentOwnerId: true,
-          isUsed: true,
-          listingBatchId: true,
-          voucher: {
-            select: {
-              merchantId: true,
-              thbPurchasePrice: true,
-            },
+      },
+      merchants: [
+        {
+          merchantId: '',
+          merchantName: '',
+          couponCount: {
+            total: 0,
+            unsold: 0,
+            sold: 0,
+            unreserved: 0,
+            reserved: 0,
+            unredeemed: 0,
+            redeemed: 0,
+          },
+          couponValue: {
+            sold: 0,
+            unreserved: 0,
+            reserved: 0,
+            unredeemed: 0,
+            redeemed: 0,
           },
         },
-      });
+      ],
+    };
 
-      // Get merchant info for vouchers that have been sold
-      const merchantIds = [
-        ...new Set(
-          voucherCodes
-            .map((vc) => vc.voucher?.merchantId)
-            .filter((id): id is string => id !== null && id !== undefined),
-        ),
-      ];
+    // === Commented out: Original implementation ===
+    // try {
+    //   this.logger.log(
+    //     `[START] Getting seller dashboard for wallet: ${walletAddress}`,
+    //   );
 
-      const merchants = await this.prisma.merchant.findMany({
-        where: { id: { in: merchantIds } },
-        select: { id: true, name: true },
-      });
+    //   const normalizedWallet = walletAddress.toLowerCase();
+    //   const dateRange = this.parseDateRange(query);
+    //   const startDate = new Date(dateRange.startDate);
+    //   const endDate = new Date(dateRange.endDate);
 
-      const merchantMap = new Map(merchants.map((m) => [m.id, m.name]));
+    //   // Get all listing batches for this seller (ALL-TIME for total/owned)
+    //   const listingBatches = await this.prisma.listingBatch.findMany({
+    //     where: {
+    //       sellerWalletAddress: normalizedWallet,
+    //     },
+    //     select: {
+    //       id: true,
+    //       totalItems: true,
+    //       soldItems: true,
+    //       totalValue: true,
+    //       currency: true,
+    //     },
+    //   });
 
-      // Get TRANSFER+VOUCHER transactions (merchant to customer sales) - FILTERED BY DATE
-      const transferTransactions = await this.prisma.transaction.findMany({
-        where: {
-          transactionTypeId: TransactionTypeId.TRANSFER,
-          type: AssetType.VOUCHER,
-          senderType: ParticipantType.MERCHANT,
-          receiverType: ParticipantType.CUSTOMER,
-          voucherCodeId: { in: voucherCodes.map((vc) => vc.id) },
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        select: {
-          id: true,
-          merchantId: true,
-          voucherCodeId: true,
-          amount: true,
-        },
-      });
+    //   const listingBatchIds = listingBatches.map((b) => b.id);
 
-      // Get REDEEM transactions - FILTERED BY DATE
-      const redeemTransactions = await this.prisma.transaction.findMany({
-        where: {
-          transactionTypeId: TransactionTypeId.REDEEM,
-          type: AssetType.VOUCHER,
-          voucherCodeId: { in: voucherCodes.map((vc) => vc.id) },
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        select: {
-          id: true,
-          merchantId: true,
-          voucherCodeId: true,
-          amount: true,
-        },
-      });
+    //   if (listingBatchIds.length === 0) {
+    //     this.logger.log(
+    //       `[INFO] No listing batches found for seller ${walletAddress}`,
+    //     );
+    //     return { dateRange, ...this.getEmptyResponse() };
+    //   }
 
-      // Get THB_BUY transactions (merchant bought from seller) - FILTERED BY DATE
-      const thbBuyTransactions = await this.prisma.transaction.findMany({
-        where: {
-          transactionTypeId: TransactionTypeId.THB_BUY,
-          type: AssetType.THB_TOKEN,
-          voucherCodeId: { in: voucherCodes.map((vc) => vc.id) },
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        select: {
-          id: true,
-          merchantId: true,
-          voucherCodeId: true,
-          amount: true,
-        },
-      });
+    //   // Get all voucher codes from seller's listing batches (ALL-TIME)
+    //   const voucherCodes = await this.prisma.voucherCode.findMany({
+    //     where: {
+    //       listingBatchId: { in: listingBatchIds },
+    //     },
+    //     select: {
+    //       id: true,
+    //       thbPrice: true,
+    //       currentOwnerId: true,
+    //       isUsed: true,
+    //       listingBatchId: true,
+    //       voucher: {
+    //         select: {
+    //           merchantId: true,
+    //           thbPurchasePrice: true,
+    //         },
+    //       },
+    //     },
+    //   });
 
-      // Build sets for lookup
-      const soldVoucherCodeIds = new Set(
-        thbBuyTransactions.map((tx) => tx.voucherCodeId),
-      );
-      const transferredVoucherCodeIds = new Set(
-        transferTransactions.map((tx) => tx.voucherCodeId),
-      );
-      const redeemedVoucherCodeIds = new Set(
-        redeemTransactions.map((tx) => tx.voucherCodeId),
-      );
+    //   // Get merchant info for vouchers that have been sold
+    //   const merchantIds = [
+    //     ...new Set(
+    //       voucherCodes
+    //         .map((vc) => vc.voucher?.merchantId)
+    //         .filter((id): id is string => id !== null && id !== undefined),
+    //     ),
+    //   ];
 
-      // Calculate overall summary
-      const overallSummary = this.calculateOverallSummary(
-        voucherCodes,
-        listingBatches,
-        soldVoucherCodeIds,
-        transferredVoucherCodeIds,
-        redeemedVoucherCodeIds,
-      );
+    //   const merchants = await this.prisma.merchant.findMany({
+    //     where: { id: { in: merchantIds } },
+    //     select: { id: true, name: true },
+    //   });
 
-      // Calculate per-merchant breakdown
-      const merchantBreakdown = this.calculateMerchantBreakdown(
-        voucherCodes,
-        merchantMap,
-        soldVoucherCodeIds,
-        redeemedVoucherCodeIds,
-      );
+    //   const merchantMap = new Map(merchants.map((m) => [m.id, m.name]));
 
-      this.logger.log(
-        `[SUCCESS] Seller dashboard retrieved for wallet: ${walletAddress}`,
-      );
+    //   // Get TRANSFER+VOUCHER transactions (merchant to customer sales) - FILTERED BY DATE
+    //   const transferTransactions = await this.prisma.transaction.findMany({
+    //     where: {
+    //       transactionTypeId: TransactionTypeId.TRANSFER,
+    //       type: AssetType.VOUCHER,
+    //       senderType: ParticipantType.MERCHANT,
+    //       receiverType: ParticipantType.CUSTOMER,
+    //       voucherCodeId: { in: voucherCodes.map((vc) => vc.id) },
+    //       createdAt: { gte: startDate, lte: endDate },
+    //     },
+    //     select: {
+    //       id: true,
+    //       merchantId: true,
+    //       voucherCodeId: true,
+    //       amount: true,
+    //     },
+    //   });
 
-      return {
-        dateRange,
-        overallSummary,
-        merchants: merchantBreakdown,
-      };
-    } catch (error) {
-      this.logger.error(
-        `[ERROR] Failed to get seller dashboard: ${error.message}`,
-        error.stack,
-      );
+    //   // Get REDEEM transactions - FILTERED BY DATE
+    //   const redeemTransactions = await this.prisma.transaction.findMany({
+    //     where: {
+    //       transactionTypeId: TransactionTypeId.REDEEM,
+    //       type: AssetType.VOUCHER,
+    //       voucherCodeId: { in: voucherCodes.map((vc) => vc.id) },
+    //       createdAt: { gte: startDate, lte: endDate },
+    //     },
+    //     select: {
+    //       id: true,
+    //       merchantId: true,
+    //       voucherCodeId: true,
+    //       amount: true,
+    //     },
+    //   });
 
-      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-    }
+    //   // Get THB_BUY transactions (merchant bought from seller) - FILTERED BY DATE
+    //   const thbBuyTransactions = await this.prisma.transaction.findMany({
+    //     where: {
+    //       transactionTypeId: TransactionTypeId.THB_BUY,
+    //       type: AssetType.THB_TOKEN,
+    //       voucherCodeId: { in: voucherCodes.map((vc) => vc.id) },
+    //       createdAt: { gte: startDate, lte: endDate },
+    //     },
+    //     select: {
+    //       id: true,
+    //       merchantId: true,
+    //       voucherCodeId: true,
+    //       amount: true,
+    //     },
+    //   });
+
+    //   // Build sets for lookup
+    //   const soldVoucherCodeIds = new Set(
+    //     thbBuyTransactions.map((tx) => tx.voucherCodeId),
+    //   );
+    //   const transferredVoucherCodeIds = new Set(
+    //     transferTransactions.map((tx) => tx.voucherCodeId),
+    //   );
+    //   const redeemedVoucherCodeIds = new Set(
+    //     redeemTransactions.map((tx) => tx.voucherCodeId),
+    //   );
+
+    //   // Calculate overall summary
+    //   const overallSummary = this.calculateOverallSummary(
+    //     voucherCodes,
+    //     listingBatches,
+    //     soldVoucherCodeIds,
+    //     transferredVoucherCodeIds,
+    //     redeemedVoucherCodeIds,
+    //   );
+
+    //   // Calculate per-merchant breakdown
+    //   const merchantBreakdown = this.calculateMerchantBreakdown(
+    //     voucherCodes,
+    //     merchantMap,
+    //     soldVoucherCodeIds,
+    //     redeemedVoucherCodeIds,
+    //   );
+
+    //   this.logger.log(
+    //     `[SUCCESS] Seller dashboard retrieved for wallet: ${walletAddress}`,
+    //   );
+
+    //   return {
+    //     dateRange,
+    //     overallSummary,
+    //     merchants: merchantBreakdown,
+    //   };
+    // } catch (error) {
+    //   this.logger.error(
+    //     `[ERROR] Failed to get seller dashboard: ${error.message}`,
+    //     error.stack,
+    //   );
+
+    //   throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+    // }
   }
 
   private parseDateRange(query: DashboardQueryDto): DateRangeInfo {
@@ -213,17 +262,19 @@ export class GetSellerDashboardHandler {
       overallSummary: {
         couponCount: {
           total: 0,
-          owned: 0,
+          unsold: 0,
           sold: 0,
-          reservedByMarketer: 0,
-          redeemedByEndUser: 0,
+          unreserved: 0,
+          reserved: 0,
+          unredeemed: 0,
+          redeemed: 0,
         },
         couponValue: {
-          total: 0,
-          owned: 0,
           sold: 0,
-          reservedByMarketer: 0,
-          redeemedByEndUser: 0,
+          unreserved: 0,
+          reserved: 0,
+          unredeemed: 0,
+          redeemed: 0,
         },
       },
       merchants: [],
@@ -256,11 +307,11 @@ export class GetSellerDashboardHandler {
   ): SellerOverallSummary {
     // Total from listing batches (ALL-TIME)
     const totalCount = listingBatches.reduce((sum, b) => sum + b.totalItems, 0);
-    const totalValue = listingBatches.reduce((sum, b) => sum + b.totalValue, 0);
+    // const totalValue = listingBatches.reduce((sum, b) => sum + b.totalValue, 0);
 
     // Calculate owned (ALL-TIME) - vouchers not yet sold to any merchant
     let ownedCount = 0;
-    let ownedValue = 0;
+    // let ownedValue = 0;
 
     // Calculate date-filtered stats
     let soldCount = 0;
@@ -277,7 +328,7 @@ export class GetSellerDashboardHandler {
       if (!hasMerchant) {
         // Still owned by seller (ALL-TIME count)
         ownedCount++;
-        ownedValue += price;
+        // ownedValue += price;
       }
 
       // Check if sold in date range
@@ -300,17 +351,19 @@ export class GetSellerDashboardHandler {
     return {
       couponCount: {
         total: totalCount,
-        owned: ownedCount,
+        unsold: ownedCount,
         sold: soldCount,
-        reservedByMarketer: reservedByMarketerCount,
-        redeemedByEndUser: redeemedByEndUserCount,
+        unreserved: reservedByMarketerCount,
+        reserved: reservedByMarketerCount,
+        unredeemed: redeemedByEndUserCount,
+        redeemed: redeemedByEndUserCount,
       },
       couponValue: {
-        total: totalValue,
-        owned: ownedValue,
         sold: soldValue,
-        reservedByMarketer: reservedByMarketerValue,
-        redeemedByEndUser: redeemedByEndUserValue,
+        unreserved: reservedByMarketerValue,
+        reserved: reservedByMarketerValue,
+        unredeemed: redeemedByEndUserValue,
+        redeemed: redeemedByEndUserValue,
       },
     };
   }
@@ -362,10 +415,12 @@ export class GetSellerDashboardHandler {
     for (const [merchantId, group] of merchantGroups) {
       const couponCount: SellerCouponCount = {
         total: group.codes.length,
-        owned: 0, // For merchant view, "owned by seller" is 0 since these are already sold
-        sold: group.codes.length,
-        reservedByMarketer: 0,
-        redeemedByEndUser: 0,
+        unsold: 0,
+        sold: 0,
+        unreserved: 0,
+        reserved: 0,
+        unredeemed: 0,
+        redeemed: 0,
       };
 
       let totalValue = 0;
@@ -379,10 +434,10 @@ export class GetSellerDashboardHandler {
         const isRedeemed = redeemedVoucherCodeIds.has(vc.id);
 
         if (isRedeemed) {
-          couponCount.redeemedByEndUser++;
+          couponCount.redeemed++;
           redeemedByEndUserValue += price;
         } else {
-          couponCount.reservedByMarketer++;
+          couponCount.reserved++;
           reservedByMarketerValue += price;
         }
       }
@@ -392,18 +447,17 @@ export class GetSellerDashboardHandler {
         merchantName: group.name,
         couponCount,
         couponValue: {
-          total: totalValue,
-          owned: 0,
           sold: totalValue,
-          reservedByMarketer: reservedByMarketerValue,
-          redeemedByEndUser: redeemedByEndUserValue,
-          currency: 'THB_TOKEN',
+          unreserved: reservedByMarketerValue,
+          reserved: reservedByMarketerValue,
+          unredeemed: redeemedByEndUserValue,
+          redeemed: redeemedByEndUserValue,
         },
       });
     }
 
     // Sort by total value descending
-    result.sort((a, b) => b.couponValue.total - a.couponValue.total);
+    result.sort((a, b) => b.couponValue.sold - a.couponValue.sold);
 
     return result;
   }

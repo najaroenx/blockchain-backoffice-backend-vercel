@@ -23,7 +23,6 @@ export interface MarketerDashboardResponse {
 
   // 1.1 จำนวนคูปอง
   couponCount: {
-    total: number; // จำนวนคูปองทั้งหมดที่เรามี
     purchased: number; // จำนวนคูปองที่ซื้อมาจาก Seller
     soldToEndUser: number; // จำนวนคูปองที่ขายให้ End User
     pendingUse: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
@@ -38,13 +37,19 @@ export interface MarketerDashboardResponse {
     redeemed: number; // มูลค่าคูปองที่ End User redeem แล้วจริง ๆ (THB)
   };
 
+  couponValueByCurrency: {
+    currency: string; // สกุลเงินของคูปอง
+    total: number; // มูลค่าคูปองทั้งหมดที่เรามี (สกุลเงินนั้น ๆ)
+    sold: number; // มูลค่าคูปองที่ขายทั้งหมด (สกุลเงินนั้น ๆ)
+    pendingUse: number; // มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้ (สกุลเงินนั้น ๆ)
+    redeemed: number; // มูลค่าคูปองที่ End User redeem แล้วจริง ๆ (สกุลเงินนั้น ๆ)
+  }[];
+
   // ============================================
   // Section 2: ข้อมูล End User
   // ============================================
   endUsers: {
-    total: number; // จำนวน End User ทั้งหมด
     buyers: number; // จำนวน End User ที่ซื้อคูปอง
-    couponsSold: number; // จำนวนคูปองที่ขายให้ End User
     pendingUsers: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
     redeemedUsers: number; // จำนวน End User ที่ redeem แล้วจริง ๆ
   };
@@ -53,8 +58,8 @@ export interface MarketerDashboardResponse {
   // Section 3: Transaction
   // ============================================
   transactions: {
-    transferPoint: number; // จำนวน Point ที่โอน
-    redeemPoint: number; // จำนวน Point ที่ Redeem
+    transferPoint: number; // จำนวน ครั้งที่ transfer Point ระหว่าง End User
+    purchaseCoupon: number; // จำนวน ครั้งที่ End User ใช้ Point ซื้อคูปอง
   };
 
   // ============================================
@@ -62,8 +67,8 @@ export interface MarketerDashboardResponse {
   // ============================================
   points: {
     total: number; // จำนวน Point ทั้งหมด (initial supply รวม)
-    types: string[]; // ประเภท Point ที่มี
-  };
+    types: string;
+  }[];
 
   // ============================================
   // Section 5: THB Token
@@ -71,7 +76,6 @@ export interface MarketerDashboardResponse {
   thbToken: {
     deposited: number; // THB Token ที่เติมเข้าไป
     usedForPromotion: number; // THB Token ที่ใช้ซื้อคูปองจาก Seller
-    usedForRedeem: number; // THB Token สำหรับ redeem
   };
 }
 
@@ -79,28 +83,22 @@ export interface MarketerDashboardResponse {
 // Seller Dashboard Types
 // ============================================
 
-/**
- * Coupon count breakdown for seller dashboard
- * - total: Total coupons created by seller (all-time)
- * - owned: Coupons still owned by Seller (not purchased by any merchant) (all-time)
- * - sold: Coupons sold to merchants (filtered by date range)
- * - reservedByMarketer: Coupons merchants hold but not sold to end users (filtered by date range)
- * - redeemedByEndUser: Coupons end users have redeemed (filtered by date range)
- */
 export interface SellerCouponCount {
   total: number;
-  owned: number;
+  unsold: number;
   sold: number;
-  reservedByMarketer: number;
-  redeemedByEndUser: number;
+  unreserved: number;
+  reserved: number;
+  unredeemed: number;
+  redeemed: number;
 }
 
 export interface SellerCouponValue {
-  total: number;
-  owned: number;
   sold: number;
-  reservedByMarketer: number;
-  redeemedByEndUser: number;
+  unreserved: number;
+  reserved: number;
+  unredeemed: number;
+  redeemed: number;
 }
 
 export interface SellerCouponValueWithCurrency extends SellerCouponValue {
@@ -116,7 +114,7 @@ export interface SellerMerchantBreakdown {
   merchantId: string;
   merchantName: string;
   couponCount: SellerCouponCount;
-  couponValue: SellerCouponValueWithCurrency;
+  couponValue: SellerCouponValue;
 }
 
 export interface SellerDashboardResponse {

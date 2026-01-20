@@ -6,13 +6,17 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
-import { TransactionTypeId } from 'src/constants/transaction-types.enum';
+import {
+  AssetType,
+  TransactionTypeId,
+} from 'src/constants/transaction-types.enum';
 import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
   MarketerDashboardResponse,
   DateRangeInfo,
 } from '../types/dashboard.types';
 import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
+import { ParticipantType } from '@prisma/client';
 
 @Injectable()
 export class GetMarketerDashboardHandler {
@@ -61,14 +65,45 @@ export class GetMarketerDashboardHandler {
         `[SUCCESS] Marketer dashboard retrieved for merchant: ${merchantId}`,
       );
 
+      // return {
+      //   dateRange,
+      //   couponCount: voucherStats.couponCount,
+      //   couponValue: voucherStats.couponValue,
+      //   couponValueByCurrency: voucherStats.couponValueByCurrency,
+      //   endUsers: endUserStats,
+      //   transactions: transactionStats,
+      //   points: pointsData,
+      //   thbToken: thbStats,
+      // };
       return {
         dateRange,
-        couponCount: voucherStats.couponCount,
-        couponValue: voucherStats.couponValue,
-        endUsers: endUserStats,
-        transactions: transactionStats,
-        points: pointsData,
-        thbToken: thbStats,
+        couponCount: {
+          purchased: 0,
+          soldToEndUser: 0,
+          pendingUse: 0,
+          redeemed: 0,
+        },
+        couponValue: {
+          total: 0,
+          sold: 0,
+          pendingUse: 0,
+          redeemed: 0,
+        },
+        couponValueByCurrency: [],
+        endUsers: {
+          buyers: 0,
+          pendingUsers: 0,
+          redeemedUsers: 0,
+        },
+        transactions: {
+          transferPoint: 0,
+          purchaseCoupon: 0,
+        },
+        points: [],
+        thbToken: {
+          deposited: 0,
+          usedForPromotion: 0,
+        },
       };
     } catch (error) {
       this.logger.error(
@@ -109,6 +144,7 @@ export class GetMarketerDashboardHandler {
   ): Promise<{
     couponCount: MarketerDashboardResponse['couponCount'];
     couponValue: MarketerDashboardResponse['couponValue'];
+    couponValueByCurrency: MarketerDashboardResponse['couponValueByCurrency'];
   }> {
     const startDate = new Date(dateRange.startDate);
     const endDate = new Date(dateRange.endDate);
@@ -124,7 +160,6 @@ export class GetMarketerDashboardHandler {
     if (voucherIds.length === 0) {
       return {
         couponCount: {
-          total: 0,
           purchased: 0,
           soldToEndUser: 0,
           pendingUse: 0,
@@ -136,6 +171,7 @@ export class GetMarketerDashboardHandler {
           pendingUse: 0,
           redeemed: 0,
         },
+        couponValueByCurrency: [],
       };
     }
 
@@ -147,9 +183,12 @@ export class GetMarketerDashboardHandler {
       select: {
         id: true,
         pointsCost: true,
+        currency: true,
         currentOwnerId: true,
         isUsed: true,
-        voucher: { select: { value: true, thbPurchasePrice: true } },
+        voucher: {
+          select: { value: true, thbPurchasePrice: true, currency: true },
+        },
       },
     });
 
@@ -161,8 +200,39 @@ export class GetMarketerDashboardHandler {
       c.voucher?.thbPurchasePrice ?? 0;
     const ownedValue = allCodes.reduce((sum, c) => sum + getThbPrice(c), 0);
 
+    // Step 2: Create Map for grouping by currency
+    // Build a map from voucherCodeId -> currency for later use
+    const codeIdToCurrency = new Map<string, string>();
+    const currencyStatsMap = new Map<
+      string,
+      { total: number; sold: number; pendingUse: number; redeemed: number }
+    >();
+
+    for (const code of allCodes) {
+      // Priority: VoucherCode.currency (Point symbol) > Voucher.currency > 'THB'
+      const currency = code.currency || code.voucher?.currency || 'THB';
+      codeIdToCurrency.set(code.id, currency);
+
+      // Initialize currency stats if not exists
+      if (!currencyStatsMap.has(currency)) {
+        currencyStatsMap.set(currency, {
+          total: 0,
+          sold: 0,
+          pendingUse: 0,
+          redeemed: 0,
+        });
+      }
+
+      // Add total value (thbPurchasePrice) for this currency
+      const stats = currencyStatsMap.get(currency)!;
+      stats.total += getThbPrice(code);
+    }
+
     this.logger.log(
       `[getVoucherStats] Found ${total} voucher codes for merchant, ownedValue=${ownedValue}`,
+    );
+    this.logger.log(
+      `[getVoucherStats] Currency groups: ${Array.from(currencyStatsMap.keys()).join(', ')}`,
     );
 
     // === Query Transaction data with date range filter ===
@@ -181,7 +251,7 @@ export class GetMarketerDashboardHandler {
         where: {
           merchantId,
           transactionTypeId: TransactionTypeId.THB_BUY,
-          type: 'THB_TOKEN' as any,
+          type: AssetType.THB_TOKEN,
           createdAt: { gte: startDate, lte: endDate },
         },
         _count: { id: true },
@@ -193,8 +263,8 @@ export class GetMarketerDashboardHandler {
         where: {
           merchantId,
           transactionTypeId: TransactionTypeId.TRANSFER,
-          type: 'VOUCHER' as any,
-          receiverType: 'CUSTOMER',
+          type: AssetType.VOUCHER,
+          receiverType: ParticipantType.CUSTOMER,
           voucherCodeId: { in: allCodeIds.length > 0 ? allCodeIds : undefined },
           createdAt: { gte: startDate, lte: endDate },
         },
@@ -238,7 +308,6 @@ export class GetMarketerDashboardHandler {
 
     return {
       couponCount: {
-        total, // All time - total voucher codes
         purchased, // From THB_BUY in date range
         soldToEndUser, // From TRANSFER+VOUCHER in date range
         pendingUse, // sold - redeemed in date range
@@ -250,6 +319,7 @@ export class GetMarketerDashboardHandler {
         pendingUse: pendingValue, // sold - redeemed value
         redeemed: redeemedValue, // From REDEEM amount in date range
       },
+      couponValueByCurrency: [], // (Not implemented)
     };
   }
 
@@ -259,11 +329,6 @@ export class GetMarketerDashboardHandler {
   private async getEndUserStats(
     merchantId: string,
   ): Promise<MarketerDashboardResponse['endUsers']> {
-    // Total end users associated with merchant
-    const total = await this.prisma.customerMerChant.count({
-      where: { merchantId },
-    });
-
     // Get all vouchers for this merchant
     const vouchers = await this.prisma.voucher.findMany({
       where: { merchantId },
@@ -274,9 +339,7 @@ export class GetMarketerDashboardHandler {
 
     if (voucherIds.length === 0) {
       return {
-        total,
         buyers: 0,
-        couponsSold: 0,
         pendingUsers: 0,
         redeemedUsers: 0,
       };
@@ -295,7 +358,6 @@ export class GetMarketerDashboardHandler {
       voucherCodes.map((c) => c.currentOwnerId),
     );
     const buyers = uniquePurchasedCustomers.size;
-    const couponsSold = voucherCodes.length;
 
     // Count unique users by status
     const pendingCodes = voucherCodes.filter((c) => !c.isUsed);
@@ -306,9 +368,7 @@ export class GetMarketerDashboardHandler {
       .size;
 
     return {
-      total,
       buyers,
-      couponsSold,
       pendingUsers,
       redeemedUsers,
     };
@@ -346,16 +406,17 @@ export class GetMarketerDashboardHandler {
     });
 
     const transferPoint = transferPointStats._sum.amount || 0;
-    const redeemPoint = redeemStats._sum.amount || 0;
+    const purchaseCoupon = redeemStats._sum.amount || 0;
 
     return {
       transferPoint,
-      redeemPoint,
+      purchaseCoupon,
     };
   }
 
   /**
    * Get points data for the merchant
+   * Returns an array of points with their individual supply and type info
    */
   private async getPointsData(
     merchantId: string,
@@ -370,13 +431,11 @@ export class GetMarketerDashboardHandler {
       },
     });
 
-    // Calculate total initial supply
-    const total = points.reduce((sum, p) => sum + p.initialSupply, 0);
-
-    // Get point type names
-    const types = points.map((p) => p.name);
-
-    return { total, types };
+    // Return array of points with total (initialSupply) and types (name/symbol)
+    return points.map((p) => ({
+      total: p.initialSupply,
+      types: p.name,
+    }));
   }
 
   /**
@@ -412,21 +471,9 @@ export class GetMarketerDashboardHandler {
         _sum: { amount: true },
       });
 
-      // Sum of REDEEM transactions with THB (used for redeem)
-      const redeemStats = await this.prisma.transaction.aggregate({
-        where: {
-          merchantId,
-          transactionTypeId: TransactionTypeId.REDEEM,
-          type: 'THB_TOKEN' as any,
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        _sum: { amount: true },
-      });
-
       return {
         deposited: mintStats._sum.amount || 0,
         usedForPromotion: buyStats._sum.amount || 0,
-        usedForRedeem: redeemStats._sum.amount || 0,
       };
     } catch {
       this.logger.warn(
@@ -435,7 +482,6 @@ export class GetMarketerDashboardHandler {
       return {
         deposited: 0,
         usedForPromotion: 0,
-        usedForRedeem: 0,
       };
     }
   }

@@ -28,7 +28,7 @@ export class GetMerchantRefDashboardHandler {
       this.logger.log(
         `[START] Getting merchantRef dashboard for ref: ${merchantRef}`,
       );
-
+ 
       // Parse date range
       const dateRange = this.parseDateRange(query);
 

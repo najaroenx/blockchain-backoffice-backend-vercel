@@ -9,8 +9,11 @@ jest.mock('ethers', () => ({
 
 describe('createWallet', () => {
   const mockHDNode = {
-    mnemonic: { phrase: 'test seed phrase words here for testing purposes only' },
-    chainCode: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+    mnemonic: {
+      phrase: 'test seed phrase words here for testing purposes only',
+    },
+    chainCode:
+      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
     address: '0x1234567890abcdef1234567890abcdef12345678',
     derivePath: jest.fn().mockReturnThis(),
   };

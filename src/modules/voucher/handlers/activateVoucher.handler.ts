@@ -137,7 +137,7 @@ export class ActivateVoucher {
 
           if (
             !merchant?.wallet?.walletAddress ||
-            !merchant?.wallet?.privateKey
+            !merchant?.wallet?.seedPhrase
           ) {
             throw new Error('Merchant wallet not configured');
           }
@@ -210,16 +210,26 @@ export class ActivateVoucher {
             `[STEP 4.3] Listing ${amount} coupons on marketplace at price ${pointsCost} per unit`,
           );
 
-          // Decrypt merchant private key before blockchain operations
+          // Decrypt merchant seed phrase and derive private key
           const salt = this.configService.get<string>('SALT');
-          const decryptedPrivateKey = this.tokenService.decryptKey(
+          const decryptedSeedPhrase = this.tokenService.decryptKey(
             salt,
-            merchant.wallet.privateKey,
+            merchant.wallet.seedPhrase,
           );
 
-          if (!decryptedPrivateKey) {
-            throw new Error('Failed to decrypt merchant private key');
+          if (!decryptedSeedPhrase) {
+            throw new Error('Failed to decrypt merchant seed phrase');
           }
+
+          // Derive private key from seed phrase
+          const { getSignerFromSeedPhrase } = await import(
+            'src/libs/derive-wallet'
+          );
+          const merchantSigner = getSignerFromSeedPhrase(
+            decryptedSeedPhrase,
+            merchant.wallet.derivationIndex || 0,
+          );
+          const decryptedPrivateKey = merchantSigner.privateKey;
 
           // Get point token address for payment token
           const pointTokenAddress = convertBufferToAddress(

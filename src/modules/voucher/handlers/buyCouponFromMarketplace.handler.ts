@@ -202,27 +202,39 @@ export class BuyCouponFromMarketplace {
         `[STEP 6] Balance check passed. Available: ${customerPoint.balances} ${voucherCode.currency}`,
       );
 
-      // 7. Get customer wallet (address + privateKey) for signing and payments
+      // 7. Get customer wallet (address + seedPhrase) for signing and payments
       const customerWallet = await this.prisma.wallet.findUnique({
         where: { id: customer.walletId },
       });
 
-      if (!customerWallet?.walletAddress || !customerWallet?.privateKey) {
+      if (!customerWallet?.walletAddress || !customerWallet?.seedPhrase) {
         throw new BadRequestException('Customer wallet not configured');
       }
       const walletAddress = customerWallet.walletAddress;
 
-      // 7.5. Decrypt customer private key
-      this.logger.log(`[STEP 7.5] Decrypting customer private key`);
+      // 7.5. Decrypt customer seed phrase and derive private key
+      this.logger.log(
+        `[STEP 7.5] Decrypting customer seed phrase and deriving private key`,
+      );
       const salt = this.configService.get<string>('SALT');
-      const decryptedPrivateKey = this.tokenService.decryptKey(
+      const decryptedSeedPhrase = this.tokenService.decryptKey(
         salt,
-        customerWallet.privateKey,
+        customerWallet.seedPhrase,
       );
 
-      if (!decryptedPrivateKey) {
-        throw new Error('Failed to decrypt customer private key');
+      if (!decryptedSeedPhrase) {
+        throw new Error('Failed to decrypt customer seed phrase');
       }
+
+      // Derive private key from seed phrase
+      const { getSignerFromSeedPhrase } = await import(
+        'src/libs/derive-wallet'
+      );
+      const customerSigner = getSignerFromSeedPhrase(
+        decryptedSeedPhrase,
+        customerWallet.derivationIndex || 0,
+      );
+      const decryptedPrivateKey = customerSigner.privateKey;
 
       // 7.6. Check and add customer to marketplace whitelist if needed
       this.logger.log(

@@ -121,12 +121,18 @@ async function seedTreasury() {
 }
 
 async function seedSellerWallets() {
+  // For seed data, we use a test mnemonic - encrypted placeholder values
+  // In production, these would be real encrypted values
+  const testSeedPhrase = 'test seed phrase placeholder for seller wallet';
+  const testChainCode = 'test chain code placeholder for seller wallet';
+
   const sellerWallets = [
     {
       id: 'seller-wallet-1',
       walletAddress: '0xf5e40ec8bfa4818278c04489b34a486281658e5c',
-      privateKey:
-        '0x232c5e59c09fc77a909d6a03d8aff5968eb952844ffcfaa3431b8b5ccbaee39a',
+      seedPhrase: testSeedPhrase,
+      chainCode: testChainCode,
+      derivationIndex: 0,
       email: 'seller1@example.com',
       phoneNumber: '0809760234',
       type: 'seller',
@@ -139,7 +145,9 @@ async function seedSellerWallets() {
       where: { id: wallet.id },
       update: {
         walletAddress: wallet.walletAddress,
-        privateKey: wallet.privateKey,
+        seedPhrase: wallet.seedPhrase,
+        chainCode: wallet.chainCode,
+        derivationIndex: wallet.derivationIndex,
         email: wallet.email,
         phoneNumber: wallet.phoneNumber,
         type: wallet.type,

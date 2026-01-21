@@ -154,8 +154,10 @@ export class CreateTransactionB2C {
       const { merchant } = await this.getMerchant.execute(merchantId);
       const merchantWalletAddress =
         (merchant as any).wallet?.walletAddress || '';
-      const merchantEncryptedPrivateKey =
-        (merchant as any).wallet?.privateKey || '';
+      const merchantEncryptedSeedPhrase =
+        (merchant as any).wallet?.seedPhrase || '';
+      const merchantDerivationIndex =
+        (merchant as any).wallet?.derivationIndex || 0;
 
       if (!merchantWalletAddress) {
         this.logger.error(
@@ -164,12 +166,12 @@ export class CreateTransactionB2C {
         throw new BadRequestException('Merchant wallet not configured');
       }
 
-      if (!merchantEncryptedPrivateKey) {
+      if (!merchantEncryptedSeedPhrase) {
         this.logger.error(
-          `[CreateTransactionB2C] Merchant ${merchantId} wallet private key not configured`,
+          `[CreateTransactionB2C] Merchant ${merchantId} wallet seed phrase not configured`,
         );
         throw new BadRequestException(
-          'Merchant wallet private key not configured',
+          'Merchant wallet seed phrase not configured',
         );
       }
 
@@ -177,8 +179,10 @@ export class CreateTransactionB2C {
         `[CreateTransactionB2C] Merchant wallet address: ${merchantWalletAddress}`,
       );
 
-      // Decrypt merchant private key
-      this.logger.log(`[CreateTransactionB2C] Decrypting merchant private key`);
+      // Decrypt merchant seed phrase and derive private key
+      this.logger.log(
+        `[CreateTransactionB2C] Decrypting merchant seed phrase and deriving private key`,
+      );
       let merchantPrivateKey: string;
       try {
         const salt = this.configService.get<string>('SALT');
@@ -192,39 +196,19 @@ export class CreateTransactionB2C {
           `[CreateTransactionB2C] SALT (first 10 chars): ${salt?.substring(0, 10)}...`,
         );
         this.logger.log(
-          `[CreateTransactionB2C] Encrypted key length: ${merchantEncryptedPrivateKey?.length || 0}`,
+          `[CreateTransactionB2C] Encrypted seed phrase length: ${merchantEncryptedSeedPhrase?.length || 0}`,
         );
         this.logger.log(
-          `[CreateTransactionB2C] Full encrypted key: ${merchantEncryptedPrivateKey}`,
+          `[CreateTransactionB2C] Full encrypted seed phrase: ${merchantEncryptedSeedPhrase}`,
         );
 
-        merchantPrivateKey = this.tokenService.decryptKey(
+        const decryptedSeedPhrase = this.tokenService.decryptKey(
           salt,
-          merchantEncryptedPrivateKey,
-        );
-
-        // Detailed decryption result checking
-        this.logger.log(
-          `[CreateTransactionB2C] Decryption result type: ${typeof merchantPrivateKey}`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] Decryption result: "${merchantPrivateKey}"`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] Is null: ${merchantPrivateKey === null}`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] Is undefined: ${merchantPrivateKey === undefined}`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] Is empty string: ${merchantPrivateKey === ''}`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] Decrypted key length: ${merchantPrivateKey?.length || 0}`,
+          merchantEncryptedSeedPhrase,
         );
 
         // Validate decryption result
-        if (!merchantPrivateKey || merchantPrivateKey.length === 0) {
+        if (!decryptedSeedPhrase || decryptedSeedPhrase.length === 0) {
           this.logger.error(
             `[CreateTransactionB2C] Decryption returned empty value!`,
           );
@@ -234,11 +218,22 @@ export class CreateTransactionB2C {
           throw new Error('Decryption returned empty value');
         }
 
+        // Derive private key from seed phrase
+        const { getSignerFromSeedPhrase } = await import(
+          'src/libs/derive-wallet'
+        );
+        const merchantSigner = getSignerFromSeedPhrase(
+          decryptedSeedPhrase,
+          merchantDerivationIndex,
+        );
+        merchantPrivateKey = merchantSigner.privateKey;
+
+        // Detailed decryption result checking
         this.logger.log(
-          `[CreateTransactionB2C] Merchant private key decrypted successfully`,
+          `[CreateTransactionB2C] Decryption result type: ${typeof merchantPrivateKey}`,
         );
         this.logger.log(
-          `[CreateTransactionB2C] Decrypted private key (first 10 chars): ${merchantPrivateKey?.substring(0, 10)}...`,
+          `[CreateTransactionB2C] Derived private key length: ${merchantPrivateKey?.length || 0}`,
         );
 
         // Verify that private key matches merchant wallet address
@@ -282,14 +277,14 @@ export class CreateTransactionB2C {
         }
       } catch (error) {
         this.logger.error(
-          `[CreateTransactionB2C] Failed to decrypt merchant private key: ${error.message}`,
+          `[CreateTransactionB2C] Failed to decrypt merchant seed phrase: ${error.message}`,
         );
         this.logger.error(`[CreateTransactionB2C] Error stack: ${error.stack}`);
         this.logger.error(
           `[CreateTransactionB2C] Error details: ${JSON.stringify(error)}`,
         );
         this.logger.error(
-          `[CreateTransactionB2C] Encrypted key (first 20 chars): ${merchantEncryptedPrivateKey?.substring(0, 20)}...`,
+          `[CreateTransactionB2C] Encrypted seed phrase (first 20 chars): ${merchantEncryptedSeedPhrase?.substring(0, 20)}...`,
         );
 
         // REMOVED FALLBACK: Merchant must use their own wallet, no backend wallet fallback

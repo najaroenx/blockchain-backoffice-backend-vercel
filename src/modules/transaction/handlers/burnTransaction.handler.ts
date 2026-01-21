@@ -178,14 +178,22 @@ export class BurnTransaction {
     sender: CustomerType,
     point: any,
   ): Promise<string> {
-    const senderPrivateKey = this.tokenService.decryptKey(
+    // Decrypt sender seed phrase and derive private key
+    const decryptedSeedPhrase = this.tokenService.decryptKey(
       this.salt,
-      (sender as any).wallet?.privateKey || '',
+      (sender as any).wallet?.seedPhrase || '',
+    );
+    const derivationIndex = (sender as any).wallet?.derivationIndex || 0;
+
+    const { getSignerFromSeedPhrase } = await import('src/libs/derive-wallet');
+    const senderSigner = getSignerFromSeedPhrase(
+      decryptedSeedPhrase,
+      derivationIndex,
     );
 
     const { txId } = await this.blockchainService.burn({
       amount,
-      senderPrivateKey,
+      senderPrivateKey: senderSigner.privateKey,
       pointAddress: point.contractAddress,
     });
 

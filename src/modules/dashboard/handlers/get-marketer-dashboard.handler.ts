@@ -65,50 +65,50 @@ export class GetMarketerDashboardHandler {
         `[SUCCESS] Marketer dashboard retrieved for merchant: ${merchantId}`,
       );
 
-      // return {
-      //   dateRange,
-      //   couponCount: voucherStats.couponCount,
-      //   couponValue: voucherStats.couponValue,
-      //   couponValueByCurrency: voucherStats.couponValueByCurrency,
-      //   endUsers: endUserStats,
-      //   transactions: transactionStats,
-      //   points: pointsData,
-      //   thbToken: thbStats,
-      // };
       return {
         dateRange,
-        couponCount: {
-          purchased: 0,
-          soldToEndUser: 0,
-          pendingUse: 0,
-          redeemed: 0,
-        },
-        couponValue: {
-          total: 0,
-          sold: 0,
-          pendingUse: 0,
-          redeemed: 0,
-        },
-        couponValueByCurrency: [],
-        endUsers: {
-          buyers: 0,
-          pendingUsers: 0,
-          redeemedUsers: 0,
-        },
-        transactions: {
-          transferPoint: 0,
-          purchaseCoupon: 0,
-        },
-        points: [
-          { total: 10000, types: 'Reward Points' },
-          { total: 5000, types: 'Bonus Points' },
-          { total: 2500, types: 'Loyalty Points' },
-        ],
-        thbToken: {
-          deposited: 0,
-          usedForPromotion: 0,
-        },
+        couponCount: voucherStats.couponCount,
+        couponValue: voucherStats.couponValue,
+        couponValueByCurrency: voucherStats.couponValueByCurrency,
+        endUsers: endUserStats,
+        transactions: transactionStats,
+        points: pointsData,
+        thbToken: thbStats,
       };
+      // return {
+      //   dateRange,
+      //   couponCount: {
+      //     purchased: 0,
+      //     soldToEndUser: 0,
+      //     pendingUse: 0,
+      //     redeemed: 0,
+      //   },
+      //   couponValue: {
+      //     total: 0,
+      //     sold: 0,
+      //     pendingUse: 0,
+      //     redeemed: 0,
+      //   },
+      //   couponValueByCurrency: [],
+      //   endUsers: {
+      //     buyers: 0,
+      //     pendingUsers: 0,
+      //     redeemedUsers: 0,
+      //   },
+      //   transactions: {
+      //     transferPoint: 0,
+      //     purchaseCoupon: 0,
+      //   },
+      //   points: [
+      //     { total: 10000, types: 'Reward Points' },
+      //     { total: 5000, types: 'Bonus Points' },
+      //     { total: 2500, types: 'Loyalty Points' },
+      //   ],
+      //   thbToken: {
+      //     deposited: 0,
+      //     usedForPromotion: 0,
+      //   },
+      // };
     } catch (error) {
       this.logger.error(
         `[ERROR] Failed to get marketer dashboard: ${error.message}`,

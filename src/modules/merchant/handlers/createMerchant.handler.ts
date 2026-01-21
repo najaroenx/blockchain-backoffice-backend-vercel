@@ -65,22 +65,28 @@ export class CreateMerchant {
         // 1. สร้าง wallet ก่อน
         const walletData = createWallet();
         walletAddress = walletData.walletAddress;
-        const privateKey = walletData.privateKey;
+        const { seedPhrase, chainCode, derivationIndex } = walletData;
 
-        // 2. Encrypt private key ก่อนเก็บลง database
-        this.logger.log(`[CreateMerchant] Encrypting merchant private key`);
+        // 2. Encrypt wallet data ก่อนเก็บลง database
+        this.logger.log(`[CreateMerchant] Encrypting merchant wallet data`);
         const salt = this.configService.get<string>('SALT');
-        const encryptedPrivateKey = this.tokenService.encryptKey(
+        const encryptedSeedPhrase = this.tokenService.encryptKey(
           salt,
-          privateKey,
+          seedPhrase,
         );
-        this.logger.log(`[CreateMerchant] Private key encrypted successfully`);
+        const encryptedChainCode = this.tokenService.encryptKey(
+          salt,
+          chainCode,
+        );
+        this.logger.log(`[CreateMerchant] Wallet data encrypted successfully`);
 
         // 3. สร้าง wallet record ใน database
         const wallet = await tx.wallet.create({
           data: {
             walletAddress,
-            privateKey: encryptedPrivateKey,
+            seedPhrase: encryptedSeedPhrase,
+            chainCode: encryptedChainCode,
+            derivationIndex,
             email: '', // merchant ไม่มี email
             phoneNumber: (data as any).tel || '',
             type: 'merchant',

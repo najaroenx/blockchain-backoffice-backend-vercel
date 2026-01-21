@@ -184,20 +184,30 @@ export class RedeemVoucher {
       // 7. Get customer wallet address
       this.logger.log(`[STEP 7] Getting customer wallet address`);
       const customerAddress = customer.wallet?.walletAddress || '';
-      const encryptedPrivateKey = customer.wallet?.privateKey || '';
-      const customerPrivateKey = this.tokenService.decryptKey(
+      const encryptedSeedPhrase = customer.wallet?.seedPhrase || '';
+      const decryptedSeedPhrase = this.tokenService.decryptKey(
         this.salt,
-        encryptedPrivateKey,
+        encryptedSeedPhrase,
       );
 
       if (!customerAddress) {
         throw new NotFoundException('Customer wallet not configured');
       }
-      if (!customerPrivateKey) {
+      if (!decryptedSeedPhrase) {
         throw new NotFoundException(
-          'Customer private key not configured or decryption failed',
+          'Customer seed phrase not configured or decryption failed',
         );
       }
+
+      // Derive private key from seed phrase
+      const { getSignerFromSeedPhrase } = await import(
+        'src/libs/derive-wallet'
+      );
+      const customerSigner = getSignerFromSeedPhrase(
+        decryptedSeedPhrase,
+        customer.wallet?.derivationIndex || 0,
+      );
+      const customerPrivateKey = customerSigner.privateKey;
 
       // 7.5 ตรวจสอบ on-chain balance ของลูกค้าก่อน redeem เพื่อเลี่ยง revert จากสัญญา
       this.logger.log(

@@ -33,9 +33,9 @@ export class GetWalletByPhoneOrEmail {
       );
     }
 
-    // ไม่ return privateKey ออกไป
+    // ไม่ return seedPhrase และ chainCode ออกไป
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { privateKey, ...walletWithoutPrivateKey } = wallet;
+    const { seedPhrase, chainCode, ...walletWithoutSensitiveData } = wallet;
 
     // Optionally fetch THB balance from blockchain
     let thbBalance = null;
@@ -57,7 +57,7 @@ export class GetWalletByPhoneOrEmail {
     }
 
     return {
-      ...walletWithoutPrivateKey,
+      ...walletWithoutSensitiveData,
       thbBalance,
     };
   }

@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { MerchantDBService } from '../services/merchant-db.service';
-import { Wallet } from 'ethers';
 
 @Injectable()
 export class GetMerchants {
@@ -18,7 +17,7 @@ export class GetMerchants {
     try {
       const merchants = await this.db.getMerchants(userId);
 
-      // Format response เพื่อดึง wallet address และ privateKey ออกจาก wallet
+      // Format response เพื่อดึง wallet address ออกจาก wallet (ไม่ส่ง seedPhrase/chainCode)
       const formattedMerchants = merchants.map((merchant) => {
         const { wallet, tel, ...merchantData } = merchant;
         return {
@@ -36,20 +35,6 @@ export class GetMerchants {
         `Error message : ${error.message}, \n Error detail : ${error}`,
       );
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  private getAddressFromPrivateKey(privateKey: string): string | null {
-    console.log('privateKey', privateKey);
-    // ใช้ ethers เพื่อดึง address จาก private key
-    try {
-      const wallet = new Wallet(privateKey);
-      return wallet.address;
-    } catch (error) {
-      this.logger.error(
-        `Error getting address from private key: ${error.message}`,
-      );
-      return null;
     }
   }
 

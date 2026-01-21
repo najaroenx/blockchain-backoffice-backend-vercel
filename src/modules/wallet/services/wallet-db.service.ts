@@ -122,7 +122,9 @@ export class WalletDBService {
    */
   async createWallet(data: {
     walletAddress: string;
-    privateKey: string;
+    seedPhrase: string;
+    chainCode: string;
+    derivationIndex: number;
     email: string;
     phoneNumber: string;
     type: string;

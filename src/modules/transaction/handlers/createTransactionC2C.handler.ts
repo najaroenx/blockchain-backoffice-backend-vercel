@@ -228,15 +228,24 @@ export class CreateTransactionC2C {
     receiver: any,
     point: PointType,
   ): Promise<string> {
-    const senderPrivateKey = this.tokenService.decryptKey(
+    // Decrypt sender seed phrase and derive private key
+    const decryptedSeedPhrase = this.tokenService.decryptKey(
       this.salt,
-      (sender as CustomerWithWallet).wallet?.privateKey || '',
+      (sender as CustomerWithWallet).wallet?.seedPhrase || '',
+    );
+    const derivationIndex =
+      (sender as CustomerWithWallet).wallet?.derivationIndex || 0;
+
+    const { getSignerFromSeedPhrase } = await import('src/libs/derive-wallet');
+    const senderSigner = getSignerFromSeedPhrase(
+      decryptedSeedPhrase,
+      derivationIndex,
     );
 
     const { txId } = await this.blockchainService.transactionC2C({
       amount,
       to: (receiver as CustomerWithWallet).wallet?.walletAddress || '',
-      senderPrivateKey,
+      senderPrivateKey: senderSigner.privateKey,
       pointAddress: point.contractAddress,
     });
 

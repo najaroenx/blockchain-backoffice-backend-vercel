@@ -99,7 +99,11 @@ export class GetMarketerDashboardHandler {
           transferPoint: 0,
           purchaseCoupon: 0,
         },
-        points: [],
+        points: [
+          { total: 10000, types: 'Reward Points' },
+          { total: 5000, types: 'Bonus Points' },
+          { total: 2500, types: 'Loyalty Points' },
+        ],
         thbToken: {
           deposited: 0,
           usedForPromotion: 0,

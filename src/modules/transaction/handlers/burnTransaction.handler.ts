@@ -18,6 +18,7 @@ import { Prisma, AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 // import { GetCustomerByEmailResponseType } from 'src/modules/customer/types';
 import {
@@ -178,14 +179,21 @@ export class BurnTransaction {
     sender: CustomerType,
     point: any,
   ): Promise<string> {
-    const senderPrivateKey = this.tokenService.decryptKey(
+    // Decrypt sender seed phrase and derive private key
+    const decryptedSeedPhrase = this.tokenService.decryptKey(
       this.salt,
-      (sender as any).wallet?.privateKey || '',
+      (sender as any).wallet?.seedPhrase || '',
+    );
+    const derivationIndex = (sender as any).wallet?.derivationIndex || 0;
+
+    const senderSigner = getSignerFromSeedPhrase(
+      decryptedSeedPhrase,
+      derivationIndex,
     );
 
     const { txId } = await this.blockchainService.burn({
       amount,
-      senderPrivateKey,
+      senderPrivateKey: senderSigner.privateKey,
       pointAddress: point.contractAddress,
     });
 

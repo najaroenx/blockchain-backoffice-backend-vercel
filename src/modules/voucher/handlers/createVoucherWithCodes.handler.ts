@@ -18,8 +18,42 @@ export class CreateVoucherWithCodes {
     private blockchainService: BlockchainService,
   ) {}
 
-  async execute(data: CreateVoucherDto) {
+  /**
+   * Execute voucher creation
+   * @param data - Voucher DTO
+   * @param merchantId - Optional merchant ID to lookup seller wallet
+   */
+  async execute(data: CreateVoucherDto, merchantId?: string) {
     try {
+      // If merchantId is provided, lookup seller wallet address
+      let sellerWalletAddress: string | undefined;
+      if (merchantId) {
+        // Find merchant wallet first
+        const merchantWallet = await this.prisma.wallet.findFirst({
+          where: {
+            merchant: { id: merchantId },
+          },
+        });
+
+        if (merchantWallet) {
+          // Find seller wallet (derivationIndex = merchantWallet.derivationIndex + 1, same phoneNumber)
+          const sellerWallet = await this.prisma.wallet.findFirst({
+            where: {
+              type: 'seller',
+              derivationIndex: merchantWallet.derivationIndex + 1,
+              phoneNumber: merchantWallet.phoneNumber,
+            },
+          });
+
+          if (sellerWallet) {
+            sellerWalletAddress = sellerWallet.walletAddress;
+            this.logger.log(
+              `[CreateVoucherWithCodes] Found seller wallet for merchant ${merchantId}: ${sellerWalletAddress}`,
+            );
+          }
+        }
+      }
+
       // Validate Point exists and belongs to merchant (if provided)
       let point = null;
       if (data.pointId) {

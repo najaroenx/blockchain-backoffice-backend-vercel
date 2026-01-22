@@ -7,6 +7,7 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { ConfigService } from '@nestjs/config';
+import { TokenService } from 'src/providers/token/token.service';
 import { ListingBatchStatus } from '@prisma/client';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class SellerListOnMarketplace {
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
     private configService: ConfigService,
+    private tokenService: TokenService,
   ) {}
 
   async execute(
@@ -91,16 +93,17 @@ export class SellerListOnMarketplace {
         select: {
           id: true,
           walletAddress: true,
-          privateKey: true,
+          seedPhrase: true,
+          derivationIndex: true,
         },
       });
 
-      if (!sellerWallet?.privateKey) {
+      if (!sellerWallet?.seedPhrase) {
         this.logger.error(
-          `[ERROR] Seller wallet ${sellerWalletAddress} not found or has no private key`,
+          `[ERROR] Seller wallet ${sellerWalletAddress} not found or has no seed phrase`,
         );
         throw new BadRequestException(
-          'Seller wallet not found in system or missing private key. Please register wallet first.',
+          'Seller wallet not found in system or missing seed phrase. Please register wallet first.',
         );
       }
 
@@ -149,11 +152,26 @@ export class SellerListOnMarketplace {
       this.logger.log(
         `[STEP 6] Listing on blockchain marketplace with THB token`,
       );
+
+      // Derive private key from seed phrase for signing
+      const { getSignerFromSeedPhrase } = await import(
+        'src/libs/derive-wallet'
+      );
+      const salt = this.configService.get<string>('SALT');
+      const decryptedSeedPhrase = this.tokenService.decryptKey(
+        salt,
+        sellerWallet.seedPhrase,
+      );
+      const sellerSigner = getSignerFromSeedPhrase(
+        decryptedSeedPhrase,
+        sellerWallet.derivationIndex || 0,
+      );
+
       const listResult = await this.blockchainService.listCoupon(
         voucher.tokenId,
         amount,
         pricePerUnitTHB.toString(),
-        sellerWallet.privateKey,
+        sellerSigner.privateKey,
         thbAddress, // Payment token = THB for seller listings
       );
 

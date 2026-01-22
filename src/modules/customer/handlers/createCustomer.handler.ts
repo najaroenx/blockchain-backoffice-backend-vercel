@@ -80,18 +80,26 @@ export class CreateCustomer {
 
       // Use transaction to create wallet and customer atomically
       const result = await this.prisma.$transaction(async (tx) => {
-        const { privateKey, walletAddress } = createWallet();
+        const { seedPhrase, walletAddress, chainCode, derivationIndex } =
+          createWallet();
 
-        const encryptedPrivateKey = this.tokenService.encryptKey(
+        // Encrypt sensitive wallet data
+        const encryptedSeedPhrase = this.tokenService.encryptKey(
           this.salt,
-          privateKey,
+          seedPhrase,
+        );
+        const encryptedChainCode = this.tokenService.encryptKey(
+          this.salt,
+          chainCode,
         );
 
         // Create wallet first
         const wallet = await tx.wallet.create({
           data: {
             walletAddress,
-            privateKey: encryptedPrivateKey,
+            seedPhrase: encryptedSeedPhrase,
+            chainCode: encryptedChainCode,
+            derivationIndex,
             email: data.email,
             phoneNumber: data.tel,
             type: 'customer',

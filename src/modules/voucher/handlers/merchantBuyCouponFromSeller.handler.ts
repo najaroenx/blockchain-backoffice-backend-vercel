@@ -75,12 +75,13 @@ export class MerchantBuyCouponFromSeller {
         where: { id: merchant.walletId },
         select: {
           walletAddress: true,
-          privateKey: true,
+          seedPhrase: true,
+          derivationIndex: true,
         },
       });
 
-      if (!merchantWallet?.privateKey) {
-        throw new BadRequestException('Merchant wallet private key not found');
+      if (!merchantWallet?.seedPhrase) {
+        throw new BadRequestException('Merchant wallet seed phrase not found');
       }
 
       this.logger.log(
@@ -117,17 +118,29 @@ export class MerchantBuyCouponFromSeller {
         `[STEP 2] Listing validated. Seller: ${listing.seller}, TypeId: ${listing.typeId}, Price per unit: ${listing.pricePerUnit} ETH (${pricePerUnitWei.toString()} Wei), Total: ${ethers.formatEther(totalPriceWei)} ETH`,
       );
 
-      // 3. Decrypt merchant private key
-      this.logger.log(`[STEP 3] Decrypting merchant private key`);
+      // 3. Decrypt merchant seed phrase and derive private key
+      this.logger.log(
+        `[STEP 3] Decrypting merchant seed phrase and deriving private key`,
+      );
       const salt = this.configService.get<string>('SALT');
-      const decryptedPrivateKey = this.tokenService.decryptKey(
+      const decryptedSeedPhrase = this.tokenService.decryptKey(
         salt,
-        merchantWallet.privateKey,
+        merchantWallet.seedPhrase,
       );
 
-      if (!decryptedPrivateKey) {
-        throw new Error('Failed to decrypt merchant private key');
+      if (!decryptedSeedPhrase) {
+        throw new Error('Failed to decrypt merchant seed phrase');
       }
+
+      // Derive private key from seed phrase
+      const { getSignerFromSeedPhrase } = await import(
+        'src/libs/derive-wallet'
+      );
+      const merchantSigner = getSignerFromSeedPhrase(
+        decryptedSeedPhrase,
+        merchantWallet.derivationIndex,
+      );
+      const decryptedPrivateKey = merchantSigner.privateKey;
 
       // 4. Check THB balance and auto-mint if insufficient (PHASE 1)
       this.logger.log(
@@ -248,7 +261,7 @@ export class MerchantBuyCouponFromSeller {
           transactionTypeId: TransactionTypeId.THB_BUY,
           type: AssetType.THB_TOKEN,
           senderType: ParticipantType.MERCHANT,
-          receiverType: ParticipantType.SYSTEM,
+          receiverType: ParticipantType.SYSTEM, // Seller wallet (external) treated as SYSTEM
           transactionRefId: transactionRefId,
         } as any,
       });

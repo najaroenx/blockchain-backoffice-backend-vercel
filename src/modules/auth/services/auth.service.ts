@@ -7,6 +7,7 @@ import {
   UnprocessableEntityException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma, User } from '@prisma/client';
 import { TokenService } from 'src/providers/token/token.service';
 import { AccessTokenClaims } from '../types/AccessTokenClaims';
@@ -22,6 +23,8 @@ import {
 import { CreateSession } from 'src/modules/session/handlers/createSession.handler';
 import { GetSessionByToken } from 'src/modules/session/handlers/getSessionByToken.handler';
 import { UserDBService } from 'src/modules/user/services/user-db.service';
+import { PrismaService } from 'prisma/prisma.service';
+import { createWallet } from 'src/libs/createWallet';
 import { compare, hash } from 'bcrypt';
 
 @Injectable()
@@ -31,6 +34,8 @@ export class AuthService {
     private createSession: CreateSession,
     private getSessionByToken: GetSessionByToken,
     private userDBService: UserDBService,
+    private configService: ConfigService,
+    private prisma: PrismaService,
   ) {}
 
   private logger = new Logger(AuthService.name);
@@ -67,11 +72,61 @@ export class AuthService {
 
       data.password = await this.hashAndValidatePassword(data.password);
 
-      const newUser = await this.userDBService.createUser(data);
+      // Create master wallet for the user
+      this.logger.log(
+        `[Register] Creating master wallet for user ${data.email}`,
+      );
+      const walletData = createWallet();
+      const { walletAddress, seedPhrase, chainCode } = walletData;
+
+      // Encrypt wallet data
+      const salt = this.configService.get<string>('SALT');
+      const encryptedSeedPhrase = this.tokenService.encryptKey(
+        salt,
+        seedPhrase,
+      );
+      const encryptedChainCode = this.tokenService.encryptKey(salt, chainCode);
+
+      // Create wallet and user in transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        // 1. Create master wallet (derivationIndex = 0, type = 'master')
+        const masterWallet = await tx.wallet.create({
+          data: {
+            walletAddress,
+            seedPhrase: encryptedSeedPhrase,
+            chainCode: encryptedChainCode,
+            derivationIndex: 0,
+            email: data.email,
+            phoneNumber: '',
+            type: 'master',
+            status: 'active',
+          },
+        });
+
+        this.logger.log(
+          `[Register] ✅ Master wallet created: ${masterWallet.walletAddress}`,
+        );
+
+        // 2. Create user with walletId
+        const newUser = await tx.user.create({
+          data: {
+            email: data.email,
+            password: data.password,
+            walletId: masterWallet.id,
+            nextDerivationIndex: 1, // Next index for merchant/seller derivation
+          },
+        });
+
+        return newUser;
+      });
+
+      this.logger.log(
+        `[Register] ✅ User registered with master wallet: ${result.email}`,
+      );
 
       return {
-        id: newUser.id,
-        email: newUser.email,
+        id: result.id,
+        email: result.email,
       };
     } catch (error) {
       this.logger.error(

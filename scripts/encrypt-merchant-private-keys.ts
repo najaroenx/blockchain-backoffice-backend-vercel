@@ -1,3 +1,18 @@
+/**
+ * @deprecated This script is no longer needed.
+ * The system now uses HD wallet with seedPhrase instead of privateKey.
+ * Seed phrases are encrypted at wallet creation time in createCustomer and createMerchant handlers.
+ * 
+ * This file is kept for historical reference only.
+ */
+
+console.log('⚠️  This script is deprecated. The system now uses HD wallet with seedPhrase.');
+process.exit(0);
+
+// All code below is kept for historical reference but will not execute
+// The imports and code below have been disabled to prevent TypeScript compilation errors
+
+/*
 import { PrismaClient } from '@prisma/client';
 import * as CryptoJS from 'crypto-js';
 import * as dotenv from 'dotenv';
@@ -115,3 +130,4 @@ encryptMerchantPrivateKeys()
     console.error('Script failed:', error);
     process.exit(1);
   });
+*/

@@ -125,13 +125,13 @@ export class VoucherController {
   /**
    * Get seller vouchers (vouchers not yet purchased by merchants)
    * GET /coupon/seller/vouchers
-   * Optional query param: walletAddress for filtering by seller
+   * Optional query param: merchantId for filtering by seller
    */
   @Get('/seller/vouchers')
   @Public()
   @HttpCode(200)
-  async getSellerVouchers(@Query('walletAddress') walletAddress?: string) {
-    return this.getSellerVouchersHandler.execute(walletAddress);
+  async getSellerVouchers(@Query('merchantId') merchantId?: string) {
+    return this.getSellerVouchersHandler.execute(merchantId);
   }
 
   /**
@@ -241,12 +241,15 @@ export class VoucherController {
     return this.voucherService.activateVoucher(voucherId, data);
   }
 
-  @Post('/dev/interim-seller')
+  @Post('/dev/interim-seller/:merchantId')
   @Public()
   @HttpCode(201)
-  async createVoucherByDev(@Body() data: CreateVoucherByDevDto) {
+  async createVoucherByDev(
+    @Param('merchantId') merchantId: string,
+    @Body() data: CreateVoucherByDevDto,
+  ) {
     // สร้าง voucher พร้อมกับ codes ตามจำนวน amount
-    return this.voucherService.createVoucherByDev(data);
+    return this.voucherService.createVoucherByDev(merchantId, data);
   }
 
   /**

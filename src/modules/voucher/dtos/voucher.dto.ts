@@ -117,10 +117,6 @@ export class UpdateVoucherDto {
 
 // DTO for voucher sale creation (seller creates voucher inventory)
 export class CreateVoucherByDevDto {
-  @IsString()
-  @IsNotEmpty()
-  sellerWalletAddress: string;
-
   @ValidateNested()
   @Type(() => CreateVoucherDto)
   coupon: CreateVoucherDto;

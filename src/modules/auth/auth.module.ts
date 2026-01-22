@@ -8,6 +8,7 @@ import { AuthStrategy } from './auth.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { ApiKeyModule } from '../api-key/api-key.module';
 import { UserModule } from '../user/user.module';
+import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { UserModule } from '../user/user.module';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     ApiKeyModule,
     UserModule,
+    PrismaModule,
   ],
   providers: [AuthService, UserRepository, AuthStrategy],
   controllers: [AuthController],

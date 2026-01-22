@@ -9,10 +9,10 @@ import { Merchant, Prisma } from '@prisma/client';
 import { MerchantDBService } from '../services/merchant-db.service';
 import { CreateApiKey } from 'src/modules/api-key/handlers/createApiKey.handler';
 import { PrismaService } from 'prisma/prisma.service';
-import { createWallet } from 'src/libs/createWallet';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { deriveChildWallet } from 'src/libs/derive-wallet';
 
 @Injectable()
 export class CreateMerchant {
@@ -34,13 +34,20 @@ export class CreateMerchant {
     try {
       const phoneNumber = (data as any).tel;
 
-      // Validate: ตรวจสอบว่า userId มีอยู่จริง
+      // Validate: ตรวจสอบว่า userId มีอยู่จริง และมี master wallet
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
+        include: { wallet: true },
       });
 
       if (!user) {
         throw new BadRequestException(`User with ID ${userId} not found`);
+      }
+
+      if (!user.wallet || !user.wallet.seedPhrase) {
+        throw new BadRequestException(
+          `User ${userId} does not have a master wallet. Please re-register.`,
+        );
       }
 
       // Validate: ตรวจสอบว่าเบอร์โทรศัพท์ซ้ำหรือไม่
@@ -59,42 +66,84 @@ export class CreateMerchant {
         }
       }
 
+      // Decrypt master seedPhrase
+      this.logger.log(`[CreateMerchant] Decrypting master seedPhrase`);
+      const salt = this.configService.get<string>('SALT');
+      const masterSeedPhrase = this.tokenService.decryptKey(
+        salt,
+        user.wallet.seedPhrase,
+      );
+
+      // Get derivation indices from user
+      const merchantIndex = user.nextDerivationIndex;
+      const sellerIndex = user.nextDerivationIndex + 1;
+      this.logger.log(
+        `[CreateMerchant] Deriving wallets: merchant(index=${merchantIndex}), seller(index=${sellerIndex})`,
+      );
+
       // ใช้ transaction เพื่อให้ rollback ทั้งหมดถ้ามีขั้นตอนใดล้มเหลว
       let walletAddress: string;
       const result = await this.prisma.$transaction(async (tx) => {
-        // 1. สร้าง wallet ก่อน
-        const walletData = createWallet();
-        walletAddress = walletData.walletAddress;
-        const { seedPhrase, chainCode, derivationIndex } = walletData;
+        // 1. Derive merchant wallet from master seedPhrase
+        const merchantWalletData = deriveChildWallet(masterSeedPhrase, merchantIndex);
+        walletAddress = merchantWalletData.address.toLowerCase();
 
-        // 2. Encrypt wallet data ก่อนเก็บลง database
-        this.logger.log(`[CreateMerchant] Encrypting merchant wallet data`);
-        const salt = this.configService.get<string>('SALT');
-        const encryptedSeedPhrase = this.tokenService.encryptKey(
+        // 2. Encrypt child-specific chainCode (each child has its own chainCode)
+        const encryptedSeedPhrase = user.wallet.seedPhrase; // seedPhrase เดิม
+        const encryptedMerchantChainCode = this.tokenService.encryptKey(
           salt,
-          seedPhrase,
+          merchantWalletData.chainCode, // chainCode ของ merchant child
         );
-        const encryptedChainCode = this.tokenService.encryptKey(
-          salt,
-          chainCode,
-        );
-        this.logger.log(`[CreateMerchant] Wallet data encrypted successfully`);
+        this.logger.log(`[CreateMerchant] Encrypted merchant child chainCode`);
 
-        // 3. สร้าง wallet record ใน database
+        // 3. สร้าง merchant wallet record ใน database
         const wallet = await tx.wallet.create({
           data: {
             walletAddress,
             seedPhrase: encryptedSeedPhrase,
-            chainCode: encryptedChainCode,
-            derivationIndex,
+            chainCode: encryptedMerchantChainCode, // ใช้ chainCode ของ child
+            derivationIndex: merchantIndex,
             email: '', // merchant ไม่มี email
             phoneNumber: (data as any).tel || '',
             type: 'merchant',
             status: 'active',
           },
         });
+        this.logger.log(`[CreateMerchant] ✅ Merchant wallet created: ${walletAddress}`);
 
-        // 4. สร้าง merchant พร้อม walletId (ไม่ include wallet ใน response)
+        // 3.5. Derive seller wallet from master seedPhrase
+        const sellerWalletData = deriveChildWallet(masterSeedPhrase, sellerIndex);
+        const encryptedSellerChainCode = this.tokenService.encryptKey(
+          salt,
+          sellerWalletData.chainCode, // chainCode ของ seller child
+        );
+
+        const sellerWallet = await tx.wallet.create({
+          data: {
+            walletAddress: sellerWalletData.address.toLowerCase(),
+            seedPhrase: encryptedSeedPhrase, // ใช้ seed เดิม (encrypted)
+            chainCode: encryptedSellerChainCode, // ใช้ chainCode ของ child
+            derivationIndex: sellerIndex,
+            email: '',
+            phoneNumber: (data as any).tel || '',
+            type: 'seller',
+            status: 'active',
+          },
+        });
+        this.logger.log(
+          `[CreateMerchant] ✅ Seller wallet created: ${sellerWallet.walletAddress}`,
+        );
+
+        // 4. Update user's nextDerivationIndex
+        await tx.user.update({
+          where: { id: userId },
+          data: { nextDerivationIndex: sellerIndex + 1 },
+        });
+        this.logger.log(
+          `[CreateMerchant] ✅ User nextDerivationIndex updated to ${sellerIndex + 1}`,
+        );
+
+        // 5. สร้าง merchant พร้อม walletId (ไม่ include wallet ใน response)
         const merchant = await tx.merchant.create({
           data: {
             ...(data as any),
@@ -107,23 +156,24 @@ export class CreateMerchant {
           },
         });
 
-        return merchant;
+        return { merchant, sellerWalletAddress: sellerWallet.walletAddress };
       });
 
       // 5. สร้าง default API key (นอก transaction)
-      await this.createApiKey.execute(result.id, {
+      await this.createApiKey.execute(result.merchant.id, {
         name: 'default api key',
       });
 
-      // 5.5. Auto-whitelist merchant wallet address on marketplace
+      // 5.5. Auto-whitelist merchant & seller wallet addresses on marketplace
       try {
+        // Whitelist merchant wallet
         this.logger.log(
           `[CreateMerchant] Auto-whitelisting merchant wallet: ${walletAddress}`,
         );
-        const isWhitelisted =
+        const isMerchantWhitelisted =
           await this.blockchainService.isWhitelisted(walletAddress);
 
-        if (!isWhitelisted) {
+        if (!isMerchantWhitelisted) {
           await this.blockchainService.addToMarketplaceWhitelist(walletAddress);
           this.logger.log(
             `[CreateMerchant] ✅ Merchant wallet whitelisted successfully`,
@@ -133,20 +183,41 @@ export class CreateMerchant {
             `[CreateMerchant] ℹ️ Merchant wallet already whitelisted`,
           );
         }
+
+        // Whitelist seller wallet
+        this.logger.log(
+          `[CreateMerchant] Auto-whitelisting seller wallet: ${result.sellerWalletAddress}`,
+        );
+        const isSellerWhitelisted = await this.blockchainService.isWhitelisted(
+          result.sellerWalletAddress,
+        );
+
+        if (!isSellerWhitelisted) {
+          await this.blockchainService.addToMarketplaceWhitelist(
+            result.sellerWalletAddress,
+          );
+          this.logger.log(
+            `[CreateMerchant] ✅ Seller wallet whitelisted successfully`,
+          );
+        } else {
+          this.logger.log(
+            `[CreateMerchant] ℹ️ Seller wallet already whitelisted`,
+          );
+        }
       } catch (whitelistError) {
         // Non-critical: ไม่ throw error เพราะ merchant สร้างสำเร็จแล้ว
         // Merchant สามารถ whitelist ได้ทีหลังผ่าน manual API หรือ auto-whitelist ตอนทำ transaction ครั้งแรก
         this.logger.warn(
-          `[CreateMerchant] ⚠️ Failed to auto-whitelist merchant: ${whitelistError.message}`,
+          `[CreateMerchant] ⚠️ Failed to auto-whitelist: ${whitelistError.message}`,
         );
         this.logger.warn(
-          `[CreateMerchant] Merchant can be whitelisted manually later or will be auto-whitelisted on first transaction`,
+          `[CreateMerchant] Wallets can be whitelisted manually later or will be auto-whitelisted on first transaction`,
         );
       }
 
       // 6. ลบ wallet field ออกจาก response (ถ้ามี)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { wallet, ...merchantWithoutWallet } = result as any;
+      const { wallet, ...merchantWithoutWallet } = result.merchant as any;
 
       return merchantWithoutWallet as Merchant;
     } catch (error) {

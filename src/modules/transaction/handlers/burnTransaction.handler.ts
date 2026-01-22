@@ -18,6 +18,7 @@ import { Prisma, AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 // import { GetCustomerByEmailResponseType } from 'src/modules/customer/types';
 import {
@@ -185,7 +186,6 @@ export class BurnTransaction {
     );
     const derivationIndex = (sender as any).wallet?.derivationIndex || 0;
 
-    const { getSignerFromSeedPhrase } = await import('src/libs/derive-wallet');
     const senderSigner = getSignerFromSeedPhrase(
       decryptedSeedPhrase,
       derivationIndex,

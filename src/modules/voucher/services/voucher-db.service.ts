@@ -49,9 +49,9 @@ export class VoucherDBService {
     );
   }
 
-  async createVoucherByDev(data: CreateVoucherByDevDto): Promise<any> {
+  async createVoucherByDev(merchantId: string, data: CreateVoucherByDevDto): Promise<any> {
     // ใช้ handler ที่สร้าง voucher พร้อม codes พร้อม pointsCost
-    return await this.createVoucherWithCodesHandler.execute(data.coupon);
+    return await this.createVoucherWithCodesHandler.execute(data.coupon, merchantId);
   }
 
   async getVoucherById(voucherId: string): Promise<any> {

@@ -151,4 +151,34 @@ export class WalletDBService {
       data,
     });
   }
+
+  /**
+   * ดึง seller wallet จาก merchant ID
+   * Seller wallet มี derivationIndex = merchantWallet.derivationIndex + 1 และ phoneNumber เดียวกัน
+   */
+  async getSellerWalletByMerchantId(merchantId: string): Promise<Wallet | null> {
+    // 1. หา merchant พร้อม wallet
+    const merchantWallet = await this.repository.findFirst<Wallet>({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+    });
+
+    if (!merchantWallet) {
+      return null;
+    }
+
+    // 2. หา seller wallet ที่มี derivationIndex = merchantWallet.derivationIndex + 1 และ phoneNumber เดียวกัน
+    const sellerWallet = await this.repository.findFirst<Wallet>({
+      where: {
+        type: 'seller',
+        derivationIndex: merchantWallet.derivationIndex + 1,
+        phoneNumber: merchantWallet.phoneNumber,
+      },
+    });
+
+    return sellerWallet;
+  }
 }

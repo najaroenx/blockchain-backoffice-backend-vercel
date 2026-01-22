@@ -35,13 +35,16 @@ model Point {
 }
 
 model User {
-  id           String         @id @default(cuid())
-  email        String         @unique
-  password     String
-  createdAt    DateTime       @default(now()) @map(name: "created_at")
-  updatedAt    DateTime       @updatedAt @map(name: "updated_at")
-  userMerchant UserMerchant[]
-  session      Session[]
+  id                   String         @id @default(cuid())
+  email                String         @unique
+  password             String
+  walletId             String?        @unique // Master wallet
+  wallet               Wallet?        @relation(fields: [walletId], references: [id])
+  nextDerivationIndex  Int            @default(1) // Next index to use for merchant/seller derivation
+  createdAt            DateTime       @default(now()) @map(name: "created_at")
+  updatedAt            DateTime       @updatedAt @map(name: "updated_at")
+  userMerchant         UserMerchant[]
+  session              Session[]
 }
 
 model Session {
@@ -70,11 +73,12 @@ model Wallet {
   derivationIndex Int       @default(0) // BIP44 derivation index
   email           String
   phoneNumber     String
-  type            String
+  type            String    // 'master', 'merchant', 'seller', 'customer'
   status          String
   // relations
   customer        Customer?
   merchant        Merchant?
+  user            User?     // Master wallet owner
 }
 
 model Merchant {

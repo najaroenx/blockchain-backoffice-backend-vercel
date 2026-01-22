@@ -9,6 +9,7 @@ import {
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { GetWalletByPhoneOrEmail } from '../handlers/getWalletByPhoneOrEmail.handler';
 import { GetThbBalance } from '../handlers/getThbBalance.handler';
+import { GetSellerWalletByMerchantId } from '../handlers/getSellerWalletByMerchantId.handler';
 import { Public } from 'src/modules/auth/public.decorator';
 
 @ApiTags('Wallet')
@@ -17,6 +18,7 @@ export class WalletController {
   constructor(
     private readonly getWalletByPhoneOrEmailHandler: GetWalletByPhoneOrEmail,
     private readonly getThbBalanceHandler: GetThbBalance,
+    private readonly getSellerWalletByMerchantIdHandler: GetSellerWalletByMerchantId,
   ) {}
 
   @Get('/search')
@@ -57,5 +59,29 @@ export class WalletController {
   })
   async getThbBalance(@Param('walletAddress') walletAddress: string) {
     return this.getThbBalanceHandler.execute(walletAddress);
+  }
+
+  @Get('/seller/:merchantId')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Seller Wallet by Merchant ID',
+    description: 'ดึง seller wallet จาก merchant ID',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'Merchant ID',
+    example: 'clxxxx...',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Seller wallet retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Seller wallet not found',
+  })
+  async getSellerWalletByMerchantId(@Param('merchantId') merchantId: string) {
+    return this.getSellerWalletByMerchantIdHandler.execute(merchantId);
   }
 }

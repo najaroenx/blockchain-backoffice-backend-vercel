@@ -7,10 +7,40 @@ export class GetSellerVouchers {
 
   constructor(private prisma: PrismaService) {}
 
-  async execute(sellerWalletAddress?: string): Promise<any> {
+  /**
+   * Get seller vouchers
+   * @param merchantId - Merchant ID to find seller wallet and filter vouchers
+   */
+  async execute(merchantId?: string): Promise<any> {
     try {
+      // If merchantId provided, lookup seller wallet address
+      let sellerWalletAddress: string | undefined;
+      if (merchantId) {
+        // Find merchant wallet first
+        const merchantWallet = await this.prisma.wallet.findFirst({
+          where: {
+            merchant: { id: merchantId },
+          },
+        });
+
+        if (merchantWallet) {
+          // Find seller wallet (derivationIndex = merchantWallet.derivationIndex + 1, same phoneNumber)
+          const sellerWallet = await this.prisma.wallet.findFirst({
+            where: {
+              type: 'seller',
+              derivationIndex: merchantWallet.derivationIndex + 1,
+              phoneNumber: merchantWallet.phoneNumber,
+            },
+          });
+
+          if (sellerWallet) {
+            sellerWalletAddress = sellerWallet.walletAddress;
+          }
+        }
+      }
+
       this.logger.log(
-        `[START] Getting seller vouchers${sellerWalletAddress ? ` for wallet: ${sellerWalletAddress}` : ' (all sellers)'}`,
+        `[START] Getting seller vouchers${merchantId ? ` for merchant: ${merchantId}` : ' (all sellers)'}${sellerWalletAddress ? ` (seller wallet: ${sellerWalletAddress})` : ''}`,
       );
 
       // Build where clause

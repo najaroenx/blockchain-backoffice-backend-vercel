@@ -18,6 +18,7 @@ import {
 import { Prisma, AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 import { ConfigService } from '@nestjs/config';
 // import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 
@@ -236,7 +237,6 @@ export class CreateTransactionC2C {
     const derivationIndex =
       (sender as CustomerWithWallet).wallet?.derivationIndex || 0;
 
-    const { getSignerFromSeedPhrase } = await import('src/libs/derive-wallet');
     const senderSigner = getSignerFromSeedPhrase(
       decryptedSeedPhrase,
       derivationIndex,

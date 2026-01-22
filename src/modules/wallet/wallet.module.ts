@@ -5,6 +5,7 @@ import { WalletDBService } from './services/wallet-db.service';
 import { WalletController } from './controllers/wallet.controller';
 import { GetWalletByPhoneOrEmail } from './handlers/getWalletByPhoneOrEmail.handler';
 import { GetThbBalance } from './handlers/getThbBalance.handler';
+import { GetSellerWalletByMerchantId } from './handlers/getSellerWalletByMerchantId.handler';
 import { PrismaModule } from 'prisma/prisma.module';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 
@@ -16,6 +17,7 @@ import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
     WalletDBService,
     GetWalletByPhoneOrEmail,
     GetThbBalance,
+    GetSellerWalletByMerchantId,
   ],
   exports: [WalletDBService],
 })

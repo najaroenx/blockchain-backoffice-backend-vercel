@@ -85,7 +85,10 @@ export class CreateMerchant {
       let walletAddress: string;
       const result = await this.prisma.$transaction(async (tx) => {
         // 1. Derive merchant wallet from master seedPhrase
-        const merchantWalletData = deriveChildWallet(masterSeedPhrase, merchantIndex);
+        const merchantWalletData = deriveChildWallet(
+          masterSeedPhrase,
+          merchantIndex,
+        );
         walletAddress = merchantWalletData.address.toLowerCase();
 
         // 2. Encrypt child-specific chainCode (each child has its own chainCode)
@@ -109,10 +112,15 @@ export class CreateMerchant {
             status: 'active',
           },
         });
-        this.logger.log(`[CreateMerchant] ✅ Merchant wallet created: ${walletAddress}`);
+        this.logger.log(
+          `[CreateMerchant] ✅ Merchant wallet created: ${walletAddress}`,
+        );
 
         // 3.5. Derive seller wallet from master seedPhrase
-        const sellerWalletData = deriveChildWallet(masterSeedPhrase, sellerIndex);
+        const sellerWalletData = deriveChildWallet(
+          masterSeedPhrase,
+          sellerIndex,
+        );
         const encryptedSellerChainCode = this.tokenService.encryptKey(
           salt,
           sellerWalletData.chainCode, // chainCode ของ seller child

@@ -156,7 +156,9 @@ export class WalletDBService {
    * ดึง seller wallet จาก merchant ID
    * Seller wallet มี derivationIndex = merchantWallet.derivationIndex + 1 และ phoneNumber เดียวกัน
    */
-  async getSellerWalletByMerchantId(merchantId: string): Promise<Wallet | null> {
+  async getSellerWalletByMerchantId(
+    merchantId: string,
+  ): Promise<Wallet | null> {
     // 1. หา merchant พร้อม wallet
     const merchantWallet = await this.repository.findFirst<Wallet>({
       where: {

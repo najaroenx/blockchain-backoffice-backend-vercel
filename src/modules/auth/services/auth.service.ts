@@ -73,13 +73,18 @@ export class AuthService {
       data.password = await this.hashAndValidatePassword(data.password);
 
       // Create master wallet for the user
-      this.logger.log(`[Register] Creating master wallet for user ${data.email}`);
+      this.logger.log(
+        `[Register] Creating master wallet for user ${data.email}`,
+      );
       const walletData = createWallet();
       const { walletAddress, seedPhrase, chainCode } = walletData;
 
       // Encrypt wallet data
       const salt = this.configService.get<string>('SALT');
-      const encryptedSeedPhrase = this.tokenService.encryptKey(salt, seedPhrase);
+      const encryptedSeedPhrase = this.tokenService.encryptKey(
+        salt,
+        seedPhrase,
+      );
       const encryptedChainCode = this.tokenService.encryptKey(salt, chainCode);
 
       // Create wallet and user in transaction
@@ -98,7 +103,9 @@ export class AuthService {
           },
         });
 
-        this.logger.log(`[Register] ✅ Master wallet created: ${masterWallet.walletAddress}`);
+        this.logger.log(
+          `[Register] ✅ Master wallet created: ${masterWallet.walletAddress}`,
+        );
 
         // 2. Create user with walletId
         const newUser = await tx.user.create({
@@ -113,7 +120,9 @@ export class AuthService {
         return newUser;
       });
 
-      this.logger.log(`[Register] ✅ User registered with master wallet: ${result.email}`);
+      this.logger.log(
+        `[Register] ✅ User registered with master wallet: ${result.email}`,
+      );
 
       return {
         id: result.id,

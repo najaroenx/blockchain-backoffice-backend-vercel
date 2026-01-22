@@ -53,13 +53,18 @@ export class BatchListOnMarketplaceHandler {
     private tokenService: TokenService,
   ) {}
 
-  async execute(merchantId: string, dto: BatchListOnMarketplaceDto): Promise<BatchListingResult> {
+  async execute(
+    merchantId: string,
+    dto: BatchListOnMarketplaceDto,
+  ): Promise<BatchListingResult> {
     const { name, description, items } = dto;
 
     try {
       // First, lookup seller wallet from merchantId
-      this.logger.log(`[STEP 0] Looking up seller wallet for merchant: ${merchantId}`);
-      
+      this.logger.log(
+        `[STEP 0] Looking up seller wallet for merchant: ${merchantId}`,
+      );
+
       // Find merchant wallet first
       const merchantWallet = await this.prisma.wallet.findFirst({
         where: {
@@ -68,7 +73,9 @@ export class BatchListOnMarketplaceHandler {
       });
 
       if (!merchantWallet) {
-        throw new BadRequestException(`Merchant ${merchantId} wallet not found`);
+        throw new BadRequestException(
+          `Merchant ${merchantId} wallet not found`,
+        );
       }
 
       // Find seller wallet (derivationIndex = merchantWallet.derivationIndex + 1, same phoneNumber)

@@ -2,7 +2,12 @@ import { Point } from '@prisma/client';
 import { PointInfo } from 'src/modules/customer/types';
 
 export type GetPointsResponseType = {
-  points: Array<Omit<Point, 'contractAddress'> & { contractAddress: string }>;
+  points: Array<
+    Omit<Point, 'contractAddress'> & {
+      contractAddress: string;
+      remaining: string | null;
+    }
+  >;
   counts: number;
 };
 

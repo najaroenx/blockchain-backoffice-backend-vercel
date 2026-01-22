@@ -12,6 +12,7 @@ import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
 @Injectable()
 export class BuyCouponFromMarketplace {
@@ -227,9 +228,6 @@ export class BuyCouponFromMarketplace {
       }
 
       // Derive private key from seed phrase
-      const { getSignerFromSeedPhrase } = await import(
-        'src/libs/derive-wallet'
-      );
       const customerSigner = getSignerFromSeedPhrase(
         decryptedSeedPhrase,
         customerWallet.derivationIndex || 0,

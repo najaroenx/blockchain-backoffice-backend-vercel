@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { TokenService } from 'src/providers/token/token.service';
 import { BatchListOnMarketplaceDto } from '../dtos/batch-list-marketplace.dto';
 import { ListingBatchStatus } from '@prisma/client';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
 export interface BatchListingItem {
   voucherId: string;
@@ -52,23 +53,37 @@ export class BatchListOnMarketplaceHandler {
     private tokenService: TokenService,
   ) {}
 
-  async execute(dto: BatchListOnMarketplaceDto): Promise<BatchListingResult> {
-    const { name, description, items, sellerWalletAddress } = dto;
+  async execute(
+    merchantId: string,
+    dto: BatchListOnMarketplaceDto,
+  ): Promise<BatchListingResult> {
+    const { name, description, items } = dto;
 
     try {
+      // First, lookup seller wallet from merchantId
       this.logger.log(
-        `[START] Batch listing ${items.length} voucher types on marketplace by seller ${sellerWalletAddress}`,
+        `[STEP 0] Looking up seller wallet for merchant: ${merchantId}`,
       );
 
-      // 1. Validate all vouchers exist and get their tokenIds
-      this.logger.log(`[STEP 1] Validating ${items.length} vouchers`);
-      const vouchers = await this.validateVouchers(items);
+      // Find merchant wallet first
+      const merchantWallet = await this.prisma.wallet.findFirst({
+        where: {
+          merchant: { id: merchantId },
+        },
+      });
 
-      // 2. Get seller wallet from database
-      this.logger.log(`[STEP 2] Finding seller wallet`);
+      if (!merchantWallet) {
+        throw new BadRequestException(
+          `Merchant ${merchantId} wallet not found`,
+        );
+      }
+
+      // Find seller wallet (derivationIndex = merchantWallet.derivationIndex + 1, same phoneNumber)
       const sellerWallet = await this.prisma.wallet.findFirst({
         where: {
-          walletAddress: sellerWalletAddress.toLowerCase(),
+          type: 'seller',
+          derivationIndex: merchantWallet.derivationIndex + 1,
+          phoneNumber: merchantWallet.phoneNumber,
         },
         select: {
           id: true,
@@ -79,48 +94,56 @@ export class BatchListOnMarketplaceHandler {
       });
 
       if (!sellerWallet?.seedPhrase) {
-        this.logger.error(
-          `[ERROR] Seller wallet ${sellerWalletAddress} not found or has no seed phrase`,
-        );
         throw new BadRequestException(
-          'Seller wallet not found in system or missing seed phrase. Please register wallet first.',
+          `Seller wallet not found for merchant ${merchantId}. Please ensure merchant was created with HD wallet.`,
         );
       }
 
-      // 3. Get THB token address
+      const sellerWalletAddress = sellerWallet.walletAddress;
+      this.logger.log(`[STEP 0] Found seller wallet: ${sellerWalletAddress}`);
+
+      this.logger.log(
+        `[START] Batch listing ${items.length} voucher types on marketplace by seller ${sellerWalletAddress}`,
+      );
+
+      // 1. Validate all vouchers exist and get their tokenIds
+      this.logger.log(`[STEP 1] Validating ${items.length} vouchers`);
+      const vouchers = await this.validateVouchers(items);
+
+      // 2. Get THB token address
       const thbAddress = this.configService.get<string>('THB_ADDRESS');
       if (!thbAddress) {
         throw new BadRequestException('THB_ADDRESS not configured');
       }
 
-      this.logger.log(`[STEP 3] Using THB token: ${thbAddress}`);
+      this.logger.log(`[STEP 2] Using THB token: ${thbAddress}`);
 
-      // 4. Check if seller is whitelisted, if not add to whitelist
-      this.logger.log(`[STEP 4] Checking seller whitelist status`);
+      // 3. Check if seller is whitelisted, if not add to whitelist
+      this.logger.log(`[STEP 3] Checking seller whitelist status`);
       const isWhitelisted =
         await this.blockchainService.isWhitelisted(sellerWalletAddress);
 
       if (!isWhitelisted) {
         this.logger.log(
-          `[STEP 4] Seller not whitelisted, adding to whitelist...`,
+          `[STEP 3] Seller not whitelisted, adding to whitelist...`,
         );
         await this.blockchainService.addToMarketplaceWhitelist(
           sellerWalletAddress,
         );
-        this.logger.log(`[STEP 4] Seller whitelisted successfully`);
+        this.logger.log(`[STEP 3] Seller whitelisted successfully`);
       } else {
-        this.logger.log(`[STEP 4] Seller already whitelisted`);
+        this.logger.log(`[STEP 3] Seller already whitelisted`);
       }
 
-      // 5. Calculate totals for the batch
+      // 4. Calculate totals for the batch
       const totalItems = items.reduce((sum, item) => sum + item.amount, 0);
       const totalValue = items.reduce(
         (sum, item) => sum + item.amount * item.pricePerUnitTHB,
         0,
       );
 
-      // 6. Create ListingBatch record first
-      this.logger.log(`[STEP 5] Creating ListingBatch record`);
+      // 5. Create ListingBatch record first
+      this.logger.log(`[STEP 4] Creating ListingBatch record`);
       const listingBatch = await this.prisma.listingBatch.create({
         data: {
           sellerWalletAddress: sellerWalletAddress.toLowerCase(),
@@ -160,9 +183,6 @@ export class BatchListOnMarketplaceHandler {
         // 7b. List on marketplace
         this.logger.log(`[STEP 6.${i + 1}b] Listing on blockchain marketplace`);
         // Derive private key from seed phrase for signing
-        const { getSignerFromSeedPhrase } = await import(
-          'src/libs/derive-wallet'
-        );
         const salt = this.configService.get<string>('SALT');
         const decryptedSeedPhrase = this.tokenService.decryptKey(
           salt,

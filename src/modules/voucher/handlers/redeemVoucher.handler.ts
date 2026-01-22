@@ -11,6 +11,7 @@ import { AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
 @Injectable()
 export class RedeemVoucher {
@@ -200,9 +201,6 @@ export class RedeemVoucher {
       }
 
       // Derive private key from seed phrase
-      const { getSignerFromSeedPhrase } = await import(
-        'src/libs/derive-wallet'
-      );
       const customerSigner = getSignerFromSeedPhrase(
         decryptedSeedPhrase,
         customer.wallet?.derivationIndex || 0,

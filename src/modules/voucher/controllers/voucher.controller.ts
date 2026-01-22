@@ -581,14 +581,17 @@ export class VoucherController {
 
   /**
    * Seller batch lists multiple voucher types on marketplace
-   * POST /coupon/seller/batch-list
-   * Body: { name?: string, description?: string, items: [{ voucherId, amount, pricePerUnitTHB }], sellerWalletAddress: string }
+   * POST /coupon/seller/batch-list/:merchantId
+   * Body: { name?: string, description?: string, items: [{ voucherId, amount, pricePerUnitTHB }] }
    */
-  @Post('/seller/batch-list')
+  @Post('/seller/batch-list/:merchantId')
   @Public()
   @HttpCode(200)
-  async sellerBatchListOnMarketplace(@Body() data: BatchListOnMarketplaceDto) {
-    return this.batchListHandler.execute(data);
+  async sellerBatchListOnMarketplace(
+    @Param('merchantId') merchantId: string,
+    @Body() data: BatchListOnMarketplaceDto,
+  ) {
+    return this.batchListHandler.execute(merchantId, data);
   }
 
   /**

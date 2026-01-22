@@ -24,6 +24,7 @@ import { GetMerchant } from 'src/modules/merchant/handlers/getMerchantById.handl
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
 @Injectable()
 export class CreateTransactionB2C {
@@ -219,9 +220,6 @@ export class CreateTransactionB2C {
         }
 
         // Derive private key from seed phrase
-        const { getSignerFromSeedPhrase } = await import(
-          'src/libs/derive-wallet'
-        );
         const merchantSigner = getSignerFromSeedPhrase(
           decryptedSeedPhrase,
           merchantDerivationIndex,

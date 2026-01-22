@@ -9,48 +9,23 @@ export class GetSellerVouchers {
 
   /**
    * Get seller vouchers
-   * @param merchantId - Merchant ID to find seller wallet and filter vouchers
+   * @param merchantId - Merchant ID to filter vouchers by sellerMerchantId
    */
   async execute(merchantId?: string): Promise<any> {
     try {
-      // If merchantId provided, lookup seller wallet address
-      let sellerWalletAddress: string | undefined;
-      if (merchantId) {
-        // Find merchant wallet first
-        const merchantWallet = await this.prisma.wallet.findFirst({
-          where: {
-            merchant: { id: merchantId },
-          },
-        });
-
-        if (merchantWallet) {
-          // Find seller wallet (derivationIndex = merchantWallet.derivationIndex + 1, same phoneNumber)
-          const sellerWallet = await this.prisma.wallet.findFirst({
-            where: {
-              type: 'seller',
-              derivationIndex: merchantWallet.derivationIndex + 1,
-              phoneNumber: merchantWallet.phoneNumber,
-            },
-          });
-
-          if (sellerWallet) {
-            sellerWalletAddress = sellerWallet.walletAddress;
-          }
-        }
-      }
-
       this.logger.log(
-        `[START] Getting seller vouchers${merchantId ? ` for merchant: ${merchantId}` : ' (all sellers)'}${sellerWalletAddress ? ` (seller wallet: ${sellerWalletAddress})` : ''}`,
+        `[START] Getting seller vouchers${merchantId ? ` for merchant: ${merchantId}` : ' (all sellers)'}`,
       );
 
-      // Build where clause
+      // Build where clause - seller vouchers have merchantId = null but sellerMerchantId = merchantId
       const whereClause: any = {
-        merchantId: null, // Seller vouchers have no merchant assigned yet
+        merchantId: null, // Seller vouchers have no merchant assigned yet (not purchased by marketer)
       };
 
-      // If seller wallet address provided, filter by wallet
-      // Note: We need to link vouchers to seller wallets somehow
-      // For now, we'll just get all seller vouchers (merchantId = null)
+      // If merchantId provided, filter by sellerMerchantId
+      if (merchantId) {
+        whereClause.sellerMerchantId = merchantId;
+      }
 
       // Get all seller vouchers (not yet purchased by merchants)
       const vouchers = await this.prisma.voucher.findMany({

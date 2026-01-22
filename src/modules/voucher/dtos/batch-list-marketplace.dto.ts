@@ -38,8 +38,4 @@ export class BatchListOnMarketplaceDto {
   @Type(() => BatchListItemDto)
   @ArrayMinSize(1)
   items: BatchListItemDto[];
-
-  @IsString()
-  @IsNotEmpty()
-  sellerWalletAddress: string;
 }

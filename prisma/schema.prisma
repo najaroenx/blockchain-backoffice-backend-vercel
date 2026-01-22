@@ -236,6 +236,7 @@ model Voucher {
   merchantId       String?
   merchant         Merchant?        @relation(fields: [merchantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   merchantRef      String? // ← Reference ID from merchant system for verification
+  sellerMerchantId String? // ← Merchant ID that seller belongs to (set when seller creates voucher)
   tokenId          String?          @unique // ← ERC-1155 Coupon Type ID from smart contract createCouponType()
   valueType        VoucherValueType
   value            Float
@@ -250,6 +251,8 @@ model Voucher {
   createdAt        DateTime         @default(now()) @map(name: "created_at")
   updatedAt        DateTime         @updatedAt @map(name: "updated_at")
   voucherCodes     VoucherCode[] // ← 1 voucher มีหลาย codes
+
+  @@index([sellerMerchantId])
 }
 
 // Listing batch status enum

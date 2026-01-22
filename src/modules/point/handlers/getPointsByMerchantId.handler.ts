@@ -8,12 +8,18 @@ import { PointDBService } from '../services/point-db.service';
 import { GetPointsResponseType } from '../types';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { Prisma } from '@prisma/client';
+import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class GetPointsByMerchantId {
   private logger = new Logger(GetPointsByMerchantId.name);
 
-  constructor(private db: PointDBService) {}
+  constructor(
+    private db: PointDBService,
+    private blockchainService: BlockchainService,
+    private prisma: PrismaService,
+  ) {}
 
   private parseJSON<T>(value: unknown): T | null {
     if (!value) return null;
@@ -145,10 +151,38 @@ export class GetPointsByMerchantId {
         where,
       });
 
-      const cleanPoint = points.map((point) => ({
-        ...point,
-        contractAddress: convertBufferToAddress(point.contractAddress),
-      }));
+      // Fetch merchant wallet for balance lookup
+      const merchant = await this.prisma.merchant.findUnique({
+        where: { id: merchantId },
+        include: { wallet: true },
+      });
+      const merchantWalletAddress = merchant?.wallet?.walletAddress;
+
+      const cleanPoint = await Promise.all(
+        points.map(async (point) => {
+          const contractAddress = convertBufferToAddress(point.contractAddress);
+          let remaining: string | null = null;
+
+          if (merchantWalletAddress) {
+            try {
+              remaining = await this.blockchainService.getBalance({
+                walletAddress: merchantWalletAddress,
+                pointAddress: contractAddress,
+              });
+            } catch (error) {
+              this.logger.warn(
+                `Failed to get balance for point ${point.id}: ${error.message}`,
+              );
+            }
+          }
+
+          return {
+            ...point,
+            contractAddress,
+            remaining,
+          };
+        }),
+      );
 
       return {
         points: cleanPoint,

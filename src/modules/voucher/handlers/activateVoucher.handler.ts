@@ -9,6 +9,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
 @Injectable()
 export class ActivateVoucher {
@@ -222,9 +223,6 @@ export class ActivateVoucher {
           }
 
           // Derive private key from seed phrase
-          const { getSignerFromSeedPhrase } = await import(
-            'src/libs/derive-wallet'
-          );
           const merchantSigner = getSignerFromSeedPhrase(
             decryptedSeedPhrase,
             merchant.wallet.derivationIndex || 0,

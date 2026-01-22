@@ -12,6 +12,7 @@ import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { ethers } from 'ethers';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
 /**
  * Handler for merchant purchasing vouchers from seller using THB token
@@ -133,9 +134,6 @@ export class MerchantBuyCouponFromSeller {
       }
 
       // Derive private key from seed phrase
-      const { getSignerFromSeedPhrase } = await import(
-        'src/libs/derive-wallet'
-      );
       const merchantSigner = getSignerFromSeedPhrase(
         decryptedSeedPhrase,
         merchantWallet.derivationIndex,

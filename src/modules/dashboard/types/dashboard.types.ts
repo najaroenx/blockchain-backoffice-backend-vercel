@@ -10,6 +10,26 @@ export interface TimeSeriesData {
   label: string; // "Jan 1" | "Week 1" | "January"
 }
 
+// Shared Coupon Stats Interface
+export interface CouponStats {
+  total: number; // จำนวน/มูลค่าคูปองทั้งหมดที่เรามี
+  unsold: number; // จำนวน/มูลค่าคูปองที่ยังไม่ลงขาย
+  sold: number; // จำนวน/มูลค่าคูปองที่ลงขายแล้ว
+  pendingUse: number; // จำนวน/มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้
+  redeemed: number; // จำนวน/มูลค่าคูปองที่ End User redeem แล้วจริง ๆ
+}
+
+export interface CouponStatsWithCurrency extends CouponStats {
+  currency: string; // สกุลเงินของคูปอง (Point symbol)
+}
+
+// Shared Point Info Interface
+export interface PointInfo {
+  symbol: string; // สัญลักษณ์ Point (e.g., "PTS", "COIN")
+  total: number; // จำนวน Point ทั้งหมด (initial supply)
+  balance: number; // จำนวน Point ที่เหลืออยู่ (current balance)
+}
+
 // ============================================
 // Marketer Dashboard Types
 // ============================================
@@ -22,34 +42,19 @@ export interface MarketerDashboardResponse {
   // ============================================
 
   // 1.1 จำนวนคูปอง
-  couponCount: {
-    purchased: number; // จำนวนคูปองที่ซื้อมาจาก Seller
-    soldToEndUser: number; // จำนวนคูปองที่ขายให้ End User
-    pendingUse: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
-    redeemed: number; // จำนวนคูปองที่ End User redeem แล้วจริง ๆ
-  };
+  couponCount: CouponStats;
 
   // 1.2 มูลค่าคูปอง (THB)
-  couponValue: {
-    total: number; // มูลค่าคูปองทั้งหมดที่เรามี (THB)
-    sold: number; // มูลค่าคูปองที่ขายทั้งหมด (THB)
-    pendingUse: number; // มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้ (THB)
-    redeemed: number; // มูลค่าคูปองที่ End User redeem แล้วจริง ๆ (THB)
-  };
+  couponValue: CouponStats;
 
-  couponValueByCurrency: {
-    currency: string; // สกุลเงินของคูปอง
-    total: number; // มูลค่าคูปองทั้งหมดที่เรามี (สกุลเงินนั้น ๆ)
-    sold: number; // มูลค่าคูปองที่ขายทั้งหมด (สกุลเงินนั้น ๆ)
-    pendingUse: number; // มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้ (สกุลเงินนั้น ๆ)
-    redeemed: number; // มูลค่าคูปองที่ End User redeem แล้วจริง ๆ (สกุลเงินนั้น ๆ)
-  }[];
+  // 1.3 มูลค่าคูปองแยกตามสกุลเงิน (Point)
+  couponValueByCurrency: CouponStatsWithCurrency[];
 
   // ============================================
   // Section 2: ข้อมูล End User
   // ============================================
   endUsers: {
-    buyers: number; // จำนวน End User ที่ซื้อคูปอง
+    total: number; // จำนวน End User ทั้งหมด
     pendingUsers: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
     redeemedUsers: number; // จำนวน End User ที่ redeem แล้วจริง ๆ
   };
@@ -65,17 +70,15 @@ export interface MarketerDashboardResponse {
   // ============================================
   // Section 4: Point
   // ============================================
-  points: {
-    total: number; // จำนวน Point ทั้งหมด (initial supply รวม)
-    types: string;
-  }[];
+  points: PointInfo[];
 
   // ============================================
   // Section 5: THB Token
   // ============================================
   thbToken: {
     deposited: number; // THB Token ที่เติมเข้าไป
-    usedForPromotion: number; // THB Token ที่ใช้ซื้อคูปองจาก Seller
+    balance: number; // THB Token คงเหลือ
+    bought: number; // THB Token ที่ใช้ซื้อคูปองจาก Seller
   };
 }
 
@@ -128,15 +131,13 @@ export interface SellerDashboardResponse {
 // ============================================
 
 export interface MerchantRefCouponSummary {
-  soldToEndUser: number; // จำนวนคูปองที่ขายให้ End User
+  total: number; // จำนวนคูปองที่ขายให้ End User
   pendingUse: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
   redeemed: number; // จำนวนคูปองที่ End User redeem แล้วจริง ๆ
 }
 
 export interface MerchantRefEndUserSummary {
   total: number; // จำนวน End User ทั้งหมด
-  buyers: number; // จำนวน End User ที่ซื้อคูปอง
-  couponsSold: number; // จำนวนคูปองที่ขายให้ End User
   pendingUsers: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
   redeemedUsers: number; // จำนวน End User ที่ redeem แล้ว
 }

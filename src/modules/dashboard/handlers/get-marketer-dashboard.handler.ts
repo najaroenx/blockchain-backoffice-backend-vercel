@@ -17,12 +17,17 @@ import {
 } from '../types/dashboard.types';
 import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
 import { ParticipantType } from '@prisma/client';
+import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
 export class GetMarketerDashboardHandler {
   private logger = new Logger(GetMarketerDashboardHandler.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blockchainService: BlockchainService,
+  ) {}
 
   async execute(
     merchantId: string,
@@ -164,13 +169,15 @@ export class GetMarketerDashboardHandler {
     if (voucherIds.length === 0) {
       return {
         couponCount: {
-          purchased: 0,
-          soldToEndUser: 0,
+          total: 0,
+          unsold: 0,
+          sold: 0,
           pendingUse: 0,
           redeemed: 0,
         },
         couponValue: {
           total: 0,
+          unsold: 0,
           sold: 0,
           pendingUse: 0,
           redeemed: 0,
@@ -310,15 +317,21 @@ export class GetMarketerDashboardHandler {
       `[getVoucherStats] THB values: totalValue=${totalValue}, soldValue=${soldValue}, pendingValue=${pendingValue}, redeemedValue=${redeemedValue}`,
     );
 
+    // Calculate unsold counts/values
+    const unsold = purchased - soldToEndUser;
+    const unsoldValue = totalValue - soldValue;
+
     return {
       couponCount: {
-        purchased, // From THB_BUY in date range
-        soldToEndUser, // From TRANSFER+VOUCHER in date range
+        total: purchased, // Total purchased from THB_BUY
+        unsold, // purchased - soldToEndUser
+        sold: soldToEndUser, // From TRANSFER+VOUCHER in date range
         pendingUse, // sold - redeemed in date range
         redeemed, // From REDEEM in date range
       },
       couponValue: {
         total: totalValue, // All time, from voucher.thbPurchasePrice
+        unsold: unsoldValue, // total - sold value
         sold: soldValue, // From TRANSFER+VOUCHER amount in date range
         pendingUse: pendingValue, // sold - redeemed value
         redeemed: redeemedValue, // From REDEEM amount in date range
@@ -343,7 +356,7 @@ export class GetMarketerDashboardHandler {
 
     if (voucherIds.length === 0) {
       return {
-        buyers: 0,
+        total: 0,
         pendingUsers: 0,
         redeemedUsers: 0,
       };
@@ -372,7 +385,7 @@ export class GetMarketerDashboardHandler {
       .size;
 
     return {
-      buyers,
+      total: buyers,
       pendingUsers,
       redeemedUsers,
     };
@@ -420,7 +433,7 @@ export class GetMarketerDashboardHandler {
 
   /**
    * Get points data for the merchant
-   * Returns an array of points with their individual supply and type info
+   * Returns an array of points with their individual supply, type info, and remaining balance
    */
   private async getPointsData(
     merchantId: string,
@@ -432,14 +445,46 @@ export class GetMarketerDashboardHandler {
         name: true,
         symbol: true,
         initialSupply: true,
+        contractAddress: true,
       },
     });
 
-    // Return array of points with total (initialSupply) and types (name/symbol)
-    return points.map((p) => ({
-      total: p.initialSupply,
-      types: p.name,
-    }));
+    // Get merchant wallet address for balance lookup
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: merchantId },
+      include: { wallet: true },
+    });
+    const merchantWalletAddress = merchant?.wallet?.walletAddress;
+
+    // Fetch balance for each point from blockchain
+    const pointsWithBalance = await Promise.all(
+      points.map(async (p) => {
+        let balance = 0;
+
+        if (merchantWalletAddress) {
+          try {
+            const contractAddress = convertBufferToAddress(p.contractAddress);
+            const balanceStr = await this.blockchainService.getBalance({
+              walletAddress: merchantWalletAddress,
+              pointAddress: contractAddress,
+            });
+            balance = balanceStr ? Number(balanceStr) : 0;
+          } catch (error) {
+            this.logger.warn(
+              `Failed to get balance for point ${p.id}: ${error.message}`,
+            );
+          }
+        }
+
+        return {
+          symbol: p.symbol,
+          total: p.initialSupply,
+          balance,
+        };
+      }),
+    );
+
+    return pointsWithBalance;
   }
 
   /**
@@ -477,7 +522,8 @@ export class GetMarketerDashboardHandler {
 
       return {
         deposited: mintStats._sum.amount || 0,
-        usedForPromotion: buyStats._sum.amount || 0,
+        balance: (mintStats._sum.amount || 0) - (buyStats._sum.amount || 0),
+        bought: buyStats._sum.amount || 0,
       };
     } catch {
       this.logger.warn(
@@ -485,7 +531,8 @@ export class GetMarketerDashboardHandler {
       );
       return {
         deposited: 0,
-        usedForPromotion: 0,
+        balance: 0,
+        bought: 0,
       };
     }
   }

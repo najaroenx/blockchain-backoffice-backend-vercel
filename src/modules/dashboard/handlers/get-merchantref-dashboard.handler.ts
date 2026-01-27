@@ -28,14 +28,12 @@ export class GetMerchantRefDashboardHandler {
       merchantRef,
       myMerchantSummary: {
         coupon: {
-          soldToEndUser: 0,
+          total: 0,
           pendingUse: 0,
           redeemed: 0,
         },
         endUser: {
           total: 0,
-          buyers: 0,
-          couponsSold: 0,
           pendingUsers: 0,
           redeemedUsers: 0,
         },
@@ -118,14 +116,12 @@ export class GetMerchantRefDashboardHandler {
     if (voucherIds.length === 0) {
       return {
         couponSummary: {
-          soldToEndUser: 0,
+          total: 0,
           pendingUse: 0,
           redeemed: 0,
         },
         endUserSummary: {
           total: 0,
-          buyers: 0,
-          couponsSold: 0,
           pendingUsers: 0,
           redeemedUsers: 0,
         },
@@ -162,14 +158,12 @@ export class GetMerchantRefDashboardHandler {
 
     return {
       couponSummary: {
-        soldToEndUser,
+        total: soldToEndUser,
         pendingUse,
         redeemed,
       },
       endUserSummary: {
         total: allPurchasers.size,
-        buyers: allPurchasers.size,
-        couponsSold: soldToEndUser,
         pendingUsers: usersWithUnusedCodes.size,
         redeemedUsers: usersWithUsedCodes.size,
       },

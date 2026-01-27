@@ -34,7 +34,6 @@ export type PointStatistics = {
   totalCustomers: number;
   totalBalance: number;
   initialSupply: number;
-  circulatingSupply: number;
 };
 
 export type GetPointByIdResponseType = {

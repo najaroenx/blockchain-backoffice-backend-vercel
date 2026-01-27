@@ -96,7 +96,6 @@ export class PointDBService {
         totalCustomers,
         totalBalance,
         initialSupply: pointData.initialSupply,
-        circulatingSupply: totalBalance,
       },
     };
   }

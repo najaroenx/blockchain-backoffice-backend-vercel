@@ -6,6 +6,7 @@ import { GetSellerDashboardHandler } from './handlers/get-seller-dashboard.handl
 import { GetMerchantRefDashboardHandler } from './handlers/get-merchantref-dashboard.handler';
 import { PrismaModule } from 'prisma/prisma.module';
 import { TransactionModule } from '../transaction/transaction.module';
+import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 
 // TODO: Add CacheModule.register({ ttl: 300000 }) when @nestjs/cache-manager is installed
 
@@ -17,6 +18,6 @@ import { TransactionModule } from '../transaction/transaction.module';
     GetSellerDashboardHandler,
     GetMerchantRefDashboardHandler,
   ],
-  imports: [PrismaModule, TransactionModule],
+  imports: [PrismaModule, TransactionModule, BlockchainModule],
 })
 export class DashboardModule {}

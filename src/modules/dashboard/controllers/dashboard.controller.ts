@@ -54,17 +54,17 @@ export class DashboardController {
   /**
    * Seller Dashboard
    * Returns listing statistics, sales data, and marketer breakdown
-   * @param walletAddress - The seller's wallet address
+   * @param merchantId - The merchant ID (will lookup seller wallet internally)
    * @param query - Date range and granularity filters
    */
-  @Get('/seller/:walletAddress')
+  @Get('/seller/:merchantId')
   @Public()
   @HttpCode(200)
   async getSellerDashboard(
-    @Param('walletAddress') walletAddress: string,
+    @Param('merchantId') merchantId: string,
     @Query() query: DashboardQueryDto,
   ) {
-    return this.sellerDashboardHandler.execute(walletAddress, query);
+    return this.sellerDashboardHandler.execute(merchantId, query);
   }
 
   /**

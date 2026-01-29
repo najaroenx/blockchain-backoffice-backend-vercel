@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
@@ -7,6 +11,7 @@ import {
   MerchantRefEndUserSummary,
   DateRangeInfo,
 } from '../types/dashboard.types';
+import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
 
 @Injectable()
@@ -19,62 +24,40 @@ export class GetMerchantRefDashboardHandler {
     merchantRef: string,
     query: DashboardQueryDto,
   ): Promise<MerchantRefDashboardResponse> {
-    // Parse date range for mock response
-    const dateRange = this.parseDateRange(query);
+    try {
+      this.logger.log(
+        `[START] Getting merchantRef dashboard for ref: ${merchantRef}`,
+      );
 
-    // Return mock data with all fields as 0
-    return {
-      dateRange,
-      merchantRef,
-      myMerchantSummary: {
-        coupon: {
-          total: 0,
-          pendingUse: 0,
-          redeemed: 0,
+      // Parse date range
+      const dateRange = this.parseDateRange(query);
+
+      // Get voucher codes data
+      const { couponSummary, endUserSummary } = await this.getMerchantSummary(
+        merchantRef,
+        dateRange,
+      );
+
+      this.logger.log(
+        `[SUCCESS] MerchantRef dashboard retrieved for ref: ${merchantRef}`,
+      );
+
+      return {
+        dateRange,
+        merchantRef,
+        myMerchantSummary: {
+          coupon: couponSummary,
+          endUser: endUserSummary,
         },
-        endUser: {
-          total: 0,
-          pendingUsers: 0,
-          redeemedUsers: 0,
-        },
-      },
-    };
+      };
+    } catch (error) {
+      this.logger.error(
+        `[ERROR] Failed to get merchantRef dashboard: ${error.message}`,
+        error.stack,
+      );
 
-    // === Commented out: Original implementation ===
-    // try {
-    //   this.logger.log(
-    //     `[START] Getting merchantRef dashboard for ref: ${merchantRef}`,
-    //   );
-
-    //   // Parse date range
-    //   const dateRange = this.parseDateRange(query);
-
-    //   // Get voucher codes data
-    //   const { couponSummary, endUserSummary } = await this.getMerchantSummary(
-    //     merchantRef,
-    //     dateRange,
-    //   );
-
-    //   this.logger.log(
-    //     `[SUCCESS] MerchantRef dashboard retrieved for ref: ${merchantRef}`,
-    //   );
-
-    //   return {
-    //     dateRange,
-    //     merchantRef,
-    //     myMerchantSummary: {
-    //       coupon: couponSummary,
-    //       endUser: endUserSummary,
-    //     },
-    //   };
-    // } catch (error) {
-    //   this.logger.error(
-    //     `[ERROR] Failed to get merchantRef dashboard: ${error.message}`,
-    //     error.stack,
-    //   );
-
-    //   throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-    // }
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+    }
   }
 
   private parseDateRange(query: DashboardQueryDto): DateRangeInfo {
@@ -94,16 +77,18 @@ export class GetMerchantRefDashboardHandler {
 
   /**
    * Get merchant summary including coupon and end user statistics
+   * Note: dateRange is received but not used for filtering (ALL-TIME data) - TO IMPLEMENT
    */
   private async getMerchantSummary(
     merchantRef: string,
-    dateRange: DateRangeInfo,
+    _dateRange: DateRangeInfo, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<{
     couponSummary: MerchantRefCouponSummary;
     endUserSummary: MerchantRefEndUserSummary;
   }> {
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
+    // TODO: Implement date range filtering when needed
+    // const startDate = new Date(_dateRange.startDate);
+    // const endDate = new Date(_dateRange.endDate);
 
     // Get all vouchers with this merchantRef
     const vouchers = await this.prisma.voucher.findMany({
@@ -117,23 +102,24 @@ export class GetMerchantRefDashboardHandler {
       return {
         couponSummary: {
           total: 0,
-          pendingUse: 0,
+          unredeemed: 0,
           redeemed: 0,
         },
         endUserSummary: {
           total: 0,
-          pendingUsers: 0,
+          unredeemedUsers: 0,
           redeemedUsers: 0,
         },
       };
     }
 
-    // Get all voucher codes for these vouchers (sold to end users)
+    // Get all voucher codes for these vouchers (sold to end users) - ALL-TIME
+    // TODO: Add date range filtering when implemented
     const voucherCodes = await this.prisma.voucherCode.findMany({
       where: {
         voucherId: { in: voucherIds },
         currentOwnerId: { not: null }, // Purchased by end user
-        createdAt: { gte: startDate, lte: endDate },
+        // createdAt: { gte: startDate, lte: endDate }, // TO IMPLEMENT
       },
       select: {
         currentOwnerId: true,
@@ -143,7 +129,7 @@ export class GetMerchantRefDashboardHandler {
 
     // Coupon summary
     const soldToEndUser = voucherCodes.length;
-    const pendingUse = voucherCodes.filter((c) => !c.isUsed).length;
+    const unredeemed = voucherCodes.filter((c) => !c.isUsed).length;
     const redeemed = voucherCodes.filter((c) => c.isUsed).length;
 
     // End user summary
@@ -159,12 +145,12 @@ export class GetMerchantRefDashboardHandler {
     return {
       couponSummary: {
         total: soldToEndUser,
-        pendingUse,
+        unredeemed,
         redeemed,
       },
       endUserSummary: {
         total: allPurchasers.size,
-        pendingUsers: usersWithUnusedCodes.size,
+        unredeemedUsers: usersWithUnusedCodes.size,
         redeemedUsers: usersWithUsedCodes.size,
       },
     };

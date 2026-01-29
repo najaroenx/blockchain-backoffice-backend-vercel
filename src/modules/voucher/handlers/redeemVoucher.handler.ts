@@ -64,6 +64,7 @@ export class RedeemVoucher {
           usedBy: true,
           usedAt: true,
           currentOwnerId: true,
+          currentOwnerType: true,
           voucher: {
             select: {
               id: true,
@@ -168,8 +169,11 @@ export class RedeemVoucher {
         );
       }
 
-      // 6. ตรวจสอบ ownership (ถ้ามี currentOwnerId)
-      if (voucherCode.currentOwnerId) {
+      // 6. ตรวจสอบ ownership (ถ้ามี currentOwnerId และเป็น CUSTOMER)
+      if (
+        voucherCode.currentOwnerId &&
+        voucherCode.currentOwnerType === 'CUSTOMER'
+      ) {
         this.logger.log(`[STEP 6] Verifying ownership`);
         if (voucherCode.currentOwnerId !== customerId) {
           this.logger.error(
@@ -269,14 +273,36 @@ export class RedeemVoucher {
       // 8b. Vault release will be triggered by marketplace callback inside the contract redeem
 
       // 9. Get merchant wallet for transaction
+      // For seller vouchers (merchantId = null), find merchant from Point (the merchant who activated the code)
       this.logger.log(`[STEP 9] Getting merchant wallet address`);
-      if (!voucher.merchantId) {
-        throw new BadRequestException('Voucher has no merchant assigned');
+
+      let merchantId = voucher.merchantId;
+
+      // If voucher has no merchantId (seller voucher), find merchant from Point
+      // When merchant activates codes, they set pointId which belongs to their Point (Point.merchantId)
+      if (!merchantId && voucherCode.pointId) {
+        this.logger.log(
+          `[STEP 9] Voucher has no merchantId (seller voucher), looking up from Point: ${voucherCode.pointId}`,
+        );
+        const point = await this.prisma.point.findUnique({
+          where: { id: voucherCode.pointId },
+          select: { merchantId: true },
+        });
+        if (point?.merchantId) {
+          merchantId = point.merchantId;
+          this.logger.log(`[STEP 9] Found merchant from Point: ${merchantId}`);
+        }
+      }
+
+      if (!merchantId) {
+        throw new BadRequestException(
+          'Cannot determine merchant for redemption. Voucher code may not be properly activated.',
+        );
       }
 
       const merchant = await this.prisma.merchant.findUnique({
-        where: { id: voucher.merchantId },
-        select: { walletId: true, wallet: true },
+        where: { id: merchantId },
+        select: { walletId: true, wallet: true, name: true },
       });
 
       if (!merchant?.wallet) {
@@ -315,7 +341,7 @@ export class RedeemVoucher {
             pointId: voucherCode.pointId,
             senderId: customerId,
             receiverId: null, // No receiver - voucher is burned, not transferred
-            merchantId: voucher.merchantId, // Track which merchant's voucher was redeemed
+            merchantId, // Track which merchant's voucher was redeemed
             voucherCodeId: voucherCode.id,
             transactionTypeId: TransactionTypeId.REDEEM,
             type: AssetType.VOUCHER,
@@ -343,8 +369,12 @@ export class RedeemVoucher {
         transactionTypeId: redeemTransaction.transactionTypeId,
         amount: redeemTransaction.amount,
         transactionDirection: 'SENT' as 'SENT' | 'RECEIVED',
-        merchantId: voucher.merchantId,
-        merchantName: voucher.merchant?.name || voucher.merchantName,
+        merchantId,
+        merchantName:
+          voucher.merchant?.name ||
+          voucher.merchantName ||
+          merchant?.name ||
+          '',
         point: voucherCode.pointId
           ? {
               id: voucherCode.pointId,
@@ -358,7 +388,7 @@ export class RedeemVoucher {
           emailOrWebsite: customer.email,
         },
         receiver: {
-          id: voucher.merchantId,
+          id: merchantId,
           walletAddress: merchantAddress,
           emailOrWebsite: merchant?.wallet?.email || '',
         },

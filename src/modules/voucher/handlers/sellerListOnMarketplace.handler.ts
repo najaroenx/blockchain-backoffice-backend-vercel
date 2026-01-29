@@ -218,6 +218,7 @@ export class SellerListOnMarketplace {
           currency: 'THB', // Denormalized currency symbol
           isUsed: false,
           currentOwnerId: null, // Not yet purchased by merchant
+          currentOwnerType: null, // Owner type will be set when purchased
         });
       }
 

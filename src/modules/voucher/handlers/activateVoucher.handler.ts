@@ -71,17 +71,39 @@ export class ActivateVoucher {
         throw new NotFoundException(`Point with ID ${pointId} not found`);
       }
 
-      if (point.merchantId !== upcomingVoucher.merchantId) {
+      // Check merchant access: either owns the voucher OR owns codes in the voucher
+      const isVoucherOwner = point.merchantId === upcomingVoucher.merchantId;
+
+      // Count codes owned by this merchant (purchased from seller)
+      const ownedCodesCount = await this.prisma.voucherCode.count({
+        where: {
+          voucherId: voucherId,
+          currentOwnerId: point.merchantId,
+          currentOwnerType: 'MERCHANT',
+        },
+      });
+
+      const hasOwnedCodes = ownedCodesCount > 0;
+
+      this.logger.log(
+        `[STEP 1.5] Access check - isVoucherOwner: ${isVoucherOwner}, ownedCodesCount: ${ownedCodesCount}`,
+      );
+
+      if (!isVoucherOwner && !hasOwnedCodes) {
         this.logger.error(
-          `[ERROR] Point belongs to different merchant. Point merchantId: ${point.merchantId}, Voucher merchantId: ${upcomingVoucher.merchantId}`,
+          `[ERROR] Merchant ${point.merchantId} does not have access to voucher ${voucherId}. ` +
+            `Voucher merchantId: ${upcomingVoucher.merchantId}, owned codes: ${ownedCodesCount}`,
         );
         throw new BadRequestException(
-          `Point does not belong to this voucher's merchant`,
+          `Merchant does not have access to this voucher. Either own the voucher or purchase codes from seller first.`,
         );
       }
 
+      // Determine if this is a seller voucher (merchant purchased codes)
+      const isSellerVoucher = !isVoucherOwner && hasOwnedCodes;
+
       this.logger.log(
-        `[STEP 1.5] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
+        `[STEP 1.5] Point validated ✓ (${point.name}, symbol: ${point.symbol}). isSellerVoucher: ${isSellerVoucher}`,
       );
 
       // 2. นับจำนวน codes ที่มีอยู่แล้ว (codes ที่มี voucherGroupId)
@@ -94,45 +116,88 @@ export class ActivateVoucher {
         `[STEP 2] Current state: ${activeCodesCount} active codes, ${upcomingVoucher.totalIssued} remaining (upcoming)`,
       );
 
-      // 3. ตรวจสอบว่า amount ไม่เกิน totalIssued ที่เหลือ
+      // 3. ตรวจสอบว่า amount ไม่เกินจำนวนที่สามารถ activate ได้
+      this.logger.log(`[STEP 3] Validating amount`);
+
+      // For seller voucher: limit by owned codes count
+      // For own voucher: limit by totalIssued
+      const availableToActivate = isSellerVoucher
+        ? ownedCodesCount
+        : upcomingVoucher.totalIssued;
+
       this.logger.log(
-        `[STEP 3] Validating amount ${amount} <= remaining totalIssued ${upcomingVoucher.totalIssued}`,
+        `[STEP 3] isSellerVoucher: ${isSellerVoucher}, availableToActivate: ${availableToActivate}, requested: ${amount}`,
       );
 
-      if (amount > upcomingVoucher.totalIssued) {
-        this.logger.error(
-          `[ERROR] Amount ${amount} exceeds remaining totalIssued ${upcomingVoucher.totalIssued}`,
-        );
-        throw new BadRequestException(
-          `Cannot activate ${amount} codes. Only ${upcomingVoucher.totalIssued} remaining to be activated.`,
-        );
+      if (amount > availableToActivate) {
+        if (isSellerVoucher) {
+          this.logger.error(
+            `[ERROR] Amount ${amount} exceeds owned codes ${ownedCodesCount}`,
+          );
+          throw new BadRequestException(
+            `Cannot activate ${amount} codes. You own ${ownedCodesCount} unactivated codes from this voucher.`,
+          );
+        } else {
+          this.logger.error(
+            `[ERROR] Amount ${amount} exceeds remaining totalIssued ${upcomingVoucher.totalIssued}`,
+          );
+          throw new BadRequestException(
+            `Cannot activate ${amount} codes. Only ${upcomingVoucher.totalIssued} remaining to be activated.`,
+          );
+        }
       }
 
-      // 4. ใช้ transaction เพื่อสร้าง codes และอัพเดท isActive
-      this.logger.log(`[STEP 4] Starting transaction`);
+      // 4. ใช้ transaction เพื่อสร้าง/อัพเดท codes และอัพเดท isActive
+      this.logger.log(
+        `[STEP 4] Starting transaction (isSellerVoucher: ${isSellerVoucher})`,
+      );
       const result = await this.prisma.$transaction(
         async (tx) => {
-          // 4.1 นับจำนวน codes ที่มีอยู่แล้วเพื่อเป็น starting number
-          const existingCodesCount = await tx.voucherCode.count({
-            where: { voucherId },
-          });
+          // Get the actual merchant who is activating (from point ownership)
+          const activatingMerchantId = point.merchantId;
 
-          // 4.2 สร้าง sequential codes: voucherId-0001, voucherId-0002, ...
-          this.logger.log(
-            `[STEP 4.1] Generating ${amount} sequential codes starting from ${existingCodesCount + 1}`,
-          );
-          const codes: string[] = [];
-          for (let i = 1; i <= amount; i++) {
-            const sequenceNumber = existingCodesCount + i;
-            const code = `${voucherId}-${sequenceNumber.toString().padStart(4, '0')}`;
-            codes.push(code);
+          // For seller vouchers: get existing codes to activate
+          // For own vouchers: generate new codes
+          let codesToActivate: { id: string; code: string }[] = [];
+
+          if (isSellerVoucher) {
+            // Get owned codes that are not yet activated
+            this.logger.log(
+              `[STEP 4.1] Fetching ${amount} owned codes to activate for merchant ${activatingMerchantId}`,
+            );
+            codesToActivate = await tx.voucherCode.findMany({
+              where: {
+                voucherId,
+                currentOwnerId: activatingMerchantId,
+                currentOwnerType: 'MERCHANT',
+              },
+              select: { id: true, code: true },
+              take: amount,
+            });
+
+            this.logger.log(
+              `[STEP 4.1] Found ${codesToActivate.length} codes to activate`,
+            );
+          } else {
+            // 4.1 นับจำนวน codes ที่มีอยู่แล้วเพื่อเป็น starting number
+            const existingCodesCount = await tx.voucherCode.count({
+              where: { voucherId },
+            });
+
+            // 4.2 สร้าง sequential codes: voucherId-0001, voucherId-0002, ...
+            this.logger.log(
+              `[STEP 4.1] Generating ${amount} sequential codes starting from ${existingCodesCount + 1}`,
+            );
+            for (let i = 1; i <= amount; i++) {
+              const sequenceNumber = existingCodesCount + i;
+              const code = `${voucherId}-${sequenceNumber.toString().padStart(4, '0')}`;
+              codesToActivate.push({ id: '', code }); // id will be set after creation
+            }
           }
 
-          // 4.3 implement code smart contract here trigger (future)
-
-          // Get merchant wallet for blockchain operations
+          // Get merchant wallet for blockchain operations (use activating merchant, not voucher owner)
           const merchant = await tx.merchant.findUnique({
-            where: { id: upcomingVoucher.merchantId },
+            where: { id: activatingMerchantId },
             include: { wallet: true },
           });
 
@@ -292,57 +357,105 @@ export class ActivateVoucher {
             `[STEP 4.3.2] Skipping automatic escrow lock - listing remains active for customer purchases`,
           );
 
-          // 4.4 Create voucher codes with listingId as voucherGroupId
-          this.logger.log(
-            `[STEP 4.4] Creating ${amount} active voucher codes with listingId: ${listingId}`,
-          );
-          const chunkSize = 100;
-          for (let i = 0; i < codes.length; i += chunkSize) {
-            const chunk = codes.slice(i, i + chunkSize);
+          // 4.4 Create or update voucher codes with listingId as voucherGroupId
+          if (isSellerVoucher) {
+            // Update existing codes owned by merchant
+            this.logger.log(
+              `[STEP 4.4] Updating ${codesToActivate.length} owned voucher codes with listingId: ${listingId}`,
+            );
 
-            await tx.voucherCode.createMany({
-              data: chunk.map((code) => ({
-                code,
-                voucherId,
+            const codeIds = codesToActivate.map((c) => c.id);
+            await tx.voucherCode.updateMany({
+              where: { id: { in: codeIds } },
+              data: {
                 pointsCost,
                 pointId,
                 currency: point.symbol,
                 voucherGroupId: listingId,
-              })),
+              },
             });
+
+            this.logger.log(
+              `[STEP 4.4] Updated ${codesToActivate.length} codes with voucherGroupId (listingId): ${listingId}`,
+            );
+          } else {
+            // Create new codes
+            this.logger.log(
+              `[STEP 4.4] Creating ${amount} active voucher codes with listingId: ${listingId}`,
+            );
+            const chunkSize = 100;
+            const codes = codesToActivate.map((c) => c.code);
+            for (let i = 0; i < codes.length; i += chunkSize) {
+              const chunk = codes.slice(i, i + chunkSize);
+
+              await tx.voucherCode.createMany({
+                data: chunk.map((code) => ({
+                  code,
+                  voucherId,
+                  pointsCost,
+                  pointId,
+                  currency: point.symbol,
+                  voucherGroupId: listingId,
+                })),
+              });
+            }
+            this.logger.log(
+              `[STEP 4.4] Created ${amount} codes with voucherGroupId (listingId): ${listingId}`,
+            );
           }
-          this.logger.log(
-            `[STEP 4.4] Created ${amount} codes with voucherGroupId (listingId): ${listingId}`,
-          );
 
-          // 4.5 ลด totalIssued ของ voucher และ update currency
-          const newTotalIssued = upcomingVoucher.totalIssued - amount;
-          this.logger.log(
-            `[STEP 4.6] Updating voucher: totalIssued ${upcomingVoucher.totalIssued} -> ${newTotalIssued}, currency -> ${point.symbol}`,
-          );
+          // 4.5 ลด totalIssued ของ voucher และ update currency (only for own vouchers)
+          let newTotalIssued = upcomingVoucher.totalIssued;
+          if (!isSellerVoucher) {
+            newTotalIssued = upcomingVoucher.totalIssued - amount;
+            this.logger.log(
+              `[STEP 4.5] Updating voucher: totalIssued ${upcomingVoucher.totalIssued} -> ${newTotalIssued}, currency -> ${point.symbol}`,
+            );
 
-          await tx.voucher.update({
-            where: { id: voucherId },
-            data: {
-              totalIssued: newTotalIssued,
-              currency: point.symbol,
-            },
-          });
+            await tx.voucher.update({
+              where: { id: voucherId },
+              data: {
+                totalIssued: newTotalIssued,
+                currency: point.symbol,
+              },
+            });
+          } else {
+            this.logger.log(
+              `[STEP 4.5] Seller voucher - skipping totalIssued update (remains ${upcomingVoucher.totalIssued})`,
+            );
+          }
 
-          // 4.6 นับจำนวน codes ตามสถานะ (codes ที่มี voucherGroupId)
+          // 4.6 นับจำนวน codes ตามสถานะ
+          // For seller vouchers: count codes owned by this merchant with voucherGroupId
+          // For own vouchers: count all codes with voucherGroupId
+          const activeCodesCountQuery = isSellerVoucher
+            ? {
+                voucherId,
+                currentOwnerId: activatingMerchantId,
+                currentOwnerType: 'MERCHANT' as const,
+                voucherGroupId: { not: null },
+              }
+            : { voucherId, voucherGroupId: { not: null } };
+
           const activeCodesCount = await tx.voucherCode.count({
-            where: { voucherId, voucherGroupId: { not: null } },
+            where: activeCodesCountQuery,
           });
 
+          // For seller vouchers: upcoming = remaining owned codes not in this batch
+          const upcomingCodesCount = isSellerVoucher
+            ? ownedCodesCount - amount
+            : newTotalIssued;
+
           this.logger.log(
-            `[STEP 4.7] Active codes: ${activeCodesCount}, Upcoming: ${newTotalIssued}`,
+            `[STEP 4.6] Active codes: ${activeCodesCount}, Upcoming: ${upcomingCodesCount}`,
           );
 
           return {
             voucherId,
             codesCreated: amount,
             activeCodesCount,
-            upcomingCodesCount: newTotalIssued,
+            upcomingCodesCount,
+            isSellerVoucher,
           };
         },
         {

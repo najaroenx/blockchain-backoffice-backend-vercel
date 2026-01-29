@@ -15,7 +15,7 @@ export interface CouponStats {
   total: number; // จำนวน/มูลค่าคูปองทั้งหมดที่เรามี
   unsold: number; // จำนวน/มูลค่าคูปองที่ยังไม่ลงขาย
   sold: number; // จำนวน/มูลค่าคูปองที่ลงขายแล้ว
-  pendingUse: number; // จำนวน/มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้
+  unredeemed: number; // จำนวน/มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้
   redeemed: number; // จำนวน/มูลค่าคูปองที่ End User redeem แล้วจริง ๆ
 }
 
@@ -55,7 +55,7 @@ export interface MarketerDashboardResponse {
   // ============================================
   endUsers: {
     total: number; // จำนวน End User ทั้งหมด
-    pendingUsers: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
+    unredeemedUsers: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
     redeemedUsers: number; // จำนวน End User ที่ redeem แล้วจริง ๆ
   };
 
@@ -97,6 +97,7 @@ export interface SellerCouponCount {
 }
 
 export interface SellerCouponValue {
+  unsold: number;
   sold: number;
   unreserved: number;
   reserved: number;
@@ -132,13 +133,13 @@ export interface SellerDashboardResponse {
 
 export interface MerchantRefCouponSummary {
   total: number; // จำนวนคูปองที่ขายให้ End User
-  pendingUse: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
+  unredeemed: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
   redeemed: number; // จำนวนคูปองที่ End User redeem แล้วจริง ๆ
 }
 
 export interface MerchantRefEndUserSummary {
   total: number; // จำนวน End User ทั้งหมด
-  pendingUsers: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
+  unredeemedUsers: number; // จำนวน End User ที่ซื้อแต่ยังไม่ใช้
   redeemedUsers: number; // จำนวน End User ที่ redeem แล้ว
 }
 

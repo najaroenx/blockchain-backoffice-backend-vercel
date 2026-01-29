@@ -69,7 +69,8 @@ export class VoucherDBService {
       `[getVouchersByMerchant] Querying vouchers for merchantId: ${merchantId}`,
     );
 
-    const vouchers = await this.repository.findMany<any>({
+    // Strategy 1: Get vouchers owned by merchant (merchantId = merchantId)
+    const ownedVouchers = await this.repository.findMany<any>({
       where: { merchantId },
       include: {
         merchant: {
@@ -88,6 +89,56 @@ export class VoucherDBService {
         },
       },
     });
+
+    // Strategy 2: Get voucher codes purchased from seller (currentOwnerId = merchantId, currentOwnerType = 'MERCHANT')
+    const purchasedCodes = await this.prisma.voucherCode.findMany({
+      where: {
+        currentOwnerId: merchantId,
+        currentOwnerType: 'MERCHANT',
+      },
+      include: {
+        voucher: {
+          include: {
+            merchant: {
+              include: {
+                wallet: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Group purchased codes by voucherId and add to vouchers list
+    const purchasedVoucherMap = new Map<string, any>();
+    for (const code of purchasedCodes) {
+      if (!purchasedVoucherMap.has(code.voucherId)) {
+        purchasedVoucherMap.set(code.voucherId, {
+          ...code.voucher,
+          voucherCodes: [],
+        });
+      }
+      purchasedVoucherMap.get(code.voucherId).voucherCodes.push({
+        pointsCost: code.pointsCost,
+        pointId: code.pointId,
+        currency: code.currency,
+        createdAt: code.createdAt,
+        voucherGroupId: code.voucherGroupId,
+      });
+    }
+
+    // Merge owned vouchers with purchased vouchers (avoid duplicates)
+    const ownedVoucherIds = new Set(ownedVouchers.map((v) => v.id));
+    const vouchers = [
+      ...ownedVouchers,
+      ...Array.from(purchasedVoucherMap.values()).filter(
+        (v) => !ownedVoucherIds.has(v.id),
+      ),
+    ];
+
+    console.log(
+      `[getVouchersByMerchant] Found ${ownedVouchers.length} owned vouchers + ${purchasedVoucherMap.size} purchased voucher types for merchant ${merchantId}`,
+    );
 
     console.log(
       `[getVouchersByMerchant] Found ${vouchers.length} vouchers for merchant ${merchantId}`,
@@ -112,20 +163,38 @@ export class VoucherDBService {
     const groupedMap = new Map<string, any>();
 
     for (const voucher of vouchers) {
+      // Check if this voucher is owned by merchant or purchased from seller
+      const isPurchasedFromSeller = voucher.merchantId !== merchantId;
+
       // upcoming codes = codes ที่รอใช้งาน (ยังไม่ activate)
-      // นับเฉพาะ codes ที่ merchant เป็นเจ้าของ ไม่รวม seller codes
-      const upcomingCodesCount = await this.prisma.voucherCode.count({
-        where: {
-          voucherId: voucher.id,
-          pointId: null, // Not yet activated
-          voucherGroupId: null, // Not seller placeholder codes
-        },
-      });
+      let upcomingCodesCount = 0;
+      if (isPurchasedFromSeller) {
+        // For purchased vouchers: count codes owned by merchant but not yet activated
+        upcomingCodesCount = await this.prisma.voucherCode.count({
+          where: {
+            voucherId: voucher.id,
+            currentOwnerId: merchantId,
+            currentOwnerType: 'MERCHANT',
+            pointId: null, // Not yet activated
+          },
+        });
+      } else {
+        // For owned vouchers: count codes not yet activated (exclude seller placeholder codes)
+        upcomingCodesCount = await this.prisma.voucherCode.count({
+          where: {
+            voucherId: voucher.id,
+            pointId: null, // Not yet activated
+            voucherGroupId: null, // Not seller placeholder codes
+          },
+        });
+      }
 
       // ถ้าไม่มี codes เลย ดึงจำนวนจาก blockchain (merchant wallet balance)
+      // Only for owned vouchers, not for purchased vouchers
       let finalUpcomingCount = upcomingCodesCount;
 
       if (
+        !isPurchasedFromSeller &&
         upcomingCodesCount === 0 &&
         voucher.tokenId &&
         voucher.merchant?.wallet?.walletAddress
@@ -155,11 +224,15 @@ export class VoucherDBService {
       }
 
       // active codes = codes ที่ activate แล้ว (มี pointId) และยังไม่ถูกใช้
+      // For purchased vouchers, filter by currentOwnerId
       const activeCodesCount = await this.prisma.voucherCode.count({
         where: {
           voucherId: voucher.id,
           pointId: { not: null },
           isUsed: false,
+          ...(isPurchasedFromSeller
+            ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
+            : {}),
         },
       });
 
@@ -169,6 +242,9 @@ export class VoucherDBService {
           voucherId: voucher.id,
           pointId: { not: null },
           isUsed: true,
+          ...(isPurchasedFromSeller
+            ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
+            : {}),
         },
       });
 
@@ -183,6 +259,9 @@ export class VoucherDBService {
             voucherId: voucher.id,
             voucherGroupId: { not: null },
             pointId: { not: null },
+            ...(isPurchasedFromSeller
+              ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
+              : {}),
           },
           select: {
             voucherGroupId: true,
@@ -207,6 +286,9 @@ export class VoucherDBService {
               voucherId: voucher.id,
               voucherGroupId: codeGroup.voucherGroupId,
               isUsed: false,
+              ...(isPurchasedFromSeller
+                ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
+                : {}),
             },
           });
 
@@ -215,6 +297,9 @@ export class VoucherDBService {
               voucherId: voucher.id,
               voucherGroupId: codeGroup.voucherGroupId,
               isUsed: true,
+              ...(isPurchasedFromSeller
+                ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
+                : {}),
             },
           });
 

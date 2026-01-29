@@ -114,6 +114,7 @@ export class GetCustomerOwnedVouchers {
               where: {
                 voucherId: voucher.id,
                 currentOwnerId: customerId,
+                currentOwnerType: 'CUSTOMER',
               },
               include: {
                 transactions: {
@@ -166,6 +167,7 @@ export class GetCustomerOwnedVouchers {
       const redeemedCodes = await this.prisma.voucherCode.findMany({
         where: {
           currentOwnerId: customerId,
+          currentOwnerType: 'CUSTOMER',
           isUsed: true,
         },
         include: {

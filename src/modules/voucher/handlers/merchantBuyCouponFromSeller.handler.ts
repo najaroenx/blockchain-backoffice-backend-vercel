@@ -244,131 +244,136 @@ export class MerchantBuyCouponFromSeller {
       // Generate transaction reference ID for linking related transactions
       const transactionRefId = randomUUID();
 
-      // Create THB_BUY transaction record (merchant pays THB to seller/vault)
-      const transaction = await this.prisma.transaction.create({
-        data: {
-          txHash: txHashBuffer,
-          senderAddress: senderAddressBuffer,
-          receiverAddress: receiverAddressBuffer,
-          amount: amountTHB,
-          pointId: null, // THB purchase, not point-based
-          merchantId: merchantId,
-          senderId: merchantId, // Merchant paid
-          receiverId: null, // Seller not tracked in DB (goes to Vault)
-          voucherCodeId: null,
-          transactionTypeId: TransactionTypeId.THB_BUY,
-          type: AssetType.THB_TOKEN,
-          senderType: ParticipantType.MERCHANT,
-          receiverType: ParticipantType.SYSTEM, // Seller wallet (external) treated as SYSTEM
-          transactionRefId: transactionRefId,
-        } as any,
-      });
-
+      // 8. Get VoucherCodes being purchased (before updating them)
       this.logger.log(
-        `[STEP 6] THB_BUY transaction created. ID: ${transaction.id}`,
+        `[STEP 8] Getting ${amount} VoucherCodes for this purchase`,
       );
 
-      // 7. Update voucher status to 'upcoming' and assign to merchant
-      this.logger.log(`[STEP 7] Updating voucher status to 'upcoming'`);
-
-      const voucher = await this.prisma.voucher.findFirst({
+      // Get codes that will be transferred to merchant (limit to amount being purchased)
+      // Filter by currentOwnerId = null to only get codes not yet purchased by any merchant
+      const codesToTransfer = await this.prisma.voucherCode.findMany({
         where: {
-          tokenId: listing.typeId,
-          merchantId: null, // Still unassigned (from seller)
+          voucherGroupId: listingId,
+          currentOwnerId: null, // Not yet purchased by any merchant
+        },
+        select: {
+          id: true,
+          listingBatchId: true,
+        },
+        take: amount,
+      });
+
+      if (codesToTransfer.length < amount) {
+        throw new BadRequestException(
+          `Not enough voucher codes available. Requested: ${amount}, Available: ${codesToTransfer.length}`,
+        );
+      }
+
+      const purchasedCodeIds = codesToTransfer.map((c) => c.id);
+      const pricePerUnitTHB = Math.round(amountTHB / amount);
+
+      this.logger.log(
+        `[STEP 8] Found ${purchasedCodeIds.length} VoucherCodes to purchase. Price per unit: ${pricePerUnitTHB} THB`,
+      );
+
+      // 9. Create THB_BUY transaction for each VoucherCode
+      this.logger.log(`[STEP 9] Creating THB_BUY transactions for each code`);
+
+      const transactions = [];
+      for (const codeId of purchasedCodeIds) {
+        const transaction = await this.prisma.transaction.create({
+          data: {
+            txHash: txHashBuffer,
+            senderAddress: senderAddressBuffer,
+            receiverAddress: receiverAddressBuffer,
+            amount: pricePerUnitTHB,
+            pointId: null,
+            merchantId: merchantId,
+            senderId: merchantId,
+            receiverId: null,
+            voucherCodeId: codeId, // Link to specific VoucherCode
+            transactionTypeId: TransactionTypeId.THB_BUY,
+            type: AssetType.THB_TOKEN,
+            senderType: ParticipantType.MERCHANT,
+            receiverType: ParticipantType.SYSTEM,
+            transactionRefId: transactionRefId,
+          } as any,
+        });
+        transactions.push(transaction);
+      }
+
+      this.logger.log(
+        `[STEP 9] Created ${transactions.length} THB_BUY transactions. RefId: ${transactionRefId}`,
+      );
+
+      // 10. Update VoucherCodes ownership (no need to create new voucher)
+      // VoucherCodes stay linked to seller's voucher (which has tokenId for blockchain)
+      // We just mark them as owned by merchant via currentOwnerId
+      this.logger.log(
+        `[STEP 10] Updating ${amount} VoucherCodes ownership to merchant`,
+      );
+
+      // Update the codes we already identified in step 8
+      await this.prisma.voucherCode.updateMany({
+        where: {
+          id: { in: purchasedCodeIds },
+        },
+        data: {
+          // Keep voucherId linked to seller's voucher (has tokenId for blockchain)
+          currentOwnerId: merchantId, // Set merchant as owner
+          currentOwnerType: 'MERCHANT', // Mark owner type as MERCHANT
+          // Keep listingBatchId for tracking purchase history
         },
       });
 
-      if (voucher) {
-        // Calculate THB price per unit
-        const thbPricePerUnit = parseFloat(listing.pricePerUnit);
+      this.logger.log(
+        `[STEP 10] Updated ${purchasedCodeIds.length} VoucherCodes. Merchant ${merchant.name} now owns these codes.`,
+      );
 
-        await this.prisma.voucher.update({
-          where: { id: voucher.id },
-          data: {
-            status: 'upcoming',
-            merchantId: merchantId,
-            merchantName: merchant.name,
-            thbPurchasePrice: thbPricePerUnit, // บันทึกราคา THB ต่อ unit ที่ซื้อมา
-          },
-        });
+      // 11. Update ListingBatch stats
+      this.logger.log(`[STEP 11] Updating ListingBatch stats`);
 
-        this.logger.log(
-          `[STEP 7] Voucher ${voucher.id} updated to 'upcoming' and assigned to merchant ${merchant.name} (thbPurchasePrice: ${thbPricePerUnit} THB)`,
-        );
-
-        // 8. ลบ codes ตามจำนวน amount ที่ซื้อ (ไม่ใช่ทั้งหมด)
-        this.logger.log(
-          `[STEP 8] Removing ${amount} seller placeholder codes for voucher ${voucher.id}`,
-        );
-
-        // First, get the codes to find their listingBatchId before deletion (limit to amount)
-        const codesToDelete = await this.prisma.voucherCode.findMany({
-          where: {
-            voucherId: voucher.id,
-            voucherGroupId: listingId,
-            pointId: null,
-            currentOwnerId: null,
-          },
-          select: {
-            id: true,
-            listingBatchId: true,
-          },
-          take: amount, // Only take the amount being purchased
-        });
-
-        // Group by listingBatchId to update batch stats
-        const batchCounts = new Map<string, number>();
-        for (const code of codesToDelete) {
-          if (code.listingBatchId) {
-            batchCounts.set(
-              code.listingBatchId,
-              (batchCounts.get(code.listingBatchId) || 0) + 1,
-            );
-          }
+      // Group by listingBatchId to update batch stats
+      const batchCounts = new Map<string, number>();
+      for (const code of codesToTransfer) {
+        if (code.listingBatchId) {
+          batchCounts.set(
+            code.listingBatchId,
+            (batchCounts.get(code.listingBatchId) || 0) + 1,
+          );
         }
+      }
 
-        // Delete only the specific codes (by ID) that were selected
-        const codeIdsToDelete = codesToDelete.map((code) => code.id);
-        const deletedCodesResult = await this.prisma.voucherCode.deleteMany({
-          where: {
-            id: { in: codeIdsToDelete },
+      // Update ListingBatch soldItems for each affected batch
+      for (const [batchId, count] of batchCounts) {
+        await this.prisma.listingBatch.update({
+          where: { id: batchId },
+          data: {
+            soldItems: { increment: count },
           },
         });
 
-        // Update ListingBatch soldItems for each affected batch
-        for (const [batchId, count] of batchCounts) {
+        // Check if batch is sold out
+        const batch = await this.prisma.listingBatch.findUnique({
+          where: { id: batchId },
+          select: { totalItems: true, soldItems: true },
+        });
+
+        if (batch && batch.soldItems >= batch.totalItems) {
           await this.prisma.listingBatch.update({
             where: { id: batchId },
-            data: {
-              soldItems: { increment: count },
-            },
+            data: { status: 'SOLD_OUT' },
           });
-
-          // Check if batch is sold out
-          const batch = await this.prisma.listingBatch.findUnique({
-            where: { id: batchId },
-            select: { totalItems: true, soldItems: true },
-          });
-
-          if (batch && batch.soldItems >= batch.totalItems) {
-            await this.prisma.listingBatch.update({
-              where: { id: batchId },
-              data: { status: 'SOLD_OUT' },
-            });
-            this.logger.log(`[INFO] ListingBatch ${batchId} is now SOLD_OUT`);
-          }
+          this.logger.log(`[INFO] ListingBatch ${batchId} is now SOLD_OUT`);
         }
-
-        this.logger.log(
-          `[STEP 8] Deleted ${deletedCodesResult.count} seller placeholder codes. Merchant will create new codes when activating.`,
-        );
-      } else {
-        this.logger.warn(
-          `[STEP 7] Voucher with tokenId ${listing.typeId} not found or already assigned`,
-        );
       }
+
       this.logger.log(
-        `[SUCCESS] Merchant purchased ${amount} coupons from seller. Transaction ID: ${transaction.id}`,
+        `[STEP 11] Updated ListingBatch stats. Codes retain listingBatchId for purchase tracking.`,
+      );
+
+      this.logger.log(
+        `[SUCCESS] Merchant purchased ${amount} coupons from seller. Transactions created: ${transactions.length}`,
       );
 
       return {
@@ -380,8 +385,9 @@ export class MerchantBuyCouponFromSeller {
           tokenId: listing.typeId,
           totalPriceWei: totalPriceWei.toString(),
           totalPriceTHB: ethers.formatEther(totalPriceWei),
-          transactionId: transaction.id,
-          purchasedAt: transaction.createdAt,
+          transactionIds: transactions.map((t) => t.id),
+          transactionRefId: transactionRefId,
+          purchasedAt: transactions[0]?.createdAt,
         },
         blockchain: {
           transactionHash: blockchainTx.hash,

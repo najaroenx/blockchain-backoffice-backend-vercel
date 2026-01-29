@@ -128,20 +128,45 @@ export class GetMarketplaceListings {
 
             this.logger.log(
               `[GetMarketplaceListings] ✅ Found voucher for listingId ${listingId}: ` +
-                `voucherId=${voucher?.id}, merchantId=${merchant?.id}, pointId=${point?.id}`,
+                `voucherId=${voucher?.id}, merchantId=${merchant?.id}, ` +
+                `codeOwnerId=${voucherCode.currentOwnerId}, codeOwnerType=${voucherCode.currentOwnerType}, pointId=${point?.id}`,
             );
 
             // Filter by merchantId if provided
-            if (merchantId && merchant?.id !== merchantId) {
-              this.logger.log(
-                `[GetMarketplaceListings] Filtered out listing ${listingId}: ` +
-                  `merchant ${merchant?.id} does not match requested ${merchantId}`,
-              );
-              return null;
+            // Check both: voucher owner (merchant created) OR code owner (merchant purchased from seller)
+            if (merchantId) {
+              const isVoucherOwner = merchant?.id === merchantId;
+              const isCodeOwner =
+                voucherCode.currentOwnerId === merchantId &&
+                voucherCode.currentOwnerType === 'MERCHANT';
+
+              if (!isVoucherOwner && !isCodeOwner) {
+                this.logger.log(
+                  `[GetMarketplaceListings] Filtered out listing ${listingId}: ` +
+                    `voucher.merchantId=${merchant?.id}, code.currentOwnerId=${voucherCode.currentOwnerId} ` +
+                    `do not match requested merchantId=${merchantId}`,
+                );
+                return null;
+              }
             }
 
             // Get seller wallet address
-            const sellerWalletAddress = merchant?.wallet?.walletAddress || '';
+            // For purchased codes, get the code owner's wallet instead of voucher merchant
+            let sellerWalletAddress = merchant?.wallet?.walletAddress || '';
+
+            // If code is owned by a merchant (purchased from seller), use that merchant's wallet
+            if (
+              voucherCode.currentOwnerType === 'MERCHANT' &&
+              voucherCode.currentOwnerId
+            ) {
+              const codeOwnerMerchant = await this.prisma.merchant.findUnique({
+                where: { id: voucherCode.currentOwnerId },
+                select: { wallet: { select: { walletAddress: true } } },
+              });
+              if (codeOwnerMerchant?.wallet?.walletAddress) {
+                sellerWalletAddress = codeOwnerMerchant.wallet.walletAddress;
+              }
+            }
 
             // Verify seller matches
             if (
@@ -160,11 +185,15 @@ export class GetMarketplaceListings {
               this.thbAddress.toLowerCase();
 
             // Count available codes from database
+            // Available = not sold to customer yet (no owner, or owned by merchant/seller)
             const dbAvailableCodes = await this.prisma.voucherCode.count({
               where: {
                 voucherGroupId: listingId,
-                currentOwnerId: null, // Not yet purchased
                 isUsed: false,
+                // Exclude codes already sold to customers
+                NOT: {
+                  currentOwnerType: 'CUSTOMER',
+                },
               },
             });
 

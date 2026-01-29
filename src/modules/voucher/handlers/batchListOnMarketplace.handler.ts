@@ -224,6 +224,7 @@ export class BatchListOnMarketplaceHandler {
             currency: 'THB',
             isUsed: false,
             currentOwnerId: null,
+            currentOwnerType: null,
           });
         }
 

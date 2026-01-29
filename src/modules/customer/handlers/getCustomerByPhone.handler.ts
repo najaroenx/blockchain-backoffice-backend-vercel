@@ -233,25 +233,48 @@ export class GetCustomerPhone {
     });
 
     // Add coupons to merchants
+    // For vouchers without merchantId (purchased from seller), add to "Other" category
+    const orphanCoupons: any[] = [];
+
     customer.ownedVouchers?.forEach((voucher: any) => {
+      const couponData = {
+        codeId: voucher.id,
+        code: voucher.code,
+        voucherId: voucher.voucherId,
+        name: voucher.voucher?.name || 'Unknown',
+        description: voucher.voucher?.description || '',
+        imageUrl: voucher.voucher?.imageUrl || '',
+        pointsCost: voucher.pointsCost,
+        currency: voucher.currency,
+        value: voucher.voucher?.value || 0,
+        valueType: voucher.voucher?.valueType || 'fixed',
+        isUsed: voucher.isUsed || false,
+      };
+
       if (voucher.voucher && voucher.voucher.merchantId) {
         const merchant = merchantMap.get(voucher.voucher.merchantId);
         if (merchant) {
-          merchant.coupons.push({
-            codeId: voucher.id,
-            code: voucher.code,
-            voucherId: voucher.voucherId,
-            name: voucher.voucher.name,
-            description: voucher.voucher.description,
-            imageUrl: voucher.voucher.imageUrl,
-            pointsCost: voucher.pointsCost,
-            currency: voucher.currency,
-            value: voucher.voucher.value,
-            valueType: voucher.voucher.valueType,
-          });
+          merchant.coupons.push(couponData);
+        } else {
+          // Merchant not in customer's merchant list, add to orphan
+          orphanCoupons.push(couponData);
         }
+      } else {
+        // No merchantId (seller voucher), add to orphan
+        orphanCoupons.push(couponData);
       }
     });
+
+    // Add "Other" merchant if there are orphan coupons
+    if (orphanCoupons.length > 0) {
+      merchantMap.set('other', {
+        merchantId: null,
+        name: 'Marketplace Purchases',
+        description: 'Vouchers purchased from marketplace',
+        points: [],
+        coupons: orphanCoupons,
+      });
+    }
 
     return Array.from(merchantMap.values());
   }

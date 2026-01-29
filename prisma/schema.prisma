@@ -167,8 +167,6 @@ model Customer {
   customerMerChant CustomerMerChant[]
   customerPoints   CustomerPoint[]
 
-  ownedVouchers VoucherCode[] @relation("OwnedVouchers")
-
   walletId String? @unique
   wallet   Wallet? @relation(fields: [walletId], references: [id])
 }
@@ -224,6 +222,7 @@ enum AssetType {
 enum ParticipantType {
   CUSTOMER
   MERCHANT
+  SELLER
   SYSTEM
 }
 
@@ -295,12 +294,12 @@ model VoucherCode {
   pointId        String? // ← Point currency ที่ใช้ซื้อ (FK to Point)
   point          Point?        @relation(fields: [pointId], references: [id], onDelete: SetNull)
   currency       String? // ← Point.symbol (e.g., "GOLD", "SILVER") - denormalized for query performance
-  isUsed         Boolean       @default(false)
-  usedBy         String? // ← Customer ID ที่ใช้
-  usedAt         DateTime?
-  currentOwnerId String? // ← Customer ID ของเจ้าของปัจจุบัน
-  currentOwner   Customer?     @relation("OwnedVouchers", fields: [currentOwnerId], references: [id])
-  transactions   Transaction[] // ← Transaction history
+  isUsed           Boolean          @default(false)
+  usedBy           String? // ← Customer ID ที่ใช้
+  usedAt           DateTime?
+  currentOwnerId   String? // ← Owner ID (can be Customer, Merchant, or Seller ID)
+  currentOwnerType ParticipantType? // ← Type of owner: CUSTOMER, MERCHANT, or SELLER
+  transactions     Transaction[] // ← Transaction history
   createdAt      DateTime      @default(now()) @map(name: "created_at")
 
   // Batch listing reference (optional - for batch listings)
@@ -310,7 +309,7 @@ model VoucherCode {
   @@index([voucherId, isUsed])
   @@index([code])
   @@index([voucherGroupId])
-  @@index([currentOwnerId, isUsed])
+  @@index([currentOwnerId, currentOwnerType])
   @@index([pointId])
   @@index([listingBatchId])
 }

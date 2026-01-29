@@ -180,7 +180,6 @@ export class CustomerDBService {
             merchant: Merchant;
           }
         >;
-        ownedVouchers: VoucherCode[];
       }
     >({
       where: {
@@ -231,41 +230,41 @@ export class CustomerDBService {
             },
           },
         },
-        ownedVouchers: {
-          select: {
-            id: true,
-            code: true,
-            voucherId: true,
-            pointsCost: true,
-            currency: true,
-            isUsed: true,
-            usedAt: true,
-            voucherGroupId: true,
-            createdAt: true,
-            voucher: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-                imageUrl: true,
-                value: true,
-                valueType: true,
-                status: true,
-                startDate: true,
-                endDate: true,
-                merchantRef: true,
-                merchantId: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
       },
     });
 
-    return customer;
+    // Query ownedVouchers separately since we removed the relation
+    let ownedVouchers: VoucherCode[] = [];
+    if (customer) {
+      ownedVouchers = await this.prisma.voucherCode.findMany({
+        where: {
+          currentOwnerId: customer.id,
+          currentOwnerType: 'CUSTOMER',
+        },
+        include: {
+          voucher: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              imageUrl: true,
+              value: true,
+              valueType: true,
+              status: true,
+              startDate: true,
+              endDate: true,
+              merchantRef: true,
+              merchantId: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+    }
+
+    return customer ? { ...customer, ownedVouchers } : null;
   }
 
   async getCustomerById(merchantId: string, customerId: string): Promise<any> {
@@ -375,7 +374,7 @@ export class CustomerDBService {
   }
 
   async getCustomerByPhoneDetailed(phone: string): Promise<any> {
-    const customer = await this.repository.findFirst({
+    const customer = await this.repository.findFirst<any>({
       where: {
         tel: phone,
       },
@@ -412,29 +411,33 @@ export class CustomerDBService {
             },
           },
         },
-        ownedVouchers: {
-          select: {
-            id: true,
-            code: true,
-            voucherId: true,
-            pointsCost: true,
-            currency: true,
-            voucher: {
-              select: {
-                name: true,
-                description: true,
-                imageUrl: true,
-                value: true,
-                valueType: true,
-                merchantId: true,
-              },
-            },
-          },
-        },
       },
     });
 
-    return customer;
+    // Query ownedVouchers separately since we removed the relation
+    let ownedVouchers: any[] = [];
+    if (customer) {
+      ownedVouchers = await this.prisma.voucherCode.findMany({
+        where: {
+          currentOwnerId: customer.id,
+          currentOwnerType: 'CUSTOMER',
+        },
+        include: {
+          voucher: {
+            select: {
+              name: true,
+              description: true,
+              imageUrl: true,
+              value: true,
+              valueType: true,
+              merchantId: true,
+            },
+          },
+        },
+      });
+    }
+
+    return customer ? { ...customer, ownedVouchers } : customer;
   }
 
   async getAllCustomers(pageOptionsDto: PageOptionsDto): Promise<{

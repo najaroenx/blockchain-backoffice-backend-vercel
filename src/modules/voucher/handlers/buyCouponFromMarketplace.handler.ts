@@ -57,7 +57,10 @@ export class BuyCouponFromMarketplace {
           voucherGroupId,
           pointId, // ต้อง match กับ point ที่เลือกจ่าย
           isUsed: false,
-          currentOwnerId: null,
+          // Available = not sold to customer yet (can be owned by merchant or no owner)
+          NOT: {
+            currentOwnerType: 'CUSTOMER',
+          },
         },
         select: {
           id: true,
@@ -70,6 +73,7 @@ export class BuyCouponFromMarketplace {
           currency: true,
           isUsed: true,
           currentOwnerId: true,
+          currentOwnerType: true,
           point: {
             select: {
               id: true,
@@ -257,6 +261,19 @@ export class BuyCouponFromMarketplace {
       );
       let blockchainTx = null;
 
+      // Determine seller merchant ID (for both step 8 and step 9)
+      // For purchased codes: use currentOwnerId (merchant who bought from seller)
+      // For owned vouchers: use voucher.merchantId
+      const sellerMerchantId =
+        voucherCode.currentOwnerType === 'MERCHANT' &&
+        voucherCode.currentOwnerId
+          ? voucherCode.currentOwnerId
+          : voucher.merchantId;
+
+      if (!sellerMerchantId) {
+        throw new BadRequestException('Cannot determine voucher owner');
+      }
+
       try {
         // Get listing details from marketplace to validate payment token
         if (!voucherCode.voucherGroupId) {
@@ -284,36 +301,7 @@ export class BuyCouponFromMarketplace {
           );
         }
 
-        // Verify listing seller matches the merchant who owns this voucher
-        const merchant = await this.prisma.merchant.findUnique({
-          where: { id: voucher.merchantId },
-          select: {
-            wallet: {
-              select: {
-                walletAddress: true,
-              },
-            },
-          },
-        });
-
-        if (!merchant?.wallet?.walletAddress) {
-          throw new BadRequestException('Merchant wallet not found');
-        }
-
-        const merchantAddress = merchant.wallet.walletAddress.toLowerCase();
-        const listingSeller = listing.seller.toLowerCase();
-
-        if (listingSeller !== merchantAddress) {
-          this.logger.error(
-            `[ERROR] Listing seller mismatch. Listing seller: ${listingSeller}, Merchant address: ${merchantAddress}`,
-          );
-          throw new BadRequestException(
-            `This listing belongs to a different seller. The merchant may need to re-activate this voucher. ` +
-              `Expected seller: ${merchantAddress}, Actual seller: ${listingSeller}`,
-          );
-        }
-
-        this.logger.log(`[STEP 8] Listing seller verified ✓`);
+        this.logger.log(`[STEP 8] Listing ${listingId} is active ✓`);
 
         // Validate payment token matches point contract (customer pays with point token)
         if (voucherCode.point?.contractAddress) {
@@ -348,9 +336,9 @@ export class BuyCouponFromMarketplace {
       // 9. Transfer ownership - อัพเดท database และหัก balance off-chain ให้สอดคล้อง
       this.logger.log(`[STEP 9] Updating database - transferring ownership`);
 
-      // Get merchant wallet address for receiver
+      // Get merchant wallet address for receiver (use sellerMerchantId from step 8)
       const merchantWallet = await this.prisma.wallet.findFirst({
-        where: { merchant: { id: voucherCode.voucher.merchantId } },
+        where: { merchant: { id: sellerMerchantId } },
         select: { walletAddress: true },
       });
 
@@ -373,7 +361,10 @@ export class BuyCouponFromMarketplace {
           // Update current owner
           this.prisma.voucherCode.update({
             where: { id: voucherCodeId },
-            data: { currentOwnerId: customerId },
+            data: {
+              currentOwnerId: customerId,
+              currentOwnerType: 'CUSTOMER',
+            },
           }),
 
           // Deduct customer point balance (off-chain ledger to mirror on-chain spend)

@@ -114,6 +114,25 @@ model ApiKey {
   merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
+// MerchantRefStore - ร้านค้าจริงๆ ที่ไว้อ้างอิงถึงตอน redeem voucher
+model MerchantRefStore {
+  id          String    @id @default(cuid())
+  merchantRef String    @unique // รหัสอ้างอิงร้านค้า (unique identifier)
+  name        String // ชื่อร้าน
+  category    String? // ประเภทร้าน
+  description String? // อธิบาย
+  imageUrl    String? // รูปร้าน
+  locationUrl String? // URL Google Map
+  website     String? // เว็บไซต์ร้าน
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map(name: "created_at")
+  updatedAt   DateTime  @updatedAt @map(name: "updated_at")
+
+  @@index([merchantRef])
+  @@index([isActive])
+  @@index([category])
+}
+
 model Transaction {
   id                String           @id @default(cuid())
   txHash            Bytes

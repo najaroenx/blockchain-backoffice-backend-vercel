@@ -302,7 +302,13 @@ export class RedeemVoucher {
 
       const merchant = await this.prisma.merchant.findUnique({
         where: { id: merchantId },
-        select: { walletId: true, wallet: true, name: true },
+        select: {
+          walletId: true,
+          wallet: true,
+          name: true,
+          imageUrl: true,
+          website: true,
+        },
       });
 
       if (!merchant?.wallet) {
@@ -360,7 +366,7 @@ export class RedeemVoucher {
         `[SUCCESS] Voucher code redeemed successfully for customer: ${customerId}`,
       );
 
-      // 11. Format transaction response same as /customer/phone/:phone endpoint
+      // 11. Format transaction response same as /transaction/:id endpoint
       const transactionResponse = {
         id: redeemTransaction.id,
         txHash: blockchainTx.hash,
@@ -369,17 +375,27 @@ export class RedeemVoucher {
         transactionTypeId: redeemTransaction.transactionTypeId,
         amount: redeemTransaction.amount,
         transactionDirection: 'SENT' as 'SENT' | 'RECEIVED',
-        merchantId,
-        merchantName:
-          voucher.merchant?.name ||
-          voucher.merchantName ||
-          merchant?.name ||
-          '',
+        senderId: customerId,
+        receiverId: merchantId,
+        senderType: 'CUSTOMER',
+        receiverType: 'MERCHANT',
+        merchant: {
+          id: merchantId,
+          name:
+            voucher.merchant?.name ||
+            voucher.merchantName ||
+            merchant?.name ||
+            '',
+          imageUrl: merchant?.imageUrl || null,
+        },
         point: voucherCode.pointId
           ? {
               id: voucherCode.pointId,
               name: voucherCode.currency || 'POINT',
               symbol: voucherCode.currency || 'POINT',
+              merchantId: merchantId,
+              imageUrl: null,
+              balance: redeemTransaction.amount,
             }
           : null,
         sender: {
@@ -390,12 +406,24 @@ export class RedeemVoucher {
         receiver: {
           id: merchantId,
           walletAddress: merchantAddress,
-          emailOrWebsite: merchant?.wallet?.email || '',
+          emailOrWebsite: merchant?.website || null,
         },
-        voucherCodeId: voucherCode.id,
-        valueType: voucher.valueType,
-        value: voucher.value,
+        voucher: {
+          id: voucher.id,
+          tokenId: voucher.tokenId || null,
+          name: voucher.name,
+          description: voucher.description || null,
+          valueType: voucher.valueType,
+          value: voucher.value,
+          currency: voucher.currency || voucherCode.currency || null,
+          imageUrl: voucher.imageUrl || null,
+          startDate: voucher.startDate || null,
+          endDate: voucher.endDate || null,
+          merchantRef: voucher.merchantRef || null,
+        },
         eventId: null,
+        transactionRefId: redeemTransaction.transactionRefId || null,
+        typeAsset: 'VOUCHER',
         createdAt: redeemTransaction.createdAt,
       };
 

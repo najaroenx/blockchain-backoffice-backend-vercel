@@ -62,8 +62,9 @@ export class GetAllTransactionsByCustomerPhone {
         ) {
           const merch = await this.prisma.merchant.findUnique({
             where: { id: participantId },
+            include: { wallet: true },
           });
-          return merch?.website || null;
+          return merch?.wallet?.email || merch?.website || null;
         }
         return null;
       };

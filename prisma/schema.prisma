@@ -220,6 +220,7 @@ model TransactionType {
 enum VoucherStatus {
   active
   upcoming
+  expired
 }
 
 enum VoucherValueType {

@@ -1130,6 +1130,51 @@ export class BlockchainService {
   }
 
   /**
+   * Delist a coupon from marketplace (cancel listing)
+   * @param listingId - The listing ID to delist
+   * @param sellerPrivateKey - The seller's private key to sign the transaction
+   * @returns Transaction hash and block number
+   */
+  async delistCoupon(
+    listingId: string,
+    sellerPrivateKey: string,
+  ): Promise<{ hash: string; blockNumber: number }> {
+    try {
+      console.log(`[Blockchain] Delisting coupon for listing ${listingId}...`);
+
+      if (!this.marketplaceAddress) {
+        throw new Error('MARKETPLACE_ADDRESS not configured');
+      }
+
+      const signer = new Wallet(sellerPrivateKey, this.provider);
+      const marketplaceContract = new Contract(
+        this.marketplaceAddress,
+        MarketplaceArtifact.abi,
+        signer,
+      );
+
+      const tx = await marketplaceContract.delistCoupon(listingId, {
+        gasLimit: 15000000,
+      });
+      const receipt = await tx.wait();
+
+      console.log(
+        `[Blockchain] Coupon delisted. ListingId: ${listingId}, Tx: ${receipt.hash}`,
+      );
+
+      return {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+      };
+    } catch (error) {
+      console.error(`[Blockchain] Failed to delist coupon: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to delist coupon: ${error.message}`,
+      );
+    }
+  }
+
+  /**
    * Get user THB balance
    * @param userAddress - User wallet address
    * @returns THB balance

@@ -1,4 +1,5 @@
 import { Module, ValidationPipe } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UserModule } from './modules/user/user.module';
 import { PrismaModule } from 'prisma/prisma.module';
 import { MerchantModule } from './modules/merchant/merchant.module';
@@ -25,6 +26,7 @@ import { AdminModule } from './modules/admin/admin.module'; // PHASE 1: Optional
       isGlobal: true,
       validationSchema: configSchema,
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     UserModule,
     MerchantModule,

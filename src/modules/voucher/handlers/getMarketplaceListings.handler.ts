@@ -4,6 +4,9 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
+// Use string literal for 'expired' status until Prisma types are regenerated after migration
+const EXPIRED_STATUS = 'expired' as const;
+
 @Injectable()
 export class GetMarketplaceListings {
   private logger = new Logger(GetMarketplaceListings.name);
@@ -125,6 +128,25 @@ export class GetMarketplaceListings {
             const voucher = voucherCode.voucher;
             const merchant = voucher?.merchant;
             const point = voucherCode.point;
+
+            // Filter out expired vouchers (will be delisted by cron job)
+            const now = new Date();
+            if (voucher?.endDate && new Date(voucher.endDate) < now) {
+              this.logger.log(
+                `[GetMarketplaceListings] 🚫 Filtered expired voucher: listingId=${listingId}, ` +
+                  `voucherId=${voucher.id}, endDate=${voucher.endDate}`,
+              );
+              return null;
+            }
+
+            // Also filter out vouchers with 'expired' status
+            if ((voucher?.status as string) === EXPIRED_STATUS) {
+              this.logger.log(
+                `[GetMarketplaceListings] 🚫 Filtered expired status voucher: listingId=${listingId}, ` +
+                  `voucherId=${voucher.id}`,
+              );
+              return null;
+            }
 
             this.logger.log(
               `[GetMarketplaceListings] ✅ Found voucher for listingId ${listingId}: ` +

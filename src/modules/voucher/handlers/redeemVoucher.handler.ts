@@ -406,7 +406,7 @@ export class RedeemVoucher {
         receiver: {
           id: merchantId,
           walletAddress: merchantAddress,
-          emailOrWebsite: merchant?.website || null,
+          emailOrWebsite: merchant?.wallet?.email || merchant?.website || null,
         },
         voucher: {
           id: voucher.id,

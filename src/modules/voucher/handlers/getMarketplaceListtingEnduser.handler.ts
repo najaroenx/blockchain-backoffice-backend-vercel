@@ -5,8 +5,8 @@ import { PrismaService } from 'prisma/prisma.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
-export class GetMarketplaceListings {
-  private logger = new Logger(GetMarketplaceListings.name);
+export class GetMarketplaceListingsEndUser {
+  private logger = new Logger(GetMarketplaceListingsEndUser.name);
   private thbAddress: string;
 
   constructor(
@@ -66,21 +66,21 @@ export class GetMarketplaceListings {
         );
       });
 
-      // 2. Get voucher details from database for each listing
+      //   2. Get voucher details from database for each listing
       const listingsWithDetails = await Promise.all(
         blockchainListings.map(async (listing) => {
           try {
             const listingId = listing.listingId;
 
             this.logger.log(
-              `[GetMarketplaceListings] Processing listing ${listingId}`,
+              `[76GetMarketplaceListingsEndUser] Processing listing ${listingId}`,
             );
 
             // Find voucher codes with this listingId as voucherGroupId
             const voucherCodes = await this.prisma.voucherCode.findMany({
               where: {
                 voucherGroupId: listingId,
-                // pointId: { not: null },
+                pointId: { not: null },
               },
               include: {
                 voucher: {
@@ -112,12 +112,16 @@ export class GetMarketplaceListings {
               take: 1, // Just need one to get voucher details
             });
 
+            this.logger.log(
+              `[GetMarketplaceListingsEndUser] Found ${voucherCodes.length} voucher codes for listingId ${listingId}`,
+            );
+
             if (voucherCodes.length === 0) {
               this.logger.warn(
-                `[GetMarketplaceListings] ❌ No voucher codes found in database for listingId ${listingId}`,
+                `[GetMarketplaceListingsEndUser] ❌ No voucher codes found in database for listingId ${listingId}`,
               );
               this.logger.warn(
-                `[GetMarketplaceListings] This means listing ${listingId} exists on blockchain but has no associated voucher codes in database`,
+                `[GetMarketplaceListingsEndUser] This means listing ${listingId} exists on blockchain but has no associated voucher codes in database`,
               );
               return null;
             }
@@ -155,34 +159,19 @@ export class GetMarketplaceListings {
             // For purchased codes, get the code owner's wallet instead of voucher merchant
             let sellerWalletAddress = merchant?.wallet?.walletAddress || '';
 
-            // If code is owned by a merchant (purchased from seller), use that merchant's details
-            let codeOwnerMerchant: {
-              id: string;
-              name: string;
-              imageUrl: string | null;
-              wallet: { walletAddress: string } | null;
-            } | null = null;
-
+            // If code is owned by a merchant (purchased from seller), use that merchant's wallet
             if (
               voucherCode.currentOwnerType === 'MERCHANT' &&
               voucherCode.currentOwnerId
             ) {
-              codeOwnerMerchant = await this.prisma.merchant.findUnique({
+              const codeOwnerMerchant = await this.prisma.merchant.findUnique({
                 where: { id: voucherCode.currentOwnerId },
-                select: {
-                  id: true,
-                  name: true,
-                  imageUrl: true,
-                  wallet: { select: { walletAddress: true } },
-                },
+                select: { wallet: { select: { walletAddress: true } } },
               });
               if (codeOwnerMerchant?.wallet?.walletAddress) {
                 sellerWalletAddress = codeOwnerMerchant.wallet.walletAddress;
               }
             }
-
-            // Use codeOwnerMerchant if voucher.merchant is null (for seller vouchers)
-            const actualMerchant = merchant || codeOwnerMerchant;
 
             // Verify seller matches
             if (
@@ -245,12 +234,12 @@ export class GetMarketplaceListings {
                     startDate: voucher.startDate,
                     endDate: voucher.endDate,
                     status: voucher.status,
-                    merchant: actualMerchant
+                    merchant: merchant
                       ? {
-                          id: actualMerchant.id,
-                          name: actualMerchant.name,
+                          id: merchant.id,
+                          name: merchant.name,
                           walletAddress: sellerWalletAddress,
-                          imageUrl: actualMerchant.imageUrl,
+                          imageUrl: merchant.imageUrl,
                         }
                       : null,
                     point: point
@@ -276,13 +265,51 @@ export class GetMarketplaceListings {
         }),
       );
 
+      //   const listingsWithDetails = await this.prisma.voucherCode.findMany({
+      //     where: {
+      //       // voucherGroupId: listingId,
+      //       currentOwnerId: merchantId,
+      //       pointId: { not: null },
+      //     },
+      //     include: {
+      //       voucher: {
+      //         include: {
+      //           merchant: {
+      //             select: {
+      //               id: true,
+      //               name: true,
+      //               imageUrl: true,
+      //               wallet: {
+      //                 select: {
+      //                   walletAddress: true,
+      //                 },
+      //               },
+      //             },
+      //           },
+      //         },
+      //       },
+      //       point: {
+      //         select: {
+      //           id: true,
+      //           name: true,
+      //           symbol: true,
+      //           contractAddress: true,
+      //           imageUrl: true,
+      //         },
+      //       },
+      //     },
+      //     // take: 1,// Just need one to get voucher details
+      //   });
+      this.logger.log(
+        `[269GetMarketplaceListingsEndUser] Found ${listingsWithDetails.length} valid listings`,
+      );
       // Filter out null entries (listings without voucher details or filtered by merchant)
       const validListings = listingsWithDetails.filter(
         (listing) => listing !== null,
       );
 
       this.logger.log(
-        `[GetMarketplaceListings] Found ${validListings.length} valid listings`,
+        `[277GetMarketplaceListingsEndUser] Found ${validListings.length} valid listings`,
       );
 
       // Apply pagination if requested
@@ -295,13 +322,7 @@ export class GetMarketplaceListings {
         paginatedListings = validListings.slice(startIndex, endIndex);
 
         this.logger.log(
-          `[GetMarketplaceListings] Returning page ${page} with ${paginatedListings.length} listings (${startIndex}-${endIndex} of ${total})`,
-        );
-        console.log(
-          '===>',
-          JSON.stringify({
-            paginatedListings,
-          }),
+          `[GetMarketplaceListingsEndUser] Returning page ${page} with ${paginatedListings.length} listings (${startIndex}-${endIndex} of ${total})`,
         );
 
         return {

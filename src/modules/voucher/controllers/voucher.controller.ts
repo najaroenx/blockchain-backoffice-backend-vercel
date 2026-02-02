@@ -40,6 +40,7 @@ import { BatchListOnMarketplaceHandler } from '../handlers/batchListOnMarketplac
 import { GetSellerListingsHandler } from '../handlers/getSellerListings.handler';
 import { GetListingBatchDetailHandler } from '../handlers/getListingBatchDetail.handler';
 import { VoucherValueType } from '@prisma/client';
+import { GetMarketplaceListingsEndUser } from '../handlers/getMarketplaceListtingEnduser.handler';
 
 @ApiTags('Voucher')
 @Controller('coupon')
@@ -57,6 +58,7 @@ export class VoucherController {
     private readonly batchListHandler: BatchListOnMarketplaceHandler,
     private readonly getSellerListingsHandler: GetSellerListingsHandler,
     private readonly getListingBatchDetailHandler: GetListingBatchDetailHandler,
+    private readonly getMarketplaceListingsEndUser: GetMarketplaceListingsEndUser,
   ) {}
 
   @Get('/')
@@ -146,6 +148,20 @@ export class VoucherController {
   ) {
     // Fetch from blockchain marketplace instead of database
     return this.getMarketplaceListings.execute(merchantId);
+  }
+
+  /**
+   * Get available vouchers from marketplace (blockchain)
+   * GET /coupon/:merchantId/end-user/products
+   */
+  @Get('/:merchantId/end-user/products')
+  @Public()
+  @HttpCode(200)
+  async getAvailableVouchersForEndUser(
+    @Param('merchantId') merchantId: string,
+  ) {
+    // Fetch from blockchain marketplace instead of database
+    return this.getMarketplaceListingsEndUser.execute(merchantId);
   }
 
   /**

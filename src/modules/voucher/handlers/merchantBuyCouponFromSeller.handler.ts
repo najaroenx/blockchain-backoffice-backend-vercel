@@ -322,7 +322,9 @@ export class MerchantBuyCouponFromSeller {
           // Keep voucherId linked to seller's voucher (has tokenId for blockchain)
           currentOwnerId: merchantId, // Set merchant as owner
           currentOwnerType: 'MERCHANT', // Mark owner type as MERCHANT
-          // Keep listingBatchId for tracking purchase history
+          // Clear voucherGroupId so merchant can activate these codes with new listingId
+          voucherGroupId: null,
+          // Keep listingBatchId for tracking purchase history from seller
         },
       });
 

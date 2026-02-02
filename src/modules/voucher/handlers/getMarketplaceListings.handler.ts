@@ -154,19 +154,34 @@ export class GetMarketplaceListings {
             // For purchased codes, get the code owner's wallet instead of voucher merchant
             let sellerWalletAddress = merchant?.wallet?.walletAddress || '';
 
-            // If code is owned by a merchant (purchased from seller), use that merchant's wallet
+            // If code is owned by a merchant (purchased from seller), use that merchant's details
+            let codeOwnerMerchant: {
+              id: string;
+              name: string;
+              imageUrl: string | null;
+              wallet: { walletAddress: string } | null;
+            } | null = null;
+
             if (
               voucherCode.currentOwnerType === 'MERCHANT' &&
               voucherCode.currentOwnerId
             ) {
-              const codeOwnerMerchant = await this.prisma.merchant.findUnique({
+              codeOwnerMerchant = await this.prisma.merchant.findUnique({
                 where: { id: voucherCode.currentOwnerId },
-                select: { wallet: { select: { walletAddress: true } } },
+                select: {
+                  id: true,
+                  name: true,
+                  imageUrl: true,
+                  wallet: { select: { walletAddress: true } },
+                },
               });
               if (codeOwnerMerchant?.wallet?.walletAddress) {
                 sellerWalletAddress = codeOwnerMerchant.wallet.walletAddress;
               }
             }
+
+            // Use codeOwnerMerchant if voucher.merchant is null (for seller vouchers)
+            const actualMerchant = merchant || codeOwnerMerchant;
 
             // Verify seller matches
             if (
@@ -229,12 +244,12 @@ export class GetMarketplaceListings {
                     startDate: voucher.startDate,
                     endDate: voucher.endDate,
                     status: voucher.status,
-                    merchant: merchant
+                    merchant: actualMerchant
                       ? {
-                          id: merchant.id,
-                          name: merchant.name,
+                          id: actualMerchant.id,
+                          name: actualMerchant.name,
                           walletAddress: sellerWalletAddress,
-                          imageUrl: merchant.imageUrl,
+                          imageUrl: actualMerchant.imageUrl,
                         }
                       : null,
                     point: point

@@ -74,12 +74,13 @@ export class ActivateVoucher {
       // Check merchant access: either owns the voucher OR owns codes in the voucher
       const isVoucherOwner = point.merchantId === upcomingVoucher.merchantId;
 
-      // Count codes owned by this merchant (purchased from seller)
+      // Count codes owned by this merchant (purchased from seller) that are not yet activated
       const ownedCodesCount = await this.prisma.voucherCode.count({
         where: {
           voucherId: voucherId,
           currentOwnerId: point.merchantId,
           currentOwnerType: 'MERCHANT',
+          pointId: null, // Only count codes not yet activated
         },
       });
 
@@ -170,6 +171,7 @@ export class ActivateVoucher {
                 voucherId,
                 currentOwnerId: activatingMerchantId,
                 currentOwnerType: 'MERCHANT',
+                pointId: null, // Only get codes not yet activated
               },
               select: { id: true, code: true },
               take: amount,
@@ -350,11 +352,24 @@ export class ActivateVoucher {
 
           this.logger.log(`[STEP 4.3.1] Listing verified as active ✓`);
 
-          // Skip Step 4.3.2 - Do not lock escrow automatically
-          // Listing will remain active for customers to purchase from marketplace
-          // Escrow will be created when customers buy via buyCoupon()
+          // 4.3.2 Create ListingBatch record to group voucher codes for this merchant listing
           this.logger.log(
-            `[STEP 4.3.2] Skipping automatic escrow lock - listing remains active for customer purchases`,
+            `[STEP 4.3.2] Creating ListingBatch for merchant wallet ${merchant.wallet.walletAddress}`,
+          );
+          const listingBatch = await tx.listingBatch.create({
+            data: {
+              sellerWalletAddress: merchant.wallet.walletAddress.toLowerCase(),
+              name: `merchant listing: ${merchant.wallet.walletAddress}`,
+              description: null,
+              totalItems: amount,
+              soldItems: 0,
+              totalValue: pointsCost * amount,
+              currency: point.symbol,
+              status: 'ACTIVE',
+            },
+          });
+          this.logger.log(
+            `[STEP 4.3.2] Created ListingBatch ${listingBatch.id} ✓`,
           );
 
           // 4.4 Create or update voucher codes with listingId as voucherGroupId
@@ -372,6 +387,7 @@ export class ActivateVoucher {
                 pointId,
                 currency: point.symbol,
                 voucherGroupId: listingId,
+                listingBatchId: listingBatch.id,
               },
             });
 
@@ -396,6 +412,7 @@ export class ActivateVoucher {
                   pointId,
                   currency: point.symbol,
                   voucherGroupId: listingId,
+                  listingBatchId: listingBatch.id,
                 })),
               });
             }
@@ -456,6 +473,8 @@ export class ActivateVoucher {
             activeCodesCount,
             upcomingCodesCount,
             isSellerVoucher,
+            listingId,
+            listingBatchId: listingBatch.id,
           };
         },
         {
@@ -477,6 +496,8 @@ export class ActivateVoucher {
         pointsCost,
         pointId,
         currency: point.symbol,
+        listingId: result.listingId,
+        listingBatchId: result.listingBatchId,
       };
     } catch (error) {
       this.logger.error(

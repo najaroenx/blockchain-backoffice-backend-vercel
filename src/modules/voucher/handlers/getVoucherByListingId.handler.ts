@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
+import { GetVoucherByListingResponseDto } from '../dtos/get-voucher-by-listing.dto';
 
 @Injectable()
 export class GetVoucherByListingId {
@@ -16,7 +17,7 @@ export class GetVoucherByListingId {
     private prisma: PrismaService,
   ) {}
 
-  async execute(listingId?: string) {
+  async execute(listingId?: string): Promise<GetVoucherByListingResponseDto> {
     try {
       this.logger.log(
         `[GetVoucherByListingId] Step 1: Starting execution with ListingId: ${listingId}`,
@@ -104,7 +105,7 @@ export class GetVoucherByListingId {
         '[GetVoucherByListingId] Step 9: Execution completed successfully',
       );
       this.logger.log(
-        `[GetVoucherByListingId] Step 10: Voucher found for listing ${listingId}:`,
+        `[107GetVoucherByListingId] Step 10: Voucher found for listing ${listingId}:`,
         voucherCodes,
       );
       // TODO: for temporary use
@@ -121,8 +122,9 @@ export class GetVoucherByListingId {
       this.logger.log(
         `[GetVoucherByListingId] Step 11: Available count for voucher ${voucherCodes.voucherId}: ${availableCount} : ${voucherCodes.voucherGroupId}`,
       );
-      voucherCodes.voucher.totalRedeemed = availableCount || 0;
-      return voucherCodes;
+      (voucherCodes.voucher as any).totalRedeemed = availableCount || 0;
+      (voucherCodes.voucher as any).totalAvailable = availableCount || 0;
+      return voucherCodes as unknown as GetVoucherByListingResponseDto;
     } catch (error) {
       this.logger.error(
         `[GetVoucherByListingId] Error occurred while fetching voucher by listing ID: ${listingId}`,

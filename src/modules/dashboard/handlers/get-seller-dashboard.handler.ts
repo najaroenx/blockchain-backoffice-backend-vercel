@@ -87,7 +87,7 @@ export class GetSellerDashboardHandler {
       // Strategy 1: Vouchers created by seller
       const vouchersFromSeller = await this.prisma.voucher.findMany({
         where: { sellerMerchantId: merchantId },
-        select: { id: true },
+        select: { id: true, totalIssued: true, thbPurchasePrice: true },
       });
       const voucherIdsFromSeller = vouchersFromSeller.map((v) => v.id);
       this.logger.log(
@@ -125,9 +125,11 @@ export class GetSellerDashboardHandler {
         },
         select: {
           id: true,
+          voucherId: true,
           thbPrice: true,
           isUsed: true,
           listingBatchId: true,
+          currentOwnerId: true,
           voucher: {
             select: {
               thbPurchasePrice: true,
@@ -140,7 +142,13 @@ export class GetSellerDashboardHandler {
         `[DEBUG] Total voucher codes found: ${allVoucherCodes.length}`,
       );
 
-      if (allVoucherCodes.length === 0) {
+      // Check if there are any vouchers with totalIssued (not-listed) even if no codes exist yet
+      const totalExpectedFromSeller = vouchersFromSeller.reduce(
+        (sum, v) => sum + v.totalIssued,
+        0,
+      );
+
+      if (allVoucherCodes.length === 0 && totalExpectedFromSeller === 0) {
         this.logger.log(`[INFO] No voucher codes found for seller`);
         return { dateRange, ...this.getEmptyResponse() };
       }
@@ -185,6 +193,7 @@ export class GetSellerDashboardHandler {
       const overallSummary = this.calculateOverallSummary(
         allVoucherCodes,
         reservedCodeMap,
+        vouchersFromSeller,
       );
 
       const merchantBreakdown = this.calculateMerchantBreakdown(
@@ -240,6 +249,7 @@ export class GetSellerDashboardHandler {
           redeemed: 0,
         },
         couponValue: {
+          total: 0,
           unsold: 0,
           sold: 0,
           unreserved: 0,
@@ -256,10 +266,10 @@ export class GetSellerDashboardHandler {
    * Calculate overall summary across all voucher codes
    *
    * Logic (hierarchical):
-   * - total = unsold + sold (คูปองทั้งหมดที่ seller มี)
-   * - unsold = ยังไม่ list on marketplace (ไม่มี listingBatchId)
-   * - sold = list on marketplace แล้ว = unreserved + reserved
-   * - unreserved = list แล้วแต่ Marketer ยังไม่ซื้อ (ไม่มี THB_BUY)
+   * - total = unsold + sold (คูปองทั้งหมดที่ seller มี รวม not-listed)
+   * - unsold = ยังไม่ขาย = not-listed (ยังไม่สร้าง VoucherCode) + listed but unsold (ไม่มี currentOwnerId)
+   * - sold = Marketer ซื้อแล้ว = reserved = unredeemed + redeemed
+   * - unreserved = 0 (ย้ายไปรวมใน unsold แล้ว)
    * - reserved = Marketer ซื้อแล้ว = unredeemed + redeemed
    * - unredeemed = Marketer ซื้อแล้วแต่ End User ยังไม่ redeem
    * - redeemed = End User redeem แล้ว (isUsed = true)
@@ -267,14 +277,21 @@ export class GetSellerDashboardHandler {
   private calculateOverallSummary(
     voucherCodes: Array<{
       id: string;
+      voucherId: string;
       thbPrice: number | null;
       isUsed: boolean;
       listingBatchId: string | null;
+      currentOwnerId: string | null;
       voucher: {
         thbPurchasePrice: number | null;
       } | null;
     }>,
     reservedCodeMap: Map<string, string>, // voucherCodeId -> merchantId
+    vouchersFromSeller: Array<{
+      id: string;
+      totalIssued: number;
+      thbPurchasePrice: number | null;
+    }>,
   ): SellerOverallSummary {
     let unsold = 0;
     let sold = 0;
@@ -290,26 +307,52 @@ export class GetSellerDashboardHandler {
     let unredeemedValue = 0;
     let redeemedValue = 0;
 
+    // Calculate not-listed count (vouchers created but VoucherCodes not yet minted)
+    // Count how many VoucherCodes exist per voucher
+    const createdCodesPerVoucher = new Map<string, number>();
+    for (const vc of voucherCodes) {
+      const count = createdCodesPerVoucher.get(vc.voucherId) || 0;
+      createdCodesPerVoucher.set(vc.voucherId, count + 1);
+    }
+
+    // Calculate not-listed from totalIssued - actual codes created
+    let notListedCount = 0;
+    let notListedValue = 0;
+    for (const v of vouchersFromSeller) {
+      const actualCodes = createdCodesPerVoucher.get(v.id) || 0;
+      const notListed = Math.max(0, v.totalIssued - actualCodes);
+      notListedCount += notListed;
+      notListedValue += notListed * (v.thbPurchasePrice || 0);
+    }
+
+    // Add not-listed to unsold
+    unsold += notListedCount;
+    unsoldValue += notListedValue;
+
     for (const vc of voucherCodes) {
       const price = vc.thbPrice ?? vc.voucher?.thbPurchasePrice ?? 0;
       const isListed = vc.listingBatchId !== null;
       const isReserved = reservedCodeMap.has(vc.id);
       const isRedeemed = vc.isUsed;
+      const hasOwner = vc.currentOwnerId !== null;
 
       if (!isListed) {
-        // ยังไม่ list on marketplace
+        // ยังไม่ list on marketplace (VoucherCode สร้างแล้วแต่ยังไม่ list)
         unsold++;
         unsoldValue += price;
+      } else if (!hasOwner) {
+        // Listed on marketplace แต่ยังไม่มีคนซื้อ (seller ยังเป็นเจ้าของ)
+        unsold++;
+        unsoldValue += price;
+        // Also count as unreserved for backward compatibility
+        unreserved++;
+        unreservedValue += price;
       } else {
-        // List on marketplace แล้ว
+        // มีคนซื้อแล้ว (Marketer หรือ Customer)
         sold++;
         soldValue += price;
 
-        if (!isReserved) {
-          // List แล้วแต่ Marketer ยังไม่ซื้อ
-          unreserved++;
-          unreservedValue += price;
-        } else {
+        if (isReserved) {
           // Marketer ซื้อแล้ว
           reserved++;
           reservedValue += price;
@@ -328,6 +371,7 @@ export class GetSellerDashboardHandler {
     }
 
     const total = unsold + sold;
+    const totalValue = unsoldValue + soldValue;
 
     return {
       couponCount: {
@@ -340,6 +384,7 @@ export class GetSellerDashboardHandler {
         redeemed,
       },
       couponValue: {
+        total: totalValue,
         unsold: unsoldValue,
         sold: soldValue,
         unreserved: unreservedValue,
@@ -426,6 +471,7 @@ export class GetSellerDashboardHandler {
           redeemed,
         },
         couponValue: {
+          total: totalValue,
           unsold: 0, // All codes here are sold (listed)
           sold: totalValue,
           unreserved: 0,

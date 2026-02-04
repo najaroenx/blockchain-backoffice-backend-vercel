@@ -95,8 +95,8 @@ export interface SellerCouponCount {
   unredeemed: number;
   redeemed: number;
 }
-
 export interface SellerCouponValue {
+  total: number;
   unsold: number;
   sold: number;
   unreserved: number;

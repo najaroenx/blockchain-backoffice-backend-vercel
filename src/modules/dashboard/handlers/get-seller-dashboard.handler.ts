@@ -462,28 +462,20 @@ export class GetSellerDashboardHandler {
         merchantId,
         merchantName: merchantMap.get(merchantId) || 'Unknown',
         couponCount: {
-          total: codes.length,
-          unsold: 0, // All codes here are sold (listed)
-          sold: codes.length, // All codes here are sold (listed) and reserved
-          unreserved: 0, // All codes in this group are reserved by this merchant
-          reserved: codes.length,
-          unredeemed,
-          redeemed,
+          total: codes.length, // คูปองทั้งหมดที่ Marketer จอง
+          unredeemed, // End User ยังไม่ redeem
+          redeemed, // End User redeem แล้ว
         },
         couponValue: {
-          total: totalValue,
-          unsold: 0, // All codes here are sold (listed)
-          sold: totalValue,
-          unreserved: 0,
-          reserved: totalValue,
-          unredeemed: unredeemedValue,
-          redeemed: redeemedValue,
+          total: totalValue, // มูลค่าคูปองทั้งหมดที่ Marketer จอง
+          unredeemed: unredeemedValue, // มูลค่า End User ยังไม่ redeem
+          redeemed: redeemedValue, // มูลค่า End User redeem แล้ว
         },
       });
     }
 
-    // Sort by reserved value descending
-    result.sort((a, b) => b.couponValue.reserved - a.couponValue.reserved);
+    // Sort by total value descending
+    result.sort((a, b) => b.couponValue.total - a.couponValue.total);
 
     return result;
   }

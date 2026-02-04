@@ -114,11 +114,24 @@ export interface SellerOverallSummary {
   couponValue: SellerCouponValue;
 }
 
+// Simplified interface for merchant breakdown (only reserved/sold coupons)
+export interface SellerMerchantCouponCount {
+  total: number; // คูปองทั้งหมดที่ Marketer จอง (= unredeemed + redeemed)
+  unredeemed: number; // End User ยังไม่ redeem
+  redeemed: number; // End User redeem แล้ว
+}
+
+export interface SellerMerchantCouponValue {
+  total: number; // มูลค่าคูปองทั้งหมดที่ Marketer จอง (= unredeemed + redeemed)
+  unredeemed: number; // มูลค่า End User ยังไม่ redeem
+  redeemed: number; // มูลค่า End User redeem แล้ว
+}
+
 export interface SellerMerchantBreakdown {
   merchantId: string;
   merchantName: string;
-  couponCount: SellerCouponCount;
-  couponValue: SellerCouponValue;
+  couponCount: SellerMerchantCouponCount;
+  couponValue: SellerMerchantCouponValue;
 }
 
 export interface SellerDashboardResponse {

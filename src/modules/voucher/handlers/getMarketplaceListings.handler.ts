@@ -80,10 +80,14 @@ export class GetMarketplaceListings {
             );
 
             // Find voucher codes with this listingId as voucherGroupId
+            // Exclude customer-owned codes to get proper sample for metadata
             const voucherCodes = await this.prisma.voucherCode.findMany({
               where: {
                 voucherGroupId: listingId,
-                // pointId: { not: null },
+                // Exclude codes already sold to customers
+                NOT: {
+                  currentOwnerType: 'CUSTOMER',
+                },
               },
               include: {
                 voucher: {
@@ -156,17 +160,20 @@ export class GetMarketplaceListings {
             );
 
             // Filter by merchantId if provided
-            // Check both: voucher owner (merchant created) OR code owner (merchant purchased from seller)
+            // Check: voucher owner (merchant created) OR seller merchant (seller-created vouchers)
+            // OR code owner (merchant purchased from seller and has unsold codes)
             if (merchantId) {
               const isVoucherOwner = merchant?.id === merchantId;
+              const isSellerMerchant = voucher?.sellerMerchantId === merchantId;
               const isCodeOwner =
                 voucherCode.currentOwnerId === merchantId &&
                 voucherCode.currentOwnerType === 'MERCHANT';
 
-              if (!isVoucherOwner && !isCodeOwner) {
+              if (!isVoucherOwner && !isSellerMerchant && !isCodeOwner) {
                 this.logger.log(
                   `[GetMarketplaceListings] Filtered out listing ${listingId}: ` +
-                    `voucher.merchantId=${merchant?.id}, code.currentOwnerId=${voucherCode.currentOwnerId} ` +
+                    `voucher.merchantId=${merchant?.id}, voucher.sellerMerchantId=${voucher?.sellerMerchantId}, ` +
+                    `code.currentOwnerId=${voucherCode.currentOwnerId} ` +
                     `do not match requested merchantId=${merchantId}`,
                 );
                 return null;
@@ -244,6 +251,14 @@ export class GetMarketplaceListings {
             this.logger.log(
               `[GetMarketplaceListings] Listing ${listingId}: db=${dbAvailableCodes}, blockchain=${listing.amount}, totalAvailableCodes=${totalAvailableCodes}`,
             );
+
+            // Skip listings with no available codes (all sold)
+            if (totalAvailableCodes === 0) {
+              this.logger.log(
+                `[GetMarketplaceListings] 🚫 Filtered sold out listing: listingId=${listingId}, no available codes`,
+              );
+              return null;
+            }
 
             return {
               listingId: listingId,

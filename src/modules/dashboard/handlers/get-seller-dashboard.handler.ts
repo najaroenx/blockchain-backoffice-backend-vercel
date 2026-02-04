@@ -16,6 +16,24 @@ import {
 } from '../types/dashboard.types';
 import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
 
+/**
+ * Handler สำหรับดึงข้อมูล Seller Dashboard
+ *
+ * แสดงสถิติคูปองของ Seller ประกอบด้วย:
+ * - overallSummary: สรุปภาพรวมคูปองทั้งหมดของ seller
+ * - merchants: รายละเอียดคูปองที่แต่ละ Marketer ซื้อไป
+ *
+ * Logic การนับ (Hierarchical):
+ * ┌─────────────────────────────────────────────────────────────────────┐
+ * │ total = unsold + sold                                              │
+ * │   ├─ unsold = not-listed + listed-but-unsold                       │
+ * │   │    ├─ not-listed: Voucher สร้างแล้วแต่ยังไม่ mint VoucherCode  │
+ * │   │    └─ listed-but-unsold: List แล้วแต่ยังไม่มีคนซื้อ            │
+ * │   └─ sold = reserved (Marketer ซื้อแล้ว)                           │
+ * │        ├─ unredeemed: End User ยังไม่ redeem                       │
+ * │        └─ redeemed: End User redeem แล้ว                           │
+ * └─────────────────────────────────────────────────────────────────────┘
+ */
 @Injectable()
 export class GetSellerDashboardHandler {
   private logger = new Logger(GetSellerDashboardHandler.name);
@@ -33,7 +51,11 @@ export class GetSellerDashboardHandler {
 
       const dateRange = this.parseDateRange(query);
 
-      // 1. Find seller wallet from merchantId (same pattern as batchListOnMarketplace)
+      // =====================================================
+      // Step 1: หา Seller Wallet จาก Merchant ID
+      // =====================================================
+      // Seller wallet มี derivationIndex = merchantWallet.derivationIndex + 1
+      // และใช้ phoneNumber เดียวกัน, type = 'seller'
       const merchantWallet = await this.prisma.wallet.findFirst({
         where: {
           merchant: { id: merchantId },
@@ -80,11 +102,16 @@ export class GetSellerDashboardHandler {
         `[DEBUG] Sample ListingBatches in DB: ${JSON.stringify(allListingBatches)}`,
       );
 
-      // 2. Get ALL voucher codes from:
-      // - Strategy 1: Vouchers with sellerMerchantId = merchantId (seller created voucher)
-      // - Strategy 2: VoucherCodes in ListingBatch with sellerWalletAddress (seller listed on marketplace)
+      // =====================================================
+      // Step 2: ดึง VoucherCode ทั้งหมดของ Seller
+      // =====================================================
+      // ใช้ 2 strategies:
+      // - Strategy 1: Vouchers ที่ seller สร้างเอง (sellerMerchantId = merchantId)
+      // - Strategy 2: VoucherCodes ที่ seller list บน marketplace (ListingBatch)
 
-      // Strategy 1: Vouchers created by seller
+      // Strategy 1: ดึง Vouchers ที่ seller สร้าง พร้อม totalIssued และ thbPurchasePrice
+      // - totalIssued: จำนวน voucher ที่ตั้งไว้ตอนสร้าง (ใช้คำนวณ not-listed)
+      // - thbPurchasePrice: ราคา THB ต่อ unit (ใช้คำนวณ value)
       const vouchersFromSeller = await this.prisma.voucher.findMany({
         where: { sellerMerchantId: merchantId },
         select: { id: true, totalIssued: true, thbPurchasePrice: true },
@@ -94,7 +121,8 @@ export class GetSellerDashboardHandler {
         `[DEBUG] Vouchers with sellerMerchantId: ${voucherIdsFromSeller.length}`,
       );
 
-      // Strategy 2: ListingBatches from seller wallet
+      // Strategy 2: ดึง ListingBatches ที่ seller list บน marketplace
+      // ใช้ sellerWalletAddress เป็นตัวระบุว่า seller คนไหน list
       const listingBatches = await this.prisma.listingBatch.findMany({
         where: {
           sellerWalletAddress: {
@@ -109,7 +137,11 @@ export class GetSellerDashboardHandler {
         `[DEBUG] ListingBatches from seller: ${listingBatchIds.length}`,
       );
 
-      // Get all voucher codes from both strategies
+      // รวม VoucherCodes จากทั้ง 2 strategies
+      // - voucherId: ใช้นับจำนวน codes ที่สร้างแล้วต่อ voucher (สำหรับคำนวณ not-listed)
+      // - currentOwnerId: ใช้เช็คว่ามีคนซื้อหรือยัง (null = seller ยังเป็นเจ้าของ)
+      // - thbPrice: ราคาที่ list บน marketplace
+      // - voucher.thbPurchasePrice: ราคา fallback ถ้าไม่มี thbPrice
       const allVoucherCodes = await this.prisma.voucherCode.findMany({
         where: {
           OR: [
@@ -158,8 +190,11 @@ export class GetSellerDashboardHandler {
       const soldCodes = allVoucherCodes.filter((vc) => vc.listingBatchId);
       const soldCodeIds = soldCodes.map((vc) => vc.id);
 
-      // 3. Get THB_BUY transactions (marketer bought from seller) - ALL-TIME
-      // These indicate "reserved" codes
+      // =====================================================
+      // Step 3: หา THB_BUY transactions เพื่อระบุว่า Marketer ซื้อ code ไหน
+      // =====================================================
+      // THB_BUY = transaction ที่ Marketer ซื้อ coupon จาก Seller
+      // ใช้ระบุว่า code ไหนถูก "reserved" โดย Marketer คนไหน
       const thbBuyTransactions = await this.prisma.transaction.findMany({
         where: {
           transactionTypeId: TransactionTypeId.THB_BUY,
@@ -173,7 +208,10 @@ export class GetSellerDashboardHandler {
         },
       });
 
-      // Build map: voucherCodeId -> merchantId (who bought it)
+      // สร้าง Map: voucherCodeId -> merchantId (Marketer ที่ซื้อไป)
+      // ใช้สำหรับ:
+      // 1. นับจำนวน reserved codes
+      // 2. แยก breakdown ตาม Marketer
       const reservedCodeMap = new Map<string, string>();
       for (const tx of thbBuyTransactions) {
         if (tx.voucherCodeId && tx.merchantId) {
@@ -181,7 +219,9 @@ export class GetSellerDashboardHandler {
         }
       }
 
-      // 4. Get merchant info for breakdown
+      // =====================================================
+      // Step 4: ดึงข้อมูล Merchant สำหรับ breakdown
+      // =====================================================
       const merchantIds = [...new Set(reservedCodeMap.values())];
       const merchants = await this.prisma.merchant.findMany({
         where: { id: { in: merchantIds } },
@@ -189,7 +229,11 @@ export class GetSellerDashboardHandler {
       });
       const merchantMap = new Map(merchants.map((m) => [m.id, m.name]));
 
-      // 5. Calculate statistics with new logic
+      // =====================================================
+      // Step 5: คำนวณสถิติ
+      // =====================================================
+      // overallSummary: สรุปภาพรวม (total, unsold, sold, reserved, unredeemed, redeemed)
+      // merchantBreakdown: แยกตาม Marketer (total, unredeemed, redeemed)
       const overallSummary = this.calculateOverallSummary(
         allVoucherCodes,
         reservedCodeMap,
@@ -396,8 +440,17 @@ export class GetSellerDashboardHandler {
   }
 
   /**
-   * Calculate breakdown per merchant who bought from seller
-   * Only includes reserved codes (codes that Marketer bought)
+   * คำนวณ breakdown ต่อ Marketer ที่ซื้อคูปองจาก Seller
+   *
+   * แสดงเฉพาะ reserved codes (codes ที่ Marketer ซื้อแล้ว)
+   *
+   * Output:
+   * - couponCount.total: จำนวนคูปองทั้งหมดที่ Marketer จอง
+   * - couponCount.unredeemed: จำนวนที่ End User ยังไม่ redeem
+   * - couponCount.redeemed: จำนวนที่ End User redeem แล้ว
+   * - couponValue.total: มูลค่ารวม (THB)
+   * - couponValue.unredeemed: มูลค่าที่ยังไม่ redeem
+   * - couponValue.redeemed: มูลค่าที่ redeem แล้ว
    */
   private calculateMerchantBreakdown(
     soldCodes: Array<{

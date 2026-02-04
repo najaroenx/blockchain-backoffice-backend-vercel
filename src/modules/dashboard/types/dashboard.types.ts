@@ -87,22 +87,22 @@ export interface MarketerDashboardResponse {
 // ============================================
 
 export interface SellerCouponCount {
-  total: number;
-  unsold: number;
-  sold: number;
-  unreserved: number;
-  reserved: number;
-  unredeemed: number;
-  redeemed: number;
+  total: number; // จำนวนคูปองทั้งหมด
+  unsold: number; // จำนวนคูปองที่ยังไม่ลงขาย
+  sold: number; // จำนวนคูปองที่ลงขายแล้ว
+  unreserved: number; //  จำนวนคูปองที่ ยังไม่ถูก Marketer จอง
+  reserved: number; // จำนวนคูปองที่ Marketer จองไว้
+  unredeemed: number; // จำนวนคูปองที่ End User ยังไม่ redeem
+  redeemed: number; // จำนวนคูปองที่ End User redeem แล้ว
 }
 export interface SellerCouponValue {
-  total: number;
-  unsold: number;
-  sold: number;
-  unreserved: number;
-  reserved: number;
-  unredeemed: number;
-  redeemed: number;
+  total: number; // มูลค่าคูปองทั้งหมด
+  unsold: number; // มูลค่าคูปองที่ยังไม่ลงขาย
+  sold: number; // มูลค่าคูปองที่ลงขายแล้ว
+  unreserved: number; //  มูลค่าคูปอง thb token ที่ ยังไม่ถูก Marketer จอง
+  reserved: number; // มูลค่าคูปอง thb token ที่ Marketer จองไว้
+  unredeemed: number; // มูลค่าคูปอง thb token ที่ End User ยังไม่ redeem
+  redeemed: number; // มูลค่าคูปอง thb token ที่ End User redeem แล้ว
 }
 
 export interface SellerCouponValueWithCurrency extends SellerCouponValue {

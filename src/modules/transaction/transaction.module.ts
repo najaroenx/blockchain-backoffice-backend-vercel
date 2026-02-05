@@ -22,6 +22,7 @@ import { GetAllTransactionsByCustomerPhone } from './handlers/getAllTransactions
 import { GetPointTransactionsByCustomerPhone } from './handlers/getPointTransactionsByCustomerPhone.handler';
 import { GetVoucherTransactionsByCustomerPhone } from './handlers/getVoucherTransactionsByCustomerPhone.handler';
 import { GetTransactionById } from './handlers/getTransactionById.handler';
+import { GetTransactionByMerchantRef } from './handlers/getTransactionByMerchantRef.handler';
 import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
@@ -42,6 +43,7 @@ import { PrismaModule } from 'prisma/prisma.module';
     GetPointTransactionsByCustomerPhone,
     GetVoucherTransactionsByCustomerPhone,
     GetTransactionById,
+    GetTransactionByMerchantRef,
     CreateTransactionB2C,
     CreateTransactionC2C,
     MintTransaction,

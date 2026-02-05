@@ -214,6 +214,36 @@ export class TransactionDBService {
     return transaction;
   }
 
+  async getTransactionsByMerchantRef(merchantRef: string): Promise<any[]> {
+    console.log('merchantRef', merchantRef);
+    const transactions = await this.repository.findMany({
+      where: { merchantRef },
+      include: {
+        merchant: true,
+        point: true,
+        voucherCode: {
+          include: {
+            voucher: {
+              select: {
+                id: true,
+                name: true,
+                valueType: true,
+                value: true,
+                imageUrl: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    console.log('transactions', transactions);
+
+    return transactions;
+  }
+
   async createTransaction(
     data: Prisma.TransactionCreateInput,
   ): Promise<Transaction> {

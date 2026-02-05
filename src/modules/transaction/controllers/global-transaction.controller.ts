@@ -4,6 +4,7 @@ import { GetAllTransactionsByCustomerPhone } from '../handlers/getAllTransaction
 import { GetPointTransactionsByCustomerPhone } from '../handlers/getPointTransactionsByCustomerPhone.handler';
 import { GetVoucherTransactionsByCustomerPhone } from '../handlers/getVoucherTransactionsByCustomerPhone.handler';
 import { GetTransactionById } from '../handlers/getTransactionById.handler';
+import { GetTransactionByMerchantRef } from '../handlers/getTransactionByMerchantRef.handler';
 import { Public } from 'src/modules/auth/public.decorator';
 
 @ApiTags('Transaction')
@@ -14,6 +15,7 @@ export class GlobalTransactionController {
     private readonly getPointTransactionsByCustomerPhone: GetPointTransactionsByCustomerPhone,
     private readonly getVoucherTransactionsByCustomerPhone: GetVoucherTransactionsByCustomerPhone,
     private readonly getTransactionById: GetTransactionById,
+    private readonly getTransactionByMerchantRef: GetTransactionByMerchantRef,
   ) {}
 
   @Get('/customer/:phone')
@@ -90,6 +92,32 @@ export class GlobalTransactionController {
   })
   async getVoucherTransactionsCustomer(@Param('phone') phone: string) {
     return this.getVoucherTransactionsByCustomerPhone.execute(null, phone);
+  }
+
+  @Get('/merchantref/:merchantRef')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Transactions by Merchant Reference',
+    description: 'ดึงข้อมูลธุรกรรมทั้งหมดที่มี merchantRef ตรงกัน',
+  })
+  @ApiParam({
+    name: 'merchantRef',
+    description: 'Merchant Reference ID',
+    example: 'REF-12345',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Transactions retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No transactions found with this merchantRef',
+  })
+  async getTransactionsByMerchantRef(
+    @Param('merchantRef') merchantRef: string,
+  ) {
+    return this.getTransactionByMerchantRef.execute(merchantRef);
   }
 
   @Get('/:id')

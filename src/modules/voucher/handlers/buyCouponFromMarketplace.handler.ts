@@ -96,6 +96,7 @@ export class BuyCouponFromMarketplace {
               value: true,
               currency: true,
               merchantId: true,
+              merchantRef: true,
               merchant: {
                 select: {
                   id: true,
@@ -386,6 +387,7 @@ export class BuyCouponFromMarketplace {
               amount: voucherCode.pointsCost,
               pointId: voucherCode.pointId,
               merchantId: voucherCode.voucher.merchantId,
+              merchantRef: voucherCode.voucher.merchantRef || null,
               senderId: customerId,
               receiverId: voucherCode.voucher.merchantId, // Merchant received payment
               voucherCodeId: voucherCodeId,
@@ -406,6 +408,7 @@ export class BuyCouponFromMarketplace {
               amount: 1, // 1 voucher unit
               pointId: voucherCode.pointId,
               merchantId: voucherCode.voucher.merchantId,
+              merchantRef: voucherCode.voucher.merchantRef || null,
               senderId: voucherCode.voucher.merchantId, // Merchant sends voucher
               receiverId: customerId, // Customer receives voucher
               voucherCodeId: voucherCodeId,

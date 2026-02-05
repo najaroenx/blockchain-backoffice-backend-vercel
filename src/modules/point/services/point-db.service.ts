@@ -58,19 +58,6 @@ export class PointDBService {
             website: true,
           },
         },
-        transactions: {
-          select: {
-            id: true,
-            amount: true,
-            createdAt: true,
-          },
-        },
-        customerPoints: {
-          select: {
-            balances: true,
-            customerId: true,
-          },
-        },
       },
     });
 
@@ -78,25 +65,10 @@ export class PointDBService {
       return null;
     }
 
-    // Calculate statistics
-    const totalTransactions = point.transactions?.length || 0;
-    const totalCustomers = point.customerPoints?.length || 0;
-    const totalBalance =
-      point.customerPoints?.reduce(
-        (sum: number, cp: any) => sum + (cp.balances || 0),
-        0,
-      ) || 0;
-
-    const { transactions, customerPoints, ...pointData } = point;
+    const { ...pointData } = point;
 
     return {
       ...pointData,
-      statistics: {
-        totalTransactions,
-        totalCustomers,
-        totalBalance,
-        initialSupply: pointData.initialSupply,
-      },
     };
   }
 

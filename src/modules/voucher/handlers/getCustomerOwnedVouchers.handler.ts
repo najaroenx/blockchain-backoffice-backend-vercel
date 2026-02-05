@@ -40,7 +40,10 @@ export class GetCustomerOwnedVouchers {
           walletAddress: null,
           customerId: null,
           status: status || 'all',
-          pagination: { page, limit, total: 0, totalPages: 0 },
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
           summary: { total: 0, unused: 0, used: 0 },
           vouchers: [],
         };
@@ -259,16 +262,14 @@ export class GetCustomerOwnedVouchers {
       const groupedVouchers = this.groupVouchersByGroupId(paginatedVouchers);
 
       return {
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        page,
+        limit,
         phone,
         walletAddress,
         customerId,
         status: status || 'all',
-        pagination: {
-          page,
-          limit,
-          total: totalCount,
-          totalPages: Math.ceil(totalCount / limit),
-        },
         summary: {
           total: totalCount,
           unused: unusedCount,

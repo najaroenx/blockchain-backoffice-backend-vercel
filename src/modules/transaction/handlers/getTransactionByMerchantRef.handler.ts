@@ -20,14 +20,21 @@ export class GetTransactionByMerchantRef {
 
   constructor(private db: TransactionDBService) {}
 
-  async execute(merchantRef: string): Promise<TransactionDetail[]> {
+  async execute(
+    merchantRef: string,
+    status?: string,
+    couponId?: string,
+  ): Promise<TransactionDetail[]> {
     try {
       this.logger.log(
-        `[START] Getting transactions by merchantRef: ${merchantRef}`,
+        `[START] Getting transactions by merchantRef: ${merchantRef}, status: ${status}, couponId: ${couponId}`,
       );
 
-      const transactions =
-        await this.db.getTransactionsByMerchantRef(merchantRef);
+      const transactions = await this.db.getTransactionsByMerchantRef(
+        merchantRef,
+        status,
+        couponId,
+      );
 
       if (!transactions || transactions.length === 0) {
         throw new NotFoundException(

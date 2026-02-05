@@ -54,6 +54,13 @@ export class GetVoucherById {
         throw new NotFoundException(`Voucher with id ${voucherId} not found`);
       }
 
+      // Get latest code (sorted by createdAt desc, first one is latest)
+      const sortedCodes = voucher.voucherCodes.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+      const latestCode = sortedCodes[0] || null;
+
       const result = {
         id: voucher.id,
         name: voucher.name,
@@ -73,17 +80,20 @@ export class GetVoucherById {
         createdAt: voucher.createdAt,
         updatedAt: voucher.updatedAt,
         merchant: voucher.merchant,
-        voucherCodes: voucher.voucherCodes.map((code) => ({
-          id: code.id,
-          code: code.code,
-          pointsCost: code.pointsCost,
-          currency: code.currency,
-          isUsed: code.isUsed,
-          usedAt: code.usedAt,
-          usedBy: code.usedBy,
-          currentOwnerId: code.currentOwnerId,
-          createdAt: code.createdAt,
-        })),
+        latestCode: latestCode
+          ? {
+              id: latestCode.id,
+              code: latestCode.code,
+              pointsCost: latestCode.pointsCost,
+              currency: latestCode.currency,
+              isUsed: latestCode.isUsed,
+              usedAt: latestCode.usedAt,
+              usedBy: latestCode.usedBy,
+              currentOwnerId: latestCode.currentOwnerId,
+              createdAt: latestCode.createdAt,
+            }
+          : null,
+        totalCodes: voucher.voucherCodes.length,
       };
 
       this.logger.log(

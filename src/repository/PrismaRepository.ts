@@ -74,4 +74,8 @@ export class PrismaRepository<
   upsert(...args: Parameters<PrismaClient[K]['upsert']>) {
     return (this.prisma[this.model].upsert as any)(...args);
   }
+
+  queryRaw(sql: string, params: any[] = []): Promise<any[]> {
+    return this.prisma.$queryRawUnsafe(sql, ...params);
+  }
 }

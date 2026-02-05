@@ -48,11 +48,14 @@ export type CustomerOwnedVouchersSummary = {
 };
 
 export type GetCustomerOwnedVouchersResponseType = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
   phone: string;
   walletAddress: string | null;
   customerId: string | null;
   status: 'unused' | 'used' | 'all';
-  pagination: CustomerOwnedVouchersPagination;
   summary: CustomerOwnedVouchersSummary;
   vouchers: GroupedVoucher[];
 };

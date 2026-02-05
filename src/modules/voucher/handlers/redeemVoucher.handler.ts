@@ -348,6 +348,7 @@ export class RedeemVoucher {
             senderId: customerId,
             receiverId: null, // No receiver - voucher is burned, not transferred
             merchantId, // Track which merchant's voucher was redeemed
+            merchantRef: voucherCode.voucher.merchantRef || null, // Track merchantRef for query
             voucherCodeId: voucherCode.id,
             transactionTypeId: TransactionTypeId.REDEEM,
             type: AssetType.VOUCHER,

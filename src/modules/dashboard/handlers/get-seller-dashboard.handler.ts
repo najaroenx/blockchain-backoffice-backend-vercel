@@ -26,12 +26,12 @@ import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
  * Logic การนับ (Hierarchical):
  * ┌─────────────────────────────────────────────────────────────────────┐
  * │ total = unsold + sold                                              │
- * │   ├─ unsold = not-listed + listed-but-unsold                       │
- * │   │    ├─ not-listed: Voucher สร้างแล้วแต่ยังไม่ mint VoucherCode  │
- * │   │    └─ listed-but-unsold: List แล้วแต่ยังไม่มีคนซื้อ            │
- * │   └─ sold = reserved (Marketer ซื้อแล้ว)                           │
- * │        ├─ unredeemed: End User ยังไม่ redeem                       │
- * │        └─ redeemed: End User redeem แล้ว                           │
+ * │   ├─ unsold = not-listed (VoucherCode สร้างแล้วแต่ยังไม่ list)     │
+ * │   └─ sold = list แล้ว = unreserved + reserved                      │
+ * │        ├─ unreserved: List แล้วแต่ยังไม่มีคนซื้อ                   │
+ * │        └─ reserved: Marketer ซื้อแล้ว = unredeemed + redeemed      │
+ * │             ├─ unredeemed: End User ยังไม่ redeem                  │
+ * │             └─ redeemed: End User redeem แล้ว                      │
  * └─────────────────────────────────────────────────────────────────────┘
  */
 @Injectable()
@@ -162,6 +162,7 @@ export class GetSellerDashboardHandler {
           isUsed: true,
           listingBatchId: true,
           currentOwnerId: true,
+          currentOwnerType: true,
           voucher: {
             select: {
               thbPurchasePrice: true,
@@ -186,7 +187,6 @@ export class GetSellerDashboardHandler {
       }
 
       // Separate unsold (no listingBatchId) and sold (has listingBatchId)
-      const unsoldCodes = allVoucherCodes.filter((vc) => !vc.listingBatchId);
       const soldCodes = allVoucherCodes.filter((vc) => vc.listingBatchId);
       const soldCodeIds = soldCodes.map((vc) => vc.id);
 
@@ -311,9 +311,9 @@ export class GetSellerDashboardHandler {
    *
    * Logic (hierarchical):
    * - total = unsold + sold (คูปองทั้งหมดที่ seller มี รวม not-listed)
-   * - unsold = ยังไม่ขาย = not-listed (ยังไม่สร้าง VoucherCode) + listed but unsold (ไม่มี currentOwnerId)
-   * - sold = Marketer ซื้อแล้ว = reserved = unredeemed + redeemed
-   * - unreserved = 0 (ย้ายไปรวมใน unsold แล้ว)
+   * - unsold = ยังไม่ list = not-listed (VoucherCode สร้างแล้วแต่ยังไม่ list)
+   * - sold = list แล้ว = unreserved + reserved
+   * - unreserved = List แล้วแต่ยังไม่มี Marketer ซื้อ
    * - reserved = Marketer ซื้อแล้ว = unredeemed + redeemed
    * - unredeemed = Marketer ซื้อแล้วแต่ End User ยังไม่ redeem
    * - redeemed = End User redeem แล้ว (isUsed = true)
@@ -326,6 +326,7 @@ export class GetSellerDashboardHandler {
       isUsed: boolean;
       listingBatchId: string | null;
       currentOwnerId: string | null;
+      currentOwnerType: string | null; // 'marketer' | 'customer' | null
       voucher: {
         thbPurchasePrice: number | null;
       } | null;
@@ -385,10 +386,9 @@ export class GetSellerDashboardHandler {
         unsold++;
         unsoldValue += price;
       } else if (!hasOwner) {
-        // Listed on marketplace แต่ยังไม่มีคนซื้อ (seller ยังเป็นเจ้าของ)
-        unsold++;
-        unsoldValue += price;
-        // Also count as unreserved for backward compatibility
+        // Listed on marketplace แต่ยังไม่มีคนซื้อ (available on marketplace)
+        sold++;
+        soldValue += price;
         unreserved++;
         unreservedValue += price;
       } else {

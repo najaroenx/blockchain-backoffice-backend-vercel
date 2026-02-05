@@ -25,6 +25,7 @@ import { GetListingBatchDetailHandler } from './handlers/getListingBatchDetail.h
 import { DelistExpiredVouchers } from './handlers/delistExpiredVouchers.handler';
 import { DelistExpiredVouchersCron } from './cron/delistExpiredVouchers.cron';
 import { GetMarketplaceListingsEndUser } from './handlers/getMarketplaceListtingEnduser.handler';
+import { GetCouponById } from './handlers/getCouponById.handler';
 @Module({
   imports: [PrismaModule, BlockchainModule, TokenModule],
   controllers: [VoucherController],
@@ -51,6 +52,7 @@ import { GetMarketplaceListingsEndUser } from './handlers/getMarketplaceListting
     DelistExpiredVouchers,
     DelistExpiredVouchersCron,
     GetMarketplaceListingsEndUser,
+    GetCouponById,
   ],
   exports: [VoucherDBService],
 })

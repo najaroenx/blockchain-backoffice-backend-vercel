@@ -41,6 +41,7 @@ import { GetSellerListingsHandler } from '../handlers/getSellerListings.handler'
 import { GetListingBatchDetailHandler } from '../handlers/getListingBatchDetail.handler';
 import { VoucherValueType } from '@prisma/client';
 import { GetMarketplaceListingsEndUser } from '../handlers/getMarketplaceListtingEnduser.handler';
+import { GetCouponById } from '../handlers/getCouponById.handler';
 
 @ApiTags('Voucher')
 @Controller('coupon')
@@ -59,6 +60,7 @@ export class VoucherController {
     private readonly getSellerListingsHandler: GetSellerListingsHandler,
     private readonly getListingBatchDetailHandler: GetListingBatchDetailHandler,
     private readonly getMarketplaceListingsEndUser: GetMarketplaceListingsEndUser,
+    private readonly getCouponByIdHandler: GetCouponById,
   ) {}
 
   @Get('/')
@@ -91,6 +93,30 @@ export class VoucherController {
         aispoint: 'AIS Point redemption voucher',
       },
     };
+  }
+
+  /**
+   * Get coupon (VoucherCode) by ID
+   * GET /coupon/code/:id
+   * Returns coupon details with voucher, merchant, and point info
+   */
+  @Get('/code/:id')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Coupon by ID',
+    description: 'ดึงข้อมูล Coupon (VoucherCode) ด้วย ID พร้อมข้อมูล voucher, merchant และ point',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Coupon retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Coupon not found',
+  })
+  async getCouponById(@Param('id') id: string) {
+    return this.getCouponByIdHandler.execute(id);
   }
 
   /**
@@ -226,11 +252,11 @@ export class VoucherController {
     );
   }
 
-  @Get('/:voucherId')
+  @Get('/:id')
   @Public()
   @HttpCode(200)
-  async getVoucherById(@Param('voucherId') voucherId: string) {
-    return this.voucherService.getVoucherById(voucherId);
+  async getVoucherById(@Param('id') id: string) {
+    return this.voucherService.getVoucherById(id);
   }
 
   @Post('/')

@@ -80,7 +80,7 @@ export class TransactionController {
     return this.getPointTransactionsByCustomerPhone.execute(merchantId, phone);
   }
 
-  @Get('/customer/phone/:phone/vouchers')
+  @Get('/customer/phone/:phone/coupons')
   @Public()
   @HttpCode(200)
   @ApiOperation({

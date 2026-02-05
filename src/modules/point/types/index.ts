@@ -29,18 +29,10 @@ export type PointMerchantInfo = {
   website: string | null;
 };
 
-export type PointStatistics = {
-  totalTransactions: number;
-  totalCustomers: number;
-  totalBalance: number;
-  initialSupply: number;
-};
-
 export type GetPointByIdResponseType = {
   point: Omit<Point, 'contractAddress'> & {
     contractAddress: string;
     merchant: PointMerchantInfo | null;
-    statistics: PointStatistics;
   };
 };
 

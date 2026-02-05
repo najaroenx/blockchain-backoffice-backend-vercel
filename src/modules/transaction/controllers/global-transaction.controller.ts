@@ -1,9 +1,16 @@
-import { Controller, Get, HttpCode, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, HttpCode, Param, Query } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { GetAllTransactionsByCustomerPhone } from '../handlers/getAllTransactionsByCustomerPhone.handler';
 import { GetPointTransactionsByCustomerPhone } from '../handlers/getPointTransactionsByCustomerPhone.handler';
 import { GetVoucherTransactionsByCustomerPhone } from '../handlers/getVoucherTransactionsByCustomerPhone.handler';
 import { GetTransactionById } from '../handlers/getTransactionById.handler';
+import { GetTransactionByMerchantRef } from '../handlers/getTransactionByMerchantRef.handler';
 import { Public } from 'src/modules/auth/public.decorator';
 
 @ApiTags('Transaction')
@@ -14,6 +21,7 @@ export class GlobalTransactionController {
     private readonly getPointTransactionsByCustomerPhone: GetPointTransactionsByCustomerPhone,
     private readonly getVoucherTransactionsByCustomerPhone: GetVoucherTransactionsByCustomerPhone,
     private readonly getTransactionById: GetTransactionById,
+    private readonly getTransactionByMerchantRef: GetTransactionByMerchantRef,
   ) {}
 
   @Get('/customer/:phone')
@@ -66,7 +74,7 @@ export class GlobalTransactionController {
     return this.getPointTransactionsByCustomerPhone.execute(null, phone);
   }
 
-  @Get('/customer/phone/:phone/vouchers')
+  @Get('/customer/phone/:phone/coupons')
   @Public()
   @HttpCode(200)
   @ApiOperation({
@@ -90,6 +98,51 @@ export class GlobalTransactionController {
   })
   async getVoucherTransactionsCustomer(@Param('phone') phone: string) {
     return this.getVoucherTransactionsByCustomerPhone.execute(null, phone);
+  }
+
+  @Get('/merchantref/:merchantRef')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Transactions by Merchant Reference',
+    description:
+      'ดึงข้อมูลธุรกรรมทั้งหมดที่มี merchantRef ตรงกัน พร้อม filter ด้วย status และ couponId',
+  })
+  @ApiParam({
+    name: 'merchantRef',
+    description: 'Merchant Reference ID',
+    example: 'REF-12345',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by transaction status (e.g., REDEEM, TRANSFER)',
+    example: 'REDEEM',
+  })
+  @ApiQuery({
+    name: 'couponId',
+    required: false,
+    description: 'Filter by coupon ID (voucherCodeId)',
+    example: 'cm4abc123xyz',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Transactions retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No transactions found with this merchantRef',
+  })
+  async getTransactionsByMerchantRef(
+    @Param('merchantRef') merchantRef: string,
+    @Query('status') status?: string,
+    @Query('couponId') couponId?: string,
+  ) {
+    return this.getTransactionByMerchantRef.execute(
+      merchantRef,
+      status,
+      couponId,
+    );
   }
 
   @Get('/:id')

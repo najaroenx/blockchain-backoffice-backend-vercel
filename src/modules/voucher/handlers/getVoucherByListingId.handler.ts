@@ -88,6 +88,11 @@ export class GetVoucherByListingId {
               symbol: true,
               contractAddress: true,
               imageUrl: true,
+              merchant: {
+                select: {
+                  id: true,
+                },
+              },
             },
           },
         },

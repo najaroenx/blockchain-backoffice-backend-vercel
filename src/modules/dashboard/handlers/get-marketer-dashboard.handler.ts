@@ -11,10 +11,12 @@ import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
   MarketerDashboardResponse,
   DateRangeInfo,
+  CouponDropdownResponse,
 } from '../types/dashboard.types';
 import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { ParticipantType } from '@prisma/client';
 
 @Injectable()
 export class GetMarketerDashboardHandler {
@@ -55,7 +57,7 @@ export class GetMarketerDashboardHandler {
         pointsData,
         thbStats,
       ] = await Promise.all([
-        this.getVoucherStats(merchantId),
+        this.getVoucherStats(merchantId, query.couponIds),
         this.getEndUserStats(merchantId),
         this.getTransactionStats(merchantId),
         this.getPointsData(merchantId),
@@ -145,8 +147,12 @@ export class GetMarketerDashboardHandler {
    *
    * Logic: นับเฉพาะ codes ที่มี THB_BUY transaction เพื่อยืนยันว่าซื้อมาจริง
    * ไม่ว่า seller จะเป็นตัวเองหรือคนอื่นก็ตาม
+   * @param couponIds - Optional filter by specific voucher IDs (coupon IDs)
    */
-  private async getVoucherStats(merchantId: string): Promise<{
+  private async getVoucherStats(
+    merchantId: string,
+    couponIds?: string[],
+  ): Promise<{
     couponCount: MarketerDashboardResponse['couponCount'];
     couponValue: MarketerDashboardResponse['couponValue'];
     couponValueByCurrency: MarketerDashboardResponse['couponValueByCurrency'];
@@ -178,22 +184,34 @@ export class GetMarketerDashboardHandler {
       `[getVoucherStats] Found ${purchasedCodeIds.size} codes with THB_BUY transactions`,
     );
 
+    // Build couponIds filter if provided
+    const couponIdsFilter =
+      couponIds && couponIds.length > 0 ? { id: { in: couponIds } } : {};
+
     // Strategy 1: Get vouchers owned by this merchant
     const ownedVouchers = await this.prisma.voucher.findMany({
-      where: { merchantId },
+      where: { merchantId, ...couponIdsFilter },
       select: { id: true, value: true, thbPurchasePrice: true },
     });
 
     const ownedVoucherIds = ownedVouchers.map((v) => v.id);
+
+    // Build voucherId filter for VoucherCode queries
+    const voucherCodeFilter =
+      couponIds && couponIds.length > 0 ? { voucherId: { in: couponIds } } : {};
 
     // Strategy 2: Get voucher codes purchased from seller
     // Use THB_BUY transactions as source of truth (includes codes now owned by customers)
     // Also include codes currently owned by merchant
     const purchasedFromSellerCodes = await this.prisma.voucherCode.findMany({
       where: {
+        ...voucherCodeFilter,
         OR: [
           // Codes currently owned by merchant
-          { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' },
+          {
+            currentOwnerId: merchantId,
+            currentOwnerType: ParticipantType.MERCHANT,
+          },
           // Codes purchased via THB_BUY (may now be owned by customer)
           ...(purchasedCodeIds.size > 0
             ? [{ id: { in: Array.from(purchasedCodeIds) } }]
@@ -243,15 +261,22 @@ export class GetMarketerDashboardHandler {
     // Get all voucher codes that merchant owns or purchased
     // For owned vouchers: get all codes
     // For purchased vouchers: include codes via THB_BUY (may now be owned by customer)
+    // Apply couponIds filter if provided
     const allCodes = await this.prisma.voucherCode.findMany({
       where: {
+        ...(couponIds && couponIds.length > 0
+          ? { voucherId: { in: couponIds } }
+          : {}),
         OR: [
           // Codes from owned vouchers
           ...(ownedVoucherIds.length > 0
             ? [{ voucherId: { in: ownedVoucherIds } }]
             : []),
           // Codes currently owned by merchant
-          { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' },
+          {
+            currentOwnerId: merchantId,
+            currentOwnerType: ParticipantType.MERCHANT,
+          },
           // Codes purchased via THB_BUY (may now be owned by customer after sale)
           ...(purchasedCodeIds.size > 0
             ? [{ id: { in: Array.from(purchasedCodeIds) } }]
@@ -306,7 +331,7 @@ export class GetMarketerDashboardHandler {
 
       // If currentOwnerType = 'MERCHANT' and from a seller voucher (merchantId != this merchantId)
       if (
-        c.currentOwnerType === 'MERCHANT' &&
+        c.currentOwnerType === ParticipantType.MERCHANT &&
         c.currentOwnerId === merchantId
       ) {
         // Check if this is from a seller voucher (not owned by merchant)
@@ -719,5 +744,57 @@ export class GetMarketerDashboardHandler {
         bought: 0,
       };
     }
+  }
+
+  /**
+   * Get coupon dropdown list for marketer
+   * Returns vouchers that marketer owns or purchased from seller
+   */
+  async getCouponDropdown(merchantId: string): Promise<CouponDropdownResponse> {
+    this.logger.log(
+      `[START] Getting coupon dropdown for marketer: ${merchantId}`,
+    );
+
+    // Get THB_BUY transactions to find purchased vouchers
+    const thbBuyTransactions = await this.prisma.transaction.findMany({
+      where: {
+        merchantId,
+        transactionTypeId: TransactionTypeId.THB_BUY,
+        voucherCodeId: { not: null },
+      },
+      select: {
+        voucherCode: {
+          select: { voucherId: true },
+        },
+      },
+    });
+
+    const purchasedVoucherIds = [
+      ...new Set(
+        thbBuyTransactions
+          .map((tx) => tx.voucherCode?.voucherId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+
+    // Get owned vouchers + purchased vouchers
+    const vouchers = await this.prisma.voucher.findMany({
+      where: {
+        OR: [
+          { merchantId },
+          ...(purchasedVoucherIds.length > 0
+            ? [{ id: { in: purchasedVoucherIds } }]
+            : []),
+        ],
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    this.logger.log(
+      `[SUCCESS] Found ${vouchers.length} coupons for marketer dropdown`,
+    );
+
+    return { coupons: vouchers };
   }
 }

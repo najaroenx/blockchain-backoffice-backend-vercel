@@ -82,4 +82,62 @@ export class DashboardController {
   ) {
     return this.merchantRefDashboardHandler.execute(merchantRef, query);
   }
+
+  /**
+   * Marketer Coupon Dropdown
+   * Returns list of coupons for dropdown filter (owned + purchased)
+   * @param merchantId - The merchant ID
+   */
+  @Get('/marketer/:merchantId/coupons')
+  @Public()
+  @HttpCode(200)
+  async getMarketerCouponDropdown(@Param('merchantId') merchantId: string) {
+    return this.marketerDashboardHandler.getCouponDropdown(merchantId);
+  }
+
+  /**
+   * Seller Coupon Dropdown
+   * Returns list of coupons for dropdown filter (created by seller)
+   * @param merchantId - The merchant ID
+   */
+  @Get('/seller/:merchantId/coupons')
+  @Public()
+  @HttpCode(200)
+  async getSellerCouponDropdown(@Param('merchantId') merchantId: string) {
+    return this.sellerDashboardHandler.getCouponDropdown(merchantId);
+  }
+
+  /**
+   * Seller Merchants Breakdown
+   * Returns list of merchants (marketers) that bought coupons from this seller
+   * Supports filtering by couponIds from dropdown
+   * @param merchantId - The merchant ID (seller)
+   * @param query - Optional couponIds filter
+   */
+  @Get('/seller/:merchantId/merchants')
+  @Public()
+  @HttpCode(200)
+  async getSellerMerchants(
+    @Param('merchantId') merchantId: string,
+    @Query() query: DashboardQueryDto,
+  ) {
+    return this.sellerDashboardHandler.getMerchants(
+      merchantId,
+      query.couponIds,
+    );
+  }
+
+  /**
+   * MerchantRef Coupon Dropdown
+   * Returns list of coupons for dropdown filter (with this merchantRef)
+   * @param merchantRef - The merchant reference identifier
+   */
+  @Get('/merchantref/:merchantRef/coupons')
+  @Public()
+  @HttpCode(200)
+  async getMerchantRefCouponDropdown(
+    @Param('merchantRef') merchantRef: string,
+  ) {
+    return this.merchantRefDashboardHandler.getCouponDropdown(merchantRef);
+  }
 }

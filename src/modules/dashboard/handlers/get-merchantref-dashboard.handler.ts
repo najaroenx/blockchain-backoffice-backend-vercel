@@ -10,6 +10,7 @@ import {
   MerchantRefCouponSummary,
   MerchantRefEndUserSummary,
   DateRangeInfo,
+  CouponDropdownResponse,
 } from '../types/dashboard.types';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
@@ -36,6 +37,7 @@ export class GetMerchantRefDashboardHandler {
       const { couponSummary, endUserSummary } = await this.getMerchantSummary(
         merchantRef,
         dateRange,
+        query.couponIds,
       );
 
       this.logger.log(
@@ -78,10 +80,12 @@ export class GetMerchantRefDashboardHandler {
   /**
    * Get merchant summary including coupon and end user statistics
    * Note: dateRange is received but not used for filtering (ALL-TIME data) - TO IMPLEMENT
+   * @param couponIds - Optional filter by specific voucher IDs (coupon IDs)
    */
   private async getMerchantSummary(
     merchantRef: string,
     _dateRange: DateRangeInfo, // eslint-disable-line @typescript-eslint/no-unused-vars
+    couponIds?: string[],
   ): Promise<{
     couponSummary: MerchantRefCouponSummary;
     endUserSummary: MerchantRefEndUserSummary;
@@ -90,9 +94,13 @@ export class GetMerchantRefDashboardHandler {
     // const startDate = new Date(_dateRange.startDate);
     // const endDate = new Date(_dateRange.endDate);
 
+    // Build couponIds filter if provided
+    const couponIdsFilter =
+      couponIds && couponIds.length > 0 ? { id: { in: couponIds } } : {};
+
     // Get all vouchers with this merchantRef
     const vouchers = await this.prisma.voucher.findMany({
-      where: { merchantRef },
+      where: { merchantRef, ...couponIdsFilter },
       select: { id: true },
     });
 
@@ -154,5 +162,29 @@ export class GetMerchantRefDashboardHandler {
         redeemedUsers: usersWithUsedCodes.size,
       },
     };
+  }
+
+  /**
+   * Get coupon dropdown list for merchantRef
+   * Returns vouchers that have this merchantRef
+   */
+  async getCouponDropdown(
+    merchantRef: string,
+  ): Promise<CouponDropdownResponse> {
+    this.logger.log(
+      `[START] Getting coupon dropdown for merchantRef: ${merchantRef}`,
+    );
+
+    const vouchers = await this.prisma.voucher.findMany({
+      where: { merchantRef },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    this.logger.log(
+      `[SUCCESS] Found ${vouchers.length} coupons for merchantRef dropdown`,
+    );
+
+    return { coupons: vouchers };
   }
 }

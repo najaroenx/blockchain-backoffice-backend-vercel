@@ -13,6 +13,8 @@ import {
   SellerOverallSummary,
   SellerMerchantBreakdown,
   DateRangeInfo,
+  CouponDropdownResponse,
+  SellerMerchantsResponse,
 } from '../types/dashboard.types';
 import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
 
@@ -96,7 +98,6 @@ export class GetSellerDashboardHandler {
       // Debug: Check all ListingBatches in DB
       const allListingBatches = await this.prisma.listingBatch.findMany({
         select: { id: true, sellerWalletAddress: true },
-        take: 10,
       });
       this.logger.log(
         `[DEBUG] Sample ListingBatches in DB: ${JSON.stringify(allListingBatches)}`,
@@ -531,5 +532,163 @@ export class GetSellerDashboardHandler {
     result.sort((a, b) => b.couponValue.total - a.couponValue.total);
 
     return result;
+  }
+
+  /**
+   * Get coupon dropdown list for seller
+   * Returns vouchers that seller created
+   */
+  async getCouponDropdown(merchantId: string): Promise<CouponDropdownResponse> {
+    this.logger.log(
+      `[START] Getting coupon dropdown for seller: ${merchantId}`,
+    );
+
+    const vouchers = await this.prisma.voucher.findMany({
+      where: { sellerMerchantId: merchantId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    this.logger.log(
+      `[SUCCESS] Found ${vouchers.length} coupons for seller dropdown`,
+    );
+
+    return { coupons: vouchers };
+  }
+
+  /**
+   * Get merchants (marketers) breakdown for seller
+   * Returns list of merchants that bought coupons from this seller
+   * @param couponIds - Optional filter by specific voucher IDs
+   */
+  async getMerchants(
+    merchantId: string,
+    couponIds?: string[],
+  ): Promise<SellerMerchantsResponse> {
+    this.logger.log(
+      `[START] Getting merchants breakdown for seller: ${merchantId}`,
+    );
+
+    // Step 1: Find seller wallet
+    const merchantWallet = await this.prisma.wallet.findFirst({
+      where: { merchant: { id: merchantId } },
+      select: { phoneNumber: true, derivationIndex: true },
+    });
+
+    if (!merchantWallet) {
+      this.logger.log(`[INFO] Merchant wallet not found for ${merchantId}`);
+      return { merchants: [] };
+    }
+
+    const sellerWallet = await this.prisma.wallet.findFirst({
+      where: {
+        phoneNumber: merchantWallet.phoneNumber,
+        derivationIndex: merchantWallet.derivationIndex + 1,
+        type: 'seller',
+      },
+      select: { walletAddress: true },
+    });
+
+    if (!sellerWallet) {
+      this.logger.log(`[INFO] Seller wallet not found for ${merchantId}`);
+      return { merchants: [] };
+    }
+
+    const sellerWalletAddress = sellerWallet.walletAddress.toLowerCase();
+
+    // Build couponIds filter
+    const couponIdsFilter =
+      couponIds && couponIds.length > 0 ? { id: { in: couponIds } } : {};
+    const voucherCodeCouponFilter =
+      couponIds && couponIds.length > 0 ? { voucherId: { in: couponIds } } : {};
+
+    // Step 2: Get vouchers from seller (with optional coupon filter)
+    const vouchersFromSeller = await this.prisma.voucher.findMany({
+      where: { sellerMerchantId: merchantId, ...couponIdsFilter },
+      select: { id: true },
+    });
+    const voucherIdsFromSeller = vouchersFromSeller.map((v) => v.id);
+
+    // Get listing batches from seller
+    const listingBatches = await this.prisma.listingBatch.findMany({
+      where: {
+        sellerWalletAddress: {
+          equals: sellerWalletAddress,
+          mode: 'insensitive',
+        },
+      },
+      select: { id: true },
+    });
+    const listingBatchIds = listingBatches.map((lb) => lb.id);
+
+    // Step 3: Get voucher codes (sold ones with listingBatchId)
+    const soldCodes = await this.prisma.voucherCode.findMany({
+      where: {
+        ...voucherCodeCouponFilter,
+        listingBatchId: { not: null },
+        OR: [
+          ...(voucherIdsFromSeller.length > 0
+            ? [{ voucherId: { in: voucherIdsFromSeller } }]
+            : []),
+          ...(listingBatchIds.length > 0
+            ? [{ listingBatchId: { in: listingBatchIds } }]
+            : []),
+        ],
+      },
+      select: {
+        id: true,
+        voucherId: true,
+        thbPrice: true,
+        isUsed: true,
+        listingBatchId: true,
+        currentOwnerId: true,
+        currentOwnerType: true,
+        voucher: { select: { thbPurchasePrice: true } },
+      },
+    });
+
+    if (soldCodes.length === 0) {
+      return { merchants: [] };
+    }
+
+    const soldCodeIds = soldCodes.map((vc) => vc.id);
+
+    // Step 4: Get THB_BUY transactions to map codes to merchants
+    const thbBuyTransactions = await this.prisma.transaction.findMany({
+      where: {
+        transactionTypeId: TransactionTypeId.THB_BUY,
+        type: AssetType.THB_TOKEN,
+        voucherCodeId: { in: soldCodeIds },
+      },
+      select: { merchantId: true, voucherCodeId: true },
+    });
+
+    const reservedCodeMap = new Map<string, string>();
+    for (const tx of thbBuyTransactions) {
+      if (tx.voucherCodeId && tx.merchantId) {
+        reservedCodeMap.set(tx.voucherCodeId, tx.merchantId);
+      }
+    }
+
+    // Step 5: Get merchant info
+    const merchantIds = [...new Set(reservedCodeMap.values())];
+    const merchants = await this.prisma.merchant.findMany({
+      where: { id: { in: merchantIds } },
+      select: { id: true, name: true },
+    });
+    const merchantMap = new Map(merchants.map((m) => [m.id, m.name]));
+
+    // Step 6: Calculate merchant breakdown
+    const merchantBreakdown = this.calculateMerchantBreakdown(
+      soldCodes,
+      reservedCodeMap,
+      merchantMap,
+    );
+
+    this.logger.log(
+      `[SUCCESS] Found ${merchantBreakdown.length} merchants for seller`,
+    );
+
+    return { merchants: merchantBreakdown };
   }
 }

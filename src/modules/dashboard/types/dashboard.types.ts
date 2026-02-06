@@ -140,6 +140,11 @@ export interface SellerDashboardResponse {
   merchants: SellerMerchantBreakdown[];
 }
 
+// Response for GET /dashboard/seller/:merchantId/merchants
+export interface SellerMerchantsResponse {
+  merchants: SellerMerchantBreakdown[];
+}
+
 // ============================================
 // MerchantRef Dashboard Types
 // ============================================
@@ -165,4 +170,17 @@ export interface MerchantRefDashboardResponse {
   dateRange: DateRangeInfo;
   merchantRef: string;
   myMerchantSummary: MerchantRefMerchantSummary;
+}
+
+// ============================================
+// Coupon Dropdown Types
+// ============================================
+
+export interface CouponDropdownItem {
+  id: string;
+  name: string;
+}
+
+export interface CouponDropdownResponse {
+  coupons: CouponDropdownItem[];
 }

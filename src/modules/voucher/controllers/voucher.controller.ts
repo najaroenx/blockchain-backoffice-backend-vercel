@@ -105,7 +105,8 @@ export class VoucherController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Get Coupon by ID',
-    description: 'ดึงข้อมูล Coupon (VoucherCode) ด้วย ID พร้อมข้อมูล voucher, merchant และ point',
+    description:
+      'ดึงข้อมูล Coupon (VoucherCode) ด้วย ID พร้อมข้อมูล voucher, merchant และ point',
   })
   @ApiResponse({
     status: 200,

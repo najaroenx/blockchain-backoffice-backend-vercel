@@ -191,14 +191,16 @@ export class GetMarketplaceListingsEndUser {
 
             // Count available codes from database
             // Available = not sold to customer yet (no owner, or owned by merchant/seller)
+            // Note: Using OR with null check because Prisma NOT clause doesn't include NULL values
             const dbAvailableCodes = await this.prisma.voucherCode.count({
               where: {
                 voucherGroupId: listingId,
                 isUsed: false,
-                // Exclude codes already sold to customers
-                NOT: {
-                  currentOwnerType: 'CUSTOMER',
-                },
+                // Exclude codes already sold to customers (but include NULL)
+                OR: [
+                  { currentOwnerType: null },
+                  { NOT: { currentOwnerType: 'CUSTOMER' } },
+                ],
               },
             });
 

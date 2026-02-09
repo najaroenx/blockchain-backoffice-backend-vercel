@@ -79,15 +79,25 @@ export class GetMarketplaceListings {
               `[GetMarketplaceListings] Processing listing ${listingId}`,
             );
 
+            // Debug: Check total codes with this voucherGroupId first
+            const totalCodesWithGroupId = await this.prisma.voucherCode.count({
+              where: { voucherGroupId: listingId },
+            });
+            this.logger.log(
+              `[GetMarketplaceListings] 🔍 Total VoucherCodes with voucherGroupId=${listingId}: ${totalCodesWithGroupId}`,
+            );
+
             // Find voucher codes with this listingId as voucherGroupId
             // Exclude customer-owned codes to get proper sample for metadata
+            // Note: Using OR with null check because Prisma NOT clause doesn't include NULL values
             const voucherCodes = await this.prisma.voucherCode.findMany({
               where: {
                 voucherGroupId: listingId,
-                // Exclude codes already sold to customers
-                NOT: {
-                  currentOwnerType: 'CUSTOMER',
-                },
+                // Exclude codes already sold to customers (but include NULL)
+                OR: [
+                  { currentOwnerType: null },
+                  { NOT: { currentOwnerType: 'CUSTOMER' } },
+                ],
               },
               include: {
                 voucher: {
@@ -231,14 +241,16 @@ export class GetMarketplaceListings {
 
             // Count available codes from database
             // Available = not sold to customer yet (no owner, or owned by merchant/seller)
+            // Note: Using OR with null check because Prisma NOT clause doesn't include NULL values
             const dbAvailableCodes = await this.prisma.voucherCode.count({
               where: {
                 voucherGroupId: listingId,
                 isUsed: false,
-                // Exclude codes already sold to customers
-                NOT: {
-                  currentOwnerType: 'CUSTOMER',
-                },
+                // Exclude codes already sold to customers (but include NULL)
+                OR: [
+                  { currentOwnerType: null },
+                  { NOT: { currentOwnerType: 'CUSTOMER' } },
+                ],
               },
             });
 

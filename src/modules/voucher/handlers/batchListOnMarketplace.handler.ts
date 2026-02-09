@@ -228,9 +228,14 @@ export class BatchListOnMarketplaceHandler {
           });
         }
 
-        await this.prisma.voucherCode.createMany({
-          data: voucherCodes,
-        });
+        const { count: createdCount } =
+          await this.prisma.voucherCode.createMany({
+            data: voucherCodes,
+          });
+
+        this.logger.log(
+          `[STEP 6.${i + 1}c] ✅ Created ${createdCount} voucher codes with voucherGroupId=${listResult.listingId}`,
+        );
 
         // Sync Voucher.currency with VoucherCode.currency for consistency
         if (voucher.currency !== 'THB') {

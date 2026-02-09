@@ -6,12 +6,12 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { DashboardService } from '../handlers/dashboard.handler';
-import { GetMarketerDashboardHandler } from '../handlers/get-marketer-dashboard.handler';
-import { GetSellerDashboardHandler } from '../handlers/get-seller-dashboard.handler';
-import { GetMerchantRefDashboardHandler } from '../handlers/get-merchantref-dashboard.handler';
-import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
-import { Public } from '../../auth/public.decorator';
+import { DashboardService } from '../../internal/dashboard/handlers/dashboard.handler';
+import { GetMarketerDashboardHandler } from '../../internal/dashboard/handlers/get-marketer-dashboard.handler';
+import { GetSellerDashboardHandler } from '../../internal/dashboard/handlers/get-seller-dashboard.handler';
+import { GetMerchantRefDashboardHandler } from '../../internal/dashboard/handlers/get-merchantref-dashboard.handler';
+import { DashboardQueryDto } from '../../internal/dashboard/dtos/dashboard-query.dto';
+import { Public } from '../../internal/auth/public.decorator';
 
 // TODO: Add caching with @nestjs/cache-manager when installed
 // Cache TTL: 5 minutes (300000ms)

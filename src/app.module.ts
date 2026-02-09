@@ -1,25 +1,14 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
-import { UserModule } from './modules/user/user.module';
 import { PrismaModule } from 'prisma/prisma.module';
-import { MerchantModule } from './modules/merchant/merchant.module';
-import { PointModule } from './modules/point/point.module';
 import { ConfigModule } from '@nestjs/config';
 import { configSchema } from './configSchema';
-import { ApiKeyModule } from './modules/api-key/api-key.module';
 import { TokenModule } from './providers/token/token.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { SessionModule } from './modules/session/session.module';
-import { CustomAuthGuard } from './modules/auth/custom-auth.guard';
+import { CustomAuthGuard } from './modules/internal/auth/custom-auth.guard';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
-import { TransactionModule } from './modules/transaction/transaction.module';
-import { CustomerModule } from './modules/customer/customer.module';
-import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
-import { VoucherModule } from './modules/voucher/voucher.module';
-import { WalletModule } from './modules/wallet/wallet.module';
-import { TempLinkModule } from './modules/templink/templink.module';
-import { AdminModule } from './modules/admin/admin.module'; // PHASE 1: Optional - for manual THB operations
+import { InternalModule } from './modules/internal/internal.module';
+import { ExternalModule } from './modules/external/external.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -28,20 +17,9 @@ import { AdminModule } from './modules/admin/admin.module'; // PHASE 1: Optional
     }),
     ScheduleModule.forRoot(),
     PrismaModule,
-    UserModule,
-    MerchantModule,
-    PointModule,
-    ApiKeyModule,
     TokenModule,
-    AuthModule,
-    SessionModule,
-    TransactionModule,
-    CustomerModule,
-    DashboardModule,
-    VoucherModule,
-    WalletModule,
-    TempLinkModule,
-    AdminModule, // PHASE 1: Optional - provides manual mint endpoint if needed
+    InternalModule, // Internal-facing APIs for backoffice
+    ExternalModule, // External-facing APIs for integration
   ],
   controllers: [],
   providers: [

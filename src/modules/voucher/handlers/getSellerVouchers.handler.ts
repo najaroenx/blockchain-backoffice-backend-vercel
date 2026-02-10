@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
@@ -45,61 +46,80 @@ export class GetSellerVouchers {
         },
       });
 
-      // Enhance with counts and status
-      const enhancedVouchers = await Promise.all(
-        vouchers.map(async (voucher) => {
-          // Count total codes created (not activated yet)
-          const totalCodesCount = await this.prisma.voucherCode.count({
-            where: { voucherId: voucher.id },
-          });
+      // Single raw SQL query to get all counts per voucher (instead of N×3 queries)
+      const voucherIds = vouchers.map((v) => v.id);
 
-          // Count codes that have been listed on marketplace (have voucherGroupId)
-          const listedCodesCount = await this.prisma.voucherCode.count({
-            where: {
-              voucherId: voucher.id,
-              voucherGroupId: { not: null },
-            },
-          });
+      const codeStats = voucherIds.length
+        ? await this.prisma.$queryRaw<
+            {
+              voucherId: string;
+              totalCodes: bigint;
+              listedCodes: bigint;
+              soldCodes: bigint;
+            }[]
+          >`
+            SELECT
+              "voucherId",
+              COUNT(*)::bigint AS "totalCodes",
+              COUNT(CASE WHEN "voucherGroupId" IS NOT NULL THEN 1 ELSE NULL END)::bigint AS "listedCodes",
+              COUNT(CASE WHEN "currentOwnerId" IS NOT NULL THEN 1 ELSE NULL END)::bigint AS "soldCodes"
+            FROM "VoucherCode"
+            WHERE "voucherId" IN (${Prisma.join(voucherIds)})
+            GROUP BY "voucherId"
+          `
+        : [];
 
-          // Count sold codes (have currentOwnerId = merchant)
-          const soldCodesCount = await this.prisma.voucherCode.count({
-            where: {
-              voucherId: voucher.id,
-              currentOwnerId: { not: null },
-            },
-          });
+      const statsMap = new Map(
+        codeStats.map((s) => [
+          s.voucherId,
+          {
+            totalCodes: Number(s.totalCodes),
+            listedCodes: Number(s.listedCodes),
+            soldCodes: Number(s.soldCodes),
+          },
+        ]),
+      );
 
-          const { voucherCodes, ...voucherData } = voucher;
+      // Enhance vouchers with stats from single query
+      const enhancedVouchers = vouchers.map((voucher) => {
+        const stats = statsMap.get(voucher.id) || {
+          totalCodes: 0,
+          listedCodes: 0,
+          soldCodes: 0,
+        };
+        const availableForSale =
+          voucher.totalIssued - stats.listedCodes - stats.soldCodes;
 
-          return {
-            ...voucherData,
-            pointsCost: voucherCodes[0]?.pointsCost || null,
-            pointId: voucherCodes[0]?.pointId || null,
-            currency: voucherCodes[0]?.currency || null,
-            // Additional info
-            stats: {
-              totalCodes: totalCodesCount,
-              listedCodes: listedCodesCount,
-              soldCodes: soldCodesCount,
-              availableForSale: voucher.totalIssued - soldCodesCount,
-            },
-            // to do total ทั้งหมดตอนนี้เท่าไหร่ , เหลือเท่าไหร่ total issuee - จำนวนที่ลิส
-            status: {
-              isListed: listedCodesCount > 0,
-              hasSales: soldCodesCount > 0,
-              fullyCreated: totalCodesCount === voucher.totalIssued,
-            },
-          };
-        }),
+        const { voucherCodes, ...voucherData } = voucher;
+
+        return {
+          ...voucherData,
+          pointsCost: voucherCodes[0]?.pointsCost || null,
+          pointId: voucherCodes[0]?.pointId || null,
+          currency: voucherCodes[0]?.currency || null,
+          stats: {
+            ...stats,
+            availableForSale,
+          },
+          status: {
+            isListed: stats.listedCodes > 0,
+            hasSales: stats.soldCodes > 0,
+            fullyCreated: stats.totalCodes === voucher.totalIssued,
+          },
+        };
+      });
+
+      const availableVouchers = enhancedVouchers.filter(
+        (v) => v.stats.availableForSale > 0,
       );
 
       this.logger.log(
-        `[SUCCESS] Found ${enhancedVouchers.length} seller vouchers`,
+        `[SUCCESS] Found ${availableVouchers.length}/${enhancedVouchers.length} seller vouchers with available stock`,
       );
 
       return {
-        count: enhancedVouchers.length,
-        vouchers: enhancedVouchers,
+        count: availableVouchers.length,
+        vouchers: availableVouchers,
       };
     } catch (error) {
       this.logger.error(

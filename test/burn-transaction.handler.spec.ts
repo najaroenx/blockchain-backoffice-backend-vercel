@@ -13,7 +13,8 @@ import { ADDRESS_ZERO } from '../src/constants';
 
 jest.mock('src/libs/derive-wallet', () => ({
   getSignerFromSeedPhrase: jest.fn().mockReturnValue({
-    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    privateKey:
+      '0x1234567890123456789012345678901234567890123456789012345678901234',
     address: '0x1234567890123456789012345678901234567890',
   }),
   deriveChildWallet: jest.fn(),
@@ -595,7 +596,8 @@ describe('BurnTransaction', () => {
       // Assert
       expect(blockchainService.burn).toHaveBeenCalledWith({
         amount: 1,
-        senderPrivateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        senderPrivateKey:
+          '0x1234567890123456789012345678901234567890123456789012345678901234',
         pointAddress: '0xPointContract123',
       });
       expect(updateCustomer.execute).toHaveBeenCalledWith(mockCustomer.id, {

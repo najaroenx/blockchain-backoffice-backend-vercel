@@ -75,7 +75,11 @@ describe('CustomerDBService', () => {
         },
         {
           provide: PrismaService,
-          useValue: { customer: { findFirst: jest.fn(), findUnique: jest.fn() }, voucherCode: { findMany: jest.fn().mockResolvedValue([]) }, $queryRaw: jest.fn() },
+          useValue: {
+            customer: { findFirst: jest.fn(), findUnique: jest.fn() },
+            voucherCode: { findMany: jest.fn().mockResolvedValue([]) },
+            $queryRaw: jest.fn(),
+          },
         },
       ],
     }).compile();

@@ -9,7 +9,8 @@ import { MockDataFactory } from './fixtures/mock-data.factory';
 
 jest.mock('src/libs/derive-wallet', () => ({
   getSignerFromSeedPhrase: jest.fn().mockReturnValue({
-    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    privateKey:
+      '0x1234567890123456789012345678901234567890123456789012345678901234',
     address: '0x1234567890123456789012345678901234567890',
   }),
   deriveChildWallet: jest.fn(),
@@ -72,7 +73,13 @@ describe('SellerListOnMarketplace', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: BlockchainService, useValue: mockBlockchainService },
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: TokenService, useValue: { decryptKey: jest.fn().mockReturnValue('decrypted-seed-phrase'), encryptKey: jest.fn() } },
+        {
+          provide: TokenService,
+          useValue: {
+            decryptKey: jest.fn().mockReturnValue('decrypted-seed-phrase'),
+            encryptKey: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

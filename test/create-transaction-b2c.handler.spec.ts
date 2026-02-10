@@ -19,7 +19,8 @@ import {
 
 jest.mock('src/libs/derive-wallet', () => ({
   getSignerFromSeedPhrase: jest.fn().mockReturnValue({
-    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    privateKey:
+      '0x1234567890123456789012345678901234567890123456789012345678901234',
     address: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
   }),
   deriveChildWallet: jest.fn(),

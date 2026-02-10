@@ -47,7 +47,11 @@ describe('PointDBService', () => {
         },
         {
           provide: PrismaService,
-          useValue: { $queryRaw: jest.fn(), $executeRaw: jest.fn(), point: { findMany: jest.fn() } },
+          useValue: {
+            $queryRaw: jest.fn(),
+            $executeRaw: jest.fn(),
+            point: { findMany: jest.fn() },
+          },
         },
       ],
     }).compile();

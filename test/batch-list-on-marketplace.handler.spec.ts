@@ -10,7 +10,8 @@ import { TokenService } from '../src/providers/token/token.service';
 
 jest.mock('src/libs/derive-wallet', () => ({
   getSignerFromSeedPhrase: jest.fn().mockReturnValue({
-    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    privateKey:
+      '0x1234567890123456789012345678901234567890123456789012345678901234',
     address: '0x1234567890123456789012345678901234567890',
   }),
   deriveChildWallet: jest.fn(),
@@ -90,7 +91,13 @@ describe('BatchListOnMarketplaceHandler', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: BlockchainService, useValue: mockBlockchainService },
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: TokenService, useValue: { decryptKey: jest.fn().mockReturnValue('decrypted-seed'), encryptKey: jest.fn() } },
+        {
+          provide: TokenService,
+          useValue: {
+            decryptKey: jest.fn().mockReturnValue('decrypted-seed'),
+            encryptKey: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -149,7 +156,10 @@ describe('BatchListOnMarketplaceHandler', () => {
 
     it('should throw NotFoundException when voucher not found', async () => {
       prismaService.wallet.findFirst
-        .mockResolvedValueOnce({ derivationIndex: 0, phoneNumber: '0812345678' }) // merchant wallet
+        .mockResolvedValueOnce({
+          derivationIndex: 0,
+          phoneNumber: '0812345678',
+        }) // merchant wallet
         .mockResolvedValueOnce(mockSellerWallet); // seller wallet
       prismaService.voucher.findMany.mockResolvedValue([mockVoucher]); // Only return 1 of 2
 
@@ -192,7 +202,9 @@ describe('BatchListOnMarketplaceHandler', () => {
       };
       prismaService.voucher.findMany.mockResolvedValue([mockVoucher]);
 
-      await expect(handler.execute(merchantId, dto)).rejects.toThrow(BadRequestException);
+      await expect(handler.execute(merchantId, dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when seller wallet not found', async () => {

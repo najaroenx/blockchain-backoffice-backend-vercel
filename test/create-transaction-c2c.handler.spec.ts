@@ -12,7 +12,8 @@ import { TransactionTypeId } from '../src/constants/transaction-types.enum';
 
 jest.mock('src/libs/derive-wallet', () => ({
   getSignerFromSeedPhrase: jest.fn().mockReturnValue({
-    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    privateKey:
+      '0x1234567890123456789012345678901234567890123456789012345678901234',
     address: '0x1234567890123456789012345678901234567890',
   }),
   deriveChildWallet: jest.fn(),

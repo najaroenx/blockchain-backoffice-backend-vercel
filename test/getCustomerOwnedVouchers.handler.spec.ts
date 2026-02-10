@@ -180,7 +180,10 @@ describe('GetCustomerOwnedVouchers', () => {
       expect(result.walletAddress).toBe('0xCustomerWallet123');
       expect(result.customerId).toBe('customer-1');
       expect(result.vouchers.length).toBeGreaterThanOrEqual(1);
-      expect((result.vouchers[0] as any).latestVoucher?.name || (result.vouchers[0] as any).latestVoucher).toBeDefined();
+      expect(
+        (result.vouchers[0] as any).latestVoucher?.name ||
+          (result.vouchers[0] as any).latestVoucher,
+      ).toBeDefined();
       expect(result.summary.total).toBeGreaterThanOrEqual(1);
     });
 
@@ -199,7 +202,11 @@ describe('GetCustomerOwnedVouchers', () => {
       const result = await handler.execute('0812345678', 'unused');
 
       expect(result.status).toBe('unused');
-      expect(result.vouchers.every((v: any) => v.latestVoucher?.codeStatus !== 'used')).toBe(true);
+      expect(
+        result.vouchers.every(
+          (v: any) => v.latestVoucher?.codeStatus !== 'used',
+        ),
+      ).toBe(true);
     });
 
     it('should filter by used status', async () => {
@@ -217,7 +224,11 @@ describe('GetCustomerOwnedVouchers', () => {
       const result = await handler.execute('0812345678', 'used');
 
       expect(result.status).toBe('used');
-      expect(result.vouchers.every((v: any) => v.latestVoucher?.codeStatus === 'used')).toBe(true);
+      expect(
+        result.vouchers.every(
+          (v: any) => v.latestVoucher?.codeStatus === 'used',
+        ),
+      ).toBe(true);
     });
 
     it('should include redeemed vouchers with zero balance', async () => {
@@ -235,7 +246,9 @@ describe('GetCustomerOwnedVouchers', () => {
       const result = await handler.execute('0812345678');
 
       expect(result.vouchers).toHaveLength(1);
-      expect((result.vouchers[0] as any).latestVoucher?.codeStatus).toBe('used');
+      expect((result.vouchers[0] as any).latestVoucher?.codeStatus).toBe(
+        'used',
+      );
       expect(result.summary.used).toBe(1);
     });
 

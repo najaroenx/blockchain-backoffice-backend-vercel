@@ -26,7 +26,10 @@ describe('GetPointsByMerchantId', () => {
         },
         {
           provide: PrismaService,
-          useValue: { $queryRaw: jest.fn(), merchant: { findUnique: jest.fn() } },
+          useValue: {
+            $queryRaw: jest.fn(),
+            merchant: { findUnique: jest.fn() },
+          },
         },
       ],
     }).compile();

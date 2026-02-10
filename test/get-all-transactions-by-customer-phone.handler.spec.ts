@@ -37,7 +37,10 @@ describe('GetAllTransactionsByCustomerPhone', () => {
         },
         {
           provide: PrismaService,
-          useValue: { customer: { findUnique: jest.fn() }, merchant: { findUnique: jest.fn() } },
+          useValue: {
+            customer: { findUnique: jest.fn() },
+            merchant: { findUnique: jest.fn() },
+          },
         },
       ],
     }).compile();

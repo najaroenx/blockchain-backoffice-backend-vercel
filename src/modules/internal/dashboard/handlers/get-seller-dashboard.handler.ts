@@ -221,30 +221,13 @@ export class GetSellerDashboardHandler {
       }
 
       // =====================================================
-      // Step 4: ดึงข้อมูล Merchant สำหรับ breakdown
-      // =====================================================
-      const merchantIds = [...new Set(reservedCodeMap.values())];
-      const merchants = await this.prisma.merchant.findMany({
-        where: { id: { in: merchantIds } },
-        select: { id: true, name: true },
-      });
-      const merchantMap = new Map(merchants.map((m) => [m.id, m.name]));
-
-      // =====================================================
       // Step 5: คำนวณสถิติ
       // =====================================================
       // overallSummary: สรุปภาพรวม (total, unsold, sold, reserved, unredeemed, redeemed)
-      // merchantBreakdown: แยกตาม Marketer (total, unredeemed, redeemed)
       const overallSummary = this.calculateOverallSummary(
         allVoucherCodes,
         reservedCodeMap,
         vouchersFromSeller,
-      );
-
-      const merchantBreakdown = this.calculateMerchantBreakdown(
-        soldCodes,
-        reservedCodeMap,
-        merchantMap,
       );
 
       this.logger.log(
@@ -254,7 +237,6 @@ export class GetSellerDashboardHandler {
       return {
         dateRange,
         overallSummary,
-        merchants: merchantBreakdown,
       };
     } catch (error) {
       this.logger.error(
@@ -303,7 +285,6 @@ export class GetSellerDashboardHandler {
           redeemed: 0,
         },
       },
-      merchants: [],
     };
   }
 
@@ -536,21 +517,81 @@ export class GetSellerDashboardHandler {
 
   /**
    * Get coupon dropdown list for seller
-   * Returns vouchers that seller created
+   * - Without marketerMerchantId: returns ALL coupons created by this seller
+   * - With marketerMerchantId: returns only coupons from this seller that the marketer bought
+   * @param sellerMerchantId - The seller's merchant ID
+   * @param marketerMerchantId - Optional marketer's merchant ID to filter by
    */
-  async getCouponDropdown(merchantId: string): Promise<CouponDropdownResponse> {
+  async getCouponDropdown(
+    sellerMerchantId: string,
+    marketerMerchantId?: string,
+  ): Promise<CouponDropdownResponse> {
     this.logger.log(
-      `[START] Getting coupon dropdown for seller: ${merchantId}`,
+      `[START] Getting seller coupon dropdown for seller: ${sellerMerchantId}, marketer: ${marketerMerchantId || 'all'}`,
     );
 
+    if (!marketerMerchantId) {
+      // No marketer filter: return all coupons created by this seller
+      const vouchers = await this.prisma.voucher.findMany({
+        where: { sellerMerchantId },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+
+      this.logger.log(
+        `[SUCCESS] Found ${vouchers.length} coupons for seller dropdown (all)`,
+      );
+
+      return { coupons: vouchers };
+    }
+
+    // With marketer filter: find coupons created by this seller that the marketer bought
+    const thbBuyTransactions = await this.prisma.transaction.findMany({
+      where: {
+        merchantId: marketerMerchantId,
+        transactionTypeId: TransactionTypeId.THB_BUY,
+        voucherCodeId: { not: null },
+      },
+      select: {
+        voucherCode: {
+          select: {
+            voucherId: true,
+            voucher: {
+              select: { sellerMerchantId: true },
+            },
+          },
+        },
+      },
+    });
+
+    // Filter to only coupons created by THIS seller
+    const purchasedVoucherIds = [
+      ...new Set(
+        thbBuyTransactions
+          .map((tx) => tx.voucherCode)
+          .filter(
+            (vc) => vc?.voucher?.sellerMerchantId === sellerMerchantId,
+          )
+          .map((vc) => vc!.voucherId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+
+    if (purchasedVoucherIds.length === 0) {
+      this.logger.log(
+        `[SUCCESS] No seller coupons found for marketer ${marketerMerchantId}`,
+      );
+      return { coupons: [] };
+    }
+
     const vouchers = await this.prisma.voucher.findMany({
-      where: { sellerMerchantId: merchantId },
+      where: { id: { in: purchasedVoucherIds } },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });
 
     this.logger.log(
-      `[SUCCESS] Found ${vouchers.length} coupons for seller dropdown`,
+      `[SUCCESS] Found ${vouchers.length} seller coupons for marketer ${marketerMerchantId} dropdown`,
     );
 
     return { coupons: vouchers };

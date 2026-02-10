@@ -137,7 +137,6 @@ export interface SellerMerchantBreakdown {
 export interface SellerDashboardResponse {
   dateRange: DateRangeInfo;
   overallSummary: SellerOverallSummary;
-  merchants: SellerMerchantBreakdown[];
 }
 
 // Response for GET /dashboard/seller/:merchantId/merchants

@@ -57,14 +57,14 @@ export class DashboardController {
    * @param merchantId - The merchant ID (will lookup seller wallet internally)
    * @param query - Date range and granularity filters
    */
-  @Get('/seller/:merchantId')
+  @Get('/seller/:sellerMerchantId')
   @Public()
   @HttpCode(200)
   async getSellerDashboard(
-    @Param('merchantId') merchantId: string,
+    @Param('sellerMerchantId') sellerMerchantId: string,
     @Query() query: DashboardQueryDto,
   ) {
-    return this.sellerDashboardHandler.execute(merchantId, query);
+    return this.sellerDashboardHandler.execute(sellerMerchantId, query);
   }
 
   // GET /dashboard/merchantref/:merchantRef moved to ExternalModule
@@ -83,14 +83,21 @@ export class DashboardController {
 
   /**
    * Seller Coupon Dropdown
-   * Returns list of coupons for dropdown filter (created by seller)
-   * @param merchantId - The merchant ID
+   * Returns list of seller-created coupons, optionally filtered by marketer who purchased them
+   * @param merchantId - The seller's merchant ID
+   * @param query - Optional marketerMerchantId to filter by specific marketer
    */
-  @Get('/seller/:merchantId/coupons')
+  @Get('/seller/:sellerMerchantId/coupons')
   @Public()
   @HttpCode(200)
-  async getSellerCouponDropdown(@Param('merchantId') merchantId: string) {
-    return this.sellerDashboardHandler.getCouponDropdown(merchantId);
+  async getSellerCouponDropdown(
+    @Param('sellerMerchantId') sellerMerchantId: string,
+    @Query() query: DashboardQueryDto,
+  ) {
+    return this.sellerDashboardHandler.getCouponDropdown(
+      sellerMerchantId,
+      query.marketerMerchantId,
+    );
   }
 
   /**
@@ -100,15 +107,15 @@ export class DashboardController {
    * @param merchantId - The merchant ID (seller)
    * @param query - Optional couponIds filter
    */
-  @Get('/seller/:merchantId/merchants')
+  @Get('/seller/:sellerMerchantId/merchants')
   @Public()
   @HttpCode(200)
   async getSellerMerchants(
-    @Param('merchantId') merchantId: string,
+    @Param('sellerMerchantId') sellerMerchantId: string,
     @Query() query: DashboardQueryDto,
   ) {
     return this.sellerDashboardHandler.getMerchants(
-      merchantId,
+      sellerMerchantId,
       query.couponIds,
     );
   }

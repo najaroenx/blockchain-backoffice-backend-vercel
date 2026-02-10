@@ -21,4 +21,8 @@ export class DashboardQueryDto {
     return value;
   })
   couponIds?: string[]; // Filter by specific voucher/coupon IDs
+
+  @IsOptional()
+  @IsString()
+  marketerMerchantId?: string; // Filter coupons by marketer who purchased them
 }

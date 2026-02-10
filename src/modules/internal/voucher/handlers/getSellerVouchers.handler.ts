@@ -70,7 +70,9 @@ export class GetSellerVouchers {
           });
 
           const { voucherCodes, ...voucherData } = voucher;
-
+          this.logger.log(
+            `[INFO] Voucher ID: ${voucher.id} - Total Codes: ${voucher.totalIssued}, Listed: ${listedCodesCount}, Sold: ${soldCodesCount}`,
+          );
           return {
             ...voucherData,
             pointsCost: voucherCodes[0]?.pointsCost || null,
@@ -81,7 +83,8 @@ export class GetSellerVouchers {
               totalCodes: totalCodesCount,
               listedCodes: listedCodesCount,
               soldCodes: soldCodesCount,
-              availableForSale: voucher.totalIssued - soldCodesCount,
+              availableForSale:
+                voucher.totalIssued - listedCodesCount - soldCodesCount,
             },
             // to do total ทั้งหมดตอนนี้เท่าไหร่ , เหลือเท่าไหร่ total issuee - จำนวนที่ลิส
             status: {
@@ -93,13 +96,18 @@ export class GetSellerVouchers {
         }),
       );
 
+      // Filter only vouchers that still have available codes to list
+      const filteredVouchers = enhancedVouchers.filter(
+        (v) => v.stats.availableForSale > 0,
+      );
+
       this.logger.log(
-        `[SUCCESS] Found ${enhancedVouchers.length} seller vouchers`,
+        `[SUCCESS] Found ${filteredVouchers.length} listable seller vouchers (filtered from ${enhancedVouchers.length} total)`,
       );
 
       return {
-        count: enhancedVouchers.length,
-        vouchers: enhancedVouchers,
+        count: filteredVouchers.length,
+        vouchers: filteredVouchers,
       };
     } catch (error) {
       this.logger.error(

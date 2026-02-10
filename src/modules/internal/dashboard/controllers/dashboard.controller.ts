@@ -6,12 +6,12 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { DashboardService } from '../../internal/dashboard/handlers/dashboard.handler';
-import { GetMarketerDashboardHandler } from '../../internal/dashboard/handlers/get-marketer-dashboard.handler';
-import { GetSellerDashboardHandler } from '../../internal/dashboard/handlers/get-seller-dashboard.handler';
-import { GetMerchantRefDashboardHandler } from '../../internal/dashboard/handlers/get-merchantref-dashboard.handler';
-import { DashboardQueryDto } from '../../internal/dashboard/dtos/dashboard-query.dto';
-import { Public } from '../../internal/auth/public.decorator';
+import { DashboardService } from '../handlers/dashboard.handler';
+import { GetMarketerDashboardHandler } from '../handlers/get-marketer-dashboard.handler';
+import { GetSellerDashboardHandler } from '../handlers/get-seller-dashboard.handler';
+import { GetMerchantRefDashboardHandler } from '../handlers/get-merchantref-dashboard.handler';
+import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
+import { Public } from 'src/modules/internal/auth/public.decorator';
 
 // TODO: Add caching with @nestjs/cache-manager when installed
 // Cache TTL: 5 minutes (300000ms)
@@ -67,21 +67,7 @@ export class DashboardController {
     return this.sellerDashboardHandler.execute(merchantId, query);
   }
 
-  /**
-   * MerchantRef Dashboard
-   * Returns voucher statistics, end user data, and redemption breakdown
-   * @param merchantRef - The merchant reference identifier
-   * @param query - Date range and granularity filters
-   */
-  @Get('/merchantref/:merchantRef')
-  @Public()
-  @HttpCode(200)
-  async getMerchantRefDashboard(
-    @Param('merchantRef') merchantRef: string,
-    @Query() query: DashboardQueryDto,
-  ) {
-    return this.merchantRefDashboardHandler.execute(merchantRef, query);
-  }
+  // GET /dashboard/merchantref/:merchantRef moved to ExternalModule
 
   /**
    * Marketer Coupon Dropdown
@@ -127,17 +113,5 @@ export class DashboardController {
     );
   }
 
-  /**
-   * MerchantRef Coupon Dropdown
-   * Returns list of coupons for dropdown filter (with this merchantRef)
-   * @param merchantRef - The merchant reference identifier
-   */
-  @Get('/merchantref/:merchantRef/coupons')
-  @Public()
-  @HttpCode(200)
-  async getMerchantRefCouponDropdown(
-    @Param('merchantRef') merchantRef: string,
-  ) {
-    return this.merchantRefDashboardHandler.getCouponDropdown(merchantRef);
-  }
+  // GET /dashboard/merchantref/:merchantRef/coupons moved to ExternalModule
 }

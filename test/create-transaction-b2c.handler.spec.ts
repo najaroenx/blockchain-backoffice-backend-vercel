@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CreateTransactionB2C } from '../src/modules/transaction/handlers/createTransactionB2C.handler';
-import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
+import { CreateTransactionB2C } from '../src/modules/internal/transaction/handlers/createTransactionB2C.handler';
+import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
-import { GetCustomerPhone } from '../src/modules/customer/handlers/getCustomerByPhone.handler';
-import { UpdateCustomer } from '../src/modules/customer/handlers/updateCustomer.handler';
-import { CreateCustomer } from '../src/modules/customer/handlers/createCustomer.handler';
-import { GetPointById } from '../src/modules/point/handlers/getPointById.handler';
-import { GetMerchant } from '../src/modules/merchant/handlers/getMerchantById.handler';
+import { GetCustomerPhone } from '../src/modules/internal/customer/handlers/getCustomerByPhone.handler';
+import { UpdateCustomer } from '../src/modules/internal/customer/handlers/updateCustomer.handler';
+import { CreateCustomer } from '../src/modules/internal/customer/handlers/createCustomer.handler';
+import { GetPointById } from '../src/modules/internal/point/handlers/getPointById.handler';
+import { GetMerchant } from '../src/modules/internal/merchant/handlers/getMerchantById.handler';
 import { TokenService } from '../src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -16,6 +16,23 @@ import {
   createMockTokenService,
   createMockConfigService,
 } from './fixtures';
+
+jest.mock('src/libs/derive-wallet', () => ({
+  getSignerFromSeedPhrase: jest.fn().mockReturnValue({
+    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    address: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
+  }),
+  deriveChildWallet: jest.fn(),
+}));
+
+jest.mock('ethers', () => ({
+  ...jest.requireActual('ethers'),
+  Wallet: class {
+    constructor(pk: string) {
+      (this as any).address = '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB';
+    }
+  },
+}));
 
 describe('CreateTransactionB2C', () => {
   let handler: CreateTransactionB2C;
@@ -127,6 +144,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
+          seedPhrase: 'encrypted-merchant-seed-phrase',
+          derivationIndex: 0,
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
@@ -197,6 +216,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
+          seedPhrase: 'encrypted-merchant-seed-phrase',
+          derivationIndex: 0,
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
@@ -262,6 +283,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
+          seedPhrase: 'encrypted-merchant-seed-phrase',
+          derivationIndex: 0,
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
@@ -328,6 +351,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
+          seedPhrase: 'encrypted-merchant-seed-phrase',
+          derivationIndex: 0,
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },
@@ -355,6 +380,8 @@ describe('CreateTransactionB2C', () => {
         id: merchantId,
         wallet: {
           walletAddress: '0x2e988A386a799F506693793c6A5AF6B54dfAaBfB',
+          seedPhrase: 'encrypted-merchant-seed-phrase',
+          derivationIndex: 0,
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },

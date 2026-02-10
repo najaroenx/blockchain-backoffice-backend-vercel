@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { GetPointsByMerchantId } from '../src/modules/point/handlers/getPointsByMerchantId.handler';
-import { PointDBService } from '../src/modules/point/services/point-db.service';
+import { GetPointsByMerchantId } from '../src/modules/internal/point/handlers/getPointsByMerchantId.handler';
+import { PointDBService } from '../src/modules/internal/point/services/point-db.service';
+import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { InternalServerErrorException } from '@nestjs/common';
 
 describe('GetPointsByMerchantId', () => {
@@ -17,6 +19,14 @@ describe('GetPointsByMerchantId', () => {
         {
           provide: PointDBService,
           useValue: mockPointDBService,
+        },
+        {
+          provide: BlockchainService,
+          useValue: { getBalance: jest.fn() },
+        },
+        {
+          provide: PrismaService,
+          useValue: { $queryRaw: jest.fn(), merchant: { findUnique: jest.fn() } },
         },
       ],
     }).compile();

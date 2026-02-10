@@ -2,10 +2,10 @@ jest.mock('prisma/prisma.service', () => ({
   PrismaService: jest.fn(),
 }));
 import { InternalServerErrorException } from '@nestjs/common';
-import { CreatePoint } from 'src/modules/point/handlers/createPoint.handler';
-import { PointDBService } from 'src/modules/point/services/point-db.service';
+import { CreatePoint } from 'src/modules/internal/point/handlers/createPoint.handler';
+import { PointDBService } from 'src/modules/internal/point/services/point-db.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
-import { GetMerchant } from 'src/modules/merchant/handlers/getMerchantById.handler';
+import { GetMerchant } from 'src/modules/internal/merchant/handlers/getMerchantById.handler';
 
 describe('CreatePoint', () => {
   let handler: CreatePoint;

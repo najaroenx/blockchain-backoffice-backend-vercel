@@ -176,39 +176,39 @@ export const getVoucherHandlerProviders = (
 ) => {
   // Dynamic imports to avoid circular dependencies
   const CreateVoucherWithCodes =
-    require('../../src/modules/voucher/handlers/createVoucherWithCodes.handler').CreateVoucherWithCodes;
+    require('../../src/modules/internal/voucher/handlers/createVoucherWithCodes.handler').CreateVoucherWithCodes;
   const ActivateVoucher =
-    require('../../src/modules/voucher/handlers/activateVoucher.handler').ActivateVoucher;
+    require('../../src/modules/internal/voucher/handlers/activateVoucher.handler').ActivateVoucher;
   const RedeemVoucher =
-    require('../../src/modules/voucher/handlers/redeemVoucher.handler').RedeemVoucher;
+    require('../../src/modules/internal/voucher/handlers/redeemVoucher.handler').RedeemVoucher;
   const BuyCouponFromMarketplace =
-    require('../../src/modules/voucher/handlers/buyCouponFromMarketplace.handler').BuyCouponFromMarketplace;
+    require('../../src/modules/internal/voucher/handlers/buyCouponFromMarketplace.handler').BuyCouponFromMarketplace;
   const GetMarketplaceListings =
-    require('../../src/modules/voucher/handlers/getMarketplaceListings.handler').GetMarketplaceListings;
+    require('../../src/modules/internal/voucher/handlers/getMarketplaceListings.handler').GetMarketplaceListings;
   const MerchantBuyCouponFromSeller =
-    require('../../src/modules/voucher/handlers/merchantBuyCouponFromSeller.handler').MerchantBuyCouponFromSeller;
+    require('../../src/modules/internal/voucher/handlers/merchantBuyCouponFromSeller.handler').MerchantBuyCouponFromSeller;
   const SellerListOnMarketplace =
-    require('../../src/modules/voucher/handlers/sellerListOnMarketplace.handler').SellerListOnMarketplace;
+    require('../../src/modules/internal/voucher/handlers/sellerListOnMarketplace.handler').SellerListOnMarketplace;
   const GetCustomerOwnedVouchers =
-    require('../../src/modules/voucher/handlers/getCustomerOwnedVouchers.handler').GetCustomerOwnedVouchers;
+    require('../../src/modules/internal/voucher/handlers/getCustomerOwnedVouchers.handler').GetCustomerOwnedVouchers;
   const GetSellerVouchers =
-    require('../../src/modules/voucher/handlers/getSellerVouchers.handler').GetSellerVouchers;
+    require('../../src/modules/internal/voucher/handlers/getSellerVouchers.handler').GetSellerVouchers;
   const GetVoucherById =
-    require('../../src/modules/voucher/handlers/getVoucherById.handler').GetVoucherById;
+    require('../../src/modules/internal/voucher/handlers/getVoucherById.handler').GetVoucherById;
   const GetVoucherByListingId =
-    require('../../src/modules/voucher/handlers/getVoucherByListingId.handler').GetVoucherByListingId;
+    require('../../src/modules/internal/voucher/handlers/getVoucherByListingId.handler').GetVoucherByListingId;
   const GetVoucherByMerchantRef =
-    require('../../src/modules/voucher/handlers/getVoucherByMerchantRef.handler').GetVoucherByMerchantRef;
+    require('../../src/modules/internal/voucher/handlers/getVoucherByMerchantRef.handler').GetVoucherByMerchantRef;
   const AddToWhitelist =
-    require('../../src/modules/voucher/handlers/addToWhitelist.handler').AddToWhitelist;
+    require('../../src/modules/internal/voucher/handlers/addToWhitelist.handler').AddToWhitelist;
   const ManageCouponHandler =
-    require('../../src/modules/voucher/handlers/manageCoupon.handler').ManageCouponHandler;
+    require('../../src/modules/internal/voucher/handlers/manageCoupon.handler').ManageCouponHandler;
   const BatchListOnMarketplaceHandler =
-    require('../../src/modules/voucher/handlers/batchListOnMarketplace.handler').BatchListOnMarketplaceHandler;
+    require('../../src/modules/internal/voucher/handlers/batchListOnMarketplace.handler').BatchListOnMarketplaceHandler;
   const GetSellerListingsHandler =
-    require('../../src/modules/voucher/handlers/getSellerListings.handler').GetSellerListingsHandler;
+    require('../../src/modules/internal/voucher/handlers/getSellerListings.handler').GetSellerListingsHandler;
   const GetListingBatchDetailHandler =
-    require('../../src/modules/voucher/handlers/getListingBatchDetail.handler').GetListingBatchDetailHandler;
+    require('../../src/modules/internal/voucher/handlers/getListingBatchDetail.handler').GetListingBatchDetailHandler;
 
   return [
     { provide: CreateVoucherWithCodes, useValue: mocks.createVoucherWithCodes },

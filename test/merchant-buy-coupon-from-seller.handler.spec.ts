@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MerchantBuyCouponFromSeller } from '../src/modules/voucher/handlers/merchantBuyCouponFromSeller.handler';
+import { MerchantBuyCouponFromSeller } from '../src/modules/internal/voucher/handlers/merchantBuyCouponFromSeller.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import { TokenService } from '../src/providers/token/token.service';
@@ -12,6 +12,14 @@ import {
   createMockTokenService,
   createMockConfigService,
 } from './fixtures';
+
+jest.mock('src/libs/derive-wallet', () => ({
+  getSignerFromSeedPhrase: jest.fn().mockReturnValue({
+    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    address: '0x1234567890123456789012345678901234567890',
+  }),
+  deriveChildWallet: jest.fn(),
+}));
 
 describe('MerchantBuyCouponFromSeller', () => {
   let handler: MerchantBuyCouponFromSeller;
@@ -120,7 +128,7 @@ describe('MerchantBuyCouponFromSeller', () => {
       prisma.voucher.findFirst.mockResolvedValue(mockVoucher);
       prisma.point.findUnique.mockResolvedValue(mockPoint);
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
-      prisma.wallet.findUnique.mockResolvedValue({
+      prisma.wallet.findUnique.mockResolvedValue({ seedPhrase: 'encrypted-merchant-seed-phrase', derivationIndex: 0,
         walletAddress: mockMerchant.wallet.walletAddress,
         privateKey:
           'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
@@ -135,14 +143,22 @@ describe('MerchantBuyCouponFromSeller', () => {
       blockchainService.buyFromMarketplace.mockResolvedValue(mockTxResponse);
       blockchainService.getNFTBalance.mockResolvedValue(mockNFTBalance);
 
-      // Mock voucherCode.findMany for codesToDelete query
-      prisma.voucherCode.findMany.mockResolvedValue([
-        { id: 'seller-code-1', listingBatchId: 'batch-123' },
-        { id: 'seller-code-2', listingBatchId: 'batch-123' },
-      ]);
+      // Mock voucherCode.findMany - first call for codesToTransfer (need >= amount), second for codesToDelete
+      const mockCodesToTransfer = Array.from({ length: 100 }, (_, i) => ({
+        id: `seller-code-${i + 1}`,
+        listingBatchId: 'batch-123',
+      }));
+      prisma.voucherCode.findMany
+        .mockResolvedValueOnce(mockCodesToTransfer)
+        .mockResolvedValue([
+          { id: 'seller-code-1', listingBatchId: 'batch-123' },
+          { id: 'seller-code-2', listingBatchId: 'batch-123' },
+        ]);
       prisma.voucherCode.createMany.mockResolvedValue({ count: 100 });
       prisma.voucherCode.deleteMany.mockResolvedValue({ count: 200 });
       prisma.transaction.create.mockResolvedValue({});
+      prisma.listingBatch.update.mockResolvedValue({});
+      prisma.listingBatch.findUnique.mockResolvedValue({ totalItems: 200, soldItems: 100 });
 
       // Mock transaction callback
       prisma.$transaction.mockImplementation(async (callback) => {
@@ -158,8 +174,8 @@ describe('MerchantBuyCouponFromSeller', () => {
       );
       expect(blockchainService.buyCoupon).toHaveBeenCalled();
 
-      // Critical: Verify seller placeholder codes are deleted
-      expect(prisma.voucherCode.deleteMany).toHaveBeenCalled();
+      // Critical: Verify seller VoucherCodes ownership is updated to merchant
+      expect(prisma.voucherCode.updateMany).toHaveBeenCalled();
 
       // Note: Handler doesn't create codes - merchant creates them during activation
       expect(result).toMatchObject({
@@ -218,7 +234,7 @@ describe('MerchantBuyCouponFromSeller', () => {
       prisma.voucher.findFirst.mockResolvedValue(mockVoucher);
       prisma.point.findUnique.mockResolvedValue(mockPoint);
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
-      prisma.wallet.findUnique.mockResolvedValue({
+      prisma.wallet.findUnique.mockResolvedValue({ seedPhrase: 'encrypted-merchant-seed-phrase', derivationIndex: 0,
         walletAddress: '0x1234567890123456789012345678901234567890',
         privateKey: 'encrypted-0x1234',
       });
@@ -255,7 +271,7 @@ describe('MerchantBuyCouponFromSeller', () => {
       prisma.voucher.findFirst.mockResolvedValue(mockVoucher);
       prisma.point.findUnique.mockResolvedValue(mockPoint);
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
-      prisma.wallet.findUnique.mockResolvedValue({
+      prisma.wallet.findUnique.mockResolvedValue({ seedPhrase: 'encrypted-merchant-seed-phrase', derivationIndex: 0,
         walletAddress: '0x1234567890123456789012345678901234567890',
         privateKey: 'encrypted-0x1234',
       });
@@ -307,7 +323,7 @@ describe('MerchantBuyCouponFromSeller', () => {
       prisma.voucher.findFirst.mockResolvedValue(mockVoucher);
       prisma.point.findUnique.mockResolvedValue(mockPoint);
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
-      prisma.wallet.findUnique.mockResolvedValue({
+      prisma.wallet.findUnique.mockResolvedValue({ seedPhrase: 'encrypted-merchant-seed-phrase', derivationIndex: 0,
         walletAddress: '0x1234567890123456789012345678901234567890',
         privateKey: 'encrypted-0x1234',
       });

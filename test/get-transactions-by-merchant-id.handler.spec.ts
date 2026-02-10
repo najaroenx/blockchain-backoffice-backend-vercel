@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { GetTransactionsByMerchantId } from '../src/modules/transaction/handlers/getTransactionsByMerchantId.handler';
-import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
+import { GetTransactionsByMerchantId } from '../src/modules/internal/transaction/handlers/getTransactionsByMerchantId.handler';
+import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
 import { InternalServerErrorException } from '@nestjs/common';
 import { TransactionTypeId } from '../src/constants/transaction-types.enum';
 
@@ -17,9 +17,12 @@ describe('GetTransactionsByMerchantId', () => {
     receiverAddress: Buffer.from('receiver123', 'hex'),
     transactionTypeId: TransactionTypeId.MINT,
     amount: 100,
-    senderId: null,
+    senderId: mockMerchantId,
     receiverId: 'customer-1',
-    voucherCodeId: null,
+    senderType: 'MERCHANT',
+    receiverType: 'CUSTOMER',
+    type: 'POINT',
+    transactionRefId: 'ref-1',
     eventId: null,
     createdAt: new Date('2024-01-01'),
     merchantSenderId: null,
@@ -52,7 +55,10 @@ describe('GetTransactionsByMerchantId', () => {
     amount: 200,
     senderId: 'customer-2',
     receiverId: null,
-    voucherCodeId: null,
+    senderType: 'CUSTOMER',
+    receiverType: 'MERCHANT',
+    type: 'POINT',
+    transactionRefId: 'ref-2',
     eventId: null,
     createdAt: new Date('2024-01-02'),
     merchantSenderId: null,
@@ -81,11 +87,14 @@ describe('GetTransactionsByMerchantId', () => {
     txHash: Buffer.from('ghi789', 'hex'),
     senderAddress: Buffer.from('sender789', 'hex'),
     receiverAddress: Buffer.from('receiver789', 'hex'),
-    transactionTypeId: TransactionTypeId.MARKETPLACE_PURCHASE,
+    transactionTypeId: TransactionTypeId.TRANSFER,
     amount: 500,
-    senderId: null,
-    receiverId: null,
-    voucherCodeId: 'voucher-code-1',
+    senderId: mockMerchantId,
+    receiverId: 'seller-merchant-999',
+    senderType: 'MERCHANT',
+    receiverType: 'MERCHANT',
+    type: 'VOUCHER',
+    transactionRefId: 'ref-3',
     eventId: null,
     createdAt: new Date('2024-01-03'),
     merchantSenderId: mockMerchantId,
@@ -184,7 +193,6 @@ describe('GetTransactionsByMerchantId', () => {
       expect(result.counts).toBe(1);
       expect(result.transactions[0].transactionDirection).toBe('SENT');
       expect(result.transactions[0].id).toBe('tx-voucher-1');
-      expect(result.transactions[0].voucherCodeId).toBe('voucher-code-1');
     });
 
     it('should return multiple transactions with mixed directions', async () => {

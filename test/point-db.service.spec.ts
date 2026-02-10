@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PointDBService } from '../src/modules/point/services/point-db.service';
-import { PointRepository } from '../src/modules/point/point.repository';
+import { PointDBService } from '../src/modules/internal/point/services/point-db.service';
+import { PointRepository } from '../src/modules/internal/point/point.repository';
+import { PrismaService } from '../prisma/prisma.service';
 import { Point, Prisma } from '@prisma/client';
 
 describe('PointDBService', () => {
@@ -43,6 +44,10 @@ describe('PointDBService', () => {
         {
           provide: PointRepository,
           useValue: mockRepository,
+        },
+        {
+          provide: PrismaService,
+          useValue: { $queryRaw: jest.fn(), $executeRaw: jest.fn(), point: { findMany: jest.fn() } },
         },
       ],
     }).compile();

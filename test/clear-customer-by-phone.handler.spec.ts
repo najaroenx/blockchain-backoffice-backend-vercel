@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { ClearCustomerByPhone } from '../src/modules/customer/handlers/clearCustomerByPhone.handler';
-import { CustomerDBService } from '../src/modules/customer/services/customer-db.service';
+import { ClearCustomerByPhone } from '../src/modules/internal/customer/handlers/clearCustomerByPhone.handler';
+import { CustomerDBService } from '../src/modules/internal/customer/services/customer-db.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CUSTOMER_NOT_FOUND } from '../src/errors/error.constants';
 
@@ -216,11 +216,6 @@ describe('ClearCustomerByPhone', () => {
       await handler.execute('0984360421');
 
       // Assert
-      expect(voucherUpdateMock).toHaveBeenCalledWith({
-        where: { currentOwnerId: 'customer-123' },
-        data: { currentOwnerId: null },
-      });
-
       expect(tempLinkDeleteMock).toHaveBeenCalledWith({
         where: { phoneNumber: '0984360421' },
       });

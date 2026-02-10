@@ -5,8 +5,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { GetPointById } from 'src/modules/point/handlers/getPointById.handler';
-import { PointDBService } from 'src/modules/point/services/point-db.service';
+import { GetPointById } from 'src/modules/internal/point/handlers/getPointById.handler';
+import { PointDBService } from 'src/modules/internal/point/services/point-db.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 // import { POINT_NOT_FOUND } from 'src/errors/error.constants';
 

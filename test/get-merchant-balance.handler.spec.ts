@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { GetWalletBalance } from '../src/modules/transaction/handlers/getMerchantBalance.handler';
+import { GetWalletBalance } from '../src/modules/internal/transaction/handlers/getMerchantBalance.handler';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
-import { GetPointById } from '../src/modules/point/handlers/getPointById.handler';
+import { GetPointById } from '../src/modules/internal/point/handlers/getPointById.handler';
 import {
   InternalServerErrorException,
   NotFoundException,

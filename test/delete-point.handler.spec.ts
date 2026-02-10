@@ -5,8 +5,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { DeletePoint } from 'src/modules/point/handlers/deletePoint.handler';
-import { PointDBService } from 'src/modules/point/services/point-db.service';
+import { DeletePoint } from 'src/modules/internal/point/handlers/deletePoint.handler';
+import { PointDBService } from 'src/modules/internal/point/services/point-db.service';
 
 describe('DeletePoint', () => {
   let handler: DeletePoint;

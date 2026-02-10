@@ -1,25 +1,31 @@
 import { createWallet } from '../src/libs/createWallet';
-import { HDNodeWallet } from 'ethers';
 
 jest.mock('ethers', () => ({
-  HDNodeWallet: {
+  Wallet: {
     createRandom: jest.fn(),
   },
 }));
 
+jest.mock('../src/libs/derive-wallet', () => ({
+  deriveChildWallet: jest.fn().mockReturnValue({
+    address: '0x1234567890abcdef1234567890abcdef12345678',
+    chainCode:
+      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+    privateKey: '0xprivatekey',
+  }),
+}));
+
 describe('createWallet', () => {
-  const mockHDNode = {
+  const { Wallet } = require('ethers');
+
+  const mockWallet = {
     mnemonic: {
       phrase: 'test seed phrase words here for testing purposes only',
     },
-    chainCode:
-      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-    address: '0x1234567890abcdef1234567890abcdef12345678',
-    derivePath: jest.fn().mockReturnThis(),
   };
 
   beforeEach(() => {
-    (HDNodeWallet.createRandom as jest.Mock).mockReturnValue(mockHDNode);
+    Wallet.createRandom.mockReturnValue(mockWallet);
   });
 
   it('should return walletAddress, seedPhrase, chainCode, and derivationIndex', () => {

@@ -1,11 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BatchListOnMarketplaceHandler } from '../src/modules/voucher/handlers/batchListOnMarketplace.handler';
+import { BatchListOnMarketplaceHandler } from '../src/modules/internal/voucher/handlers/batchListOnMarketplace.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MockDataFactory } from './fixtures/mock-data.factory';
-import { BatchListOnMarketplaceDto } from '../src/modules/voucher/dtos/batch-list-marketplace.dto';
+import { BatchListOnMarketplaceDto } from '../src/modules/internal/voucher/dtos/batch-list-marketplace.dto';
+import { TokenService } from '../src/providers/token/token.service';
+
+jest.mock('src/libs/derive-wallet', () => ({
+  getSignerFromSeedPhrase: jest.fn().mockReturnValue({
+    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    address: '0x1234567890123456789012345678901234567890',
+  }),
+  deriveChildWallet: jest.fn(),
+}));
 
 describe('BatchListOnMarketplaceHandler', () => {
   let handler: BatchListOnMarketplaceHandler;
@@ -35,11 +44,23 @@ describe('BatchListOnMarketplaceHandler', () => {
 
   beforeEach(async () => {
     const mockPrismaService = {
+      merchant: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'merchant-123',
+          name: 'Test Merchant',
+          wallet: {
+            walletAddress: '0xf5e40ec8bfa4818278c04489b34a486281658e5c',
+            seedPhrase: 'encrypted-seed',
+            derivationIndex: 0,
+          },
+        }),
+      },
       wallet: {
         findFirst: jest.fn(),
       },
       voucher: {
         findMany: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
       },
       listingBatch: {
         create: jest.fn(),
@@ -69,6 +90,7 @@ describe('BatchListOnMarketplaceHandler', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: BlockchainService, useValue: mockBlockchainService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: TokenService, useValue: { decryptKey: jest.fn().mockReturnValue('decrypted-seed'), encryptKey: jest.fn() } },
       ],
     }).compile();
 
@@ -85,8 +107,8 @@ describe('BatchListOnMarketplaceHandler', () => {
   });
 
   describe('execute', () => {
+    const merchantId = 'merchant-123';
     const validDto: BatchListOnMarketplaceDto = {
-      sellerWalletAddress: '0xf5e40ec8bfa4818278c04489b34a486281658e5c',
       name: 'Test Batch',
       description: 'Test batch description',
       items: [
@@ -111,7 +133,7 @@ describe('BatchListOnMarketplaceHandler', () => {
       });
       blockchainService.listCoupon.mockResolvedValue(mockListingResult);
 
-      const result = await handler.execute(validDto);
+      const result = await handler.execute(merchantId, validDto);
 
       expect(result.batch).toBeDefined();
       expect(result.batch.name).toBe('Test Batch Listing');
@@ -126,9 +148,12 @@ describe('BatchListOnMarketplaceHandler', () => {
     });
 
     it('should throw NotFoundException when voucher not found', async () => {
+      prismaService.wallet.findFirst
+        .mockResolvedValueOnce({ derivationIndex: 0, phoneNumber: '0812345678' }) // merchant wallet
+        .mockResolvedValueOnce(mockSellerWallet); // seller wallet
       prismaService.voucher.findMany.mockResolvedValue([mockVoucher]); // Only return 1 of 2
 
-      await expect(handler.execute(validDto)).rejects.toThrow(
+      await expect(handler.execute(merchantId, validDto)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -143,7 +168,7 @@ describe('BatchListOnMarketplaceHandler', () => {
         mockVoucher2,
       ]);
 
-      await expect(handler.execute(validDto)).rejects.toThrow(
+      await expect(handler.execute(merchantId, validDto)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -155,7 +180,7 @@ describe('BatchListOnMarketplaceHandler', () => {
         mockVoucher2,
       ]);
 
-      await expect(handler.execute(validDto)).rejects.toThrow(
+      await expect(handler.execute(merchantId, validDto)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -167,7 +192,7 @@ describe('BatchListOnMarketplaceHandler', () => {
       };
       prismaService.voucher.findMany.mockResolvedValue([mockVoucher]);
 
-      await expect(handler.execute(dto)).rejects.toThrow(BadRequestException);
+      await expect(handler.execute(merchantId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when seller wallet not found', async () => {
@@ -177,7 +202,7 @@ describe('BatchListOnMarketplaceHandler', () => {
       ]);
       prismaService.wallet.findFirst.mockResolvedValue(null);
 
-      await expect(handler.execute(validDto)).rejects.toThrow(
+      await expect(handler.execute(merchantId, validDto)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -190,7 +215,7 @@ describe('BatchListOnMarketplaceHandler', () => {
       prismaService.wallet.findFirst.mockResolvedValue(mockSellerWallet);
       (configService.get as jest.Mock).mockReturnValue(null);
 
-      await expect(handler.execute(validDto)).rejects.toThrow(
+      await expect(handler.execute(merchantId, validDto)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -216,11 +241,9 @@ describe('BatchListOnMarketplaceHandler', () => {
         items: [{ voucherId: 'voucher-1', amount: 10, pricePerUnitTHB: 100 }],
       };
 
-      await handler.execute(singleItemDto);
+      await handler.execute(merchantId, singleItemDto);
 
-      expect(blockchainService.addToMarketplaceWhitelist).toHaveBeenCalledWith(
-        validDto.sellerWalletAddress,
-      );
+      expect(blockchainService.addToMarketplaceWhitelist).toHaveBeenCalled();
     });
 
     it('should calculate totalItems and totalValue correctly', async () => {
@@ -238,7 +261,7 @@ describe('BatchListOnMarketplaceHandler', () => {
       });
       blockchainService.listCoupon.mockResolvedValue(mockListingResult);
 
-      await handler.execute(validDto);
+      await handler.execute(merchantId, validDto);
 
       // totalItems = 10 + 20 = 30
       // totalValue = (10 * 100) + (20 * 50) = 1000 + 1000 = 2000

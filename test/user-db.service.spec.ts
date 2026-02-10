@@ -2,8 +2,8 @@ jest.mock('prisma/prisma.service', () => ({
   PrismaService: jest.fn(),
 }));
 import { Test, TestingModule } from '@nestjs/testing';
-import { UserDBService } from '../src/modules/user/services/user-db.service';
-import { UserRepository } from '../src/modules/user/user.repository';
+import { UserDBService } from '../src/modules/internal/user/services/user-db.service';
+import { UserRepository } from '../src/modules/internal/user/user.repository';
 import type { User } from '@prisma/client';
 
 describe('UserDBService', () => {
@@ -13,6 +13,8 @@ describe('UserDBService', () => {
     id: 'u_1',
     email: 'test@example.com',
     password: 'password123',
+    walletId: 'wallet-u1',
+    nextDerivationIndex: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

@@ -1,8 +1,8 @@
 jest.mock('prisma/prisma.service', () => ({
   PrismaService: jest.fn(),
 }));
-import { ApiKeyDBService } from '../src/modules/api-key/services/api-key-db.service';
-import { ApiKeyRepository } from '../src/modules/api-key/api-key.repository';
+import { ApiKeyDBService } from '../src/modules/internal/api-key/services/api-key-db.service';
+import { ApiKeyRepository } from '../src/modules/internal/api-key/api-key.repository';
 import { PageOptionsDto } from 'src/common/dtos';
 
 describe('ApiKeyDBService', () => {

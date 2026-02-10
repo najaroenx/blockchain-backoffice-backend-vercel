@@ -2,10 +2,10 @@ jest.mock('prisma/prisma.service', () => ({
   PrismaService: jest.fn(),
 }));
 import { Test, TestingModule } from '@nestjs/testing';
-import { ApiKeyController } from '../src/modules/api-key/controllers/api-key.controller';
-import { GetApiKeys } from '../src/modules/api-key/handlers/getApiKeys.handler';
-import { CreateApiKey } from '../src/modules/api-key/handlers/createApiKey.handler';
-import { DeleteApiKey } from '../src/modules/api-key/handlers/deleteApiKey.handler';
+import { ApiKeyController } from '../src/modules/internal/api-key/controllers/api-key.controller';
+import { GetApiKeys } from '../src/modules/internal/api-key/handlers/getApiKeys.handler';
+import { CreateApiKey } from '../src/modules/internal/api-key/handlers/createApiKey.handler';
+import { DeleteApiKey } from '../src/modules/internal/api-key/handlers/deleteApiKey.handler';
 import { PageOptionsDto } from 'src/common/dtos';
 
 describe('ApiKeyController', () => {

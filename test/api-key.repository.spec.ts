@@ -1,4 +1,4 @@
-import { ApiKeyRepository } from '../src/modules/api-key/api-key.repository';
+import { ApiKeyRepository } from '../src/modules/internal/api-key/api-key.repository';
 
 describe('ApiKeyRepository', () => {
   it('should be defined', () => {

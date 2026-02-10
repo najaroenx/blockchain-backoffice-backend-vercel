@@ -2,8 +2,8 @@ jest.mock('prisma/prisma.service', () => ({
   PrismaService: jest.fn(),
 }));
 import { Test, TestingModule } from '@nestjs/testing';
-import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
-import { TransactionRepository } from '../src/modules/transaction/transaction.repository';
+import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
+import { TransactionRepository } from '../src/modules/internal/transaction/transaction.repository';
 import { startOfDay, endOfDay } from 'date-fns';
 
 describe('TransactionDBService', () => {
@@ -55,10 +55,44 @@ describe('TransactionDBService', () => {
       },
       include: {
         merchant: true,
-        sender: true,
-        receiver: true,
-        merchantSender: true,
-        merchantReceiver: true,
+        point: true,
+        voucherCode: {
+          select: {
+            id: true,
+            currency: true,
+            voucher: {
+              select: {
+                id: true,
+                tokenId: true,
+                name: true,
+                description: true,
+                valueType: true,
+                value: true,
+                currency: true,
+                imageUrl: true,
+                startDate: true,
+                endDate: true,
+                merchantRef: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+    expect(result).toEqual([mockTransaction]);
+  });
+
+  it('getTransactionsByMerchantId should call repository.findMany', async () => {
+    mockRepo.findMany.mockResolvedValue([mockTransaction]);
+
+    const result = await service.getTransactionsByMerchantId('m_1');
+    expect(repository.findMany).toHaveBeenCalledWith({
+      where: { merchantId: 'm_1' },
+      include: {
+        merchant: true,
         point: true,
         voucherCode: {
           include: {
@@ -74,36 +108,8 @@ describe('TransactionDBService', () => {
           },
         },
       },
-    });
-    expect(result).toEqual([mockTransaction]);
-  });
-
-  it('getTransactionsByMerchantId should call repository.findMany', async () => {
-    mockRepo.findMany.mockResolvedValue([mockTransaction]);
-
-    const result = await service.getTransactionsByMerchantId('m_1');
-    expect(repository.findMany).toHaveBeenCalledWith({
-      where: { merchantId: 'm_1' },
-      include: {
-        merchant: true,
-        sender: true,
-        receiver: true,
-        merchantSender: true,
-        merchantReceiver: true,
-        point: true,
-        voucherCode: {
-          include: {
-            voucher: {
-              select: {
-                id: true,
-                name: true,
-                valueType: true,
-                value: true,
-                imageUrl: true,
-              },
-            },
-          },
-        },
+      orderBy: {
+        createdAt: 'asc',
       },
     });
     expect(result).toEqual([mockTransaction]);
@@ -143,10 +149,6 @@ describe('TransactionDBService', () => {
       },
       include: {
         merchant: true,
-        sender: true,
-        receiver: true,
-        merchantSender: true,
-        merchantReceiver: true,
         point: true,
       },
     });

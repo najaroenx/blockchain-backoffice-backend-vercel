@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MerchantDBService } from '../src/modules/merchant/services/merchant-db.service';
-import { MerchantRepository } from '../src/modules/merchant/merchant.repository';
+import { MerchantDBService } from '../src/modules/internal/merchant/services/merchant-db.service';
+import { MerchantRepository } from '../src/modules/internal/merchant/merchant.repository';
 import { Merchant, Prisma } from '@prisma/client';
 
 describe('MerchantDBService', () => {

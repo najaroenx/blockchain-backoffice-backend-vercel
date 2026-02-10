@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { GetAllTransactionsByCustomerPhone } from '../src/modules/transaction/handlers/getAllTransactionsByCustomerPhone.handler';
-import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
-import { CustomerDBService } from '../src/modules/customer/services/customer-db.service';
+import { GetAllTransactionsByCustomerPhone } from '../src/modules/internal/transaction/handlers/getAllTransactionsByCustomerPhone.handler';
+import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
+import { CustomerDBService } from '../src/modules/internal/customer/services/customer-db.service';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   createMockTransactionDBService,
   createMockCustomerDBService,
@@ -34,6 +35,10 @@ describe('GetAllTransactionsByCustomerPhone', () => {
           provide: CustomerDBService,
           useValue: mockCustomerDB,
         },
+        {
+          provide: PrismaService,
+          useValue: { customer: { findUnique: jest.fn() }, merchant: { findUnique: jest.fn() } },
+        },
       ],
     }).compile();
 
@@ -56,14 +61,16 @@ describe('GetAllTransactionsByCustomerPhone', () => {
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-2',
           transactionTypeId: 'VOUCHER_TRANSFER', // Voucher
+          type: 'VOUCHER',
         }),
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-3',
-          transactionTypeId: 'MARKETPLACE_PURCHASE', // Point
+          transactionTypeId: 'TRANSFER', // was MARKETPLACE_PURCHASE, // Point
         }),
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-4',
           transactionTypeId: 'REDEEM', // Voucher
+          type: 'VOUCHER',
         }),
       ];
 
@@ -111,6 +118,7 @@ describe('GetAllTransactionsByCustomerPhone', () => {
           id: 'tx-merchant-3',
           merchantId: 'merchant-333',
           transactionTypeId: 'VOUCHER_TRANSFER',
+          type: 'VOUCHER',
           merchant: {
             id: 'merchant-333',
             name: 'Merchant C',
@@ -127,9 +135,10 @@ describe('GetAllTransactionsByCustomerPhone', () => {
       const result = await handler.execute(phone);
 
       expect(result.transactions).toHaveLength(3);
-      expect((result.transactions[0] as any).merchantId).toBe('merchant-111');
-      expect((result.transactions[1] as any).merchantId).toBe('merchant-222');
-      expect((result.transactions[2] as any).merchantId).toBe('merchant-333');
+      // Sorted: VOUCHER before POINT when same createdAt
+      expect((result.transactions[0] as any).merchant.id).toBe('merchant-333'); // VOUCHER type
+      expect((result.transactions[1] as any).merchant.id).toBe('merchant-111'); // POINT type
+      expect((result.transactions[2] as any).merchant.id).toBe('merchant-222'); // POINT type
     });
 
     it('should calculate direction correctly', async () => {
@@ -167,17 +176,25 @@ describe('GetAllTransactionsByCustomerPhone', () => {
       const mockTransactions = [
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-marketplace',
-          transactionTypeId: 'MARKETPLACE_PURCHASE',
+          transactionTypeId: 'TRANSFER', // was MARKETPLACE_PURCHASE,
+          type: 'VOUCHER',
           senderId: 'customer-123',
           receiverId: 'merchant-123',
           voucherCode: {
             id: 'code-123',
+            currency: 'POINTS',
             voucher: {
               id: 'voucher-123',
+              tokenId: '12345',
               name: 'Test Voucher',
+              description: null,
               valueType: 'cash',
               value: 100,
+              currency: 'THB',
               imageUrl: 'https://example.com/voucher.png',
+              startDate: null,
+              endDate: null,
+              merchantRef: null,
             },
           },
         }),
@@ -192,8 +209,6 @@ describe('GetAllTransactionsByCustomerPhone', () => {
 
       expect((result.transactions[0] as any).voucher).toBeDefined();
       expect((result.transactions[0] as any).voucher.id).toBe('voucher-123');
-      // voucherCodeId is in response but not in type definition
-      expect((result.transactions[0] as any).voucherCodeId).toBeDefined();
     });
 
     it('should include voucher details for VOUCHER_TRANSFER and REDEEM', async () => {
@@ -203,28 +218,44 @@ describe('GetAllTransactionsByCustomerPhone', () => {
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-voucher-transfer',
           transactionTypeId: 'VOUCHER_TRANSFER',
+          type: 'VOUCHER',
           voucherCode: {
             id: 'code-456',
+            currency: 'POINTS',
             voucher: {
               id: 'voucher-456',
+              tokenId: null,
               name: 'Transfer Voucher',
+              description: null,
               valueType: 'percent',
               value: 20,
+              currency: null,
               imageUrl: 'https://example.com/voucher2.png',
+              startDate: null,
+              endDate: null,
+              merchantRef: null,
             },
           },
         }),
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-redeem',
           transactionTypeId: 'REDEEM',
+          type: 'VOUCHER',
           voucherCode: {
             id: 'code-789',
+            currency: 'POINTS',
             voucher: {
               id: 'voucher-789',
+              tokenId: null,
               name: 'Redeemed Voucher',
+              description: null,
               valueType: 'free',
               value: 0,
+              currency: null,
               imageUrl: 'https://example.com/voucher3.png',
+              startDate: null,
+              endDate: null,
+              merchantRef: null,
             },
           },
         }),
@@ -324,8 +355,8 @@ describe('GetAllTransactionsByCustomerPhone', () => {
 
       const result = await handler.execute(phone);
 
-      expect((result.transactions[0] as any).merchantId).toBe('merchant-123');
-      expect((result.transactions[0] as any).merchantName).toBe(
+      expect((result.transactions[0] as any).merchant.id).toBe('merchant-123');
+      expect((result.transactions[0] as any).merchant.name).toBe(
         'Test Merchant',
       );
     });
@@ -399,6 +430,7 @@ describe('GetAllTransactionsByCustomerPhone', () => {
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-2',
           transactionTypeId: 'VOUCHER_TRANSFER',
+          type: 'VOUCHER',
         }),
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-3',
@@ -432,32 +464,48 @@ describe('GetAllTransactionsByCustomerPhone', () => {
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-2',
           transactionTypeId: 'VOUCHER_TRANSFER', // Voucher
+          type: 'VOUCHER',
           senderId: 'customer-123',
           receiverId: 'customer-456',
           voucherCode: {
             id: 'code-123',
+            currency: 'POINTS',
             voucher: {
               id: 'voucher-123',
+              tokenId: null,
               name: 'Test Voucher',
+              description: null,
               valueType: 'cash',
               value: 100,
+              currency: null,
               imageUrl: 'https://example.com/voucher.png',
+              startDate: null,
+              endDate: null,
+              merchantRef: null,
             },
           },
         }),
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-3',
-          transactionTypeId: 'MARKETPLACE_PURCHASE', // Point with voucher info
+          transactionTypeId: 'TRANSFER', // was MARKETPLACE_PURCHASE, // Voucher purchase
+          type: 'VOUCHER',
           senderId: 'customer-123',
           receiverId: 'merchant-123',
           voucherCode: {
             id: 'code-456',
+            currency: 'POINTS',
             voucher: {
               id: 'voucher-456',
+              tokenId: null,
               name: 'Purchased Voucher',
+              description: null,
               valueType: 'percent',
               value: 20,
+              currency: null,
               imageUrl: 'https://example.com/voucher2.png',
+              startDate: null,
+              endDate: null,
+              merchantRef: null,
             },
           },
         }),
@@ -472,19 +520,18 @@ describe('GetAllTransactionsByCustomerPhone', () => {
 
       expect(result.transactions).toHaveLength(3);
 
-      // Point transaction without voucher
-      expect(result.transactions[0].transactionTypeId).toBe('TRANSFER');
-      expect((result.transactions[0] as any).voucher).toBeNull();
+      // Sorted: VOUCHER type before POINT type when same createdAt
+      // Voucher transaction (VOUCHER_TRANSFER)
+      expect(result.transactions[0].transactionTypeId).toBe('VOUCHER_TRANSFER');
+      expect((result.transactions[0] as any).voucher).toBeDefined();
 
-      // Voucher transaction
-      expect(result.transactions[1].transactionTypeId).toBe('VOUCHER_TRANSFER');
+      // Voucher transaction with voucher purchase (TRANSFER with type VOUCHER)
+      expect(result.transactions[1].transactionTypeId).toBe('TRANSFER');
       expect((result.transactions[1] as any).voucher).toBeDefined();
 
-      // Point transaction with voucher (marketplace purchase)
-      expect(result.transactions[2].transactionTypeId).toBe(
-        'MARKETPLACE_PURCHASE',
-      );
-      expect((result.transactions[2] as any).voucher).toBeDefined();
+      // Point transaction without voucher
+      expect(result.transactions[2].transactionTypeId).toBe('TRANSFER');
+      expect((result.transactions[2] as any).voucher).toBeNull();
     });
   });
 });

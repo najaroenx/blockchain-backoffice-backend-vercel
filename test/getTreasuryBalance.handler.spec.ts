@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { GetTreasuryBalance } from '../src/modules/transaction/handlers/getTreasuryBalance.handler';
+import { GetTreasuryBalance } from '../src/modules/internal/transaction/handlers/getTreasuryBalance.handler';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
-import { GetPointById } from '../src/modules/point/handlers/getPointById.handler';
+import { GetPointById } from '../src/modules/internal/point/handlers/getPointById.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   NotFoundException,

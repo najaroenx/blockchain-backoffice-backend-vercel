@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CustomerDBService } from '../src/modules/customer/services/customer-db.service';
-import { CustomerRepository } from '../src/modules/customer/customer.repository';
+import { CustomerDBService } from '../src/modules/internal/customer/services/customer-db.service';
+import { CustomerRepository } from '../src/modules/internal/customer/customer.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { MockDataFactory, createMockPrismaClient } from './fixtures';
 

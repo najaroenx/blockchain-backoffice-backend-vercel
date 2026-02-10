@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { GetCustomerListDev } from '../src/modules/customer/handlers/getCustomerListDev.handler';
-import { CustomerDBService } from '../src/modules/customer/services/customer-db.service';
+import { GetCustomerListDev } from '../src/modules/internal/customer/handlers/getCustomerListDev.handler';
+import { CustomerDBService } from '../src/modules/internal/customer/services/customer-db.service';
 import { InternalServerErrorException } from '@nestjs/common';
 import { PageOptionsDto } from '../src/common/dtos';
 

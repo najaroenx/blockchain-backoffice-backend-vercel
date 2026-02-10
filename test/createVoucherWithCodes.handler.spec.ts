@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CreateVoucherWithCodes } from '../src/modules/voucher/handlers/createVoucherWithCodes.handler';
+import { CreateVoucherWithCodes } from '../src/modules/internal/voucher/handlers/createVoucherWithCodes.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import {
   ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { CreateVoucherDto } from '../src/modules/voucher/dtos/voucher.dto';
+import { CreateVoucherDto } from '../src/modules/internal/voucher/dtos/voucher.dto';
 import { VoucherValueType } from '@prisma/client';
 
 describe('CreateVoucherWithCodes', () => {

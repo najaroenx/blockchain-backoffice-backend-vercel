@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UpdatePoint } from '../src/modules/point/handlers/updatePoint.handler';
-import { PointDBService } from '../src/modules/point/services/point-db.service';
+import { UpdatePoint } from '../src/modules/internal/point/handlers/updatePoint.handler';
+import { PointDBService } from '../src/modules/internal/point/services/point-db.service';
 import {
   NotFoundException,
   InternalServerErrorException,

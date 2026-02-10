@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { GetTransactionsByCustomerId } from '../src/modules/transaction/handlers/getTransactionsByCustomerId.handler';
-import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
-import { GetCustomerPhone } from '../src/modules/customer/handlers/getCustomerByPhone.handler';
+import { GetTransactionsByCustomerId } from '../src/modules/internal/transaction/handlers/getTransactionsByCustomerId.handler';
+import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
+import { GetCustomerPhone } from '../src/modules/internal/customer/handlers/getCustomerByPhone.handler';
 import { InternalServerErrorException } from '@nestjs/common';
 import { TransactionTypeId } from '../src/constants/transaction-types.enum';
 

@@ -35,6 +35,7 @@ export const createMockPrismaClient = () => ({
     create: jest.fn(),
     createMany: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     deleteMany: jest.fn(),
     groupBy: jest.fn(),
     count: jest.fn(),

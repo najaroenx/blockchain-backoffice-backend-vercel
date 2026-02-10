@@ -1,18 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { VoucherController } from '../src/modules/voucher/controllers/voucher.controller';
-import { VoucherDBService } from '../src/modules/voucher/services/voucher-db.service';
+import { VoucherController } from '../src/modules/internal/voucher/controllers/voucher.controller';
+import { VoucherDBService } from '../src/modules/internal/voucher/services/voucher-db.service';
 import { VoucherStatus, VoucherValueType } from '@prisma/client';
-import { ManageCouponHandler } from '../src/modules/voucher/handlers/manageCoupon.handler';
-import { GetMarketplaceListings } from '../src/modules/voucher/handlers/getMarketplaceListings.handler';
-import { MerchantBuyCouponFromSeller } from '../src/modules/voucher/handlers/merchantBuyCouponFromSeller.handler';
-import { SellerListOnMarketplace } from '../src/modules/voucher/handlers/sellerListOnMarketplace.handler';
-import { GetSellerVouchers } from '../src/modules/voucher/handlers/getSellerVouchers.handler';
-import { AddToWhitelist } from '../src/modules/voucher/handlers/addToWhitelist.handler';
-import { GetVoucherByListingId } from '../src/modules/voucher/handlers/getVoucherByListingId.handler';
-import { GetVoucherByMerchantRef } from '../src/modules/voucher/handlers/getVoucherByMerchantRef.handler';
-import { BatchListOnMarketplaceHandler } from '../src/modules/voucher/handlers/batchListOnMarketplace.handler';
-import { GetSellerListingsHandler } from '../src/modules/voucher/handlers/getSellerListings.handler';
-import { GetListingBatchDetailHandler } from '../src/modules/voucher/handlers/getListingBatchDetail.handler';
+import { ManageCouponHandler } from '../src/modules/internal/voucher/handlers/manageCoupon.handler';
+import { GetMarketplaceListings } from '../src/modules/internal/voucher/handlers/getMarketplaceListings.handler';
+import { MerchantBuyCouponFromSeller } from '../src/modules/internal/voucher/handlers/merchantBuyCouponFromSeller.handler';
+import { SellerListOnMarketplace } from '../src/modules/internal/voucher/handlers/sellerListOnMarketplace.handler';
+import { GetSellerVouchers } from '../src/modules/internal/voucher/handlers/getSellerVouchers.handler';
+import { AddToWhitelist } from '../src/modules/internal/voucher/handlers/addToWhitelist.handler';
+import { GetVoucherByListingId } from '../src/modules/internal/voucher/handlers/getVoucherByListingId.handler';
+import { GetVoucherByMerchantRef } from '../src/modules/internal/voucher/handlers/getVoucherByMerchantRef.handler';
+import { BatchListOnMarketplaceHandler } from '../src/modules/internal/voucher/handlers/batchListOnMarketplace.handler';
+import { GetSellerListingsHandler } from '../src/modules/internal/voucher/handlers/getSellerListings.handler';
+import { GetListingBatchDetailHandler } from '../src/modules/internal/voucher/handlers/getListingBatchDetail.handler';
+import { GetMarketplaceListingsEndUser } from '../src/modules/internal/voucher/handlers/getMarketplaceListtingEnduser.handler';
+import { GetCouponById } from '../src/modules/internal/voucher/handlers/getCouponById.handler';
 
 describe('VoucherController', () => {
   let controller: VoucherController;
@@ -74,6 +76,14 @@ describe('VoucherController', () => {
     execute: jest.fn(),
   };
 
+  const mockGetMarketplaceListingsEndUser = {
+    execute: jest.fn(),
+  };
+
+  const mockGetCouponByIdHandler = {
+    execute: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [VoucherController],
@@ -125,6 +135,14 @@ describe('VoucherController', () => {
         {
           provide: GetListingBatchDetailHandler,
           useValue: mockGetListingBatchDetailHandler,
+        },
+        {
+          provide: GetMarketplaceListingsEndUser,
+          useValue: mockGetMarketplaceListingsEndUser,
+        },
+        {
+          provide: GetCouponById,
+          useValue: mockGetCouponByIdHandler,
         },
       ],
     }).compile();

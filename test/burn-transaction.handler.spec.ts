@@ -1,15 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BurnTransaction } from '../src/modules/transaction/handlers/burnTransaction.handler';
-import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
-import { GetPointById } from '../src/modules/point/handlers/getPointById.handler';
+import { BurnTransaction } from '../src/modules/internal/transaction/handlers/burnTransaction.handler';
+import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
+import { GetPointById } from '../src/modules/internal/point/handlers/getPointById.handler';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
-import { GetCustomerPhone } from '../src/modules/customer/handlers/getCustomerByPhone.handler';
-import { UpdateCustomer } from '../src/modules/customer/handlers/updateCustomer.handler';
+import { GetCustomerPhone } from '../src/modules/internal/customer/handlers/getCustomerByPhone.handler';
+import { UpdateCustomer } from '../src/modules/internal/customer/handlers/updateCustomer.handler';
 import { TokenService } from '../src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { InternalServerErrorException } from '@nestjs/common';
 import { TransactionTypeId } from '../src/constants/transaction-types.enum';
 import { ADDRESS_ZERO } from '../src/constants';
+
+jest.mock('src/libs/derive-wallet', () => ({
+  getSignerFromSeedPhrase: jest.fn().mockReturnValue({
+    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    address: '0x1234567890123456789012345678901234567890',
+  }),
+  deriveChildWallet: jest.fn(),
+}));
 
 describe('BurnTransaction', () => {
   let handler: BurnTransaction;
@@ -42,6 +50,8 @@ describe('BurnTransaction', () => {
       id: 'wallet-1',
       walletAddress: '0xCustomerWallet123',
       privateKey: 'encrypted-customer-key',
+      seedPhrase: 'encrypted-customer-seed-phrase',
+      derivationIndex: 0,
     },
     customerPoints: [
       {
@@ -201,11 +211,12 @@ describe('BurnTransaction', () => {
       );
       expect(tokenService.decryptKey).toHaveBeenCalledWith(
         mockSalt,
-        'encrypted-customer-key',
+        'encrypted-customer-seed-phrase',
       );
       expect(blockchainService.burn).toHaveBeenCalledWith({
         amount: 100,
-        senderPrivateKey: 'decrypted-private-key',
+        senderPrivateKey:
+          '0x1234567890123456789012345678901234567890123456789012345678901234',
         pointAddress: '0xPointContract123',
       });
       expect(transactionDBService.createTransaction).toHaveBeenCalled();
@@ -298,8 +309,11 @@ describe('BurnTransaction', () => {
           description: 'Burn tokens',
           merchant: { connect: { id: mockMerchantId } },
           point: { connect: { id: mockPointId } },
-          sender: { connect: { id: mockCustomer.id } },
+          senderId: mockCustomer.id,
+          senderType: 'CUSTOMER',
           transactionType: { connect: { id: TransactionTypeId.BURN } },
+          transactionRefId: expect.any(String),
+          type: 'POINT',
           txHash: expect.any(Uint8Array),
           senderAddress: expect.any(Buffer),
           receiverAddress: expect.any(Buffer),
@@ -581,7 +595,7 @@ describe('BurnTransaction', () => {
       // Assert
       expect(blockchainService.burn).toHaveBeenCalledWith({
         amount: 1,
-        senderPrivateKey: 'decrypted-private-key',
+        senderPrivateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
         pointAddress: '0xPointContract123',
       });
       expect(updateCustomer.execute).toHaveBeenCalledWith(mockCustomer.id, {

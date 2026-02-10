@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { GetPointTransactionsByCustomerPhone } from '../src/modules/transaction/handlers/getPointTransactionsByCustomerPhone.handler';
-import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
-import { CustomerDBService } from '../src/modules/customer/services/customer-db.service';
+import { GetPointTransactionsByCustomerPhone } from '../src/modules/internal/transaction/handlers/getPointTransactionsByCustomerPhone.handler';
+import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
+import { CustomerDBService } from '../src/modules/internal/customer/services/customer-db.service';
 import {
   createMockTransactionDBService,
   createMockCustomerDBService,
@@ -67,6 +67,7 @@ describe('GetPointTransactionsByCustomerPhone', () => {
           transactionTypeId: 'VOUCHER_TRANSFER', // Should be filtered out
           senderId: 'customer-123',
           receiverId: 'customer-456',
+          type: 'VOUCHER',
         }),
       ];
 
@@ -95,7 +96,8 @@ describe('GetPointTransactionsByCustomerPhone', () => {
       const mockTransactions = [
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-marketplace',
-          transactionTypeId: 'MARKETPLACE_PURCHASE',
+          transactionTypeId: 'TRANSFER',
+          type: 'VOUCHER',
           senderId: 'customer-123',
           receiverId: 'merchant-123',
           voucherCode: {
@@ -118,12 +120,8 @@ describe('GetPointTransactionsByCustomerPhone', () => {
 
       const result = await handler.execute(merchantId, phone);
 
-      expect(result.transactions).toHaveLength(1);
-      expect(result.transactions[0].transactionTypeId).toBe(
-        'MARKETPLACE_PURCHASE',
-      );
-      expect((result.transactions[0] as any).voucher).toBeDefined();
-      expect((result.transactions[0] as any).voucher.id).toBe('voucher-123');
+      // VOUCHER type transactions are filtered out by point handler
+      expect(result.transactions).toHaveLength(0);
     });
 
     it('should calculate direction correctly - SENT', async () => {
@@ -184,10 +182,12 @@ describe('GetPointTransactionsByCustomerPhone', () => {
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-2',
           transactionTypeId: 'VOUCHER_TRANSFER', // Filtered
+          type: 'VOUCHER',
         }),
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-3',
           transactionTypeId: 'REDEEM', // Filtered
+          type: 'VOUCHER',
         }),
         MockDataFactory.createMockTransactionWithRelations({
           id: 'tx-4',

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { GetSellerListingsHandler } from '../src/modules/voucher/handlers/getSellerListings.handler';
+import { GetSellerListingsHandler } from '../src/modules/internal/voucher/handlers/getSellerListings.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { MockDataFactory } from './fixtures/mock-data.factory';
 import { ListingBatchStatus } from '@prisma/client';

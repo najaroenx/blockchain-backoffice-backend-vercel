@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RedeemVoucher } from '../src/modules/voucher/handlers/redeemVoucher.handler';
+import { RedeemVoucher } from '../src/modules/internal/voucher/handlers/redeemVoucher.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import { TokenService } from '../src/providers/token/token.service';
@@ -12,6 +12,14 @@ import {
   createMockTokenService,
   createMockConfigService,
 } from './fixtures';
+
+jest.mock('src/libs/derive-wallet', () => ({
+  getSignerFromSeedPhrase: jest.fn().mockReturnValue({
+    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    address: '0x1234567890123456789012345678901234567890',
+  }),
+  deriveChildWallet: jest.fn(),
+}));
 
 describe('RedeemVoucher', () => {
   let handler: RedeemVoucher;
@@ -70,6 +78,8 @@ describe('RedeemVoucher', () => {
         tel: phone,
         wallet: {
           walletAddress: '0xCustomerAddress123',
+          seedPhrase: 'encrypted-customer-seed-phrase',
+          derivationIndex: 0,
           privateKey:
             'encrypted-0x1234567890123456789012345678901234567890123456789012345678901234',
         },

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ManageCouponHandler } from '../src/modules/voucher/handlers/manageCoupon.handler';
+import { ManageCouponHandler } from '../src/modules/internal/voucher/handlers/manageCoupon.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 

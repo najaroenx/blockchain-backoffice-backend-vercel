@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ActivateVoucher } from '../src/modules/voucher/handlers/activateVoucher.handler';
+import { ActivateVoucher } from '../src/modules/internal/voucher/handlers/activateVoucher.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import { TokenService } from '../src/providers/token/token.service';
@@ -12,6 +12,14 @@ import {
   createMockTokenService,
   createMockConfigService,
 } from './fixtures';
+
+jest.mock('src/libs/derive-wallet', () => ({
+  getSignerFromSeedPhrase: jest.fn().mockReturnValue({
+    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    address: '0x1234567890123456789012345678901234567890',
+  }),
+  deriveChildWallet: jest.fn(),
+}));
 
 describe('ActivateVoucher', () => {
   let handler: ActivateVoucher;
@@ -99,6 +107,8 @@ describe('ActivateVoucher', () => {
           id: 'wallet-123',
           walletAddress: '0x1234567890123456789012345678901234567890',
           privateKey: 'encrypted-key',
+          seedPhrase: 'encrypted-merchant-seed-phrase',
+          derivationIndex: 0,
           type: 'merchant',
           status: 'active',
         },
@@ -139,6 +149,14 @@ describe('ActivateVoucher', () => {
 
       prisma.voucherCode.count.mockResolvedValue(0); // Starting code count
       prisma.voucherCode.createMany.mockResolvedValue({ count: quantity });
+      prisma.voucherCode.updateMany.mockResolvedValue({ count: quantity });
+      prisma.listingBatch.create.mockResolvedValue({
+        id: 'listing-batch-1',
+        name: 'merchant listing',
+        status: 'ACTIVE',
+        totalItems: quantity,
+        soldItems: 0,
+      });
       prisma.voucher.update.mockResolvedValue({
         ...mockVoucher,
         status: 'active',
@@ -241,6 +259,8 @@ describe('ActivateVoucher', () => {
         wallet: {
           walletAddress: '0x1234567890123456789012345678901234567890',
           privateKey: 'encrypted-key',
+          seedPhrase: 'encrypted-merchant-seed-phrase',
+          derivationIndex: 0,
         },
       });
 
@@ -254,6 +274,14 @@ describe('ActivateVoucher', () => {
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
       prisma.voucherCode.count.mockResolvedValue(0);
       prisma.voucherCode.createMany.mockResolvedValue({ count: quantity });
+      prisma.voucherCode.updateMany.mockResolvedValue({ count: quantity });
+      prisma.listingBatch.create.mockResolvedValue({
+        id: 'listing-batch-1',
+        name: 'merchant listing',
+        status: 'ACTIVE',
+        totalItems: quantity,
+        soldItems: 0,
+      });
       prisma.voucher.update.mockResolvedValue({
         ...mockVoucher,
         status: 'active',
@@ -335,10 +363,21 @@ describe('ActivateVoucher', () => {
           wallet: {
             walletAddress: '0x1234567890123456789012345678901234567890',
             privateKey: 'encrypted-key',
+            seedPhrase: 'encrypted-merchant-seed-phrase',
+            derivationIndex: 0,
           },
         }),
       );
       prisma.voucherCode.count.mockResolvedValue(0);
+      prisma.voucherCode.createMany.mockResolvedValue({ count: quantity });
+      prisma.voucherCode.updateMany.mockResolvedValue({ count: quantity });
+      prisma.listingBatch.create.mockResolvedValue({
+        id: 'listing-batch-1',
+        name: 'merchant listing',
+        status: 'ACTIVE',
+        totalItems: quantity,
+        soldItems: 0,
+      });
 
       // Mock transaction to use same prisma mock
       prisma.$transaction.mockImplementation(async (callback) => {

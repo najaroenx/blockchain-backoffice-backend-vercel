@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MintTransaction } from '../src/modules/transaction/handlers/mintTransaction.handler';
-import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
-import { GetPointById } from '../src/modules/point/handlers/getPointById.handler';
+import { MintTransaction } from '../src/modules/internal/transaction/handlers/mintTransaction.handler';
+import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
+import { GetPointById } from '../src/modules/internal/point/handlers/getPointById.handler';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
-import { GetCustomerPhone } from '../src/modules/customer/handlers/getCustomerByPhone.handler';
-import { UpdateCustomer } from '../src/modules/customer/handlers/updateCustomer.handler';
+import { GetCustomerPhone } from '../src/modules/internal/customer/handlers/getCustomerByPhone.handler';
+import { UpdateCustomer } from '../src/modules/internal/customer/handlers/updateCustomer.handler';
 import { ConfigService } from '@nestjs/config';
 import { InternalServerErrorException } from '@nestjs/common';
 import { TransactionTypeId } from '../src/constants/transaction-types.enum';
@@ -344,8 +344,11 @@ describe('MintTransaction', () => {
           description: 'Mint tokens',
           merchant: { connect: { id: mockMerchantId } },
           point: { connect: { id: mockPointId } },
-          receiver: { connect: { id: mockCustomerWithPoints.id } },
+          receiverId: mockCustomerWithPoints.id,
+          receiverType: 'CUSTOMER',
           transactionType: { connect: { id: TransactionTypeId.MINT } },
+          transactionRefId: expect.any(String),
+          type: 'POINT',
           txHash: expect.any(Uint8Array),
           senderAddress: expect.any(Buffer),
           receiverAddress: expect.any(Uint8Array),

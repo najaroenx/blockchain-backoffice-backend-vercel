@@ -1,14 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CreateTransactionC2C } from '../src/modules/transaction/handlers/createTransactionC2C.handler';
-import { TransactionDBService } from '../src/modules/transaction/services/transaction-db.service';
-import { GetPointById } from '../src/modules/point/handlers/getPointById.handler';
+import { CreateTransactionC2C } from '../src/modules/internal/transaction/handlers/createTransactionC2C.handler';
+import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
+import { GetPointById } from '../src/modules/internal/point/handlers/getPointById.handler';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
-import { GetCustomerPhone } from '../src/modules/customer/handlers/getCustomerByPhone.handler';
-import { UpdateCustomer } from '../src/modules/customer/handlers/updateCustomer.handler';
+import { GetCustomerPhone } from '../src/modules/internal/customer/handlers/getCustomerByPhone.handler';
+import { UpdateCustomer } from '../src/modules/internal/customer/handlers/updateCustomer.handler';
 import { TokenService } from '../src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { InternalServerErrorException } from '@nestjs/common';
 import { TransactionTypeId } from '../src/constants/transaction-types.enum';
+
+jest.mock('src/libs/derive-wallet', () => ({
+  getSignerFromSeedPhrase: jest.fn().mockReturnValue({
+    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    address: '0x1234567890123456789012345678901234567890',
+  }),
+  deriveChildWallet: jest.fn(),
+}));
 
 describe('CreateTransactionC2C', () => {
   let handler: CreateTransactionC2C;
@@ -42,6 +50,8 @@ describe('CreateTransactionC2C', () => {
       id: 'wallet-sender-1',
       walletAddress: '0xSenderWallet123',
       privateKey: 'encrypted-sender-key',
+      seedPhrase: 'encrypted-sender-seed-phrase',
+      derivationIndex: 0,
     },
     customerPoints: [
       {
@@ -68,6 +78,8 @@ describe('CreateTransactionC2C', () => {
       id: 'wallet-receiver-1',
       walletAddress: '0xReceiverWallet456',
       privateKey: 'encrypted-receiver-key',
+      seedPhrase: 'encrypted-receiver-seed-phrase',
+      derivationIndex: 0,
     },
     customerPoints: [
       {
@@ -245,12 +257,13 @@ describe('CreateTransactionC2C', () => {
       );
       expect(tokenService.decryptKey).toHaveBeenCalledWith(
         mockSalt,
-        'encrypted-sender-key',
+        'encrypted-sender-seed-phrase',
       );
       expect(blockchainService.transactionC2C).toHaveBeenCalledWith({
         amount: 100,
         to: '0xReceiverWallet456',
-        senderPrivateKey: 'decrypted-private-key',
+        senderPrivateKey:
+          '0x1234567890123456789012345678901234567890123456789012345678901234',
         pointAddress: '0xPointContract123',
       });
       expect(transactionDBService.createTransaction).toHaveBeenCalled();
@@ -552,9 +565,13 @@ describe('CreateTransactionC2C', () => {
           amount: 100,
           merchant: { connect: { id: mockMerchantId } },
           point: { connect: { id: mockPointId } },
-          sender: { connect: { id: mockSenderCustomer.id } },
-          receiver: { connect: { id: mockReceiverCustomer.id } },
+          senderId: mockSenderCustomer.id,
+          senderType: 'CUSTOMER',
+          receiverId: mockReceiverCustomer.id,
+          receiverType: 'CUSTOMER',
           transactionType: { connect: { id: TransactionTypeId.TRANSFER } },
+          transactionRefId: expect.any(String),
+          type: 'POINT',
           txHash: expect.any(Uint8Array),
           senderAddress: expect.any(Buffer),
           receiverAddress: expect.any(Buffer),

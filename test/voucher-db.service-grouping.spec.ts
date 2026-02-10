@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { VoucherDBService } from '../src/modules/voucher/services/voucher-db.service';
-import { VoucherRepository } from '../src/modules/voucher/voucher.repository';
+import { VoucherDBService } from '../src/modules/internal/voucher/services/voucher-db.service';
+import { VoucherRepository } from '../src/modules/internal/voucher/voucher.repository';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateVoucherWithCodes } from '../src/modules/voucher/handlers/createVoucherWithCodes.handler';
-import { ActivateVoucher } from '../src/modules/voucher/handlers/activateVoucher.handler';
-import { RedeemVoucher } from '../src/modules/voucher/handlers/redeemVoucher.handler';
-import { BuyCouponFromMarketplace } from '../src/modules/voucher/handlers/buyCouponFromMarketplace.handler';
-import { GetCustomerOwnedVouchers } from '../src/modules/voucher/handlers/getCustomerOwnedVouchers.handler';
-import { GetVoucherById } from '../src/modules/voucher/handlers/getVoucherById.handler';
+import { CreateVoucherWithCodes } from '../src/modules/internal/voucher/handlers/createVoucherWithCodes.handler';
+import { ActivateVoucher } from '../src/modules/internal/voucher/handlers/activateVoucher.handler';
+import { RedeemVoucher } from '../src/modules/internal/voucher/handlers/redeemVoucher.handler';
+import { BuyCouponFromMarketplace } from '../src/modules/internal/voucher/handlers/buyCouponFromMarketplace.handler';
+import { GetCustomerOwnedVouchers } from '../src/modules/internal/voucher/handlers/getCustomerOwnedVouchers.handler';
+import { GetVoucherById } from '../src/modules/internal/voucher/handlers/getVoucherById.handler';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import { MockDataFactory, createMockPrismaClient } from './fixtures';
 
@@ -27,6 +27,7 @@ describe('VoucherDBService - Grouping Logic', () => {
     };
 
     prisma = createMockPrismaClient();
+    prisma.voucherCode.findMany.mockResolvedValue([]);
     getVoucherByIdHandler = { execute: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({

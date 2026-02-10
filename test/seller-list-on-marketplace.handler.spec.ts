@@ -1,10 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { SellerListOnMarketplace } from '../src/modules/voucher/handlers/sellerListOnMarketplace.handler';
+import { SellerListOnMarketplace } from '../src/modules/internal/voucher/handlers/sellerListOnMarketplace.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../src/providers/blockchain/blockchain.service';
 import { ConfigService } from '@nestjs/config';
+import { TokenService } from '../src/providers/token/token.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MockDataFactory } from './fixtures/mock-data.factory';
+
+jest.mock('src/libs/derive-wallet', () => ({
+  getSignerFromSeedPhrase: jest.fn().mockReturnValue({
+    privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+    address: '0x1234567890123456789012345678901234567890',
+  }),
+  deriveChildWallet: jest.fn(),
+}));
 
 describe('SellerListOnMarketplace', () => {
   let handler: SellerListOnMarketplace;
@@ -30,6 +39,7 @@ describe('SellerListOnMarketplace', () => {
     const mockPrismaService = {
       voucher: {
         findUnique: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
       },
       wallet: {
         findFirst: jest.fn(),
@@ -62,6 +72,7 @@ describe('SellerListOnMarketplace', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: BlockchainService, useValue: mockBlockchainService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: TokenService, useValue: { decryptKey: jest.fn().mockReturnValue('decrypted-seed-phrase'), encryptKey: jest.fn() } },
       ],
     }).compile();
 
@@ -177,11 +188,11 @@ describe('SellerListOnMarketplace', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException when seller wallet has no private key', async () => {
+    it('should throw BadRequestException when seller wallet has no seed phrase', async () => {
       prismaService.voucher.findUnique.mockResolvedValue(mockVoucher);
       prismaService.wallet.findFirst.mockResolvedValue({
         ...mockSellerWallet,
-        privateKey: null,
+        seedPhrase: null,
       });
 
       await expect(

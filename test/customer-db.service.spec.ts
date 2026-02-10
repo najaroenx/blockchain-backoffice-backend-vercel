@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CustomerDBService } from '../src/modules/customer/services/customer-db.service';
-import { CustomerRepository } from '../src/modules/customer/customer.repository';
+import { CustomerDBService } from '../src/modules/internal/customer/services/customer-db.service';
+import { CustomerRepository } from '../src/modules/internal/customer/customer.repository';
+import { PrismaService } from '../prisma/prisma.service';
 import { Customer, CustomerPoint, Point, Prisma } from '@prisma/client';
 import { PageOptionsDto } from '../src/common/dtos';
 
 describe('CustomerDBService', () => {
   let service: CustomerDBService;
   let repository: jest.Mocked<CustomerRepository>;
+  let prisma: any;
 
   const mockCustomer: Customer = {
     id: 'customer-1',
@@ -71,11 +73,16 @@ describe('CustomerDBService', () => {
           provide: CustomerRepository,
           useValue: mockRepository,
         },
+        {
+          provide: PrismaService,
+          useValue: { customer: { findFirst: jest.fn(), findUnique: jest.fn() }, voucherCode: { findMany: jest.fn().mockResolvedValue([]) }, $queryRaw: jest.fn() },
+        },
       ],
     }).compile();
 
     service = module.get<CustomerDBService>(CustomerDBService);
     repository = module.get(CustomerRepository);
+    prisma = module.get(PrismaService);
   });
 
   afterEach(() => {
@@ -408,11 +415,6 @@ describe('CustomerDBService', () => {
               customer: {
                 tel: '0812345678',
               },
-              point: {
-                merchant: {
-                  id: 'merchant-1',
-                },
-              },
             },
             select: {
               balances: true,
@@ -427,37 +429,6 @@ describe('CustomerDBService', () => {
                   imageUrl: true,
                 },
               },
-            },
-          },
-          ownedVouchers: {
-            select: {
-              id: true,
-              code: true,
-              voucherId: true,
-              pointsCost: true,
-              currency: true,
-              isUsed: true,
-              usedAt: true,
-              voucherGroupId: true,
-              createdAt: true,
-              voucher: {
-                select: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  imageUrl: true,
-                  value: true,
-                  valueType: true,
-                  status: true,
-                  startDate: true,
-                  endDate: true,
-                  merchantRef: true,
-                  merchantId: true,
-                },
-              },
-            },
-            orderBy: {
-              createdAt: 'desc',
             },
           },
         },
@@ -481,23 +452,25 @@ describe('CustomerDBService', () => {
         wallet: mockWallet,
         customerPoints: [],
         customerMerChant: [],
-        ownedVouchers: [
-          {
-            id: 'vc-1',
-            voucherId: 'voucher-1',
-            customerId: 'customer-1',
-            code: 'VOUCHER123',
-            isUsed: false,
-            usedAt: null,
-            expiresAt: new Date(Date.now() + 86400000),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            isDeactivated: false,
-          },
-        ],
       };
 
       repository.findFirst.mockResolvedValue(customerWithVouchers);
+
+      // Override voucherCode.findMany to return voucher codes for this test
+      prisma.voucherCode.findMany.mockResolvedValue([
+        {
+          id: 'vc-1',
+          voucherId: 'voucher-1',
+          customerId: 'customer-1',
+          code: 'VOUCHER123',
+          isUsed: false,
+          usedAt: null,
+          expiresAt: new Date(Date.now() + 86400000),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isDeactivated: false,
+        },
+      ]);
 
       const result = await service.getCustomersByPhone(
         'merchant-1',

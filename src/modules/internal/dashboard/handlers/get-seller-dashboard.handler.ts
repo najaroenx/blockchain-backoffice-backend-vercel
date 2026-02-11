@@ -4,9 +4,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
-import { AssetType } from '@prisma/client';
 import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
   SellerDashboardResponse,
@@ -42,6 +42,32 @@ export class GetSellerDashboardHandler {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  // =====================================================
+  // Shared: Wallet lookup (2 DB calls → 1 raw SQL)
+  // =====================================================
+  /**
+   * Find seller wallet address from merchant ID using a single SQL JOIN
+   * Replaces: 1) wallet.findFirst(merchant) + 2) wallet.findFirst(seller)
+   */
+  private async findSellerWalletAddress(
+    merchantId: string,
+  ): Promise<string | null> {
+    const result = await this.prisma.$queryRaw<
+      [{ sellerWalletAddress: string }?]
+    >`
+      SELECT sw."walletAddress" AS "sellerWalletAddress"
+      FROM "Wallet" mw
+      JOIN "Merchant" m ON m."walletId" = mw.id
+      JOIN "Wallet" sw ON sw."phoneNumber" = mw."phoneNumber"
+        AND sw."derivationIndex" = mw."derivationIndex" + 1
+        AND sw.type = 'seller'
+      WHERE m.id = ${merchantId}
+      LIMIT 1
+    `;
+
+    return result[0]?.sellerWalletAddress?.toLowerCase() ?? null;
+  }
+
   async execute(
     merchantId: string,
     query: DashboardQueryDto,
@@ -54,123 +80,73 @@ export class GetSellerDashboardHandler {
       const dateRange = this.parseDateRange(query);
 
       // =====================================================
-      // Step 1: หา Seller Wallet จาก Merchant ID
+      // Step 1: หา Seller Wallet จาก Merchant ID (1 DB call instead of 2)
       // =====================================================
-      // Seller wallet มี derivationIndex = merchantWallet.derivationIndex + 1
-      // และใช้ phoneNumber เดียวกัน, type = 'seller'
-      const merchantWallet = await this.prisma.wallet.findFirst({
-        where: {
-          merchant: { id: merchantId },
-        },
-        select: {
-          phoneNumber: true,
-          derivationIndex: true,
-        },
-      });
+      const sellerWalletAddress =
+        await this.findSellerWalletAddress(merchantId);
 
-      if (!merchantWallet) {
-        this.logger.log(`[INFO] Merchant wallet not found for ${merchantId}`);
-        return { dateRange, ...this.getEmptyResponse() };
-      }
-
-      // Find seller wallet (derivationIndex + 1, same phoneNumber)
-      const sellerWallet = await this.prisma.wallet.findFirst({
-        where: {
-          phoneNumber: merchantWallet.phoneNumber,
-          derivationIndex: merchantWallet.derivationIndex + 1,
-          type: 'seller',
-        },
-        select: {
-          walletAddress: true,
-        },
-      });
-
-      if (!sellerWallet) {
+      if (!sellerWalletAddress) {
         this.logger.log(
           `[INFO] Seller wallet not found for merchant ${merchantId}`,
         );
         return { dateRange, ...this.getEmptyResponse() };
       }
 
-      const sellerWalletAddress = sellerWallet.walletAddress.toLowerCase();
       this.logger.log(`[INFO] Found seller wallet: ${sellerWalletAddress}`);
 
-      // Debug: Check all ListingBatches in DB
-      const allListingBatches = await this.prisma.listingBatch.findMany({
-        select: { id: true, sellerWalletAddress: true },
-      });
-      this.logger.log(
-        `[DEBUG] Sample ListingBatches in DB: ${JSON.stringify(allListingBatches)}`,
-      );
-
       // =====================================================
-      // Step 2: ดึง VoucherCode ทั้งหมดของ Seller
+      // Step 2: ดึง VoucherCode + Voucher metadata ทั้งหมดด้วย CTE (was 3 queries, now 1)
       // =====================================================
-      // ใช้ 2 strategies:
-      // - Strategy 1: Vouchers ที่ seller สร้างเอง (sellerMerchantId = merchantId)
-      // - Strategy 2: VoucherCodes ที่ seller list บน marketplace (ListingBatch)
+      // CTE combines: voucher.findMany + listingBatch.findMany + voucherCode.findMany
+      const allVoucherCodes = await this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          voucherId: string;
+          thbPrice: number | null;
+          isUsed: boolean;
+          listingBatchId: string | null;
+          currentOwnerId: string | null;
+          currentOwnerType: string | null;
+          voucherThbPurchasePrice: number | null;
+        }>
+      >`
+        WITH seller_vouchers AS (
+          SELECT id, "totalIssued", "thbPurchasePrice"
+          FROM "Voucher"
+          WHERE "sellerMerchantId" = ${merchantId}
+        ),
+        seller_batches AS (
+          SELECT id
+          FROM "ListingBatch"
+          WHERE lower("sellerWalletAddress") = ${sellerWalletAddress}
+        )
+        SELECT
+          vc.id,
+          vc."voucherId",
+          vc."thbPrice",
+          vc."isUsed",
+          vc."listingBatchId",
+          vc."currentOwnerId",
+          vc."currentOwnerType",
+          v."thbPurchasePrice" AS "voucherThbPurchasePrice"
+        FROM "VoucherCode" vc
+        JOIN "Voucher" v ON vc."voucherId" = v.id
+        WHERE vc."voucherId" IN (SELECT id FROM seller_vouchers)
+           OR vc."listingBatchId" IN (SELECT id FROM seller_batches)
+      `;
 
-      // Strategy 1: ดึง Vouchers ที่ seller สร้าง พร้อม totalIssued และ thbPurchasePrice
-      // - totalIssued: จำนวน voucher ที่ตั้งไว้ตอนสร้าง (ใช้คำนวณ not-listed)
-      // - thbPurchasePrice: ราคา THB ต่อ unit (ใช้คำนวณ value)
-      const vouchersFromSeller = await this.prisma.voucher.findMany({
-        where: { sellerMerchantId: merchantId },
-        select: { id: true, totalIssued: true, thbPurchasePrice: true },
-      });
-      const voucherIdsFromSeller = vouchersFromSeller.map((v) => v.id);
-      this.logger.log(
-        `[DEBUG] Vouchers with sellerMerchantId: ${voucherIdsFromSeller.length}`,
-      );
-
-      // Strategy 2: ดึง ListingBatches ที่ seller list บน marketplace
-      // ใช้ sellerWalletAddress เป็นตัวระบุว่า seller คนไหน list
-      const listingBatches = await this.prisma.listingBatch.findMany({
-        where: {
-          sellerWalletAddress: {
-            equals: sellerWalletAddress,
-            mode: 'insensitive',
-          },
-        },
-        select: { id: true },
-      });
-      const listingBatchIds = listingBatches.map((lb) => lb.id);
-      this.logger.log(
-        `[DEBUG] ListingBatches from seller: ${listingBatchIds.length}`,
-      );
-
-      // รวม VoucherCodes จากทั้ง 2 strategies
-      // - voucherId: ใช้นับจำนวน codes ที่สร้างแล้วต่อ voucher (สำหรับคำนวณ not-listed)
-      // - currentOwnerId: ใช้เช็คว่ามีคนซื้อหรือยัง (null = seller ยังเป็นเจ้าของ)
-      // - thbPrice: ราคาที่ list บน marketplace
-      // - voucher.thbPurchasePrice: ราคา fallback ถ้าไม่มี thbPrice
-      const allVoucherCodes = await this.prisma.voucherCode.findMany({
-        where: {
-          OR: [
-            // Codes from vouchers created by seller
-            ...(voucherIdsFromSeller.length > 0
-              ? [{ voucherId: { in: voucherIdsFromSeller } }]
-              : []),
-            // Codes listed by seller on marketplace
-            ...(listingBatchIds.length > 0
-              ? [{ listingBatchId: { in: listingBatchIds } }]
-              : []),
-          ],
-        },
-        select: {
-          id: true,
-          voucherId: true,
-          thbPrice: true,
-          isUsed: true,
-          listingBatchId: true,
-          currentOwnerId: true,
-          currentOwnerType: true,
-          voucher: {
-            select: {
-              thbPurchasePrice: true,
-            },
-          },
-        },
-      });
+      // Get voucher metadata for not-listed calculation (totalIssued)
+      const vouchersFromSeller = await this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          totalIssued: number;
+          thbPurchasePrice: number | null;
+        }>
+      >`
+        SELECT id, "totalIssued", "thbPurchasePrice"
+        FROM "Voucher"
+        WHERE "sellerMerchantId" = ${merchantId}
+      `;
 
       this.logger.log(
         `[DEBUG] Total voucher codes found: ${allVoucherCodes.length}`,
@@ -187,45 +163,49 @@ export class GetSellerDashboardHandler {
         return { dateRange, ...this.getEmptyResponse() };
       }
 
-      // Separate unsold (no listingBatchId) and sold (has listingBatchId)
+      // Get sold code IDs for THB_BUY lookup
       const soldCodes = allVoucherCodes.filter((vc) => vc.listingBatchId);
       const soldCodeIds = soldCodes.map((vc) => vc.id);
 
       // =====================================================
-      // Step 3: หา THB_BUY transactions เพื่อระบุว่า Marketer ซื้อ code ไหน
+      // Step 3: หา THB_BUY transactions (1 DB call)
       // =====================================================
-      // THB_BUY = transaction ที่ Marketer ซื้อ coupon จาก Seller
-      // ใช้ระบุว่า code ไหนถูก "reserved" โดย Marketer คนไหน
-      const thbBuyTransactions = await this.prisma.transaction.findMany({
-        where: {
-          transactionTypeId: TransactionTypeId.THB_BUY,
-          type: AssetType.THB_TOKEN,
-          voucherCodeId: { in: soldCodeIds },
-        },
-        select: {
-          merchantId: true,
-          voucherCodeId: true,
-          amount: true,
-        },
-      });
-
-      // สร้าง Map: voucherCodeId -> merchantId (Marketer ที่ซื้อไป)
-      // ใช้สำหรับ:
-      // 1. นับจำนวน reserved codes
-      // 2. แยก breakdown ตาม Marketer
       const reservedCodeMap = new Map<string, string>();
-      for (const tx of thbBuyTransactions) {
-        if (tx.voucherCodeId && tx.merchantId) {
+      if (soldCodeIds.length > 0) {
+        const thbBuyTransactions = await this.prisma.$queryRaw<
+          Array<{ merchantId: string; voucherCodeId: string }>
+        >`
+          SELECT "merchantId", "voucherCodeId"
+          FROM "Transaction"
+          WHERE "transactionTypeId" = ${TransactionTypeId.THB_BUY}
+            AND type = 'THB_TOKEN'::"AssetType"
+            AND "voucherCodeId" IN (${Prisma.join(soldCodeIds)})
+            AND "merchantId" IS NOT NULL
+            AND "voucherCodeId" IS NOT NULL
+        `;
+
+        for (const tx of thbBuyTransactions) {
           reservedCodeMap.set(tx.voucherCodeId, tx.merchantId);
         }
       }
 
       // =====================================================
-      // Step 5: คำนวณสถิติ
+      // Step 4: คำนวณสถิติ (in-memory, same logic as before)
       // =====================================================
-      // overallSummary: สรุปภาพรวม (total, unsold, sold, reserved, unredeemed, redeemed)
+      // Map raw SQL rows to the format expected by calculateOverallSummary
+      const mappedCodes = allVoucherCodes.map((vc) => ({
+        id: vc.id,
+        voucherId: vc.voucherId,
+        thbPrice: vc.thbPrice,
+        isUsed: vc.isUsed,
+        listingBatchId: vc.listingBatchId,
+        currentOwnerId: vc.currentOwnerId,
+        currentOwnerType: vc.currentOwnerType,
+        voucher: { thbPurchasePrice: vc.voucherThbPurchasePrice },
+      }));
+
       const overallSummary = this.calculateOverallSummary(
-        allVoucherCodes,
+        mappedCodes,
         reservedCodeMap,
         vouchersFromSeller,
       );
@@ -569,9 +549,7 @@ export class GetSellerDashboardHandler {
       ...new Set(
         thbBuyTransactions
           .map((tx) => tx.voucherCode)
-          .filter(
-            (vc) => vc?.voucher?.sellerMerchantId === sellerMerchantId,
-          )
+          .filter((vc) => vc?.voucher?.sellerMerchantId === sellerMerchantId)
           .map((vc) => vc!.voucherId)
           .filter((id): id is string => !!id),
       ),
@@ -599,7 +577,7 @@ export class GetSellerDashboardHandler {
 
   /**
    * Get merchants (marketers) breakdown for seller
-   * Returns list of merchants that bought coupons from this seller
+   * Optimized: 7 DB calls → 3 (wallet lookup + codes/txns + merchant names)
    * @param couponIds - Optional filter by specific voucher IDs
    */
   async getMerchants(
@@ -610,118 +588,102 @@ export class GetSellerDashboardHandler {
       `[START] Getting merchants breakdown for seller: ${merchantId}`,
     );
 
-    // Step 1: Find seller wallet
-    const merchantWallet = await this.prisma.wallet.findFirst({
-      where: { merchant: { id: merchantId } },
-      select: { phoneNumber: true, derivationIndex: true },
-    });
+    // Step 1: Find seller wallet (1 DB call instead of 2)
+    const sellerWalletAddress = await this.findSellerWalletAddress(merchantId);
 
-    if (!merchantWallet) {
-      this.logger.log(`[INFO] Merchant wallet not found for ${merchantId}`);
-      return { merchants: [] };
-    }
-
-    const sellerWallet = await this.prisma.wallet.findFirst({
-      where: {
-        phoneNumber: merchantWallet.phoneNumber,
-        derivationIndex: merchantWallet.derivationIndex + 1,
-        type: 'seller',
-      },
-      select: { walletAddress: true },
-    });
-
-    if (!sellerWallet) {
+    if (!sellerWalletAddress) {
       this.logger.log(`[INFO] Seller wallet not found for ${merchantId}`);
       return { merchants: [] };
     }
 
-    const sellerWalletAddress = sellerWallet.walletAddress.toLowerCase();
+    const hasCouponFilter = couponIds && couponIds.length > 0;
 
-    // Build couponIds filter
-    const couponIdsFilter =
-      couponIds && couponIds.length > 0 ? { id: { in: couponIds } } : {};
-    const voucherCodeCouponFilter =
-      couponIds && couponIds.length > 0 ? { voucherId: { in: couponIds } } : {};
+    // Step 2: Get sold voucher codes + THB_BUY merchant mapping in 1 query (was 5 queries)
+    // CTE: seller_vouchers → seller_batches → sold codes → join THB_BUY transactions
+    const soldCodesWithMerchant = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        voucherId: string;
+        thbPrice: number | null;
+        isUsed: boolean;
+        listingBatchId: string | null;
+        currentOwnerId: string | null;
+        currentOwnerType: string | null;
+        voucherThbPurchasePrice: number | null;
+        buyerMerchantId: string | null;
+      }>
+    >`
+      WITH seller_vouchers AS (
+        SELECT id
+        FROM "Voucher"
+        WHERE "sellerMerchantId" = ${merchantId}
+          ${hasCouponFilter ? Prisma.sql`AND id IN (${Prisma.join(couponIds!)})` : Prisma.empty}
+      ),
+      seller_batches AS (
+        SELECT id
+        FROM "ListingBatch"
+        WHERE lower("sellerWalletAddress") = ${sellerWalletAddress}
+      ),
+      sold_codes AS (
+        SELECT
+          vc.id, vc."voucherId", vc."thbPrice", vc."isUsed",
+          vc."listingBatchId", vc."currentOwnerId", vc."currentOwnerType",
+          v."thbPurchasePrice" AS "voucherThbPurchasePrice"
+        FROM "VoucherCode" vc
+        JOIN "Voucher" v ON vc."voucherId" = v.id
+        WHERE vc."listingBatchId" IS NOT NULL
+          ${hasCouponFilter ? Prisma.sql`AND vc."voucherId" IN (${Prisma.join(couponIds!)})` : Prisma.empty}
+          AND (
+            vc."voucherId" IN (SELECT id FROM seller_vouchers)
+            OR vc."listingBatchId" IN (SELECT id FROM seller_batches)
+          )
+      )
+      SELECT
+        sc.*,
+        t."merchantId" AS "buyerMerchantId"
+      FROM sold_codes sc
+      LEFT JOIN "Transaction" t ON t."voucherCodeId" = sc.id
+        AND t."transactionTypeId" = ${TransactionTypeId.THB_BUY}
+        AND t.type = 'THB_TOKEN'::"AssetType"
+    `;
 
-    // Step 2: Get vouchers from seller (with optional coupon filter)
-    const vouchersFromSeller = await this.prisma.voucher.findMany({
-      where: { sellerMerchantId: merchantId, ...couponIdsFilter },
-      select: { id: true },
-    });
-    const voucherIdsFromSeller = vouchersFromSeller.map((v) => v.id);
-
-    // Get listing batches from seller
-    const listingBatches = await this.prisma.listingBatch.findMany({
-      where: {
-        sellerWalletAddress: {
-          equals: sellerWalletAddress,
-          mode: 'insensitive',
-        },
-      },
-      select: { id: true },
-    });
-    const listingBatchIds = listingBatches.map((lb) => lb.id);
-
-    // Step 3: Get voucher codes (sold ones with listingBatchId)
-    const soldCodes = await this.prisma.voucherCode.findMany({
-      where: {
-        ...voucherCodeCouponFilter,
-        listingBatchId: { not: null },
-        OR: [
-          ...(voucherIdsFromSeller.length > 0
-            ? [{ voucherId: { in: voucherIdsFromSeller } }]
-            : []),
-          ...(listingBatchIds.length > 0
-            ? [{ listingBatchId: { in: listingBatchIds } }]
-            : []),
-        ],
-      },
-      select: {
-        id: true,
-        voucherId: true,
-        thbPrice: true,
-        isUsed: true,
-        listingBatchId: true,
-        currentOwnerId: true,
-        currentOwnerType: true,
-        voucher: { select: { thbPurchasePrice: true } },
-      },
-    });
-
-    if (soldCodes.length === 0) {
+    if (soldCodesWithMerchant.length === 0) {
       return { merchants: [] };
     }
 
-    const soldCodeIds = soldCodes.map((vc) => vc.id);
-
-    // Step 4: Get THB_BUY transactions to map codes to merchants
-    const thbBuyTransactions = await this.prisma.transaction.findMany({
-      where: {
-        transactionTypeId: TransactionTypeId.THB_BUY,
-        type: AssetType.THB_TOKEN,
-        voucherCodeId: { in: soldCodeIds },
-      },
-      select: { merchantId: true, voucherCodeId: true },
-    });
-
+    // Build reservedCodeMap from the joined data
     const reservedCodeMap = new Map<string, string>();
-    for (const tx of thbBuyTransactions) {
-      if (tx.voucherCodeId && tx.merchantId) {
-        reservedCodeMap.set(tx.voucherCodeId, tx.merchantId);
+    for (const row of soldCodesWithMerchant) {
+      if (row.buyerMerchantId && row.id) {
+        reservedCodeMap.set(row.id, row.buyerMerchantId);
       }
     }
 
-    // Step 5: Get merchant info
+    // Step 3: Get merchant names (1 DB call)
     const merchantIds = [...new Set(reservedCodeMap.values())];
+
+    if (merchantIds.length === 0) {
+      return { merchants: [] };
+    }
+
     const merchants = await this.prisma.merchant.findMany({
       where: { id: { in: merchantIds } },
       select: { id: true, name: true },
     });
     const merchantMap = new Map(merchants.map((m) => [m.id, m.name]));
 
-    // Step 6: Calculate merchant breakdown
+    // Map raw SQL rows to the format expected by calculateMerchantBreakdown
+    const mappedCodes = soldCodesWithMerchant.map((vc) => ({
+      id: vc.id,
+      thbPrice: vc.thbPrice,
+      isUsed: vc.isUsed,
+      listingBatchId: vc.listingBatchId,
+      voucher: { thbPurchasePrice: vc.voucherThbPurchasePrice },
+    }));
+
+    // Step 4: Calculate merchant breakdown (in-memory)
     const merchantBreakdown = this.calculateMerchantBreakdown(
-      soldCodes,
+      mappedCodes,
       reservedCodeMap,
       merchantMap,
     );

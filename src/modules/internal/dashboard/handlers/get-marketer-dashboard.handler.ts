@@ -16,7 +16,7 @@ import {
 import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
-import { ParticipantType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class GetMarketerDashboardHandler {
@@ -50,19 +50,12 @@ export class GetMarketerDashboardHandler {
       const dateRange = this.parseDateRange(query);
 
       // Execute all queries in parallel (All Time - no date filtering)
-      const [
-        voucherStats,
-        endUserStats,
-        transactionStats,
-        pointsData,
-        thbStats,
-      ] = await Promise.all([
-        this.getVoucherStats(merchantId, query.couponIds),
-        this.getEndUserStats(merchantId),
-        this.getTransactionStats(merchantId),
-        this.getPointsData(merchantId),
-        this.getThbStats(merchantId),
-      ]);
+      const [couponAndEndUserStats, transactionAndThbStats, pointsData] =
+        await Promise.all([
+          this.getCouponAndEndUserStats(merchantId, query.couponIds),
+          this.getTransactionAndThbStats(merchantId),
+          this.getPointsData(merchantId),
+        ]);
 
       this.logger.log(
         `[SUCCESS] Marketer dashboard retrieved for merchant: ${merchantId}`,
@@ -70,48 +63,14 @@ export class GetMarketerDashboardHandler {
 
       return {
         dateRange,
-        couponCount: voucherStats.couponCount,
-        couponValue: voucherStats.couponValue,
-        couponValueByCurrency: voucherStats.couponValueByCurrency,
-        endUsers: endUserStats,
-        transactions: transactionStats,
+        couponCount: couponAndEndUserStats.couponCount,
+        couponValue: couponAndEndUserStats.couponValue,
+        couponValueByCurrency: couponAndEndUserStats.couponValueByCurrency,
+        endUsers: couponAndEndUserStats.endUsers,
+        transactions: transactionAndThbStats.transactions,
         points: pointsData,
-        thbToken: thbStats,
+        thbToken: transactionAndThbStats.thbToken,
       };
-      // return {
-      //   dateRange,
-      //   couponCount: {
-      //     purchased: 0,
-      //     soldToEndUser: 0,
-      //     unredeemed: 0,
-      //     redeemed: 0,
-      //   },
-      //   couponValue: {
-      //     total: 0,
-      //     sold: 0,
-      //     unredeemed: 0,
-      //     redeemed: 0,
-      //   },
-      //   couponValueByCurrency: [],
-      //   endUsers: {
-      //     buyers: 0,
-      //     unredeemedUsers: 0,
-      //     redeemedUsers: 0,
-      //   },
-      //   transactions: {
-      //     transferPoint: 0,
-      //     purchaseCoupon: 0,
-      //   },
-      //   points: [
-      //     { total: 10000, types: 'Reward Points' },
-      //     { total: 5000, types: 'Bonus Points' },
-      //     { total: 2500, types: 'Loyalty Points' },
-      //   ],
-      //   thbToken: {
-      //     deposited: 0,
-      //     usedForPromotion: 0,
-      //   },
-      // };
     } catch (error) {
       this.logger.error(
         `[ERROR] Failed to get marketer dashboard: ${error.message}`,
@@ -141,104 +100,114 @@ export class GetMarketerDashboardHandler {
   }
 
   /**
-   * Get voucher statistics for the merchant (All Time)
-   * - couponCount: นับจาก VoucherCode status (เฉพาะที่ซื้อจาก seller จริงๆ)
-   * - couponValue: รวม amount จาก ListingBatch.totalValue/totalItems
-   *
-   * Logic: นับเฉพาะ codes ที่มี THB_BUY transaction เพื่อยืนยันว่าซื้อมาจริง
-   * ไม่ว่า seller จะเป็นตัวเองหรือคนอื่นก็ตาม
+   * Get coupon and end user statistics in a single CTE-based query (All Time)
+   * Replaces getVoucherStats + getEndUserStats (7 DB calls → 1)
    * @param couponIds - Optional filter by specific voucher IDs (coupon IDs)
    */
-  private async getVoucherStats(
+  private async getCouponAndEndUserStats(
     merchantId: string,
     couponIds?: string[],
   ): Promise<{
     couponCount: MarketerDashboardResponse['couponCount'];
     couponValue: MarketerDashboardResponse['couponValue'];
     couponValueByCurrency: MarketerDashboardResponse['couponValueByCurrency'];
+    endUsers: MarketerDashboardResponse['endUsers'];
   }> {
-    // Step 1: Get all THB_BUY transactions for this merchant to identify actually purchased codes
-    const thbBuyTransactions = await this.prisma.transaction.findMany({
-      where: {
-        merchantId,
-        transactionTypeId: TransactionTypeId.THB_BUY,
-        voucherCodeId: { not: null },
-      },
-      select: {
-        voucherCodeId: true,
-        amount: true,
-      },
-    });
+    // Single CTE-based query to get all voucher codes with relationships + THB_BUY amounts
+    const allCodes = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        pointsCost: number | null;
+        pointId: string | null;
+        currency: string | null;
+        currentOwnerId: string | null;
+        currentOwnerType: string | null;
+        isUsed: boolean;
+        listingBatchId: string | null;
+        voucherId: string;
+        voucherMerchantId: string | null;
+        thbPurchasePrice: number | null;
+        pointSymbol: string | null;
+        batchTotalValue: number | null;
+        batchTotalItems: number | null;
+        thbBuyAmount: number | null;
+      }>
+    >`
+      WITH thb_buy AS (
+        SELECT "voucherCodeId", "amount"
+        FROM "Transaction"
+        WHERE "merchantId" = ${merchantId}
+          AND "transactionTypeId" = ${TransactionTypeId.THB_BUY}
+          AND "voucherCodeId" IS NOT NULL
+      ),
+      owned_voucher_ids AS (
+        SELECT "id" FROM "Voucher" WHERE "merchantId" = ${merchantId}
+      )
+      SELECT
+        vc."id",
+        vc."pointsCost",
+        vc."pointId",
+        vc."currency",
+        vc."currentOwnerId",
+        vc."currentOwnerType"::text as "currentOwnerType",
+        vc."isUsed",
+        vc."listingBatchId",
+        vc."voucherId",
+        v."merchantId" as "voucherMerchantId",
+        v."thbPurchasePrice",
+        p."symbol" as "pointSymbol",
+        lb."totalValue" as "batchTotalValue",
+        lb."totalItems" as "batchTotalItems",
+        tb."amount" as "thbBuyAmount"
+      FROM "VoucherCode" vc
+      JOIN "Voucher" v ON vc."voucherId" = v."id"
+      LEFT JOIN "Point" p ON vc."pointId" = p."id"
+      LEFT JOIN "ListingBatch" lb ON vc."listingBatchId" = lb."id"
+      LEFT JOIN thb_buy tb ON vc."id" = tb."voucherCodeId"
+      WHERE (
+        vc."voucherId" IN (SELECT "id" FROM owned_voucher_ids)
+        OR (vc."currentOwnerId" = ${merchantId} AND vc."currentOwnerType" = 'MERCHANT'::"ParticipantType")
+        OR vc."id" IN (SELECT "voucherCodeId" FROM thb_buy)
+      )
+    `;
 
-    // Create set of voucherCodeIds that were actually purchased with THB
-    const purchasedCodeIds = new Set<string>();
-    const codeIdToPurchaseAmount = new Map<string, number>();
-    for (const tx of thbBuyTransactions) {
-      if (tx.voucherCodeId) {
-        purchasedCodeIds.add(tx.voucherCodeId);
-        codeIdToPurchaseAmount.set(tx.voucherCodeId, tx.amount || 0);
-      }
+    // Deduplicate codes by id
+    const uniqueCodesMap = new Map<string, (typeof allCodes)[0]>();
+    for (const row of allCodes) {
+      uniqueCodesMap.set(row.id, row);
     }
+    const uniqueCodes = Array.from(uniqueCodesMap.values());
 
     this.logger.debug(
-      `[getVoucherStats] Found ${purchasedCodeIds.size} codes with THB_BUY transactions`,
+      `[getCouponAndEndUserStats] Found ${uniqueCodes.length} unique voucher codes`,
     );
 
-    // Build couponIds filter if provided
-    const couponIdsFilter =
-      couponIds && couponIds.length > 0 ? { id: { in: couponIds } } : {};
-
-    // Strategy 1: Get vouchers owned by this merchant
-    const ownedVouchers = await this.prisma.voucher.findMany({
-      where: { merchantId, ...couponIdsFilter },
-      select: { id: true, value: true, thbPurchasePrice: true },
-    });
-
-    const ownedVoucherIds = ownedVouchers.map((v) => v.id);
-
-    // Build voucherId filter for VoucherCode queries
-    const voucherCodeFilter =
-      couponIds && couponIds.length > 0 ? { voucherId: { in: couponIds } } : {};
-
-    // Strategy 2: Get voucher codes purchased from seller
-    // Use THB_BUY transactions as source of truth (includes codes now owned by customers)
-    // Also include codes currently owned by merchant
-    const purchasedFromSellerCodes = await this.prisma.voucherCode.findMany({
-      where: {
-        ...voucherCodeFilter,
-        OR: [
-          // Codes currently owned by merchant
-          {
-            currentOwnerId: merchantId,
-            currentOwnerType: ParticipantType.MERCHANT,
-          },
-          // Codes purchased via THB_BUY (may now be owned by customer)
-          ...(purchasedCodeIds.size > 0
-            ? [{ id: { in: Array.from(purchasedCodeIds) } }]
-            : []),
-        ],
-      },
-      select: {
-        voucherId: true,
-      },
-      distinct: ['voucherId'],
-    });
-
-    // Get unique voucherIds from purchased codes
-    const purchasedVoucherIds = purchasedFromSellerCodes.map(
-      (c) => c.voucherId,
+    // --- End User Stats (from all codes, no couponIds filter) ---
+    const customerCodes = uniqueCodes.filter(
+      (c) => c.currentOwnerType === 'CUSTOMER',
     );
-
-    // Merge all voucherIds (owned + purchased)
-    const allVoucherIds = [
-      ...new Set([...ownedVoucherIds, ...purchasedVoucherIds]),
-    ];
-
-    this.logger.debug(
-      `[getVoucherStats] Found ${ownedVoucherIds.length} owned vouchers + ${purchasedVoucherIds.length} purchased voucher types`,
+    const uniqueCustomerIds = new Set(
+      customerCodes.map((c) => c.currentOwnerId),
     );
+    const pendingCustomerIds = new Set(
+      customerCodes.filter((c) => !c.isUsed).map((c) => c.currentOwnerId),
+    );
+    const redeemedCustomerIds = new Set(
+      customerCodes.filter((c) => c.isUsed).map((c) => c.currentOwnerId),
+    );
+    const endUsers = {
+      total: uniqueCustomerIds.size,
+      unredeemedUsers: pendingCustomerIds.size,
+      redeemedUsers: redeemedCustomerIds.size,
+    };
 
-    if (allVoucherIds.length === 0 && purchasedCodeIds.size === 0) {
+    // --- Voucher Stats (apply couponIds filter if provided) ---
+    const filteredCodes =
+      couponIds && couponIds.length > 0
+        ? uniqueCodes.filter((c) => couponIds.includes(c.voucherId))
+        : uniqueCodes;
+
+    if (filteredCodes.length === 0) {
       return {
         couponCount: {
           total: 0,
@@ -255,188 +224,78 @@ export class GetMarketerDashboardHandler {
           redeemed: 0,
         },
         couponValueByCurrency: [],
+        endUsers,
       };
     }
 
-    // Get all voucher codes that merchant owns or purchased
-    // For owned vouchers: get all codes
-    // For purchased vouchers: include codes via THB_BUY (may now be owned by customer)
-    // Apply couponIds filter if provided
-    const allCodes = await this.prisma.voucherCode.findMany({
-      where: {
-        ...(couponIds && couponIds.length > 0
-          ? { voucherId: { in: couponIds } }
-          : {}),
-        OR: [
-          // Codes from owned vouchers
-          ...(ownedVoucherIds.length > 0
-            ? [{ voucherId: { in: ownedVoucherIds } }]
-            : []),
-          // Codes currently owned by merchant
-          {
-            currentOwnerId: merchantId,
-            currentOwnerType: ParticipantType.MERCHANT,
-          },
-          // Codes purchased via THB_BUY (may now be owned by customer after sale)
-          ...(purchasedCodeIds.size > 0
-            ? [{ id: { in: Array.from(purchasedCodeIds) } }]
-            : []),
-        ],
-      },
-      select: {
-        id: true,
-        pointsCost: true,
-        pointId: true, // For checking if merchant activated (listed on marketplace)
-        point: {
-          select: { id: true, symbol: true, name: true }, // For grouping by point
-        },
-        currency: true,
-        currentOwnerId: true,
-        currentOwnerType: true, // For checking if sold to customer
-        isUsed: true,
-        voucherGroupId: true, // For checking if listed on marketplace
-        listingBatchId: true, // ใช้เช็คว่าซื้อมาจาก seller หรือไม่
-        listingBatch: {
-          select: { totalValue: true, totalItems: true }, // For calculating pricePerUnit
-        },
-        voucher: {
-          select: {
-            id: true,
-            merchantId: true,
-            value: true,
-            thbPurchasePrice: true,
-            currency: true,
-          },
-        },
-      },
-    });
-
-    // Deduplicate codes by id
-    const uniqueCodes = Array.from(
-      new Map(allCodes.map((c) => [c.id, c])).values(),
-    );
-
-    this.logger.debug(
-      `[getVoucherStats] Found ${uniqueCodes.length} unique voucher codes for merchant`,
-    );
-
-    const total = uniqueCodes.length;
-
-    // Filter codes that merchant purchased (has THB_BUY transaction OR currentOwnerType = 'MERCHANT' from seller)
-    const purchasedCodes = uniqueCodes.filter((c) => {
-      // If has THB_BUY transaction, definitely purchased
-      if (purchasedCodeIds.has(c.id)) {
-        return true;
+    // Identify purchased codes from THB_BUY (thbBuyAmount != null from JOIN)
+    const purchasedCodeIds = new Set<string>();
+    const codeIdToPurchaseAmount = new Map<string, number>();
+    for (const code of uniqueCodes) {
+      if (code.thbBuyAmount !== null) {
+        purchasedCodeIds.add(code.id);
+        codeIdToPurchaseAmount.set(code.id, code.thbBuyAmount || 0);
       }
+    }
 
-      // If currentOwnerType = 'MERCHANT' and from a seller voucher (merchantId != this merchantId)
+    // Filter purchased codes (has THB_BUY tx OR merchant-owns from seller voucher OR has listingBatchId)
+    const purchasedCodes = filteredCodes.filter((c) => {
+      if (purchasedCodeIds.has(c.id)) return true;
       if (
-        c.currentOwnerType === ParticipantType.MERCHANT &&
+        c.currentOwnerType === 'MERCHANT' &&
         c.currentOwnerId === merchantId
       ) {
-        // Check if this is from a seller voucher (not owned by merchant)
-        if (c.voucher?.merchantId !== merchantId) {
-          return true;
-        }
+        if (c.voucherMerchantId !== merchantId) return true;
       }
-
-      // Fallback: if has listingBatchId, assume purchased
-      if (c.listingBatchId) {
-        return true;
-      }
-
+      if (c.listingBatchId) return true;
       return false;
     });
 
-    this.logger.debug(
-      `[getVoucherStats] Filtered ${purchasedCodes.length} purchased codes from ${uniqueCodes.length} total codes`,
-    );
-
-    // Get purchase price from:
-    // 1. THB_BUY transaction amount (most accurate)
-    // 2. ListingBatch (totalValue / totalItems)
-    // 3. Fallback to thbPurchasePrice
-    const getPurchasePrice = (c: (typeof allCodes)[0]) => {
-      // First try transaction amount
+    // Get purchase price: THB_BUY tx amount > listingBatch > thbPurchasePrice
+    const getPurchasePrice = (c: (typeof uniqueCodes)[0]) => {
       const txAmount = codeIdToPurchaseAmount.get(c.id);
-      if (txAmount !== undefined) {
-        return txAmount;
+      if (txAmount !== undefined) return txAmount;
+      if (c.batchTotalItems && c.batchTotalItems > 0) {
+        return (c.batchTotalValue || 0) / c.batchTotalItems;
       }
-      // Then try listingBatch
-      if (c.listingBatch && c.listingBatch.totalItems > 0) {
-        return c.listingBatch.totalValue / c.listingBatch.totalItems;
-      }
-      // Fallback to thbPurchasePrice
-      return c.voucher?.thbPurchasePrice ?? 0;
+      return c.thbPurchasePrice ?? 0;
     };
 
-    // Step 2: Create Map for grouping by currency
-    // Build a map from voucherCodeId -> currency for later use
-    const codeIdToCurrency = new Map<string, string>();
-    const currencyStatsMap = new Map<
-      string,
-      {
-        total: number;
-        unsold: number;
-        sold: number;
-        unredeemed: number;
-        redeemed: number;
-      }
-    >();
+    // Calculate coupon counts and THB values from purchased codes only
+    let totalCount = 0,
+      unsoldCount = 0,
+      soldCount = 0,
+      unredeemedCount = 0,
+      redeemedCount = 0;
+    let totalThbValue = 0,
+      unsoldThbValue = 0,
+      soldThbValue = 0,
+      unredeemedThbValue = 0,
+      redeemedThbValue = 0;
 
-    // Track overall THB values from VoucherCode status (เฉพาะ codes ที่ซื้อด้วย THB)
-    let totalThbValue = 0;
-    let unsoldThbValue = 0;
-    let soldThbValue = 0;
-    let unredeemedThbValue = 0;
-    let redeemedThbValue = 0;
-
-    // Track counts from VoucherCode status (เฉพาะ codes ที่ซื้อด้วย THB)
-    let totalCount = 0;
-    let unsoldCount = 0;
-    let soldCount = 0;
-    let unredeemedCount = 0;
-    let redeemedCount = 0;
-
-    // Loop 1: Calculate couponCount และ couponValue จาก purchasedCodes เท่านั้น
-    // (เฉพาะ codes ที่ซื้อมาจาก seller ด้วย THB)
-    // ใช้ Transaction.amount เป็นมูลค่าจริงที่จ่าย (ตรงกับ thbToken.bought)
-    // Logic:
-    // - unsold = merchant own แต่ยังไม่ได้ activate (pointId = null)
-    // - sold = merchant activate แล้ว (pointId != null) = list ลง marketplace ของ merchant
-    // - unredeemed = activate แล้ว + customer ซื้อแล้ว + ยังไม่ใช้
-    // - redeemed = activate แล้ว + ใช้แล้ว
     for (const code of purchasedCodes) {
       const value = getPurchasePrice(code);
       totalThbValue += value;
       totalCount += 1;
 
-      // Check if merchant has activated this code (pointId != null means merchant listed on marketplace)
       const isMerchantActivated = code.pointId !== null;
-
       if (isMerchantActivated) {
-        // Merchant activated (listed on merchant's marketplace)
         soldThbValue += value;
         soldCount += 1;
         if (code.isUsed) {
           redeemedThbValue += value;
           redeemedCount += 1;
         } else if (code.currentOwnerType === 'CUSTOMER') {
-          // Customer bought but not used yet
           unredeemedThbValue += value;
           unredeemedCount += 1;
         }
       } else {
-        // Not activated yet (merchant owns but hasn't listed)
         unsoldThbValue += value;
         unsoldCount += 1;
       }
     }
 
-    // Loop 2: Calculate couponValueByCurrency จาก codes ที่ merchant activate แล้วเท่านั้น
-    // (นับเฉพาะ codes ที่มี pointId = merchant activated และ list ลง marketplace)
-    // Group by pointId แล้วแสดง currency (Point symbol)
-    // ใช้ pointsCost เป็นมูลค่า (ราคาขายเป็น Point)
+    // Calculate couponValueByCurrency from activated codes (pointId != null)
     const pointStatsMap = new Map<
       string,
       {
@@ -449,18 +308,11 @@ export class GetMarketerDashboardHandler {
       }
     >();
 
-    for (const code of uniqueCodes) {
-      // Skip codes that haven't been activated by merchant (no pointId)
-      if (!code.pointId || !code.point) {
-        continue;
-      }
-
+    for (const code of filteredCodes) {
+      if (!code.pointId) continue;
       const pointId = code.pointId;
-      const currency = code.point.symbol || code.currency || 'UNKNOWN';
+      const currency = code.pointSymbol || code.currency || 'UNKNOWN';
 
-      codeIdToCurrency.set(code.id, currency);
-
-      // Initialize point stats if not exists
       if (!pointStatsMap.has(pointId)) {
         pointStatsMap.set(pointId, {
           currency,
@@ -472,47 +324,21 @@ export class GetMarketerDashboardHandler {
         });
       }
 
-      // Use pointsCost as value (selling price in Points)
       const stats = pointStatsMap.get(pointId)!;
       const value = code.pointsCost ?? 0;
       stats.total += value;
-
-      // For couponValueByCurrency: all codes here are already activated (sold)
-      // - sold = activated (always true here since we filtered by pointId)
-      // - unredeemed = customer bought but not used
-      // - redeemed = used
       stats.sold += value;
       if (code.isUsed) {
         stats.redeemed += value;
       } else if (code.currentOwnerType === 'CUSTOMER') {
         stats.unredeemed += value;
       }
-      // Note: unsold stays 0 because we only count activated codes here
     }
 
-    // Convert pointStatsMap to currencyStatsMap for backward compatibility
-    for (const [, stats] of pointStatsMap) {
-      currencyStatsMap.set(stats.currency, stats);
-    }
-
-    this.logger.log(
-      `[getVoucherStats] Found ${total} voucher codes for merchant`,
-    );
-    this.logger.log(
-      `[getVoucherStats] Currency groups: ${Array.from(currencyStatsMap.keys()).join(', ')}`,
-    );
-    this.logger.log(
-      `[getVoucherStats] VoucherCode counts: total=${totalCount}, unsold=${unsoldCount}, sold=${soldCount}, pending=${unredeemedCount}, redeemed=${redeemedCount}`,
-    );
-    this.logger.log(
-      `[getVoucherStats] THB values (from VoucherCode status): total=${totalThbValue}, unsold=${unsoldThbValue}, sold=${soldThbValue}, pending=${unredeemedThbValue}, redeemed=${redeemedThbValue}`,
-    );
-
-    // Build couponValueByCurrency array (excluding THB)
-    const couponValueByCurrency = Array.from(currencyStatsMap.entries())
-      .filter(([currency]) => currency !== 'THB')
-      .map(([currency, stats]) => ({
-        currency,
+    const couponValueByCurrency = Array.from(pointStatsMap.entries())
+      .filter(([, stats]) => stats.currency !== 'THB')
+      .map(([, stats]) => ({
+        currency: stats.currency,
         total: stats.total,
         unsold: stats.unsold,
         sold: stats.sold,
@@ -520,130 +346,74 @@ export class GetMarketerDashboardHandler {
         redeemed: stats.redeemed,
       }));
 
-    this.logger.log(
-      `[getVoucherStats] couponValueByCurrency: ${JSON.stringify(couponValueByCurrency)}`,
-    );
-
     return {
       couponCount: {
-        total: totalCount, // จำนวน VoucherCode ทั้งหมด
-        unsold: unsoldCount, // codes ที่ยังไม่ขาย (ไม่มี currentOwnerId)
-        sold: soldCount, // codes ที่ขายแล้ว (มี currentOwnerId)
-        unredeemed: unredeemedCount, // ขายแล้วแต่ยังไม่ใช้
-        redeemed: redeemedCount, // codes ที่ isUsed = true
+        total: totalCount,
+        unsold: unsoldCount,
+        sold: soldCount,
+        unredeemed: unredeemedCount,
+        redeemed: redeemedCount,
       },
       couponValue: {
-        total: totalThbValue, // รวม thbPurchasePrice ทั้งหมด
-        unsold: unsoldThbValue, // codes ที่ยังไม่ขาย
-        sold: soldThbValue, // codes ที่ขายแล้ว (มี currentOwnerId)
-        unredeemed: unredeemedThbValue, // ขายแล้วแต่ยังไม่ใช้
-        redeemed: redeemedThbValue, // codes ที่ isUsed = true
+        total: totalThbValue,
+        unsold: unsoldThbValue,
+        sold: soldThbValue,
+        unredeemed: unredeemedThbValue,
+        redeemed: redeemedThbValue,
       },
       couponValueByCurrency,
+      endUsers,
     };
   }
 
   /**
-   * Get end user statistics for the merchant
+   * Get transaction + THB stats in a single aggregate query (All Time)
+   * Replaces getTransactionStats + getThbStats (4 DB calls → 1)
    */
-  private async getEndUserStats(
-    merchantId: string,
-  ): Promise<MarketerDashboardResponse['endUsers']> {
-    // Strategy 1: Get vouchers owned by this merchant
-    const ownedVouchers = await this.prisma.voucher.findMany({
-      where: { merchantId },
-      select: { id: true },
-    });
+  private async getTransactionAndThbStats(merchantId: string): Promise<{
+    transactions: MarketerDashboardResponse['transactions'];
+    thbToken: MarketerDashboardResponse['thbToken'];
+  }> {
+    try {
+      const [result] = await this.prisma.$queryRaw<
+        Array<{
+          transferPoint: number;
+          purchaseCoupon: number;
+          deposited: number;
+          bought: number;
+        }>
+      >`
+        SELECT
+          COALESCE(SUM(CASE WHEN "transactionTypeId" = ${TransactionTypeId.TRANSFER} AND "type" = 'POINT'::"AssetType" THEN "amount" ELSE 0 END), 0)::float as "transferPoint",
+          COALESCE(SUM(CASE WHEN "transactionTypeId" = ${TransactionTypeId.REDEEM} THEN "amount" ELSE 0 END), 0)::float as "purchaseCoupon",
+          COALESCE(SUM(CASE WHEN "transactionTypeId" = ${TransactionTypeId.THB_MINT} AND "type" = 'THB_TOKEN'::"AssetType" THEN "amount" ELSE 0 END), 0)::float as "deposited",
+          COALESCE(SUM(CASE WHEN "transactionTypeId" = ${TransactionTypeId.THB_BUY} AND "type" = 'THB_TOKEN'::"AssetType" THEN "amount" ELSE 0 END), 0)::float as "bought"
+        FROM "Transaction"
+        WHERE "merchantId" = ${merchantId}
+          AND "transactionTypeId" IN (${Prisma.join([TransactionTypeId.TRANSFER, TransactionTypeId.REDEEM, TransactionTypeId.THB_MINT, TransactionTypeId.THB_BUY])})
+      `;
 
-    const ownedVoucherIds = ownedVouchers.map((v) => v.id);
+      const deposited = Number(result?.deposited ?? 0);
+      const bought = Number(result?.bought ?? 0);
 
-    // Strategy 2: Get voucher codes purchased from seller
-    const purchasedFromSellerCodes = await this.prisma.voucherCode.findMany({
-      where: {
-        currentOwnerId: merchantId,
-        currentOwnerType: 'MERCHANT',
-      },
-      select: { voucherId: true },
-      distinct: ['voucherId'],
-    });
-
-    const purchasedVoucherIds = purchasedFromSellerCodes.map(
-      (c) => c.voucherId,
-    );
-    const allVoucherIds = [
-      ...new Set([...ownedVoucherIds, ...purchasedVoucherIds]),
-    ];
-
-    if (allVoucherIds.length === 0) {
       return {
-        total: 0,
-        unredeemedUsers: 0,
-        redeemedUsers: 0,
+        transactions: {
+          transferPoint: Number(result?.transferPoint ?? 0),
+          purchaseCoupon: Number(result?.purchaseCoupon ?? 0),
+        },
+        thbToken: {
+          deposited,
+          balance: deposited - bought,
+          bought,
+        },
+      };
+    } catch {
+      this.logger.warn('[getTransactionAndThbStats] Error, returning defaults');
+      return {
+        transactions: { transferPoint: 0, purchaseCoupon: 0 },
+        thbToken: { deposited: 0, balance: 0, bought: 0 },
       };
     }
-
-    // Get voucher codes that are sold to CUSTOMERS (currentOwnerType = 'CUSTOMER')
-    // NOT merchant-owned codes (currentOwnerType = 'MERCHANT' or null)
-    const voucherCodes = await this.prisma.voucherCode.findMany({
-      where: {
-        voucherId: { in: allVoucherIds },
-        currentOwnerType: 'CUSTOMER', // Only count end users (customers), not merchants
-      },
-      select: { currentOwnerId: true, isUsed: true },
-    });
-
-    const uniquePurchasedCustomers = new Set(
-      voucherCodes.map((c) => c.currentOwnerId),
-    );
-    const buyers = uniquePurchasedCustomers.size;
-
-    // Count unique users by status
-    const pendingCodes = voucherCodes.filter((c) => !c.isUsed);
-    const redeemedCodes = voucherCodes.filter((c) => c.isUsed);
-    const unredeemedUsers = new Set(pendingCodes.map((c) => c.currentOwnerId))
-      .size;
-    const redeemedUsers = new Set(redeemedCodes.map((c) => c.currentOwnerId))
-      .size;
-
-    return {
-      total: buyers,
-      unredeemedUsers,
-      redeemedUsers,
-    };
-  }
-
-  /**
-   * Get transaction statistics (All Time)
-   */
-  private async getTransactionStats(
-    merchantId: string,
-  ): Promise<MarketerDashboardResponse['transactions']> {
-    // Buy Point transactions (TRANSFER type with POINT asset) - All Time
-    const transferPointStats = await this.prisma.transaction.aggregate({
-      where: {
-        merchantId,
-        transactionTypeId: TransactionTypeId.TRANSFER,
-        type: 'POINT' as any,
-      },
-      _sum: { amount: true },
-    });
-
-    // Redeem Point transactions - All Time
-    const redeemStats = await this.prisma.transaction.aggregate({
-      where: {
-        merchantId,
-        transactionTypeId: TransactionTypeId.REDEEM,
-      },
-      _sum: { amount: true },
-    });
-
-    const transferPoint = transferPointStats._sum.amount || 0;
-    const purchaseCoupon = redeemStats._sum.amount || 0;
-
-    return {
-      transferPoint,
-      purchaseCoupon,
-    };
   }
 
   /**
@@ -700,50 +470,6 @@ export class GetMarketerDashboardHandler {
     );
 
     return pointsWithBalance;
-  }
-
-  /**
-   * Get THB token statistics for the merchant (All Time)
-   */
-  private async getThbStats(
-    merchantId: string,
-  ): Promise<MarketerDashboardResponse['thbToken']> {
-    try {
-      // Sum of THB_MINT transactions (deposited) - All Time
-      const mintStats = await this.prisma.transaction.aggregate({
-        where: {
-          merchantId,
-          transactionTypeId: TransactionTypeId.THB_MINT,
-          type: 'THB_TOKEN' as any,
-        },
-        _sum: { amount: true },
-      });
-
-      // Sum of THB_BUY transactions (used for promotion) - All Time
-      const buyStats = await this.prisma.transaction.aggregate({
-        where: {
-          merchantId,
-          transactionTypeId: TransactionTypeId.THB_BUY,
-          type: 'THB_TOKEN' as any,
-        },
-        _sum: { amount: true },
-      });
-
-      return {
-        deposited: mintStats._sum.amount || 0,
-        balance: (mintStats._sum.amount || 0) - (buyStats._sum.amount || 0),
-        bought: buyStats._sum.amount || 0,
-      };
-    } catch {
-      this.logger.warn(
-        '[THB_STATS] Error getting THB stats, returning defaults',
-      );
-      return {
-        deposited: 0,
-        balance: 0,
-        bought: 0,
-      };
-    }
   }
 
   /**

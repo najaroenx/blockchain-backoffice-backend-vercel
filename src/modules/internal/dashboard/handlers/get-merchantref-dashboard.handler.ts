@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { DashboardQueryDto } from '../dtos/dashboard-query.dto';
 import {
   MerchantRefDashboardResponse,
@@ -33,10 +34,9 @@ export class GetMerchantRefDashboardHandler {
       // Parse date range
       const dateRange = this.parseDateRange(query);
 
-      // Get voucher codes data
+      // Single SQL query for coupon + end user stats (was 2 DB calls, now 1)
       const { couponSummary, endUserSummary } = await this.getMerchantSummary(
         merchantRef,
-        dateRange,
         query.couponIds,
       );
 
@@ -78,88 +78,64 @@ export class GetMerchantRefDashboardHandler {
   }
 
   /**
-   * Get merchant summary including coupon and end user statistics
-   * Note: dateRange is received but not used for filtering (ALL-TIME data) - TO IMPLEMENT
-   * @param couponIds - Optional filter by specific voucher IDs (coupon IDs)
+   * Get merchant summary using a single raw SQL query
+   * Replaces 2 separate Prisma queries (voucher.findMany + voucherCode.findMany)
+   * with 1 JOIN + conditional aggregation query
    */
   private async getMerchantSummary(
     merchantRef: string,
-    _dateRange: DateRangeInfo, // eslint-disable-line @typescript-eslint/no-unused-vars
     couponIds?: string[],
   ): Promise<{
     couponSummary: MerchantRefCouponSummary;
     endUserSummary: MerchantRefEndUserSummary;
   }> {
-    // TODO: Implement date range filtering when needed
-    // const startDate = new Date(_dateRange.startDate);
-    // const endDate = new Date(_dateRange.endDate);
+    const hasCouponFilter = couponIds && couponIds.length > 0;
 
-    // Build couponIds filter if provided
-    const couponIdsFilter =
-      couponIds && couponIds.length > 0 ? { id: { in: couponIds } } : {};
+    const result = await this.prisma.$queryRaw<
+      [
+        {
+          total: bigint;
+          unredeemed: bigint;
+          redeemed: bigint;
+          totalUsers: bigint;
+          unredeemedUsers: bigint;
+          redeemedUsers: bigint;
+        },
+      ]
+    >`
+      SELECT
+        COUNT(*)::bigint AS total,
+        COUNT(CASE WHEN NOT vc."isUsed" THEN 1 END)::bigint AS unredeemed,
+        COUNT(CASE WHEN vc."isUsed" THEN 1 END)::bigint AS redeemed,
+        COUNT(DISTINCT vc."currentOwnerId")::bigint AS "totalUsers",
+        COUNT(DISTINCT CASE WHEN NOT vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "unredeemedUsers",
+        COUNT(DISTINCT CASE WHEN vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "redeemedUsers"
+      FROM "VoucherCode" vc
+      JOIN "Voucher" v ON vc."voucherId" = v.id
+      WHERE v."merchantRef" = ${merchantRef}
+        AND vc."currentOwnerId" IS NOT NULL
+        ${hasCouponFilter ? Prisma.sql`AND v.id IN (${Prisma.join(couponIds!)})` : Prisma.empty}
+    `;
 
-    // Get all vouchers with this merchantRef
-    const vouchers = await this.prisma.voucher.findMany({
-      where: { merchantRef, ...couponIdsFilter },
-      select: { id: true },
-    });
+    const row = result[0];
 
-    const voucherIds = vouchers.map((v) => v.id);
-
-    if (voucherIds.length === 0) {
+    if (!row || Number(row.total) === 0) {
       return {
-        couponSummary: {
-          total: 0,
-          unredeemed: 0,
-          redeemed: 0,
-        },
-        endUserSummary: {
-          total: 0,
-          unredeemedUsers: 0,
-          redeemedUsers: 0,
-        },
+        couponSummary: { total: 0, unredeemed: 0, redeemed: 0 },
+        endUserSummary: { total: 0, unredeemedUsers: 0, redeemedUsers: 0 },
       };
     }
 
-    // Get all voucher codes for these vouchers (sold to end users) - ALL-TIME
-    // TODO: Add date range filtering when implemented
-    const voucherCodes = await this.prisma.voucherCode.findMany({
-      where: {
-        voucherId: { in: voucherIds },
-        currentOwnerId: { not: null }, // Purchased by end user
-        // createdAt: { gte: startDate, lte: endDate }, // TO IMPLEMENT
-      },
-      select: {
-        currentOwnerId: true,
-        isUsed: true,
-      },
-    });
-
-    // Coupon summary
-    const soldToEndUser = voucherCodes.length;
-    const unredeemed = voucherCodes.filter((c) => !c.isUsed).length;
-    const redeemed = voucherCodes.filter((c) => c.isUsed).length;
-
-    // End user summary
-    const allPurchasers = new Set(voucherCodes.map((c) => c.currentOwnerId));
-    const usedCodes = voucherCodes.filter((c) => c.isUsed);
-    const unusedCodes = voucherCodes.filter((c) => !c.isUsed);
-
-    const usersWithUnusedCodes = new Set(
-      unusedCodes.map((c) => c.currentOwnerId),
-    );
-    const usersWithUsedCodes = new Set(usedCodes.map((c) => c.currentOwnerId));
-
     return {
       couponSummary: {
-        total: soldToEndUser,
-        unredeemed,
-        redeemed,
+        total: Number(row.total),
+        unredeemed: Number(row.unredeemed),
+        redeemed: Number(row.redeemed),
       },
       endUserSummary: {
-        total: allPurchasers.size,
-        unredeemedUsers: usersWithUnusedCodes.size,
-        redeemedUsers: usersWithUsedCodes.size,
+        total: Number(row.totalUsers),
+        unredeemedUsers: Number(row.unredeemedUsers),
+        redeemedUsers: Number(row.redeemedUsers),
       },
     };
   }

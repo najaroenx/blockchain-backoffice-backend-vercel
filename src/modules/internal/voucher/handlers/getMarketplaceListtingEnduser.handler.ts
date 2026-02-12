@@ -224,6 +224,7 @@ export class GetMarketplaceListingsEndUser {
               paymentToken: listing.paymentToken,
               isActive: listing.isActive,
               listedAt: listing.listedAt,
+              merchantRef: voucher ? voucher.merchantRef : null,
               // Voucher details from database
               voucher: voucher
                 ? {

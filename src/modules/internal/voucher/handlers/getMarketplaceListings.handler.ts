@@ -294,6 +294,7 @@ export class GetMarketplaceListings {
                     startDate: voucher.startDate,
                     endDate: voucher.endDate,
                     status: voucher.status,
+                    merchantRef: voucher.merchantRef,
                     merchant: actualMerchant
                       ? {
                           id: actualMerchant.id,

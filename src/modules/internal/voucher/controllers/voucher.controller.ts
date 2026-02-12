@@ -9,7 +9,7 @@ import {
   Patch,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { VoucherDBService } from '../services/voucher-db.service';
 import {
   CreateVoucherByDevDto,
@@ -26,7 +26,6 @@ import {
   AddToWhitelistDto,
   BatchAddToWhitelistDto,
 } from '../dtos/add-to-whitelist.dto';
-import { RedeemAISVoucherDto } from '../dtos/redeem-voucher.dto';
 import { Public } from 'src/modules/internal/auth/public.decorator';
 import { GetMarketplaceListings } from '../handlers/getMarketplaceListings.handler';
 import { ManageCouponHandler } from '../handlers/manageCoupon.handler';

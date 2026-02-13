@@ -45,7 +45,7 @@ export interface VoucherCodeWithVoucher {
 export interface TransactionParticipant {
   id: string;
   walletAddress: string;
-  emailOrWebsite: string | null;
+  displayName: string | null;
 }
 
 // Re-export for backward compatibility

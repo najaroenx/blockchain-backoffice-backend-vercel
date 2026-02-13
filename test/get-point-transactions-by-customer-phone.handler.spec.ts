@@ -328,14 +328,14 @@ describe('GetPointTransactionsByCustomerPhone', () => {
         'walletAddress',
       );
       expect((result.transactions[0] as any).sender).toHaveProperty(
-        'emailOrWebsite',
+        'displayName',
       );
       expect((result.transactions[0] as any).receiver).toHaveProperty('id');
       expect((result.transactions[0] as any).receiver).toHaveProperty(
         'walletAddress',
       );
       expect((result.transactions[0] as any).receiver).toHaveProperty(
-        'emailOrWebsite',
+        'displayName',
       );
     });
 

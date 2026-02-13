@@ -56,11 +56,11 @@ export class GetTransactionsByCustomerId {
         const formatParticipant = (
           walletAddress: Uint8Array,
           participantId: string | null,
-          merchantWebsite: string,
+          displayName: string,
         ): TransactionParticipant => ({
           id: participantId ?? merchantId,
           walletAddress: convertBufferToAddress(walletAddress),
-          emailOrWebsite: merchantWebsite,
+          displayName: displayName,
         });
 
         const formatVoucherInfo = (
@@ -133,12 +133,12 @@ export class GetTransactionsByCustomerId {
           sender: formatParticipant(
             rest.senderAddress,
             rest.senderId,
-            merchant.website,
+            merchant.name || '',
           ),
           receiver: formatParticipant(
             rest.receiverAddress,
             rest.receiverId,
-            merchant.website,
+            merchant.name || '',
           ),
           voucher:
             (rest as any).type === 'POINT'
@@ -192,11 +192,11 @@ export class GetTransactionsByCustomerId {
         const formatParticipant = (
           walletAddress: Uint8Array,
           participantId: string | null,
-          merchantWebsite: string,
+          displayName: string,
         ): TransactionParticipant => ({
           id: participantId ?? merchantId,
           walletAddress: convertBufferToAddress(walletAddress),
-          emailOrWebsite: merchantWebsite,
+          displayName: displayName,
         });
 
         const formatVoucherInfo = (
@@ -269,12 +269,12 @@ export class GetTransactionsByCustomerId {
           sender: formatParticipant(
             rest.senderAddress,
             rest.senderId,
-            merchant.website,
+            merchant.name || '',
           ),
           receiver: formatParticipant(
             rest.receiverAddress,
             rest.receiverId,
-            merchant.website,
+            merchant.name || '',
           ),
           voucher:
             (rest as any).type === 'POINT'

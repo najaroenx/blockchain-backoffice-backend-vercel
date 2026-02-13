@@ -44,8 +44,8 @@ export class GetAllTransactionsByCustomerPhone {
         customer.id,
       );
 
-      // Helper function to get emailOrWebsite based on participant type
-      const getEmailOrWebsite = async (
+      // Helper function to get displayName based on participant type
+      const getDisplayName = async (
         participantId: string | null,
         participantType: ParticipantType | null,
       ): Promise<string | null> => {
@@ -55,16 +55,15 @@ export class GetAllTransactionsByCustomerPhone {
           const cust = await this.prisma.customer.findUnique({
             where: { id: participantId },
           });
-          return cust?.email || null;
+          return cust?.tel || null;
         } else if (
           participantType === ParticipantType.MERCHANT ||
           participantType === ParticipantType.SELLER
         ) {
           const merch = await this.prisma.merchant.findUnique({
             where: { id: participantId },
-            include: { wallet: true },
           });
-          return merch?.wallet?.email || merch?.website || null;
+          return merch?.name || null;
         }
         return null;
       };
@@ -75,11 +74,11 @@ export class GetAllTransactionsByCustomerPhone {
           const { merchant, point, voucherCode, ...rest } = transaction;
 
           // Lookup sender and receiver info based on their types
-          const senderEmailOrWebsite = await getEmailOrWebsite(
+          const senderDisplayName = await getDisplayName(
             rest.senderId,
             (rest as any).senderType as ParticipantType | null,
           );
-          const receiverEmailOrWebsite = await getEmailOrWebsite(
+          const receiverDisplayName = await getDisplayName(
             rest.receiverId,
             (rest as any).receiverType as ParticipantType | null,
           );
@@ -87,11 +86,11 @@ export class GetAllTransactionsByCustomerPhone {
           const formatParticipant = (
             walletAddress: Uint8Array,
             participantId: string | null,
-            emailOrWebsite: string | null,
+            displayName: string | null,
           ): TransactionParticipant => ({
             id: participantId ?? merchant?.id ?? null,
             walletAddress: convertBufferToAddress(walletAddress),
-            emailOrWebsite: emailOrWebsite,
+            displayName: displayName,
           });
 
           const formatVoucherInfo = (
@@ -166,12 +165,12 @@ export class GetAllTransactionsByCustomerPhone {
             sender: formatParticipant(
               rest.senderAddress,
               rest.senderId,
-              senderEmailOrWebsite,
+              senderDisplayName,
             ),
             receiver: formatParticipant(
               rest.receiverAddress,
               rest.receiverId,
-              receiverEmailOrWebsite,
+              receiverDisplayName,
             ),
             voucher:
               (rest as any).type === 'POINT'

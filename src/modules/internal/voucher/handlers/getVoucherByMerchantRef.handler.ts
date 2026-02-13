@@ -104,11 +104,11 @@ export class GetVoucherByMerchantRef {
           const formatParticipant = (
             walletAddress: Uint8Array,
             participantId: string | null,
-            merchantWebsite: string,
+            displayName: string,
           ): TransactionParticipant => ({
             id: participantId ?? voucher.merchant.id,
             walletAddress: convertBufferToAddress(walletAddress),
-            emailOrWebsite: merchantWebsite,
+            displayName: displayName,
           });
 
           const formatVoucherInfo = (
@@ -187,12 +187,12 @@ export class GetVoucherByMerchantRef {
             sender: formatParticipant(
               rest.senderAddress,
               rest.senderId,
-              merchant?.website || voucher.merchant.website || '',
+              merchant?.name || voucher.merchant.name || '',
             ),
             receiver: formatParticipant(
               rest.receiverAddress,
               rest.receiverId,
-              merchant?.website || voucher.merchant.website || '',
+              merchant?.name || voucher.merchant.name || '',
             ),
             voucher:
               (rest as any).type === 'POINT'

@@ -69,11 +69,18 @@ export class GetVoucherTransactionsByCustomerPhone {
         const formatParticipant = (
           walletAddress: Uint8Array,
           participantId: string | null,
-          merchantWebsite: string | null,
+          participantType: string | null,
         ) => ({
           id: participantId ?? merchant?.id ?? null,
           walletAddress: convertBufferToAddress(walletAddress),
-          emailOrWebsite: merchantWebsite,
+          displayName:
+            participantType === 'CUSTOMER'
+              ? participantId === customer.id
+                ? phone
+                : null
+              : participantType === 'MERCHANT' || participantType === 'SELLER'
+                ? merchant?.name || null
+                : null,
         });
 
         const formatPointInfo = (
@@ -146,12 +153,12 @@ export class GetVoucherTransactionsByCustomerPhone {
           sender: formatParticipant(
             rest.senderAddress,
             rest.senderId,
-            merchant?.website,
+            (rest as any).senderType || null,
           ),
           receiver: formatParticipant(
             rest.receiverAddress,
             rest.receiverId,
-            merchant?.website,
+            (rest as any).receiverType || null,
           ),
           voucher:
             (rest as any).type === 'POINT'

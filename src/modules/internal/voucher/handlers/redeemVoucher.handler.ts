@@ -402,12 +402,12 @@ export class RedeemVoucher {
         sender: {
           id: customerId,
           walletAddress: customerAddress,
-          emailOrWebsite: customer.email,
+          displayName: customer.tel,
         },
         receiver: {
           id: merchantId,
           walletAddress: merchantAddress,
-          emailOrWebsite: merchant?.wallet?.email || merchant?.website || null,
+          displayName: merchant?.name || null,
         },
         voucher: {
           id: voucher.id,

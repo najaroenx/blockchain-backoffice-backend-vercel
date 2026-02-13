@@ -13,12 +13,16 @@ import {
   TransactionParticipant,
   TransactionVoucherInfo,
 } from '../types';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class GetTransactionById {
   private logger = new Logger(GetTransactionById.name);
 
-  constructor(private db: TransactionDBService) {}
+  constructor(
+    private db: TransactionDBService,
+    private prisma: PrismaService,
+  ) {}
 
   async execute(transactionId: string): Promise<TransactionDetail> {
     try {
@@ -35,17 +39,50 @@ export class GetTransactionById {
 
       const { merchant, point, voucherCode, ...rest } = transaction;
 
+      // Helper function to get displayName based on participant type
+      const getDisplayName = async (
+        participantId: string | null,
+        participantType: string | null,
+      ): Promise<string | null> => {
+        if (!participantId || !participantType) return null;
+
+        if (participantType === 'CUSTOMER') {
+          const cust = await this.prisma.customer.findUnique({
+            where: { id: participantId },
+          });
+          return cust?.tel || null;
+        } else if (
+          participantType === 'MERCHANT' ||
+          participantType === 'SELLER'
+        ) {
+          const merch = await this.prisma.merchant.findUnique({
+            where: { id: participantId },
+          });
+          return merch?.name || null;
+        }
+        return null;
+      };
+
+      const senderDisplayName = await getDisplayName(
+        rest.senderId,
+        (rest as any).senderType,
+      );
+      const receiverDisplayName = await getDisplayName(
+        rest.receiverId,
+        (rest as any).receiverType,
+      );
+
       const formatParticipant = (
         walletAddress: Uint8Array,
         participantId: string | null,
-        merchantWebsite: string | null,
+        displayName: string | null,
       ): TransactionParticipant | null => {
         if (!participantId && !merchant) return null;
 
         return {
           id: participantId ?? merchant?.id ?? null,
           walletAddress: convertBufferToAddress(walletAddress),
-          emailOrWebsite: merchantWebsite,
+          displayName: displayName,
         };
       };
 
@@ -123,12 +160,12 @@ export class GetTransactionById {
         sender: formatParticipant(
           rest.senderAddress,
           rest.senderId,
-          merchant?.website,
+          senderDisplayName,
         ),
         receiver: formatParticipant(
           rest.receiverAddress,
           rest.receiverId,
-          merchant?.website,
+          receiverDisplayName,
         ),
         voucher:
           (rest as any).type === 'POINT'

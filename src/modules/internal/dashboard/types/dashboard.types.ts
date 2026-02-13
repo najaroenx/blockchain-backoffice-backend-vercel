@@ -22,7 +22,7 @@ export interface CouponStatsWithCurrency extends CouponStats {
 export interface PointInfo {
   symbol: string; // สัญลักษณ์ Point (e.g., "PTS", "COIN")
   total: number; // จำนวน Point ทั้งหมด (initial supply)
-  balance: number; // จำนวน Point ที่เหลืออยู่ (current balance)
+  balance: string; // จำนวน Point ที่เหลืออยู่ (current balance) - string to preserve precision
 }
 
 // ============================================

@@ -181,9 +181,7 @@ export class MerchantBuyCouponFromSeller {
         );
         const systemAddressBuffer = Buffer.alloc(20, 0); // System/zero address for mint
 
-        const shortageAmountTHB = Math.round(
-          parseFloat(ethers.formatEther(shortage)),
-        );
+        const shortageAmountTHB = Number(shortage / BigInt(10 ** 18));
 
         await this.prisma.transaction.create({
           data: {
@@ -230,9 +228,8 @@ export class MerchantBuyCouponFromSeller {
 
       // Convert Wei to THB amount (Int) for database
       // Note: Transaction.amount field stores THB value as integer, not Wei
-      const amountTHB = Math.round(
-        parseFloat(ethers.formatEther(totalPriceWei)),
-      );
+      // Use BigInt division to avoid precision loss from parseFloat
+      const amountTHB = Number(totalPriceWei / BigInt(10 ** 18));
 
       const txHashBuffer = Buffer.from(blockchainTx.hash.slice(2), 'hex');
       const senderAddressBuffer = Buffer.from(

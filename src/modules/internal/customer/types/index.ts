@@ -13,7 +13,7 @@ export type GetCustomersIdResponseType = {
       symbol: string;
       decimal: number;
       merchantId: string;
-      balances: number;
+      balances: string;
     }[];
     transactions: {
       id: string;
@@ -109,7 +109,7 @@ export interface PointInfo {
   symbol: string;
   merchantId: string | null;
   imageUrl: string | null;
-  balance: number;
+  balance: string;
 }
 
 export type GetCustomerByPhoneResponseTypeV1 = {

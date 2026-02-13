@@ -444,16 +444,16 @@ export class GetMarketerDashboardHandler {
     // Fetch balance for each point from blockchain
     const pointsWithBalance = await Promise.all(
       points.map(async (p) => {
-        let balance = 0;
+        let balance = '0';
 
         if (merchantWalletAddress) {
           try {
             const contractAddress = convertBufferToAddress(p.contractAddress);
-            const balanceStr = await this.blockchainService.getBalance({
+            const result = await this.blockchainService.getBalance({
               walletAddress: merchantWalletAddress,
               pointAddress: contractAddress,
             });
-            balance = balanceStr ? Number(balanceStr) : 0;
+            balance = result.balance ?? '0';
           } catch (error) {
             this.logger.warn(
               `Failed to get balance for point ${p.id}: ${error.message}`,

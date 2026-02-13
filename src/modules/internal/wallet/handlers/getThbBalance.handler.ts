@@ -39,7 +39,7 @@ export class GetThbBalance {
       );
 
       // Get balance from blockchain
-      const balance = await this.blockchainService.getBalance({
+      const { balance } = await this.blockchainService.getBalance({
         walletAddress,
         pointAddress: this.thbTokenAddress,
       });

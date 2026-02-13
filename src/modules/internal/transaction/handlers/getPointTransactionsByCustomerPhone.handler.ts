@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
-import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import {
   GetTransactionsByCustomerIdResponseType,
@@ -93,7 +92,7 @@ export class GetPointTransactionsByCustomerPhone {
             symbol: point.symbol,
             merchantId: point.merchantId || null,
             imageUrl: point.imageUrl || null,
-            balance: amount,
+            balance: amount.toString(),
           };
         };
 

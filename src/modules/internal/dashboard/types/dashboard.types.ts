@@ -58,7 +58,7 @@ export interface MarketerDashboardResponse {
   // Section 3: Transaction
   // ============================================
   transactions: {
-    transferPoint: number; // จำนวน point transfer Point ระหว่าง End User
+    transferPoint: number; // จำนวน ครั้ง transfer Point ระหว่าง End User
     purchaseCoupon: number; // จำนวน ครั้งที่ End User ใช้ Point ซื้อคูปอง
   };
 

@@ -403,7 +403,10 @@ describe('CreateTransactionB2C', () => {
       getPointById.execute.mockResolvedValue({ point: mockPoint });
       getCustomerByPhone.execute.mockResolvedValue({ customer: mockCustomer });
       // Mock insufficient balance - merchant has 50 but needs 100
-      blockchainService.getBalance.mockResolvedValue({ balance: '50', balanceWei: '50000000000000000000' });
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '50',
+        balanceWei: '50000000000000000000',
+      });
 
       await expect(
         handler.execute(merchantId, pointId, {

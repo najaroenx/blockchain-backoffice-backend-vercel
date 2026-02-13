@@ -64,7 +64,10 @@ describe('GetWalletBalance', () => {
       getPointByIdHandler.execute.mockResolvedValue({
         point: mockPoint as any,
       });
-      blockchainService.getBalance.mockResolvedValue({ balance: '1000.5', balanceWei: '1000.5' });
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '1000.5',
+        balanceWei: '1000.5',
+      });
 
       // Act
       const result = await handler.execute(mockPointId, mockWalletAddress);
@@ -87,7 +90,10 @@ describe('GetWalletBalance', () => {
       getPointByIdHandler.execute.mockResolvedValue({
         point: mockPoint as any,
       });
-      blockchainService.getBalance.mockResolvedValue({ balance: '0', balanceWei: '0' });
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '0',
+        balanceWei: '0',
+      });
 
       // Act
       const result = await handler.execute(mockPointId, mockWalletAddress);
@@ -101,7 +107,10 @@ describe('GetWalletBalance', () => {
       getPointByIdHandler.execute.mockResolvedValue({
         point: mockPoint as any,
       });
-      blockchainService.getBalance.mockResolvedValue({ balance: '999999999.99', balanceWei: '999999999.99' });
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '999999999.99',
+        balanceWei: '999999999.99',
+      });
 
       // Act
       const result = await handler.execute(mockPointId, mockWalletAddress);
@@ -115,7 +124,10 @@ describe('GetWalletBalance', () => {
       getPointByIdHandler.execute.mockResolvedValue({
         point: mockPoint as any,
       });
-      blockchainService.getBalance.mockResolvedValue({ balance: '123.456789', balanceWei: '123.456789' });
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '123.456789',
+        balanceWei: '123.456789',
+      });
 
       // Act
       const result = await handler.execute(mockPointId, mockWalletAddress);
@@ -186,7 +198,10 @@ describe('GetWalletBalance', () => {
       getPointByIdHandler.execute.mockResolvedValue({
         point: mockPoint as any,
       });
-      blockchainService.getBalance.mockResolvedValue({ balance: '500', balanceWei: '500' });
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '500',
+        balanceWei: '500',
+      });
 
       // Act
       await handler.execute(mockPointId, mockWalletAddress);
@@ -207,7 +222,10 @@ describe('GetWalletBalance', () => {
       getPointByIdHandler.execute.mockResolvedValue({
         point: mockPoint as any,
       });
-      blockchainService.getBalance.mockResolvedValue({ balance: '100', balanceWei: '100' });
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '100',
+        balanceWei: '100',
+      });
 
       // Act & Assert
       for (const address of addresses) {
@@ -224,7 +242,10 @@ describe('GetWalletBalance', () => {
       getPointByIdHandler.execute.mockResolvedValue({
         point: mockPoint as any,
       });
-      blockchainService.getBalance.mockResolvedValue({ balance: '750.25', balanceWei: '750.25' });
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '750.25',
+        balanceWei: '750.25',
+      });
 
       // Act
       const result = await handler.execute(mockPointId, mockWalletAddress);
@@ -285,7 +306,10 @@ describe('GetWalletBalance', () => {
       getPointByIdHandler.execute.mockResolvedValue({
         point: differentPoint as any,
       });
-      blockchainService.getBalance.mockResolvedValue({ balance: '555', balanceWei: '555' });
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '555',
+        balanceWei: '555',
+      });
 
       // Act
       await handler.execute(mockPointId, mockWalletAddress);

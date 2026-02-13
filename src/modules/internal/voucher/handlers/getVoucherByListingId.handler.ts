@@ -23,43 +23,36 @@ export class GetVoucherByListingId {
         `[GetVoucherByListingId] Step 1: Starting execution with ListingId: ${listingId}`,
       );
 
+      // Use single RPC call instead of fetching ALL active listings
       this.logger.log(
-        '[GetVoucherByListingId] Step 2: Fetching active marketplace listings from blockchain',
-      );
-      const blockchainListings =
-        await this.blockchainService.getAllActiveMarketplaceListings();
-      this.logger.log(
-        `[GetVoucherByListingId] Step 3: Found ${blockchainListings.length} active listings on blockchain`,
+        `[GetVoucherByListingId] Step 2: Fetching single listing ${listingId} from blockchain`,
       );
 
-      let objectListings = null;
-      this.logger.log(
-        '[GetVoucherByListingId] Step 4: Searching for matching listing',
-      );
-      blockchainListings.forEach((listing) => {
-        this.logger.log(
-          `[GetVoucherByListingId] Checking listing ${listing.listingId}: ` +
-            `seller=${listing.seller}, typeId=${listing.typeId}, ` +
-            `amount=${listing.amount}, price=${listing.pricePerUnit}, ` +
-            `isActive=${listing.isActive}`,
-        );
-        if (listing.listingId.toString() === listingId) {
-          this.logger.log(
-            `[GetVoucherByListingId] Step 5: Match found! Listing ${listing.listingId} matches requested ${listingId}`,
+      let objectListings;
+      try {
+        const listing =
+          await this.blockchainService.getMarketplaceListing(listingId);
+
+        if (!listing.isActive) {
+          throw new NotFoundException(
+            `Listing with ID ${listingId} is not active`,
           );
-          objectListings = listing;
         }
-      });
 
-      if (!objectListings) {
+        objectListings = {
+          listingId,
+          ...listing,
+        };
+      } catch (error) {
+        if (error instanceof NotFoundException) throw error;
         this.logger.log(
-          `[GetVoucherByListingId] Step 6: No matching listing found for listingId: ${listingId}`,
+          `[GetVoucherByListingId] Step 3: No listing found for listingId: ${listingId}`,
         );
         throw new NotFoundException(`Listing with ID ${listingId} not found`);
       }
 
       this.logger.log(
-        `[GetVoucherByListingId] Step 7: Listing found, querying database for voucher codes with voucherGroupId: ${objectListings.listingId}`,
+        `[GetVoucherByListingId] Step 4: Listing found (seller=${objectListings.seller}, typeId=${objectListings.typeId}), querying database...`,
       );
       const voucherCodes = await this.prisma.voucherCode.findFirst({
         where: {

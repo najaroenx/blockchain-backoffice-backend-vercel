@@ -150,7 +150,7 @@ export class GetVoucherByMerchantRef {
               symbol: point.symbol,
               merchantId: point.merchantId || null,
               imageUrl: point.imageUrl || null,
-              balance: amount,
+              balance: amount.toString(),
             };
           };
 

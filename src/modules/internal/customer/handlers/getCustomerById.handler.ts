@@ -111,13 +111,13 @@ export class GetCustomerById {
   private async getBalanceFromContract(
     pointAddress: string,
     walletAddress: string,
-  ): Promise<number> {
+  ): Promise<string> {
     // Get balance from blockchain
-    const balance = await this.blockchainService.getBalance({
+    const { balance } = await this.blockchainService.getBalance({
       walletAddress,
       pointAddress: pointAddress,
     });
     this.logger.log(`[GetCustomerById] Balance retrieved: ${balance} points`);
-    return balance ? +balance : 0;
+    return balance ?? '0';
   }
 }

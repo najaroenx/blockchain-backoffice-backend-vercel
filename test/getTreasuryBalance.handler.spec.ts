@@ -105,7 +105,10 @@ describe('GetTreasuryBalance', () => {
 
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
       getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint });
-      blockchainService.getBalance.mockResolvedValue(expectedBalance);
+      blockchainService.getBalance.mockResolvedValue({
+        balance: expectedBalance,
+        balanceWei: '1000500000000000000000',
+      });
 
       const result = await handler.execute(pointId, treasuryType);
 
@@ -193,7 +196,10 @@ describe('GetTreasuryBalance', () => {
 
       prismaService.treasury.findUnique.mockResolvedValue(systemTreasury);
       getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint });
-      blockchainService.getBalance.mockResolvedValue('5000');
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '5000',
+        balanceWei: '5000',
+      });
 
       const result = await handler.execute(pointId, treasuryType);
 
@@ -208,7 +214,10 @@ describe('GetTreasuryBalance', () => {
 
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
       getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint });
-      blockchainService.getBalance.mockResolvedValue('0');
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '0',
+        balanceWei: '0',
+      });
 
       const result = await handler.execute(pointId, treasuryType);
 
@@ -223,7 +232,10 @@ describe('GetTreasuryBalance', () => {
 
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
       getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint });
-      blockchainService.getBalance.mockResolvedValue(largeBalance);
+      blockchainService.getBalance.mockResolvedValue({
+        balance: largeBalance,
+        balanceWei: '999999999999999999000000000000000000',
+      });
 
       const result = await handler.execute(pointId, treasuryType);
 
@@ -242,7 +254,10 @@ describe('GetTreasuryBalance', () => {
 
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
       getPointByIdHandler.execute.mockResolvedValue({ point: customPoint });
-      blockchainService.getBalance.mockResolvedValue('100');
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '100',
+        balanceWei: '100',
+      });
 
       await handler.execute(pointId, treasuryType);
 
@@ -286,7 +301,10 @@ describe('GetTreasuryBalance', () => {
 
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
       getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint });
-      blockchainService.getBalance.mockResolvedValue(decimalBalance);
+      blockchainService.getBalance.mockResolvedValue({
+        balance: decimalBalance,
+        balanceWei: '1234567890000000000000',
+      });
 
       const result = await handler.execute(pointId, treasuryType);
 
@@ -299,7 +317,10 @@ describe('GetTreasuryBalance', () => {
 
       prismaService.treasury.findUnique.mockResolvedValue(mockTreasury);
       getPointByIdHandler.execute.mockResolvedValue({ point: mockPoint });
-      blockchainService.getBalance.mockResolvedValue('500');
+      blockchainService.getBalance.mockResolvedValue({
+        balance: '500',
+        balanceWei: '500',
+      });
 
       const result = await handler.execute(pointId, treasuryType);
 

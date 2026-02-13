@@ -5,11 +5,6 @@ export interface DateRangeInfo {
   endDate: string;
 }
 
-export interface TimeSeriesData {
-  period: string; // "2026-01-01" | "2026-W01" | "2026-01"
-  label: string; // "Jan 1" | "Week 1" | "January"
-}
-
 // Shared Coupon Stats Interface
 export interface CouponStats {
   total: number; // จำนวน/มูลค่าคูปองทั้งหมดที่เรามี
@@ -27,7 +22,7 @@ export interface CouponStatsWithCurrency extends CouponStats {
 export interface PointInfo {
   symbol: string; // สัญลักษณ์ Point (e.g., "PTS", "COIN")
   total: number; // จำนวน Point ทั้งหมด (initial supply)
-  balance: number; // จำนวน Point ที่เหลืออยู่ (current balance)
+  balance: string; // จำนวน Point ที่เหลืออยู่ (current balance) - string to preserve precision
 }
 
 // ============================================
@@ -63,7 +58,7 @@ export interface MarketerDashboardResponse {
   // Section 3: Transaction
   // ============================================
   transactions: {
-    transferPoint: number; // จำนวน ครั้งที่ transfer Point ระหว่าง End User
+    transferPoint: number; // จำนวน point transfer Point ระหว่าง End User
     purchaseCoupon: number; // จำนวน ครั้งที่ End User ใช้ Point ซื้อคูปอง
   };
 

@@ -165,10 +165,11 @@ export class GetPointsByMerchantId {
 
           if (merchantWalletAddress) {
             try {
-              remaining = await this.blockchainService.getBalance({
+              const result = await this.blockchainService.getBalance({
                 walletAddress: merchantWalletAddress,
                 pointAddress: contractAddress,
               });
+              remaining = result.balance;
             } catch (error) {
               this.logger.warn(
                 `Failed to get balance for point ${point.id}: ${error.message}`,

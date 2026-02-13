@@ -56,7 +56,7 @@ export class GetTreasuryBalance {
       );
 
       // Get balance from blockchain
-      const balance = await this.blockchainService.getBalance({
+      const { balance } = await this.blockchainService.getBalance({
         walletAddress: treasury.walletAddress,
         pointAddress: point.contractAddress,
       });

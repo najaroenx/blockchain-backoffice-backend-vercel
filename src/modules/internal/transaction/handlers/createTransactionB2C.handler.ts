@@ -25,6 +25,7 @@ import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
+import { ethers } from 'ethers';
 
 @Injectable()
 export class CreateTransactionB2C {
@@ -315,10 +316,11 @@ export class CreateTransactionB2C {
 
       // Check merchant balance before transaction
       try {
-        const merchantBalance = await this.blockchainService.getBalance({
-          walletAddress: merchantWalletAddress,
-          pointAddress: point.contractAddress,
-        });
+        const { balance: merchantBalance, balanceWei: merchantBalanceWei } =
+          await this.blockchainService.getBalance({
+            walletAddress: merchantWalletAddress,
+            pointAddress: point.contractAddress,
+          });
         this.logger.log(
           `[CreateTransactionB2C] Merchant current balance: ${merchantBalance} points`,
         );
@@ -326,7 +328,9 @@ export class CreateTransactionB2C {
           `[CreateTransactionB2C] Required amount: ${data.amount} points`,
         );
 
-        if (parseFloat(merchantBalance) < data.amount) {
+        const balanceWei = BigInt(merchantBalanceWei);
+        const requiredWei = ethers.parseEther(data.amount.toString());
+        if (balanceWei < requiredWei) {
           this.logger.error(
             `[CreateTransactionB2C] Insufficient balance! Merchant has ${merchantBalance} but needs ${data.amount}`,
           );

@@ -1,11 +1,53 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 // Use string literal for 'expired' status until Prisma types are regenerated after migration
 const EXPIRED_STATUS = 'expired' as const;
+
+// Raw SQL result types
+interface ListingDetailRow {
+  voucherGroupId: string;
+  codeId: string;
+  codeCurrentOwnerId: string | null;
+  codeCurrentOwnerType: string | null;
+  voucherId: string;
+  voucherName: string;
+  voucherDescription: string;
+  voucherImageUrl: string | null;
+  voucherValueType: string;
+  voucherValue: number;
+  voucherStartDate: Date;
+  voucherEndDate: Date;
+  voucherStatus: string;
+  voucherMerchantId: string | null;
+  voucherSellerMerchantId: string | null;
+  merchantId: string | null;
+  merchantName: string | null;
+  merchantImageUrl: string | null;
+  merchantWalletAddress: string | null;
+  pointId: string | null;
+  pointName: string | null;
+  pointSymbol: string | null;
+  pointContractAddress: Buffer | null;
+  pointImageUrl: string | null;
+}
+
+interface AvailableCountRow {
+  voucherGroupId: string;
+  availableCount: bigint;
+}
+
+interface CodeOwnerMerchantRow {
+  codeOwnerId: string;
+  merchantId: string;
+  merchantName: string;
+  merchantImageUrl: string | null;
+  merchantWalletAddress: string | null;
+}
 
 @Injectable()
 export class GetMarketplaceListings {
@@ -59,277 +101,264 @@ export class GetMarketplaceListings {
         );
       }
 
-      // Log all listings for debugging
-      blockchainListings.forEach((listing) => {
-        this.logger.log(
-          `[GetMarketplaceListings] Listing ${listing.listingId}: ` +
-            `seller=${listing.seller}, typeId=${listing.typeId}, ` +
-            `amount=${listing.amount}, price=${listing.pricePerUnit}, ` +
-            `isActive=${listing.isActive}`,
-        );
-      });
+      if (blockchainListings.length === 0) {
+        return page !== undefined && limit !== undefined
+          ? { page, limit, total: 0, totalPages: 0, listings: [] }
+          : { total: 0, listings: [] };
+      }
 
-      // 2. Get voucher details from database for each listing
-      const listingsWithDetails = await Promise.all(
-        blockchainListings.map(async (listing) => {
-          try {
-            const listingId = listing.listingId;
+      // Collect all listingIds for batch DB queries
+      const listingIds = blockchainListings.map((l) => l.listingId);
 
+      // 2. Single SQL: get one sample voucher code per listing with all joined data
+      //    Replaces N individual Prisma findMany calls (each with nested includes)
+      const listingDetails = await this.prisma.$queryRaw<ListingDetailRow[]>`
+        SELECT DISTINCT ON (vc."voucherGroupId")
+          vc."voucherGroupId",
+          vc.id AS "codeId",
+          vc."currentOwnerId" AS "codeCurrentOwnerId",
+          vc."currentOwnerType" AS "codeCurrentOwnerType",
+          v.id AS "voucherId",
+          v.name AS "voucherName",
+          v.description AS "voucherDescription",
+          v."imageUrl" AS "voucherImageUrl",
+          v."valueType" AS "voucherValueType",
+          v.value AS "voucherValue",
+          v."startDate" AS "voucherStartDate",
+          v."endDate" AS "voucherEndDate",
+          v.status AS "voucherStatus",
+          v."merchantId" AS "voucherMerchantId",
+          v."sellerMerchantId" AS "voucherSellerMerchantId",
+          m.id AS "merchantId",
+          m.name AS "merchantName",
+          m."imageUrl" AS "merchantImageUrl",
+          w."walletAddress" AS "merchantWalletAddress",
+          p.id AS "pointId",
+          p.name AS "pointName",
+          p.symbol AS "pointSymbol",
+          p."contractAddress" AS "pointContractAddress",
+          p."imageUrl" AS "pointImageUrl"
+        FROM "VoucherCode" vc
+        JOIN "Voucher" v ON vc."voucherId" = v.id
+        LEFT JOIN "Merchant" m ON v."merchantId" = m.id
+        LEFT JOIN "Wallet" w ON m."walletId" = w.id
+        LEFT JOIN "Point" p ON vc."pointId" = p.id
+        WHERE vc."voucherGroupId" IN (${Prisma.join(listingIds)})
+          AND (vc."currentOwnerType" IS NULL OR vc."currentOwnerType" != 'CUSTOMER')
+        ORDER BY vc."voucherGroupId", vc.created_at ASC
+      `;
+
+      // 3. Single SQL: get available code counts per listing
+      //    Replaces N individual Prisma count() calls
+      const availableCounts = await this.prisma.$queryRaw<AvailableCountRow[]>`
+        SELECT
+          vc."voucherGroupId",
+          COUNT(*)::bigint AS "availableCount"
+        FROM "VoucherCode" vc
+        WHERE vc."voucherGroupId" IN (${Prisma.join(listingIds)})
+          AND vc."isUsed" = false
+          AND (vc."currentOwnerType" IS NULL OR vc."currentOwnerType" != 'CUSTOMER')
+        GROUP BY vc."voucherGroupId"
+      `;
+
+      // Index results by listingId for O(1) lookup
+      const detailMap = new Map<string, ListingDetailRow>();
+      for (const row of listingDetails) {
+        detailMap.set(row.voucherGroupId, row);
+      }
+
+      const countMap = new Map<string, number>();
+      for (const row of availableCounts) {
+        countMap.set(row.voucherGroupId, Number(row.availableCount));
+      }
+
+      // 4. Collect unique MERCHANT code owners that need wallet lookup
+      //    (when code is owned by a merchant different from voucher's merchant)
+      const merchantOwnerIds = new Set<string>();
+      for (const row of listingDetails) {
+        if (
+          row.codeCurrentOwnerType === 'MERCHANT' &&
+          row.codeCurrentOwnerId &&
+          row.codeCurrentOwnerId !== row.merchantId
+        ) {
+          merchantOwnerIds.add(row.codeCurrentOwnerId);
+        }
+      }
+
+      // Single SQL for code-owner merchants (if any) — replaces N individual findUnique calls
+      const codeOwnerMerchantMap = new Map<string, CodeOwnerMerchantRow>();
+      if (merchantOwnerIds.size > 0) {
+        const codeOwnerMerchants = await this.prisma.$queryRaw<
+          CodeOwnerMerchantRow[]
+        >`
+          SELECT
+            m.id AS "codeOwnerId",
+            m.id AS "merchantId",
+            m.name AS "merchantName",
+            m."imageUrl" AS "merchantImageUrl",
+            w."walletAddress" AS "merchantWalletAddress"
+          FROM "Merchant" m
+          LEFT JOIN "Wallet" w ON m."walletId" = w.id
+          WHERE m.id IN (${Prisma.join([...merchantOwnerIds])})
+        `;
+        for (const row of codeOwnerMerchants) {
+          codeOwnerMerchantMap.set(row.codeOwnerId, row);
+        }
+      }
+
+      this.logger.log(
+        `[GetMarketplaceListings] SQL returned ${listingDetails.length} listing details, ${availableCounts.length} count rows`,
+      );
+
+      // 5. Build results by mapping blockchain listings to DB data
+      const now = new Date();
+      const validListings: any[] = [];
+
+      for (const listing of blockchainListings) {
+        const detail = detailMap.get(listing.listingId);
+
+        if (!detail) {
+          this.logger.warn(
+            `[GetMarketplaceListings] ❌ No voucher codes found in database for listingId ${listing.listingId}`,
+          );
+          continue;
+        }
+
+        // Filter out expired vouchers
+        if (detail.voucherEndDate && new Date(detail.voucherEndDate) < now) {
+          this.logger.log(
+            `[GetMarketplaceListings] 🚫 Filtered expired voucher: listingId=${listing.listingId}, voucherId=${detail.voucherId}`,
+          );
+          continue;
+        }
+
+        if ((detail.voucherStatus as string) === EXPIRED_STATUS) {
+          this.logger.log(
+            `[GetMarketplaceListings] 🚫 Filtered expired status voucher: listingId=${listing.listingId}, voucherId=${detail.voucherId}`,
+          );
+          continue;
+        }
+
+        // Filter by merchantId if provided
+        if (merchantId) {
+          const isVoucherOwner = detail.merchantId === merchantId;
+          const isSellerMerchant =
+            detail.voucherSellerMerchantId === merchantId;
+          const isCodeOwner =
+            detail.codeCurrentOwnerId === merchantId &&
+            detail.codeCurrentOwnerType === 'MERCHANT';
+
+          if (!isVoucherOwner && !isSellerMerchant && !isCodeOwner) {
             this.logger.log(
-              `[GetMarketplaceListings] Processing listing ${listingId}`,
+              `[GetMarketplaceListings] Filtered out listing ${listing.listingId}: ` +
+                `merchantId=${detail.merchantId}, sellerMerchantId=${detail.voucherSellerMerchantId}, ` +
+                `codeOwnerId=${detail.codeCurrentOwnerId} do not match requested merchantId=${merchantId}`,
             );
-
-            // Debug: Check total codes with this voucherGroupId first
-            const totalCodesWithGroupId = await this.prisma.voucherCode.count({
-              where: { voucherGroupId: listingId },
-            });
-            this.logger.log(
-              `[GetMarketplaceListings] 🔍 Total VoucherCodes with voucherGroupId=${listingId}: ${totalCodesWithGroupId}`,
-            );
-
-            // Find voucher codes with this listingId as voucherGroupId
-            // Exclude customer-owned codes to get proper sample for metadata
-            // Note: Using OR with null check because Prisma NOT clause doesn't include NULL values
-            const voucherCodes = await this.prisma.voucherCode.findMany({
-              where: {
-                voucherGroupId: listingId,
-                // Exclude codes already sold to customers (but include NULL)
-                OR: [
-                  { currentOwnerType: null },
-                  { NOT: { currentOwnerType: 'CUSTOMER' } },
-                ],
-              },
-              include: {
-                voucher: {
-                  include: {
-                    merchant: {
-                      select: {
-                        id: true,
-                        name: true,
-                        imageUrl: true,
-                        wallet: {
-                          select: {
-                            walletAddress: true,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-                point: {
-                  select: {
-                    id: true,
-                    name: true,
-                    symbol: true,
-                    contractAddress: true,
-                    imageUrl: true,
-                  },
-                },
-              },
-              take: 1, // Just need one to get voucher details
-            });
-
-            if (voucherCodes.length === 0) {
-              this.logger.warn(
-                `[GetMarketplaceListings] ❌ No voucher codes found in database for listingId ${listingId}`,
-              );
-              this.logger.warn(
-                `[GetMarketplaceListings] This means listing ${listingId} exists on blockchain but has no associated voucher codes in database`,
-              );
-              return null;
-            }
-
-            const voucherCode = voucherCodes[0];
-            const voucher = voucherCode.voucher;
-            const merchant = voucher?.merchant;
-            const point = voucherCode.point;
-
-            // Filter out expired vouchers (will be delisted by cron job)
-            const now = new Date();
-            if (voucher?.endDate && new Date(voucher.endDate) < now) {
-              this.logger.log(
-                `[GetMarketplaceListings] 🚫 Filtered expired voucher: listingId=${listingId}, ` +
-                  `voucherId=${voucher.id}, endDate=${voucher.endDate}`,
-              );
-              return null;
-            }
-
-            // Also filter out vouchers with 'expired' status
-            if ((voucher?.status as string) === EXPIRED_STATUS) {
-              this.logger.log(
-                `[GetMarketplaceListings] 🚫 Filtered expired status voucher: listingId=${listingId}, ` +
-                  `voucherId=${voucher.id}`,
-              );
-              return null;
-            }
-
-            this.logger.log(
-              `[GetMarketplaceListings] ✅ Found voucher for listingId ${listingId}: ` +
-                `voucherId=${voucher?.id}, merchantId=${merchant?.id}, ` +
-                `codeOwnerId=${voucherCode.currentOwnerId}, codeOwnerType=${voucherCode.currentOwnerType}, pointId=${point?.id}`,
-            );
-
-            // Filter by merchantId if provided
-            // Check: voucher owner (merchant created) OR seller merchant (seller-created vouchers)
-            // OR code owner (merchant purchased from seller and has unsold codes)
-            if (merchantId) {
-              const isVoucherOwner = merchant?.id === merchantId;
-              const isSellerMerchant = voucher?.sellerMerchantId === merchantId;
-              const isCodeOwner =
-                voucherCode.currentOwnerId === merchantId &&
-                voucherCode.currentOwnerType === 'MERCHANT';
-
-              if (!isVoucherOwner && !isSellerMerchant && !isCodeOwner) {
-                this.logger.log(
-                  `[GetMarketplaceListings] Filtered out listing ${listingId}: ` +
-                    `voucher.merchantId=${merchant?.id}, voucher.sellerMerchantId=${voucher?.sellerMerchantId}, ` +
-                    `code.currentOwnerId=${voucherCode.currentOwnerId} ` +
-                    `do not match requested merchantId=${merchantId}`,
-                );
-                return null;
-              }
-            }
-
-            // Get seller wallet address
-            // For purchased codes, get the code owner's wallet instead of voucher merchant
-            let sellerWalletAddress = merchant?.wallet?.walletAddress || '';
-
-            // If code is owned by a merchant (purchased from seller), use that merchant's details
-            let codeOwnerMerchant: {
-              id: string;
-              name: string;
-              imageUrl: string | null;
-              wallet: { walletAddress: string } | null;
-            } | null = null;
-
-            if (
-              voucherCode.currentOwnerType === 'MERCHANT' &&
-              voucherCode.currentOwnerId
-            ) {
-              codeOwnerMerchant = await this.prisma.merchant.findUnique({
-                where: { id: voucherCode.currentOwnerId },
-                select: {
-                  id: true,
-                  name: true,
-                  imageUrl: true,
-                  wallet: { select: { walletAddress: true } },
-                },
-              });
-              if (codeOwnerMerchant?.wallet?.walletAddress) {
-                sellerWalletAddress = codeOwnerMerchant.wallet.walletAddress;
-              }
-            }
-
-            // Use codeOwnerMerchant if voucher.merchant is null (for seller vouchers)
-            const actualMerchant = merchant || codeOwnerMerchant;
-
-            // Verify seller matches
-            if (
-              sellerWalletAddress.toLowerCase() !== listing.seller.toLowerCase()
-            ) {
-              this.logger.warn(
-                `[GetMarketplaceListings] Seller mismatch for listing ${listingId}. ` +
-                  `Expected: ${sellerWalletAddress}, Got: ${listing.seller}`,
-              );
-            }
-
-            // For seller listings (THB payment), use blockchain amount as source of truth
-            // because VoucherCodes are deleted after purchase
-            const isSellerListing =
-              listing.paymentToken.toLowerCase() ===
-              this.thbAddress.toLowerCase();
-
-            // Count available codes from database
-            // Available = not sold to customer yet (no owner, or owned by merchant/seller)
-            // Note: Using OR with null check because Prisma NOT clause doesn't include NULL values
-            const dbAvailableCodes = await this.prisma.voucherCode.count({
-              where: {
-                voucherGroupId: listingId,
-                isUsed: false,
-                // Exclude codes already sold to customers (but include NULL)
-                OR: [
-                  { currentOwnerType: null },
-                  { NOT: { currentOwnerType: 'CUSTOMER' } },
-                ],
-              },
-            });
-
-            // For seller listings: use blockchain amount (source of truth after purchase)
-            // For others: use database count
-            const totalAvailableCodes = isSellerListing
-              ? parseInt(listing.amount, 10)
-              : dbAvailableCodes;
-
-            this.logger.log(
-              `[GetMarketplaceListings] Listing ${listingId}: db=${dbAvailableCodes}, blockchain=${listing.amount}, totalAvailableCodes=${totalAvailableCodes}`,
-            );
-
-            // Skip listings with no available codes (all sold)
-            if (totalAvailableCodes === 0) {
-              this.logger.log(
-                `[GetMarketplaceListings] 🚫 Filtered sold out listing: listingId=${listingId}, no available codes`,
-              );
-              return null;
-            }
-
-            return {
-              listingId: listingId,
-              seller: listing.seller,
-              typeId: listing.typeId,
-              amountOnChain: listing.amount, // Amount left on blockchain
-              totalAvailableCodes, // Final available amount after purchase
-              pricePerUnit: listing.pricePerUnit,
-              paymentToken: listing.paymentToken,
-              isActive: listing.isActive,
-              listedAt: listing.listedAt,
-              // Voucher details from database
-              voucher: voucher
-                ? {
-                    id: voucher.id,
-                    name: voucher.name,
-                    description: voucher.description,
-                    imageUrl: voucher.imageUrl,
-                    valueType: voucher.valueType,
-                    value: voucher.value,
-                    startDate: voucher.startDate,
-                    endDate: voucher.endDate,
-                    status: voucher.status,
-                    merchantRef: voucher.merchantRef,
-                    merchant: actualMerchant
-                      ? {
-                          id: actualMerchant.id,
-                          name: actualMerchant.name,
-                          walletAddress: sellerWalletAddress,
-                          imageUrl: actualMerchant.imageUrl,
-                        }
-                      : null,
-                    point: point
-                      ? {
-                          id: point.id,
-                          name: point.name,
-                          symbol: point.symbol,
-                          contractAddress: convertBufferToAddress(
-                            point.contractAddress as any,
-                          ),
-                          imageUrl: point.imageUrl,
-                        }
-                      : null,
-                  }
-                : null,
-            };
-          } catch (error) {
-            this.logger.error(
-              `[GetMarketplaceListings] Error processing listing ${listing.listingId}: ${error.message}`,
-            );
-            return null;
+            continue;
           }
-        }),
-      );
+        }
 
-      // Filter out null entries (listings without voucher details or filtered by merchant)
-      const validListings = listingsWithDetails.filter(
-        (listing) => listing !== null,
-      );
+        // Determine seller wallet and actual merchant
+        let sellerWalletAddress = detail.merchantWalletAddress || '';
+        let actualMerchant: {
+          id: string;
+          name: string;
+          imageUrl: string | null;
+        } | null = detail.merchantId
+          ? {
+              id: detail.merchantId,
+              name: detail.merchantName!,
+              imageUrl: detail.merchantImageUrl,
+            }
+          : null;
+
+        // If code is owned by a different merchant, use that merchant's details
+        if (
+          detail.codeCurrentOwnerType === 'MERCHANT' &&
+          detail.codeCurrentOwnerId
+        ) {
+          const ownerMerchant = codeOwnerMerchantMap.get(
+            detail.codeCurrentOwnerId,
+          );
+          if (ownerMerchant?.merchantWalletAddress) {
+            sellerWalletAddress = ownerMerchant.merchantWalletAddress;
+          }
+          if (ownerMerchant) {
+            actualMerchant = actualMerchant || {
+              id: ownerMerchant.merchantId,
+              name: ownerMerchant.merchantName,
+              imageUrl: ownerMerchant.merchantImageUrl,
+            };
+          }
+        }
+
+        // Seller match warning
+        if (
+          sellerWalletAddress.toLowerCase() !== listing.seller.toLowerCase()
+        ) {
+          this.logger.warn(
+            `[GetMarketplaceListings] Seller mismatch for listing ${listing.listingId}. ` +
+              `Expected: ${sellerWalletAddress}, Got: ${listing.seller}`,
+          );
+        }
+
+        // Determine available codes
+        const isSellerListing =
+          listing.paymentToken.toLowerCase() === this.thbAddress.toLowerCase();
+        const dbAvailableCodes = countMap.get(listing.listingId) || 0;
+        const totalAvailableCodes = isSellerListing
+          ? parseInt(listing.amount, 10)
+          : dbAvailableCodes;
+
+        if (totalAvailableCodes === 0) {
+          this.logger.log(
+            `[GetMarketplaceListings] 🚫 Filtered sold out listing: listingId=${listing.listingId}, no available codes`,
+          );
+          continue;
+        }
+
+        validListings.push({
+          listingId: listing.listingId,
+          seller: listing.seller,
+          typeId: listing.typeId,
+          amountOnChain: listing.amount,
+          totalAvailableCodes,
+          pricePerUnit: listing.pricePerUnit,
+          paymentToken: listing.paymentToken,
+          isActive: listing.isActive,
+          listedAt: listing.listedAt,
+          voucher: {
+            id: detail.voucherId,
+            name: detail.voucherName,
+            description: detail.voucherDescription,
+            imageUrl: detail.voucherImageUrl,
+            valueType: detail.voucherValueType,
+            value: detail.voucherValue,
+            startDate: detail.voucherStartDate,
+            endDate: detail.voucherEndDate,
+            status: detail.voucherStatus,
+            merchant: actualMerchant
+              ? {
+                  id: actualMerchant.id,
+                  name: actualMerchant.name,
+                  walletAddress: sellerWalletAddress,
+                  imageUrl: actualMerchant.imageUrl,
+                }
+              : null,
+            point: detail.pointId
+              ? {
+                  id: detail.pointId,
+                  name: detail.pointName,
+                  symbol: detail.pointSymbol,
+                  contractAddress: detail.pointContractAddress
+                    ? convertBufferToAddress(detail.pointContractAddress as any)
+                    : null,
+                  imageUrl: detail.pointImageUrl,
+                }
+              : null,
+          },
+        });
+      }
 
       this.logger.log(
         `[GetMarketplaceListings] Found ${validListings.length} valid listings`,
@@ -337,21 +366,14 @@ export class GetMarketplaceListings {
 
       // Apply pagination if requested
       const total = validListings.length;
-      let paginatedListings = validListings;
 
       if (page !== undefined && limit !== undefined) {
         const startIndex = (page - 1) * limit;
         const endIndex = startIndex + limit;
-        paginatedListings = validListings.slice(startIndex, endIndex);
+        const paginatedListings = validListings.slice(startIndex, endIndex);
 
         this.logger.log(
           `[GetMarketplaceListings] Returning page ${page} with ${paginatedListings.length} listings (${startIndex}-${endIndex} of ${total})`,
-        );
-        console.log(
-          '===>',
-          JSON.stringify({
-            paginatedListings,
-          }),
         );
 
         return {

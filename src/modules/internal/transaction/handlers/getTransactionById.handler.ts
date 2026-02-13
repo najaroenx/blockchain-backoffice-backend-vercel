@@ -7,10 +7,8 @@ import {
 import { TransactionDBService } from '../services/transaction-db.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
-import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import {
   TransactionDetail,
-  CustomerWithWallet,
   VoucherCodeWithVoucher,
   TransactionParticipant,
   TransactionVoucherInfo,
@@ -89,7 +87,7 @@ export class GetTransactionById {
           symbol: point.symbol,
           merchantId: point.merchantId || null,
           imageUrl: point.imageUrl || null,
-          balance: amount,
+          balance: amount.toString(),
         };
       };
 

@@ -139,7 +139,11 @@ export class BurnTransaction {
       customerPoints: {
         update: {
           where: { id: senderPoints.id },
-          data: { balances: senderPoints.balance - amount },
+          data: {
+            balances: new Prisma.Decimal(senderPoints.balance)
+              .minus(amount)
+              .toNumber(),
+          },
         },
       },
     });

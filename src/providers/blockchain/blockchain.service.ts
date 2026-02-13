@@ -33,6 +33,22 @@ export class BlockchainService {
 
   private vaultAddress: string;
 
+  // In-memory cache for active marketplace listings (reduces N+1 RPC calls)
+  private listingsCache: {
+    data: Array<{
+      listingId: string;
+      seller: string;
+      typeId: string;
+      amount: string;
+      pricePerUnit: string;
+      paymentToken: string;
+      isActive: boolean;
+      listedAt: number;
+    }>;
+    timestamp: number;
+  } | null = null;
+  private readonly LISTINGS_CACHE_TTL_MS = 30_000; // 30 seconds
+
   constructor(private configService: ConfigService) {
     this.pointFactoryAddress = this.configService.get<string>(
       'POINT_FACTORY_ADDRESS',
@@ -479,7 +495,7 @@ export class BlockchainService {
   }: {
     walletAddress: string;
     pointAddress: string;
-  }): Promise<string> {
+  }): Promise<{ balance: string; balanceWei: string }> {
     try {
       const contract = new Contract(
         pointAddress,
@@ -488,7 +504,10 @@ export class BlockchainService {
       );
       const balance = await contract['balanceOf'](walletAddress);
       // Convert from Wei to Ether format
-      return ethers.formatEther(balance);
+      return {
+        balance: ethers.formatEther(balance),
+        balanceWei: balance.toString(),
+      };
     } catch (error) {
       console.error('[BlockchainService] Get balance failed:', error.message);
       throw new InternalServerErrorException('Failed to get balance');
@@ -1064,12 +1083,38 @@ export class BlockchainService {
   }
 
   /**
-   * Get all active marketplace listings
+   * Invalidate the in-memory listings cache.
+   * Called after write operations (list, delist, buy) that change marketplace state.
+   */
+  invalidateListingsCache() {
+    if (this.listingsCache) {
+      console.log('[Blockchain] Listings cache invalidated');
+    }
+    this.listingsCache = null;
+  }
+
+  /**
+   * Get all active marketplace listings.
+   * Uses 2 parallel RPC calls (getActiveListings + getAllActiveListings) instead of N+1.
+   * Results are cached in-memory for 30s and auto-invalidated on write operations.
    * @returns Array of active listings
    */
   async getAllActiveMarketplaceListings() {
     try {
-      console.log('[Blockchain] Fetching all active listings...');
+      // Return cached data if still valid
+      if (
+        this.listingsCache &&
+        Date.now() - this.listingsCache.timestamp < this.LISTINGS_CACHE_TTL_MS
+      ) {
+        console.log(
+          '[Blockchain] Returning cached listings (%d items, age: %ds)',
+          this.listingsCache.data.length,
+          Math.round((Date.now() - this.listingsCache.timestamp) / 1000),
+        );
+        return this.listingsCache.data;
+      }
+
+      console.log('[Blockchain] Fetching all active listings (cache miss)...');
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');
@@ -1081,44 +1126,37 @@ export class BlockchainService {
         this.provider,
       );
 
-      const listingIds = await marketplaceContract.getActiveListings();
+      // 2 parallel RPC calls instead of N+1 individual getListing() calls
+      const [listingIds, listingStructs] = await Promise.all([
+        marketplaceContract.getActiveListings(),
+        marketplaceContract.getAllActiveListings(),
+      ]);
 
       console.log(
         '[Blockchain] getActiveListings() returned:',
         listingIds.length,
         'IDs',
       );
-      console.log(
-        '[Blockchain] Listing IDs:',
-        listingIds.map((id: bigint) => id.toString()).join(', '),
-      );
 
-      const listings = await Promise.all(
-        listingIds.map(async (id: bigint) => {
-          const listing = await marketplaceContract.getListing(id);
-          console.log(
-            `[Blockchain] Listing ${id.toString()}: seller=${listing.seller}, ` +
-              `typeId=${listing.typeId.toString()}, amount=${listing.amount.toString()}, ` +
-              `price=${ethers.formatEther(listing.pricePerUnit)}, active=${listing.active}`,
-          );
-          return {
-            listingId: id.toString(),
-            seller: listing.seller,
-            typeId: listing.typeId.toString(),
-            amount: listing.amount.toString(),
-            pricePerUnit: ethers.formatEther(listing.pricePerUnit),
-            paymentToken: listing.paymentToken,
-            isActive: listing.active,
-            listedAt: Number(listing.listedAt),
-          };
-        }),
-      );
+      // Zip listing IDs with struct data (same order from contract)
+      const listings = listingIds.map((id: bigint, index: number) => {
+        const listing = listingStructs[index];
+        return {
+          listingId: id.toString(),
+          seller: listing.seller,
+          typeId: listing.typeId.toString(),
+          amount: listing.amount.toString(),
+          pricePerUnit: ethers.formatEther(listing.pricePerUnit),
+          paymentToken: listing.paymentToken,
+          isActive: listing.active,
+          listedAt: Number(listing.listedAt),
+        };
+      });
 
       console.log('[Blockchain] Found', listings.length, 'active listings');
-      console.log(
-        '[Blockchain] Active status:',
-        listings.map((l) => `${l.listingId}=${l.isActive}`).join(', '),
-      );
+
+      // Update cache
+      this.listingsCache = { data: listings, timestamp: Date.now() };
 
       return listings;
     } catch (error) {
@@ -1161,6 +1199,9 @@ export class BlockchainService {
       console.log(
         `[Blockchain] Coupon delisted. ListingId: ${listingId}, Tx: ${receipt.hash}`,
       );
+
+      // Invalidate listings cache after delist
+      this.invalidateListingsCache();
 
       return {
         hash: receipt.hash,
@@ -1567,6 +1608,51 @@ export class BlockchainService {
   }
 
   /**
+   * Get user coupon balances in batch (single RPC call)
+   * Uses ERC-1155 balanceOfBatch to check multiple tokenIds at once
+   * @param userAddress - User wallet address
+   * @param typeIds - Array of coupon type IDs
+   * @returns Map of tokenId string -> balance number
+   */
+  async getUserCouponBalanceBatch(
+    userAddress: string,
+    typeIds: number[],
+  ): Promise<Map<string, number>> {
+    try {
+      console.log('[Blockchain] Checking coupon balances in batch...');
+      console.log('[Blockchain] - Address:', userAddress);
+      console.log('[Blockchain] - Type IDs count:', typeIds.length);
+
+      const couponContract = new Contract(
+        this.couponAddress,
+        CouponArtifact.abi,
+        this.provider,
+      );
+
+      // balanceOfBatch requires parallel arrays of addresses and ids
+      const addresses = typeIds.map(() => userAddress);
+      const balances: bigint[] = await couponContract.balanceOfBatch(
+        addresses,
+        typeIds,
+      );
+
+      const result = new Map<string, number>();
+      for (let i = 0; i < typeIds.length; i++) {
+        result.set(typeIds[i].toString(), Number(balances[i]));
+      }
+
+      return result;
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to get coupon balances in batch: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Failed to get coupon balances in batch: ${error.message}`,
+      );
+    }
+  }
+
+  /**
    * List coupon on marketplace
    * @param typeId - Coupon type ID
    * @param amount - Amount to list
@@ -1755,6 +1841,9 @@ export class BlockchainService {
       console.log('[Blockchain] Listing created successfully');
       console.log('[Blockchain] - Listing ID:', listingId);
       console.log('[Blockchain] - Tx Hash:', receipt.hash);
+
+      // Invalidate listings cache after new listing
+      this.invalidateListingsCache();
 
       return {
         listingId,
@@ -1965,6 +2054,9 @@ export class BlockchainService {
       console.log('[Blockchain] Coupon purchased successfully');
       console.log('[Blockchain] - Tx Hash:', receipt.hash);
       console.log('[Blockchain] - Block:', receipt.blockNumber);
+
+      // Invalidate listings cache after purchase
+      this.invalidateListingsCache();
 
       return {
         hash: receipt.hash,

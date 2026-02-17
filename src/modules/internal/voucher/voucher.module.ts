@@ -57,6 +57,10 @@ import { GetMarketplaceListingsByMerchantRef } from './handlers/getMarketplaceLi
     GetCouponById,
     GetMarketplaceListingsByMerchantRef,
   ],
-  exports: [VoucherDBService, GetCouponById, GetMarketplaceListingsByMerchantRef],
+  exports: [
+    VoucherDBService,
+    GetCouponById,
+    GetMarketplaceListingsByMerchantRef,
+  ],
 })
 export class VoucherModule {}

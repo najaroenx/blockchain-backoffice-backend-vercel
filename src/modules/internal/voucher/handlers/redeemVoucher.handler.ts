@@ -563,65 +563,6 @@ export class RedeemVoucher {
   }
 
   /**
-   * ดึงประวัติการใช้งาน voucher ของลูกค้า
-   */
-  async getCustomerRedemptionHistory(customerId: string) {
-    try {
-      this.logger.log(
-        `[HISTORY] Getting redemption history for customer: ${customerId}`,
-      );
-
-      const redemptions = await this.prisma.voucherCode.findMany({
-        where: {
-          usedBy: customerId,
-          isUsed: true,
-        },
-        include: {
-          voucher: {
-            include: {
-              merchant: true,
-            },
-          },
-        },
-        orderBy: {
-          usedAt: 'desc',
-        },
-      });
-
-      // Batch enrich all merchantRefs
-      const merchantRefs = redemptions
-        .map((code) => code.voucher.merchantRef)
-        .filter(Boolean) as string[];
-      const merchantRefMap =
-        await this.merchantRefEnrichment.enrichBatch(merchantRefs);
-
-      return redemptions.map((code) => ({
-        code: code.code,
-        redeemedAt: code.usedAt,
-        pointsCost: code.pointsCost,
-        voucher: {
-          id: code.voucher.id,
-          name: code.voucher.name,
-          description: code.voucher.description,
-          valueType: code.voucher.valueType,
-          value: code.voucher.value,
-          merchantName:
-            code.voucher.merchant?.name || code.voucher.merchantName,
-          merchantRef: code.voucher.merchantRef || null,
-          merchantRefDetail: code.voucher.merchantRef
-            ? merchantRefMap.get(code.voucher.merchantRef) || null
-            : null,
-        },
-      }));
-    } catch (error) {
-      this.logger.error(
-        `[ERROR] Failed to get redemption history: ${error.message}`,
-      );
-      throw error;
-    }
-  }
-
-  /**
    * Redeem AIS voucher - similar to execute but transfers points to receiverPhone
    */
   async executeAIS(

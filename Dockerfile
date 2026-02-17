@@ -48,8 +48,8 @@ EXPOSE 4000
 # PROD MODE (migrate + fix thb price + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    node dist/scripts/scripts/fix-redeem-receiver-id.js && \
-    node dist/scripts/scripts/fix-thb-buy-receiver-seller.js && \
+    node dist/scripts/fix-redeem-receiver-id.js && \
+    node dist/scripts/fix-thb-buy-receiver-seller.js && \
     npx prisma db seed && \
     node dist/src/main \
 "]

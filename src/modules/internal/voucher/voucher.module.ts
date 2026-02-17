@@ -27,6 +27,7 @@ import { DelistExpiredVouchers } from './handlers/delistExpiredVouchers.handler'
 import { DelistExpiredVouchersCron } from './cron/delistExpiredVouchers.cron';
 import { GetMarketplaceListingsEndUser } from './handlers/getMarketplaceListtingEnduser.handler';
 import { GetCouponById } from './handlers/getCouponById.handler';
+import { GetMarketplaceListingsByMerchantRef } from './handlers/getMarketplaceListingsByMerchantRef.handler';
 @Module({
   imports: [PrismaModule, BlockchainModule, TokenModule, SharedModule],
   controllers: [VoucherController],
@@ -54,7 +55,8 @@ import { GetCouponById } from './handlers/getCouponById.handler';
     DelistExpiredVouchersCron,
     GetMarketplaceListingsEndUser,
     GetCouponById,
+    GetMarketplaceListingsByMerchantRef,
   ],
-  exports: [VoucherDBService, GetCouponById],
+  exports: [VoucherDBService, GetCouponById, GetMarketplaceListingsByMerchantRef],
 })
 export class VoucherModule {}

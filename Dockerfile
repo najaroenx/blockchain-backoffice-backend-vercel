@@ -17,9 +17,6 @@ RUN npx prisma generate
 # Build NestJS app
 RUN yarn run build
 
-# Compile migration scripts to JS (AFTER nest build to avoid dist/ cleanup)
-RUN npx tsc scripts/fix-thb-purchase-price.ts scripts/migrate-thb-purchase-price.ts scripts/fix-redeem-receiver-id.ts scripts/fix-thb-buy-receiver-seller.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
-
 # Stage 2: Production image
 FROM node:20-alpine
 
@@ -34,7 +31,6 @@ COPY --from=builder --chown=merchant-backoffice:nodejs /app/node_modules ./node_
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=merchant-backoffice:nodejs /app/scripts ./scripts
 
 USER merchant-backoffice
 
@@ -45,11 +41,9 @@ EXPOSE 4000
 #     npx prisma migrate reset --force --skip-generate && \
 #     node dist/src/main \
 # "]
-# PROD MODE (migrate + fix thb price + seed + start)
+# PROD MODE (migrate + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    node dist/scripts/fix-redeem-receiver-id.js && \
-    node dist/scripts/fix-thb-buy-receiver-seller.js && \
     npx prisma db seed && \
     node dist/src/main \
 "]

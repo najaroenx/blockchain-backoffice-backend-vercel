@@ -17,6 +17,7 @@ import {
 import { Public } from 'src/modules/internal/auth/public.decorator';
 import { VoucherDBService } from 'src/modules/internal/voucher/services/voucher-db.service';
 import { GetCouponById } from 'src/modules/internal/voucher/handlers/getCouponById.handler';
+import { GetMarketplaceListingsByMerchantRef } from 'src/modules/internal/voucher/handlers/getMarketplaceListingsByMerchantRef.handler';
 import { RedeemAISVoucherDto } from 'src/modules/internal/voucher/dtos/redeem-voucher.dto';
 
 /**
@@ -34,6 +35,7 @@ export class ExternalCouponController {
   constructor(
     private readonly voucherService: VoucherDBService,
     private readonly getCouponByIdHandler: GetCouponById,
+    private readonly getMarketplaceListingsByMerchantRefHandler: GetMarketplaceListingsByMerchantRef,
   ) {}
 
   /**
@@ -235,8 +237,41 @@ export class ExternalCouponController {
       data.receiverPhone,
     );
   }
-}
 
-// @Query('status') status?: 'unused' | 'used' | 'all',
-// @Query('page') page?: string,
-// @Query('limit') limit?: string,
+  /**
+   * Get marketplace listings filtered by merchantRef
+   * GET /coupon/marketplace/:merchantRef?page=1&limit=20
+   * Returns active marketplace listings for vouchers matching the merchantRef
+   */
+  @Get('/marketplace/:merchantRef')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Marketplace Listings by Merchant Ref',
+    description:
+      'ดึงรายการ coupon ที่ตั้งขายบน marketplace โดย filter ด้วย merchantRef พร้อม pagination',
+  })
+  @ApiParam({
+    name: 'merchantRef',
+    description: 'รหัสอ้างอิงร้านค้า (MerchantRef)',
+    example: 'merchant-ref-001',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Marketplace listings retrieved successfully',
+  })
+  async getMarketplaceListingsByMerchantRef(
+    @Param('merchantRef') merchantRef: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+
+    return this.getMarketplaceListingsByMerchantRefHandler.execute(
+      merchantRef,
+      pageNum,
+      limitNum,
+    );
+  }
+}

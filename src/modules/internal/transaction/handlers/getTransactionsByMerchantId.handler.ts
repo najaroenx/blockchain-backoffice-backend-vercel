@@ -4,6 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
+import { PrismaService } from 'prisma/prisma.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
@@ -17,7 +18,10 @@ import {
 export class GetTransactionsByMerchantId {
   private logger = new Logger(GetTransactionsByMerchantId.name);
 
-  constructor(private db: TransactionDBService) {}
+  constructor(
+    private db: TransactionDBService,
+    private prisma: PrismaService,
+  ) {}
 
   async execute(
     merchantId: string,
@@ -26,115 +30,151 @@ export class GetTransactionsByMerchantId {
       const transactions =
         await this.db.getTransactionsByMerchantId(merchantId);
 
-      const res = transactions.map((transaction) => {
-        const { merchant, point, voucherCode, ...rest } = transaction;
+      // Helper: resolve displayName based on participant type
+      const getDisplayName = async (
+        participantId: string | null,
+        participantType: string | null,
+      ): Promise<string> => {
+        if (!participantId || !participantType) return '';
 
-        const formatParticipant = (
-          walletAddress: Uint8Array,
-          participantId: string | null,
-          merchantName: string,
-        ) => ({
-          id: participantId ?? merchantId,
-          walletAddress: convertBufferToAddress(walletAddress),
-          displayName: merchantName,
-        });
+        if (participantType === 'CUSTOMER') {
+          const cust = await this.prisma.customer.findUnique({
+            where: { id: participantId },
+          });
+          return cust?.tel || '';
+        } else if (
+          participantType === 'MERCHANT' ||
+          participantType === 'SELLER'
+        ) {
+          const merch = await this.prisma.merchant.findUnique({
+            where: { id: participantId },
+          });
+          return merch?.name || '';
+        }
+        return '';
+      };
 
-        const formatPointInfo = (
-          point: any,
-          amount: number,
-          transactionTypeId: string,
-          assetType?: string,
-        ) => {
-          if (!point) return null;
+      const res = await Promise.all(
+        transactions.map(async (transaction) => {
+          const { merchant, point, voucherCode, ...rest } = transaction;
 
-          // New structure: check type field - if VOUCHER, no point info
-          if (assetType === 'VOUCHER') {
-            return null;
-          }
-
-          return {
-            id: point.id,
-            name: point.name,
-            symbol: point.symbol,
-            merchantId: point.merchantId || null,
-            imageUrl: point.imageUrl || null,
-            balance: amount.toString(),
-          };
-        };
-
-        // Determine transaction direction from merchant's perspective
-        // SENT when senderType === MERCHANT and senderId === merchantId
-        // RECEIVED when receiverType === MERCHANT and receiverId === merchantId
-        const transactionDirection =
-          (rest as any).senderType === 'MERCHANT' &&
-          rest.senderId === merchantId
-            ? 'SENT'
-            : 'RECEIVED';
-
-        const formatVoucherInfo = (
-          voucherCode: VoucherCodeWithVoucher | null,
-        ): TransactionVoucherInfo | null => {
-          if (!voucherCode?.voucher) return null;
-
-          return {
-            id: voucherCode.voucher.id,
-            tokenId: voucherCode.voucher.tokenId || null,
-            name: voucherCode.voucher.name,
-            description: voucherCode.voucher.description || null,
-            valueType: voucherCode.voucher.valueType,
-            value: voucherCode.voucher.value,
-            currency:
-              voucherCode.voucher.currency || voucherCode.currency || null,
-            imageUrl: voucherCode.voucher.imageUrl || null,
-            startDate: voucherCode.voucher.startDate || null,
-            endDate: voucherCode.voucher.endDate || null,
-            merchantRef: voucherCode.voucher.merchantRef || null,
-          };
-        };
-
-        return {
-          id: rest.id,
-          txHash: convertBufferToAddress(rest.txHash),
-          senderAddress: convertBufferToAddress(rest.senderAddress),
-          receiverAddress: convertBufferToAddress(rest.receiverAddress),
-          transactionTypeId: rest.transactionTypeId,
-          amount: rest.amount,
-          transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
-          senderId: rest.senderId || null,
-          receiverId: rest.receiverId || null,
-          merchant: {
-            id: merchantId,
-            name: merchant?.name || null,
-            imageUrl: merchant?.imageUrl || null,
-          },
-          point: formatPointInfo(
-            point,
-            rest.amount,
-            rest.transactionTypeId,
-            (rest as any).type,
-          ),
-          sender: formatParticipant(
-            rest.senderAddress,
+          // Resolve displayName by role
+          const senderDisplayName = await getDisplayName(
             rest.senderId,
-            merchant?.name || '',
-          ),
-          receiver: formatParticipant(
-            rest.receiverAddress,
+            (rest as any).senderType,
+          );
+          const receiverDisplayName = await getDisplayName(
             rest.receiverId,
-            merchant?.name || '',
-          ),
-          voucher:
-            (rest as any).type === 'POINT'
-              ? null
-              : formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
-          eventId: rest.eventId || null,
-          transactionRefId: (rest as any).transactionRefId || null,
-          typeAsset: (rest as any).type || null,
-          senderType: (rest as any).senderType || null,
-          receiverType: (rest as any).receiverType || null,
-          createdAt: rest.createdAt,
-        };
-      });
+            (rest as any).receiverType,
+          );
+
+          const formatParticipant = (
+            walletAddress: Uint8Array,
+            participantId: string | null,
+            merchantName: string,
+          ) => ({
+            id: participantId ?? merchantId,
+            walletAddress: convertBufferToAddress(walletAddress),
+            displayName: merchantName,
+          });
+
+          const formatPointInfo = (
+            point: any,
+            amount: number,
+            transactionTypeId: string,
+            assetType?: string,
+          ) => {
+            if (!point) return null;
+
+            // New structure: check type field - if VOUCHER, no point info
+            if (assetType === 'VOUCHER') {
+              return null;
+            }
+
+            return {
+              id: point.id,
+              name: point.name,
+              symbol: point.symbol,
+              merchantId: point.merchantId || null,
+              imageUrl: point.imageUrl || null,
+              balance: amount.toString(),
+            };
+          };
+
+          // Determine transaction direction from merchant's perspective
+          // SENT when senderType === MERCHANT and senderId === merchantId
+          // RECEIVED when receiverType === MERCHANT and receiverId === merchantId
+          const transactionDirection =
+            (rest as any).senderType === 'MERCHANT' &&
+            rest.senderId === merchantId
+              ? 'SENT'
+              : 'RECEIVED';
+
+          const formatVoucherInfo = (
+            voucherCode: VoucherCodeWithVoucher | null,
+          ): TransactionVoucherInfo | null => {
+            if (!voucherCode?.voucher) return null;
+
+            return {
+              id: voucherCode.voucher.id,
+              tokenId: voucherCode.voucher.tokenId || null,
+              name: voucherCode.voucher.name,
+              description: voucherCode.voucher.description || null,
+              valueType: voucherCode.voucher.valueType,
+              value: voucherCode.voucher.value,
+              currency:
+                voucherCode.voucher.currency || voucherCode.currency || null,
+              imageUrl: voucherCode.voucher.imageUrl || null,
+              startDate: voucherCode.voucher.startDate || null,
+              endDate: voucherCode.voucher.endDate || null,
+              merchantRef: voucherCode.voucher.merchantRef || null,
+            };
+          };
+
+          return {
+            id: rest.id,
+            txHash: convertBufferToAddress(rest.txHash),
+            senderAddress: convertBufferToAddress(rest.senderAddress),
+            receiverAddress: convertBufferToAddress(rest.receiverAddress),
+            transactionTypeId: rest.transactionTypeId,
+            amount: rest.amount,
+            transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
+            senderId: rest.senderId || null,
+            receiverId: rest.receiverId || null,
+            merchant: {
+              id: merchantId,
+              name: merchant?.name || null,
+              imageUrl: merchant?.imageUrl || null,
+            },
+            point: formatPointInfo(
+              point,
+              rest.amount,
+              rest.transactionTypeId,
+              (rest as any).type,
+            ),
+            sender: formatParticipant(
+              rest.senderAddress,
+              rest.senderId,
+              senderDisplayName,
+            ),
+            receiver: formatParticipant(
+              rest.receiverAddress,
+              rest.receiverId,
+              receiverDisplayName,
+            ),
+            voucher:
+              (rest as any).type === 'POINT'
+                ? null
+                : formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
+            eventId: rest.eventId || null,
+            transactionRefId: (rest as any).transactionRefId || null,
+            typeAsset: (rest as any).type || null,
+            senderType: (rest as any).senderType || null,
+            receiverType: (rest as any).receiverType || null,
+            createdAt: rest.createdAt,
+          };
+        }),
+      );
 
       // Sort: by createdAt desc, then VOUCHER before POINT (if same time)
       const sortedRes = res.sort((a, b) => {

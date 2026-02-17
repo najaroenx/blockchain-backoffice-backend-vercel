@@ -43,14 +43,14 @@ export class GetTransactionById {
       const getDisplayName = async (
         participantId: string | null,
         participantType: string | null,
-      ): Promise<string | null> => {
-        if (!participantId || !participantType) return null;
+      ): Promise<string> => {
+        if (!participantId || !participantType) return '';
 
         if (participantType === 'CUSTOMER') {
           const cust = await this.prisma.customer.findUnique({
             where: { id: participantId },
           });
-          return cust?.tel || null;
+          return cust?.tel || '';
         } else if (
           participantType === 'MERCHANT' ||
           participantType === 'SELLER'
@@ -58,9 +58,9 @@ export class GetTransactionById {
           const merch = await this.prisma.merchant.findUnique({
             where: { id: participantId },
           });
-          return merch?.name || null;
+          return merch?.name || '';
         }
-        return null;
+        return '';
       };
 
       const senderDisplayName = await getDisplayName(
@@ -75,12 +75,10 @@ export class GetTransactionById {
       const formatParticipant = (
         walletAddress: Uint8Array,
         participantId: string | null,
-        displayName: string | null,
-      ): TransactionParticipant | null => {
-        if (!participantId && !merchant) return null;
-
+        displayName: string,
+      ): TransactionParticipant => {
         return {
-          id: participantId ?? merchant?.id ?? null,
+          id: participantId ?? merchant?.id ?? '',
           walletAddress: convertBufferToAddress(walletAddress),
           displayName: displayName,
         };

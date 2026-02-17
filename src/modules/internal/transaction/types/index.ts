@@ -11,6 +11,7 @@ import {
   CustomerOwnedVoucherInfo,
   CustomerOwnedVoucherMerchant,
 } from 'src/modules/internal/voucher/types';
+import { MerchantRefDetail } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 
 // Re-export ParticipantType for convenience
 export { ParticipantType };
@@ -45,7 +46,7 @@ export interface VoucherCodeWithVoucher {
 export interface TransactionParticipant {
   id: string;
   walletAddress: string;
-  displayName: string | null;
+  displayName: string;
 }
 
 // Re-export for backward compatibility
@@ -71,6 +72,7 @@ export interface TransactionVoucherInfo {
   startDate: Date | null;
   endDate: Date | null;
   merchantRef: string | null;
+  merchantRefDetail?: MerchantRefDetail | null;
 }
 
 export interface TransactionDetail {

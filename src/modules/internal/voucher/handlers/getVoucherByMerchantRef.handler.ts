@@ -15,11 +15,15 @@ import {
   VoucherCodeWithVoucher,
 } from 'src/modules/internal/transaction/types';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
+import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 
 @Injectable()
 export class GetVoucherByMerchantRef {
   private logger = new Logger(GetVoucherByMerchantRef.name);
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly merchantRefEnrichment: MerchantRefEnrichmentService,
+  ) {}
 
   async execute(
     merchantRef: string,
@@ -67,6 +71,10 @@ export class GetVoucherByMerchantRef {
         };
       }
 
+      // Enrich merchantRef once (same ref for all transactions)
+      const merchantRefDetail =
+        await this.merchantRefEnrichment.enrich(merchantRef);
+
       // 3. Find REDEEM transactions related to these voucherCodes (type: VOUCHER)
       const transactions = await this.prisma.transaction.findMany({
         where: {
@@ -96,10 +104,44 @@ export class GetVoucherByMerchantRef {
         },
       });
 
+      // Helper: resolve displayName based on participant type
+      const getDisplayName = async (
+        participantId: string | null,
+        participantType: string | null,
+      ): Promise<string> => {
+        if (!participantId || !participantType) return '';
+
+        if (participantType === 'CUSTOMER') {
+          const cust = await this.prisma.customer.findUnique({
+            where: { id: participantId },
+          });
+          return cust?.tel || '';
+        } else if (
+          participantType === 'MERCHANT' ||
+          participantType === 'SELLER'
+        ) {
+          const merch = await this.prisma.merchant.findUnique({
+            where: { id: participantId },
+          });
+          return merch?.name || '';
+        }
+        return '';
+      };
+
       // 4. Transform transactions to TransactionDetail format
-      const transformedTransactions: TransactionDetail[] = transactions.map(
-        (transaction) => {
+      const transformedTransactions: TransactionDetail[] = await Promise.all(
+        transactions.map(async (transaction) => {
           const { merchant, point, voucherCode, ...rest } = transaction;
+
+          // Resolve displayName by role
+          const senderDisplayName = await getDisplayName(
+            rest.senderId,
+            (rest as any).senderType,
+          );
+          const receiverDisplayName = await getDisplayName(
+            rest.receiverId,
+            (rest as any).receiverType,
+          );
 
           const formatParticipant = (
             walletAddress: Uint8Array,
@@ -128,6 +170,7 @@ export class GetVoucherByMerchantRef {
               startDate: (voucherCode.voucher as any).startDate || null,
               endDate: (voucherCode.voucher as any).endDate || null,
               merchantRef: (voucherCode.voucher as any).merchantRef || null,
+              merchantRefDetail,
             };
           };
 
@@ -187,12 +230,12 @@ export class GetVoucherByMerchantRef {
             sender: formatParticipant(
               rest.senderAddress,
               rest.senderId,
-              merchant?.name || voucher.merchant.name || '',
+              senderDisplayName,
             ),
             receiver: formatParticipant(
               rest.receiverAddress,
               rest.receiverId,
-              merchant?.name || voucher.merchant.name || '',
+              receiverDisplayName,
             ),
             voucher:
               (rest as any).type === 'POINT'
@@ -205,7 +248,7 @@ export class GetVoucherByMerchantRef {
             receiverType: (rest as any).receiverType || null,
             createdAt: rest.createdAt,
           };
-        },
+        }),
       );
 
       return {

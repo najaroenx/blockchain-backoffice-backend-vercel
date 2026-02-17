@@ -217,15 +217,15 @@ export class TransactionDBService {
   async getTransactionsByMerchantRef(
     merchantRef: string,
     status?: string,
-    couponId?: string,
+    couponIds?: string[],
   ): Promise<any[]> {
     console.log(
       'merchantRef',
       merchantRef,
       'status',
       status,
-      'couponId',
-      couponId,
+      'couponIds',
+      couponIds,
     );
 
     // Build SQL query dynamically
@@ -264,10 +264,13 @@ export class TransactionDBService {
       paramIndex++;
     }
 
-    if (couponId) {
-      conditions.push(`v.id = $${paramIndex}`);
-      params.push(couponId);
-      paramIndex++;
+    if (couponIds && couponIds.length > 0) {
+      const placeholders = couponIds
+        .map((_, i) => `$${paramIndex + i}`)
+        .join(', ');
+      conditions.push(`v.id IN (${placeholders})`);
+      params.push(...couponIds);
+      paramIndex += couponIds.length;
     }
 
     if (status) {

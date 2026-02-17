@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
+import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 
 @Injectable()
 export class RedeemVoucher {
@@ -23,6 +24,7 @@ export class RedeemVoucher {
     private blockchainService: BlockchainService,
     private tokenService: TokenService,
     private configService: ConfigService,
+    private merchantRefEnrichment: MerchantRefEnrichmentService,
   ) {
     this.salt = this.configService.get<string>('SALT');
   }
@@ -367,6 +369,11 @@ export class RedeemVoucher {
         `[SUCCESS] Voucher code redeemed successfully for customer: ${customerId}`,
       );
 
+      // Enrich merchantRef for response
+      const merchantRefDetail = voucher.merchantRef
+        ? await this.merchantRefEnrichment.enrich(voucher.merchantRef)
+        : null;
+
       // 11. Format transaction response same as /transaction/:id endpoint
       const transactionResponse = {
         id: redeemTransaction.id,
@@ -407,7 +414,7 @@ export class RedeemVoucher {
         receiver: {
           id: merchantId,
           walletAddress: merchantAddress,
-          displayName: merchant?.name || null,
+          displayName: merchant?.name || '',
         },
         voucher: {
           id: voucher.id,
@@ -421,6 +428,7 @@ export class RedeemVoucher {
           startDate: voucher.startDate || null,
           endDate: voucher.endDate || null,
           merchantRef: voucher.merchantRef || null,
+          merchantRefDetail,
         },
         eventId: null,
         transactionRefId: redeemTransaction.transactionRefId || null,
@@ -440,6 +448,8 @@ export class RedeemVoucher {
           valueType: voucher.valueType,
           value: voucher.value,
           merchantName: voucher.merchant?.name || voucher.merchantName,
+          merchantRef: voucher.merchantRef || null,
+          merchantRefDetail,
           startDate: voucher.startDate,
           endDate: voucher.endDate,
         },
@@ -525,6 +535,11 @@ export class RedeemVoucher {
         };
       }
 
+      // Enrich merchantRef for validate response
+      const merchantRefDetail = voucher.merchantRef
+        ? await this.merchantRefEnrichment.enrich(voucher.merchantRef)
+        : null;
+
       return {
         valid: true,
         voucher: {
@@ -534,6 +549,8 @@ export class RedeemVoucher {
           valueType: voucher.valueType,
           value: voucher.value,
           merchantName: voucher.merchant?.name || voucher.merchantName,
+          merchantRef: voucher.merchantRef || null,
+          merchantRefDetail,
           startDate: voucher.startDate,
           endDate: voucher.endDate,
         },
@@ -571,6 +588,13 @@ export class RedeemVoucher {
         },
       });
 
+      // Batch enrich all merchantRefs
+      const merchantRefs = redemptions
+        .map((code) => code.voucher.merchantRef)
+        .filter(Boolean) as string[];
+      const merchantRefMap =
+        await this.merchantRefEnrichment.enrichBatch(merchantRefs);
+
       return redemptions.map((code) => ({
         code: code.code,
         redeemedAt: code.usedAt,
@@ -583,6 +607,10 @@ export class RedeemVoucher {
           value: code.voucher.value,
           merchantName:
             code.voucher.merchant?.name || code.voucher.merchantName,
+          merchantRef: code.voucher.merchantRef || null,
+          merchantRefDetail: code.voucher.merchantRef
+            ? merchantRefMap.get(code.voucher.merchantRef) || null
+            : null,
         },
       }));
     } catch (error) {

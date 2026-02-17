@@ -9,6 +9,7 @@ import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { InternalModule } from './modules/internal/internal.module';
 import { ExternalModule } from './modules/external/external.module';
+import { SharedModule } from './modules/shared/shared.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -18,6 +19,7 @@ import { ExternalModule } from './modules/external/external.module';
     ScheduleModule.forRoot(),
     PrismaModule,
     TokenModule,
+    SharedModule,
     InternalModule, // Internal-facing APIs for backoffice
     ExternalModule, // External-facing APIs for integration
   ],

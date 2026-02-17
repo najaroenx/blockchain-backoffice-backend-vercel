@@ -130,10 +130,10 @@ export class ExternalTransactionController {
     example: 'REDEEM',
   })
   @ApiQuery({
-    name: 'couponId',
+    name: 'couponIds',
     required: false,
-    description: 'Filter by coupon ID (voucherCodeId)',
-    example: 'cm4abc123xyz',
+    description: 'Filter by coupon IDs (comma-separated, e.g. id1,id2,id3)',
+    example: 'cm4abc123xyz,cm4def456uvw',
   })
   @ApiResponse({
     status: 200,
@@ -146,12 +146,18 @@ export class ExternalTransactionController {
   async getTransactionsByMerchantRef(
     @Param('merchantRef') merchantRef: string,
     @Query('status') status?: string,
-    @Query('couponId') couponId?: string,
+    @Query('couponIds') couponIds?: string,
   ) {
+    const couponIdArray = couponIds
+      ? couponIds
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : undefined;
     return this.getTransactionByMerchantRef.execute(
       merchantRef,
       status,
-      couponId,
+      couponIdArray,
     );
   }
 

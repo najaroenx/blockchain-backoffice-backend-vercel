@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
+import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 
 // Use string literal for 'expired' status until Prisma types are regenerated after migration
 const EXPIRED_STATUS = 'expired' as const;
@@ -24,6 +25,7 @@ interface ListingDetailRow {
   voucherEndDate: Date;
   voucherStatus: string;
   voucherMerchantId: string | null;
+  voucherMerchantRef: string | null;
   voucherSellerMerchantId: string | null;
   merchantId: string | null;
   merchantName: string | null;
@@ -58,6 +60,7 @@ export class GetMarketplaceListingsEndUser {
     private blockchainService: BlockchainService,
     private prisma: PrismaService,
     private configService: ConfigService,
+    private merchantRefEnrichment: MerchantRefEnrichmentService,
   ) {
     this.thbAddress = this.configService.get<string>('THB_ADDRESS') || '';
   }
@@ -128,6 +131,7 @@ export class GetMarketplaceListingsEndUser {
           v."endDate" AS "voucherEndDate",
           v.status AS "voucherStatus",
           v."merchantId" AS "voucherMerchantId",
+          v."merchantRef" AS "voucherMerchantRef",
           v."sellerMerchantId" AS "voucherSellerMerchantId",
           m.id AS "merchantId",
           m.name AS "merchantName",
@@ -213,6 +217,15 @@ export class GetMarketplaceListingsEndUser {
       // 5. Build results by mapping blockchain listings to DB data
       const now = new Date();
       const validListings: any[] = [];
+
+      // Collect all merchantRefs for batch enrichment
+      const allMerchantRefs = listingDetails
+        .map((d) => d.voucherMerchantRef)
+        .filter((ref): ref is string => !!ref);
+      const merchantRefMap =
+        allMerchantRefs.length > 0
+          ? await this.merchantRefEnrichment.enrichBatch(allMerchantRefs)
+          : new Map();
 
       for (const listing of blockchainListings) {
         const detail = detailMap.get(listing.listingId);
@@ -313,6 +326,10 @@ export class GetMarketplaceListingsEndUser {
             startDate: detail.voucherStartDate,
             endDate: detail.voucherEndDate,
             status: detail.voucherStatus,
+            merchantRef: detail.voucherMerchantRef || null,
+            merchantRefDetail: detail.voucherMerchantRef
+              ? merchantRefMap.get(detail.voucherMerchantRef) || null
+              : null,
             merchant: actualMerchant
               ? {
                   id: actualMerchant.id,

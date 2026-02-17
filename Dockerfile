@@ -14,11 +14,11 @@ COPY . .
 # Generate Prisma Client for linux musl
 RUN npx prisma generate
 
-# Compile migration scripts to JS
-RUN npx tsc scripts/fix-thb-purchase-price.ts scripts/migrate-thb-purchase-price.ts scripts/fix-redeem-receiver-id.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
-
 # Build NestJS app
 RUN yarn run build
+
+# Compile migration scripts to JS (AFTER nest build to avoid dist/ cleanup)
+RUN npx tsc scripts/fix-thb-purchase-price.ts scripts/migrate-thb-purchase-price.ts scripts/fix-redeem-receiver-id.ts scripts/fix-thb-buy-receiver-seller.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
 
 # Stage 2: Production image
 FROM node:20-alpine
@@ -49,6 +49,7 @@ EXPOSE 4000
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
     node dist/scripts/scripts/fix-redeem-receiver-id.js && \
+    node dist/scripts/scripts/fix-thb-buy-receiver-seller.js && \
     npx prisma db seed && \
     node dist/src/main \
 "]

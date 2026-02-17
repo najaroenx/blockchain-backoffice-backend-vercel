@@ -256,6 +256,11 @@ export class MerchantBuyCouponFromSeller {
         select: {
           id: true,
           listingBatchId: true,
+          voucher: {
+            select: {
+              sellerMerchantId: true,
+            },
+          },
         },
         take: amount,
       });
@@ -265,6 +270,13 @@ export class MerchantBuyCouponFromSeller {
           `Not enough voucher codes available. Requested: ${amount}, Available: ${codesToTransfer.length}`,
         );
       }
+
+      // Resolve seller merchant ID from voucher
+      const sellerMerchantId =
+        codesToTransfer[0]?.voucher?.sellerMerchantId || null;
+      this.logger.log(
+        `[STEP 8] Resolved sellerMerchantId: ${sellerMerchantId}`,
+      );
 
       const purchasedCodeIds = codesToTransfer.map((c) => c.id);
       const pricePerUnitTHB = Math.round(amountTHB / amount);
@@ -287,12 +299,14 @@ export class MerchantBuyCouponFromSeller {
             pointId: null,
             merchantId: merchantId,
             senderId: merchantId,
-            receiverId: null,
+            receiverId: sellerMerchantId,
             voucherCodeId: codeId, // Link to specific VoucherCode
             transactionTypeId: TransactionTypeId.THB_BUY,
             type: AssetType.THB_TOKEN,
             senderType: ParticipantType.MERCHANT,
-            receiverType: ParticipantType.SYSTEM,
+            receiverType: sellerMerchantId
+              ? ParticipantType.SELLER
+              : ParticipantType.SYSTEM,
             transactionRefId: transactionRefId,
           } as any,
         });

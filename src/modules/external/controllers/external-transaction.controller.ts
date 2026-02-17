@@ -34,7 +34,7 @@ export class ExternalTransactionController {
     private readonly getTransactionByMerchantRef: GetTransactionByMerchantRef,
   ) {}
 
-  @Get('/customer/:phone')
+  @Get('/customer/phone/:phone/all')
   @Public()
   @HttpCode(200)
   @ApiOperation({

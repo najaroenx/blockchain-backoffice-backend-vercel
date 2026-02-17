@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 import { GetCustomerOwnedVouchersResponseType } from '../types';
 
 // Raw SQL result types
@@ -64,6 +65,7 @@ export class GetCustomerOwnedVouchers {
   constructor(
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
+    private merchantRefEnrichment: MerchantRefEnrichmentService,
   ) {}
 
   async execute(
@@ -91,9 +93,6 @@ export class GetCustomerOwnedVouchers {
           `[ERROR] Customer with phone ${phone} not found or has no wallet`,
         );
         return {
-          phone,
-          walletAddress: null,
-          customerId: null,
           status: status || 'all',
           page: 1,
           limit: 20,
@@ -134,16 +133,17 @@ export class GetCustomerOwnedVouchers {
           v."startDate" AS "voucherStartDate",
           v."endDate" AS "voucherEndDate",
           v."merchantRef" AS "voucherMerchantRef",
-          v."merchantId" AS "voucherMerchantId",
-          v."merchantName" AS "voucherMerchantName",
+          COALESCE(v."merchantId", mrs.id) AS "voucherMerchantId",
+          COALESCE(m.name, mrs.name, v."merchantName") AS "voucherMerchantName",
           v."tokenId" AS "voucherTokenId",
-          m."imageUrl" AS "merchantImageUrl",
+          COALESCE(m."imageUrl", mrs."imageUrl") AS "merchantImageUrl",
           m.name AS "merchantDbName",
           t.id AS "txId",
           t."transactionTypeId" AS "txTransactionTypeId"
         FROM "VoucherCode" vc
         JOIN "Voucher" v ON vc."voucherId" = v.id
         LEFT JOIN "Merchant" m ON v."merchantId" = m.id
+        LEFT JOIN "MerchantRefStore" mrs ON v."merchantRef" = mrs."merchantRef"
         LEFT JOIN LATERAL (
           SELECT t2.id, t2."transactionTypeId"
           FROM "Transaction" t2
@@ -191,13 +191,14 @@ export class GetCustomerOwnedVouchers {
           v."startDate" AS "voucherStartDate",
           v."endDate" AS "voucherEndDate",
           v."merchantRef" AS "voucherMerchantRef",
-          v."merchantId" AS "voucherMerchantId",
-          v."merchantName" AS "voucherMerchantName",
-          m."imageUrl" AS "merchantImageUrl",
+          COALESCE(v."merchantId", mrs.id) AS "voucherMerchantId",
+          COALESCE(m.name, mrs.name, v."merchantName") AS "voucherMerchantName",
+          COALESCE(m."imageUrl", mrs."imageUrl") AS "merchantImageUrl",
           sample_vc."pointsCost" AS "samplePointsCost",
           sample_vc.currency AS "sampleCurrency"
         FROM "Voucher" v
         LEFT JOIN "Merchant" m ON v."merchantId" = m.id
+        LEFT JOIN "MerchantRefStore" mrs ON v."merchantRef" = mrs."merchantRef"
         LEFT JOIN LATERAL (
           SELECT vc2."pointsCost", vc2.currency
           FROM "VoucherCode" vc2
@@ -411,14 +412,40 @@ export class GetCustomerOwnedVouchers {
 
       const groupedVouchers = this.groupVouchersByGroupId(paginatedVouchers);
 
+      // Enrich merchantRef with MerchantRefStore detail
+      const merchantRefs = groupedVouchers
+        .map((g) => g.latestVoucher.merchantRef)
+        .filter((ref): ref is string => !!ref);
+
+      if (merchantRefs.length > 0) {
+        const merchantRefMap =
+          await this.merchantRefEnrichment.enrichBatch(merchantRefs);
+        for (const group of groupedVouchers) {
+          const ref = group.latestVoucher.merchantRef;
+          if (ref && merchantRefMap.has(ref)) {
+            const detail = merchantRefMap.get(ref)!;
+            group.latestVoucher.merchantRefDetail = {
+              id: detail.id,
+              merchantRef: detail.merchantRef,
+              name: detail.name,
+              category: detail.category,
+              description: detail.description,
+              imageUrl: detail.imageUrl,
+              locationUrl: detail.locationUrl,
+              website: detail.website,
+              isActive: detail.isActive,
+            };
+          } else {
+            group.latestVoucher.merchantRefDetail = null;
+          }
+        }
+      }
+
       return {
         total: totalCount,
         totalPages: Math.ceil(totalCount / limit),
         page,
         limit,
-        phone,
-        walletAddress,
-        customerId,
         status: status || 'all',
         summary: {
           total: totalCount,

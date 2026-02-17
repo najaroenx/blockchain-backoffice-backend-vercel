@@ -68,8 +68,7 @@ export class ExternalCouponController {
 
   /**
    * Get vouchers owned by customer (lookup by phone -> wallet)
-   * GET /coupon/my-coupons/:phone
-   * Query params: ?status=unused|used|all&page=1&limit=20
+   * GET /coupon/my-coupons/:phone?status=unused|used|all&page=1&limit=20
    */
   @Get('/my-coupons/:phone')
   @Public()
@@ -237,3 +236,7 @@ export class ExternalCouponController {
     );
   }
 }
+
+// @Query('status') status?: 'unused' | 'used' | 'all',
+// @Query('page') page?: string,
+// @Query('limit') limit?: string,

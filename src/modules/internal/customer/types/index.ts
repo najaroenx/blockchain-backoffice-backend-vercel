@@ -89,8 +89,20 @@ export interface GroupedVoucherLatestVoucher {
   status: string;
   startDate: Date | string;
   endDate: Date | string;
-  merchantRef: string | null;
+  merchantRefDetail?: {
+    id: string;
+    merchantRef: string;
+    name: string;
+    category: string | null;
+    description: string | null;
+    imageUrl: string | null;
+    locationUrl: string | null;
+    website: string | null;
+    isActive: boolean;
+  } | null;
   merchantId: string | null;
+  merchantName: string | null;
+  merchantImageUrl: string | null;
   latestCode: string;
   codeStatus: 'unused' | 'used' | 'expired';
   pointsCost: number;

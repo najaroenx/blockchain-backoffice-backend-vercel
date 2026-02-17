@@ -52,9 +52,6 @@ export type GetCustomerOwnedVouchersResponseType = {
   limit: number;
   total: number;
   totalPages: number;
-  phone: string;
-  walletAddress: string | null;
-  customerId: string | null;
   status: 'unused' | 'used' | 'all';
   summary: CustomerOwnedVouchersSummary;
   vouchers: GroupedVoucher[];

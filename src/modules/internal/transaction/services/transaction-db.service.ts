@@ -243,10 +243,15 @@ export class TransactionDBService {
         vc.code as "voucherCode_code",
         vc.currency as "voucherCode_currency",
         v.id as "voucher_id",
+        v."tokenId" as "voucher_tokenId",
         v.name as "voucher_name",
+        v.description as "voucher_description",
         v."valueType" as "voucher_valueType",
         v.value as "voucher_value",
-        v."imageUrl" as "voucher_imageUrl"
+        v.currency as "voucher_currency",
+        v."imageUrl" as "voucher_imageUrl",
+        v."startDate" as "voucher_startDate",
+        v."endDate" as "voucher_endDate"
       FROM "Transaction" t
       LEFT JOIN "Merchant" m ON t."merchantId" = m.id
       LEFT JOIN "Point" p ON t."pointId" = p.id
@@ -331,10 +336,15 @@ export class TransactionDBService {
             voucher: row.voucher_id
               ? {
                   id: row.voucher_id,
+                  tokenId: row.voucher_tokenId,
                   name: row.voucher_name,
+                  description: row.voucher_description,
                   valueType: row.voucher_valueType,
                   value: row.voucher_value,
+                  currency: row.voucher_currency,
                   imageUrl: row.voucher_imageUrl,
+                  startDate: row.voucher_startDate,
+                  endDate: row.voucher_endDate,
                 }
               : null,
           }

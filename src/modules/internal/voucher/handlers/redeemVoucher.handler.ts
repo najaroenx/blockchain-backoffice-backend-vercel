@@ -348,7 +348,7 @@ export class RedeemVoucher {
             amount: 1, // Customer redeems 1 voucher (not pointsCost)
             pointId: voucherCode.pointId,
             senderId: customerId,
-            receiverId: null, // No receiver - voucher is burned, not transferred
+            receiverId: merchantId, // Merchant who receives the redemption
             merchantId, // Track which merchant's voucher was redeemed
             merchantRef: voucherCode.voucher.merchantRef || null, // Track merchantRef for query
             voucherCodeId: voucherCode.id,
@@ -427,7 +427,6 @@ export class RedeemVoucher {
           imageUrl: voucher.imageUrl || null,
           startDate: voucher.startDate || null,
           endDate: voucher.endDate || null,
-          merchantRef: voucher.merchantRef || null,
           merchantRefDetail,
         },
         eventId: null,
@@ -448,7 +447,6 @@ export class RedeemVoucher {
           valueType: voucher.valueType,
           value: voucher.value,
           merchantName: voucher.merchant?.name || voucher.merchantName,
-          merchantRef: voucher.merchantRef || null,
           merchantRefDetail,
           startDate: voucher.startDate,
           endDate: voucher.endDate,
@@ -549,7 +547,6 @@ export class RedeemVoucher {
           valueType: voucher.valueType,
           value: voucher.value,
           merchantName: voucher.merchant?.name || voucher.merchantName,
-          merchantRef: voucher.merchantRef || null,
           merchantRefDetail,
           startDate: voucher.startDate,
           endDate: voucher.endDate,

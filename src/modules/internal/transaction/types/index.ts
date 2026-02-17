@@ -71,7 +71,6 @@ export interface TransactionVoucherInfo {
   imageUrl: string | null;
   startDate: Date | null;
   endDate: Date | null;
-  merchantRef: string | null;
   merchantRefDetail?: MerchantRefDetail | null;
 }
 

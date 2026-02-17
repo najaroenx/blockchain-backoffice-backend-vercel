@@ -172,7 +172,6 @@ export class GetCustomerPhone {
 
       this.logger.log(`[SUCCESS] Found customer: ${(customerData as any).id}`);
 
-      const merchants = this.formatMerchantsWithPointsAndCoupons(customerData);
       const walletAddress = (customerData as any).wallet?.walletAddress || '';
 
       return {
@@ -187,7 +186,6 @@ export class GetCustomerPhone {
           walletAddress,
           createdAt: (customerData as any).createdAt,
           updatedAt: (customerData as any).updatedAt,
-          merchants,
         },
       };
     } catch (error) {

@@ -169,7 +169,6 @@ export class GetVoucherByMerchantRef {
               imageUrl: voucherCode.voucher.imageUrl || null,
               startDate: (voucherCode.voucher as any).startDate || null,
               endDate: (voucherCode.voucher as any).endDate || null,
-              merchantRef: (voucherCode.voucher as any).merchantRef || null,
               merchantRefDetail,
             };
           };

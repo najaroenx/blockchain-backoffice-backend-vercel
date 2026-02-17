@@ -110,7 +110,6 @@ export class GetAllTransactionsByCustomerPhone {
               imageUrl: voucherCode.voucher.imageUrl || null,
               startDate: voucherCode.voucher.startDate || null,
               endDate: voucherCode.voucher.endDate || null,
-              merchantRef: voucherCode.voucher.merchantRef || null,
             };
           };
 

@@ -15,7 +15,7 @@ COPY . .
 RUN npx prisma generate
 
 # Compile migration scripts to JS
-RUN npx tsc scripts/fix-thb-purchase-price.ts scripts/migrate-thb-purchase-price.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
+RUN npx tsc scripts/fix-thb-purchase-price.ts scripts/migrate-thb-purchase-price.ts scripts/fix-redeem-receiver-id.ts --outDir dist/scripts --esModuleInterop --resolveJsonModule --skipLibCheck
 
 # Build NestJS app
 RUN yarn run build
@@ -48,6 +48,7 @@ EXPOSE 4000
 # PROD MODE (migrate + fix thb price + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
+    node dist/scripts/scripts/fix-redeem-receiver-id.js && \
     npx prisma db seed && \
     node dist/src/main \
 "]

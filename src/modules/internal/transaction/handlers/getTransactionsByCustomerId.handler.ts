@@ -80,7 +80,6 @@ export class GetTransactionsByCustomerId {
             imageUrl: voucherCode.voucher.imageUrl || null,
             startDate: voucherCode.voucher.startDate || null,
             endDate: voucherCode.voucher.endDate || null,
-            merchantRef: voucherCode.voucher.merchantRef || null,
           };
         };
 
@@ -216,7 +215,6 @@ export class GetTransactionsByCustomerId {
             imageUrl: voucherCode.voucher.imageUrl || null,
             startDate: voucherCode.voucher.startDate || null,
             endDate: voucherCode.voucher.endDate || null,
-            merchantRef: voucherCode.voucher.merchantRef || null,
           };
         };
 

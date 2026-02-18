@@ -169,6 +169,7 @@ export class GetVoucherTransactionsByCustomerPhone {
           senderType: (rest as any).senderType || null,
           receiverType: (rest as any).receiverType || null,
           createdAt: rest.createdAt,
+          updatedAt: rest.updatedAt,
         };
       });
 

@@ -179,6 +179,7 @@ export class GetAllTransactionsByCustomerPhone {
             transactionRefId: (rest as any).transactionRefId || null,
             typeAsset: (rest as any).type || null,
             createdAt: rest.createdAt,
+            updatedAt: rest.updatedAt,
           };
         }),
       );

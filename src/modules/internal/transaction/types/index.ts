@@ -95,6 +95,7 @@ export interface TransactionDetail {
   transactionRefId: string | null;
   typeAsset: string | null;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export type GetTransactionByMerchantIdResponseType = {

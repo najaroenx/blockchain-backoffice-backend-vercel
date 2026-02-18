@@ -232,6 +232,8 @@ export class TransactionDBService {
     let sql = `
       SELECT 
         t.*,
+        t.created_at as "createdAt",
+        t.updated_at as "updatedAt",
         m.id as "merchant_id",
         m.name as "merchant_name",
         m."imageUrl" as "merchant_imageUrl",
@@ -311,8 +313,8 @@ export class TransactionDBService {
       transactionRefId: row.transactionRefId,
       type: row.type,
       merchantRef: row.merchantRef,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
+      createdAt: row.createdAt || row.created_at,
+      updatedAt: row.updatedAt || row.updated_at,
       merchant: row.merchant_id
         ? {
             id: row.merchant_id,

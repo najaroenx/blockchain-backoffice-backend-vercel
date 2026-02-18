@@ -186,6 +186,7 @@ export class GetTransactionByMerchantRef {
             transactionRefId: rest.transactionRefId || null,
             typeAsset: rest.type || null,
             createdAt: rest.createdAt,
+            updatedAt: rest.updatedAt,
           };
 
           return result;

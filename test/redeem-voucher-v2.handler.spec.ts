@@ -27,30 +27,26 @@ describe('RedeemVoucher', () => {
       customer: { findFirst: jest.fn() },
       voucherCode: {
         findUnique: jest.fn(),
-        update: jest
-          .fn()
-          .mockResolvedValue({
-            id: 'vc1',
-            code: 'CODE1',
-            isUsed: true,
-            usedBy: 'c1',
-            usedAt: new Date(),
-            pointsCost: 100,
-            voucher: {},
-          }),
+        update: jest.fn().mockResolvedValue({
+          id: 'vc1',
+          code: 'CODE1',
+          isUsed: true,
+          usedBy: 'c1',
+          usedAt: new Date(),
+          pointsCost: 100,
+          voucher: {},
+        }),
       },
       point: { findUnique: jest.fn() },
       merchant: { findUnique: jest.fn() },
       transaction: {
-        create: jest
-          .fn()
-          .mockResolvedValue({
-            id: 'tx1',
-            transactionTypeId: 'REDEEM',
-            amount: 1,
-            createdAt: new Date(),
-            transactionRefId: 'tr1',
-          }),
+        create: jest.fn().mockResolvedValue({
+          id: 'tx1',
+          transactionTypeId: 'REDEEM',
+          amount: 1,
+          createdAt: new Date(),
+          transactionRefId: 'tr1',
+        }),
       },
       $transaction: jest.fn(),
     };

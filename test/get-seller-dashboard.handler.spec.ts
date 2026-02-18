@@ -121,22 +121,20 @@ describe('GetSellerDashboardHandler', () => {
 
     it('should filter by marketer purchases', async () => {
       prisma.transaction = {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([
-            {
-              voucherCode: {
-                voucherId: 'v1',
-                voucher: { sellerMerchantId: 'seller1' },
-              },
+        findMany: jest.fn().mockResolvedValue([
+          {
+            voucherCode: {
+              voucherId: 'v1',
+              voucher: { sellerMerchantId: 'seller1' },
             },
-            {
-              voucherCode: {
-                voucherId: 'v2',
-                voucher: { sellerMerchantId: 'other' },
-              },
+          },
+          {
+            voucherCode: {
+              voucherId: 'v2',
+              voucher: { sellerMerchantId: 'other' },
             },
-          ]),
+          },
+        ]),
       };
       prisma.voucher = {
         findMany: jest.fn().mockResolvedValue([{ id: 'v1', name: 'V1' }]),

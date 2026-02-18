@@ -513,4 +513,61 @@ describe('PointDBService', () => {
       expect(result.totalPages).toBe(0);
     });
   });
+
+  describe('getPointByPhone', () => {
+    let prisma: any;
+
+    beforeEach(() => {
+      prisma = (service as any).prisma;
+      // Ensure customer mock exists
+      if (!prisma.customer) {
+        prisma.customer = { findFirst: jest.fn() };
+      }
+    });
+
+    it('should return customer points when customer found', async () => {
+      const mockCustomerWithPoints = {
+        id: 'customer-1',
+        tel: '0812345678',
+        customerPoints: [
+          {
+            balances: 100,
+            point: {
+              id: 'point-1',
+              name: 'Test Point',
+              symbol: 'TST',
+              imageUrl: null,
+              merchantId: 'merchant-1',
+              merchant: {
+                id: 'merchant-1',
+                name: 'Test Merchant',
+                description: 'Desc',
+                imageUrl: null,
+              },
+            },
+          },
+        ],
+      };
+
+      prisma.customer.findFirst.mockResolvedValue(mockCustomerWithPoints);
+
+      const result = await service.getPointByPhone('0812345678');
+
+      expect(result.phone).toBe('0812345678');
+      expect(result.customerId).toBe('customer-1');
+      expect(result.points).toHaveLength(1);
+      expect(result.points[0].pointId).toBe('point-1');
+      expect(result.points[0].balance).toBe(100);
+    });
+
+    it('should return empty points when customer not found', async () => {
+      prisma.customer.findFirst.mockResolvedValue(null);
+
+      const result = await service.getPointByPhone('0000000000');
+
+      expect(result.phone).toBe('0000000000');
+      expect(result.customerId).toBeNull();
+      expect(result.points).toEqual([]);
+    });
+  });
 });

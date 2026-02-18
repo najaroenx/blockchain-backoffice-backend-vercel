@@ -973,67 +973,6 @@ export class VoucherDBService {
   }
 
   /**
-   * Get redemption history for customer by wallet address
-   */
-  async getRedemptionHistory(walletAddress: string) {
-    // Find customer by wallet address
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { walletAddress },
-      include: { customer: true },
-    });
-
-    const customer = wallet?.customer;
-
-    if (!customer) {
-      return {
-        walletAddress,
-        customerId: null,
-        totalRedeemed: 0,
-        redemptions: [],
-      };
-    }
-
-    const customerId = customer.id;
-
-    const redeemedCodes = await this.prisma.voucherCode.findMany({
-      where: {
-        usedBy: customerId,
-        isUsed: true,
-      },
-      include: {
-        voucher: {
-          include: {
-            merchant: true,
-          },
-        },
-      },
-      orderBy: {
-        usedAt: 'desc',
-      },
-    });
-
-    return {
-      walletAddress,
-      customerId,
-      totalRedeemed: redeemedCodes.length,
-      redemptions: redeemedCodes.map((code) => ({
-        code: code.code,
-        redeemedAt: code.usedAt,
-        pointsCost: code.pointsCost,
-        voucher: {
-          id: code.voucher.id,
-          name: code.voucher.name,
-          description: code.voucher.description,
-          valueType: code.voucher.valueType,
-          value: code.voucher.value,
-          merchantName:
-            code.voucher.merchant?.name || code.voucher.merchantName,
-        },
-      })),
-    };
-  }
-
-  /**
    * Buy coupon from marketplace
    */
   async buyCouponFromMarketplace(

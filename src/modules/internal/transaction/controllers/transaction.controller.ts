@@ -7,21 +7,13 @@ import {
   ApiHeader,
   ApiBody,
 } from '@nestjs/swagger';
-import {
-  CreateBurnTransactionBodyDto,
-  CreateMintTransactionBodyDto,
-  CreateTransactionBodyDto,
-  CreateTransactionC2CBodyDto,
-} from '../dtos';
+import { CreateTransactionBodyDto } from '../dtos';
 // import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { GetTransactionsByCustomerId } from '../handlers/getTransactionsByCustomerId.handler';
 import { GetTransactionsByMerchantId } from '../handlers/getTransactionsByMerchantId.handler';
 import { GetPointTransactionsByCustomerPhone } from '../handlers/getPointTransactionsByCustomerPhone.handler';
 import { GetVoucherTransactionsByCustomerPhone } from '../handlers/getVoucherTransactionsByCustomerPhone.handler';
 import { CreateTransactionB2C } from '../handlers/createTransactionB2C.handler';
-import { CreateTransactionC2C } from '../handlers/createTransactionC2C.handler';
-import { MintTransaction } from '../handlers/mintTransaction.handler';
-import { BurnTransaction } from '../handlers/burnTransaction.handler';
 import { GetWalletBalance } from '../handlers/getMerchantBalance.handler';
 import { Public } from 'src/modules/internal/auth/public.decorator';
 
@@ -34,9 +26,6 @@ export class TransactionController {
     private readonly getPointTransactionsByCustomerPhone: GetPointTransactionsByCustomerPhone,
     private readonly getVoucherTransactionsByCustomerPhone: GetVoucherTransactionsByCustomerPhone,
     private readonly createTransactionB2C: CreateTransactionB2C,
-    private readonly createTransactionC2C: CreateTransactionC2C,
-    private readonly mintTransaction: MintTransaction,
-    private readonly burnTransaction: BurnTransaction,
     private readonly getWalletBalance: GetWalletBalance,
   ) {}
 
@@ -244,35 +233,5 @@ export class TransactionController {
     @Body() body: CreateTransactionBodyDto,
   ) {
     return this.createTransactionB2C.execute(merchantId, pointId, body);
-  }
-
-  @Post('/:pointId/customer')
-  @HttpCode(201)
-  async transactionC2C(
-    @Param('merchantId') merchantId: string,
-    @Param('pointId') pointId: string,
-    @Body() body: CreateTransactionC2CBodyDto,
-  ) {
-    return this.createTransactionC2C.execute(merchantId, pointId, { ...body });
-  }
-
-  @Post('/:pointId/mint')
-  @HttpCode(201)
-  async mintTokens(
-    @Param('merchantId') merchantId: string,
-    @Param('pointId') pointId: string,
-    @Body() body: CreateMintTransactionBodyDto,
-  ) {
-    return this.mintTransaction.execute(merchantId, pointId, body);
-  }
-
-  @Post('/:pointId/burn')
-  @HttpCode(201)
-  async burnTokens(
-    @Param('merchantId') merchantId: string,
-    @Param('pointId') pointId: string,
-    @Body() body: CreateBurnTransactionBodyDto,
-  ) {
-    return this.burnTransaction.execute(merchantId, pointId, { ...body });
   }
 }

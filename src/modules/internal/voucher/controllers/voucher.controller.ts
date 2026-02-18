@@ -22,19 +22,14 @@ import { BuyCouponFromMarketplaceDto } from '../dtos/buy-coupon-marketplace.dto'
 import { MerchantBuyCouponFromSellerDto } from '../dtos/merchant-buy-coupon.dto';
 import { SellerListOnMarketplaceDto } from '../dtos/seller-list-marketplace.dto';
 import { BatchListOnMarketplaceDto } from '../dtos/batch-list-marketplace.dto';
-import {
-  AddToWhitelistDto,
-  BatchAddToWhitelistDto,
-} from '../dtos/add-to-whitelist.dto';
+
 import { Public } from 'src/modules/internal/auth/public.decorator';
 import { GetMarketplaceListings } from '../handlers/getMarketplaceListings.handler';
 import { ManageCouponHandler } from '../handlers/manageCoupon.handler';
 import { MerchantBuyCouponFromSeller } from '../handlers/merchantBuyCouponFromSeller.handler';
 import { SellerListOnMarketplace } from '../handlers/sellerListOnMarketplace.handler';
 import { GetSellerVouchers } from '../handlers/getSellerVouchers.handler';
-import { AddToWhitelist } from '../handlers/addToWhitelist.handler';
-import { GetVoucherByListingId } from '../handlers/getVoucherByListingId.handler';
-import { GetVoucherByMerchantRef } from '../handlers/getVoucherByMerchantRef.handler';
+
 import { BatchListOnMarketplaceHandler } from '../handlers/batchListOnMarketplace.handler';
 import { GetSellerListingsHandler } from '../handlers/getSellerListings.handler';
 import { GetListingBatchDetailHandler } from '../handlers/getListingBatchDetail.handler';
@@ -52,9 +47,7 @@ export class VoucherController {
     private readonly merchantBuyHandler: MerchantBuyCouponFromSeller,
     private readonly sellerListHandler: SellerListOnMarketplace,
     private readonly getSellerVouchersHandler: GetSellerVouchers,
-    private readonly addToWhitelistHandler: AddToWhitelist,
-    private readonly getVoucherByListingId: GetVoucherByListingId,
-    private readonly getVoucherByMerchantRefHandler: GetVoucherByMerchantRef,
+
     private readonly batchListHandler: BatchListOnMarketplaceHandler,
     private readonly getSellerListingsHandler: GetSellerListingsHandler,
     private readonly getListingBatchDetailHandler: GetListingBatchDetailHandler,
@@ -309,17 +302,6 @@ export class VoucherController {
     );
   }
 
-  /**
-   * ดึงสถิติของ VoucherCode
-   * GET /coupon/manage/statistics/:voucherId
-   */
-  @Get('/statistics/:voucherId')
-  @Public()
-  @HttpCode(200)
-  async getVoucherCodesStatistics(@Param('voucherId') voucherId: string) {
-    return this.manageCouponHandler.getVoucherCodesStatistics(voucherId);
-  }
-
   // POST /coupon/redeem moved to ExternalModule
   // POST /coupon/redeem-ais moved to ExternalModule
 
@@ -332,17 +314,6 @@ export class VoucherController {
   @HttpCode(200)
   async validateVoucherCode(@Param('code') code: string) {
     return this.voucherService.validateVoucherCode(code);
-  }
-
-  /**
-   * Get customer redemption history
-   * GET /coupon/history/:walletAddress
-   */
-  @Get('/history/:walletAddress')
-  @Public()
-  @HttpCode(200)
-  async getRedemptionHistory(@Param('walletAddress') walletAddress: string) {
-    return this.voucherService.getRedemptionHistory(walletAddress);
   }
 
   /**
@@ -463,59 +434,4 @@ export class VoucherController {
   }
 
   // GET /coupon/my-coupons/:phone moved to ExternalModule
-
-  /**
-   * Manual whitelist single address
-   * POST /coupon/admin/whitelist
-   * Body: { address: string }
-   */
-  @Post('/admin/whitelist')
-  @Public()
-  @HttpCode(200)
-  async addToWhitelist(@Body() body: AddToWhitelistDto) {
-    return this.addToWhitelistHandler.execute(body.address);
-  }
-
-  /**
-   * Manual whitelist multiple addresses
-   * POST /coupon/admin/whitelist/batch
-   * Body: { addresses: string[] }
-   */
-  @Post('/admin/whitelist/batch')
-  @Public()
-  @HttpCode(200)
-  async batchAddToWhitelist(@Body() body: BatchAddToWhitelistDto) {
-    return this.addToWhitelistHandler.executeBatch(body.addresses);
-  }
-
-  /**
-   * Check whitelist status
-   * GET /coupon/admin/whitelist/:address
-   */
-  @Get('/admin/whitelist/:address')
-  @Public()
-  @HttpCode(200)
-  async checkWhitelistStatus(@Param('address') address: string) {
-    return this.addToWhitelistHandler.checkStatus(address);
-  }
-
-  /**
-   * GET Voucher by Listing ID
-   * GET /coupon/admin/whitelist/:address
-   */
-  @Get('/coupon-by-listing/:listingId')
-  @Public()
-  @HttpCode(200)
-  async getVoucherByListingIds(@Param('listingId') listingId: string) {
-    return this.getVoucherByListingId.execute(listingId);
-  }
-  //** GET Voucher by merchantRef */
-  @Get('/coupon-by-merchant/:merchantRef')
-  @Public()
-  @HttpCode(200)
-  async getVoucherByMerchantRefEndpoint(
-    @Param('merchantRef') merchantRef: string,
-  ) {
-    return this.getVoucherByMerchantRefHandler.execute(merchantRef);
-  }
 }

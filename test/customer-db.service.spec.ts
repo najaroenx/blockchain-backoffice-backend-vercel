@@ -485,4 +485,143 @@ describe('CustomerDBService', () => {
       expect(result.ownedVouchers[0].code).toBe('VOUCHER123');
     });
   });
+
+  describe('getCustomerById', () => {
+    it('should return customer with transactions and points', async () => {
+      const mockCustomerWithPoints = {
+        ...mockCustomer,
+        wallet: { walletAddress: '0xWallet123' },
+        customerPoints: [
+          {
+            point: {
+              name: 'Test Points',
+              symbol: 'TST',
+              contractAddress: Buffer.from(
+                '1111111111111111111111111111111111111111',
+                'hex',
+              ),
+              decimal: 18,
+              merchantId: 'merchant-1',
+            },
+            balances: 100,
+          },
+        ],
+      };
+
+      repository.findUnique.mockResolvedValue(mockCustomerWithPoints);
+      prisma.transaction = {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([{ id: 'tx-sent-1', senderId: 'customer-1' }])
+          .mockResolvedValueOnce([
+            { id: 'tx-recv-1', receiverId: 'customer-1' },
+          ]),
+      };
+
+      const result = await service.getCustomerById('merchant-1', 'customer-1');
+
+      expect(repository.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'customer-1' },
+        }),
+      );
+      expect(result.sentTxns).toHaveLength(1);
+      expect(result.receivedTxns).toHaveLength(1);
+      expect(result.customerPoints).toHaveLength(1);
+    });
+
+    it('should return null when customer not found', async () => {
+      repository.findUnique.mockResolvedValue(null);
+
+      const result = await service.getCustomerById('merchant-1', 'nonexistent');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getCustomerByPhoneDetailed', () => {
+    it('should return customer with relations and owned vouchers', async () => {
+      const detailedCustomer = {
+        id: 'customer-1',
+        email: 'test@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        tel: '0812345678',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        wallet: { walletAddress: '0xWallet123' },
+        customerMerChant: [
+          {
+            merchantId: 'merchant-1',
+            merchant: {
+              id: 'merchant-1',
+              name: 'Test Merchant',
+              description: 'Desc',
+            },
+          },
+        ],
+        customerPoints: [
+          {
+            balances: 100,
+            point: { id: 'point-1', name: 'Points', merchantId: 'merchant-1' },
+          },
+        ],
+      };
+
+      repository.findFirst.mockResolvedValue(detailedCustomer);
+      prisma.voucherCode.findMany.mockResolvedValue([
+        { id: 'vc-1', code: 'CODE1', voucher: { name: 'Voucher 1' } },
+      ]);
+
+      const result = await service.getCustomerByPhoneDetailed('0812345678');
+
+      expect(repository.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tel: '0812345678' },
+        }),
+      );
+      expect(result.id).toBe('customer-1');
+      expect(result.ownedVouchers).toHaveLength(1);
+    });
+
+    it('should return null when customer not found', async () => {
+      repository.findFirst.mockResolvedValue(null);
+
+      const result = await service.getCustomerByPhoneDetailed('0000000000');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getAllCustomers', () => {
+    it('should return all customers with pagination', async () => {
+      const pageOptionsDto = { take: 10, skip: 0 } as PageOptionsDto;
+      repository.count.mockResolvedValue(2);
+      repository.findMany.mockResolvedValue([mockCustomer]);
+
+      const result = await service.getAllCustomers(pageOptionsDto);
+
+      expect(result.count).toBe(2);
+      expect(result.customers).toHaveLength(1);
+      expect(repository.count).toHaveBeenCalled();
+      expect(repository.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 10,
+          skip: 0,
+          orderBy: { createdAt: 'desc' },
+        }),
+      );
+    });
+
+    it('should return empty array when no customers exist', async () => {
+      const pageOptionsDto = { take: 10, skip: 0 } as PageOptionsDto;
+      repository.count.mockResolvedValue(0);
+      repository.findMany.mockResolvedValue([]);
+
+      const result = await service.getAllCustomers(pageOptionsDto);
+
+      expect(result.customers).toEqual([]);
+      expect(result.count).toBe(0);
+    });
+  });
 });

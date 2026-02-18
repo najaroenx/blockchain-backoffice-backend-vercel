@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TransactionController } from './controllers/transaction.controller';
-import { TreasuryController } from './controllers/treasury.controller';
 // GlobalTransactionController moved to ExternalModule
 import { TransactionRepository } from './transaction.repository';
 import { PointModule } from 'src/modules/internal/point/point.module';
@@ -11,13 +10,8 @@ import { TransactionDBService } from './services/transaction-db.service';
 import { GetTransactionsByCustomerId } from './handlers/getTransactionsByCustomerId.handler';
 import { GetTransactionsByMerchantId } from './handlers/getTransactionsByMerchantId.handler';
 import { CreateTransactionB2C } from './handlers/createTransactionB2C.handler';
-import { CreateTransactionC2C } from './handlers/createTransactionC2C.handler';
 import { TokenModule } from 'src/providers/token/token.module';
-import { MintTransaction } from './handlers/mintTransaction.handler';
-import { BurnTransaction } from './handlers/burnTransaction.handler';
 import { GetWalletBalance } from './handlers/getMerchantBalance.handler';
-import { GetTreasuryBalance } from './handlers/getTreasuryBalance.handler';
-import { ListTreasuries } from './handlers/listTreasuries.handler';
 import { GetAllTransactionsByCustomerPhone } from './handlers/getAllTransactionsByCustomerPhone.handler';
 import { GetPointTransactionsByCustomerPhone } from './handlers/getPointTransactionsByCustomerPhone.handler';
 import { GetVoucherTransactionsByCustomerPhone } from './handlers/getVoucherTransactionsByCustomerPhone.handler';
@@ -45,12 +39,7 @@ import { PrismaModule } from 'prisma/prisma.module';
     GetTransactionById,
     GetTransactionByMerchantRef,
     CreateTransactionB2C,
-    CreateTransactionC2C,
-    MintTransaction,
-    BurnTransaction,
     GetWalletBalance,
-    GetTreasuryBalance,
-    ListTreasuries,
   ],
   exports: [
     GetTransactionsByMerchantId,
@@ -62,7 +51,6 @@ import { PrismaModule } from 'prisma/prisma.module';
   ],
   controllers: [
     TransactionController,
-    TreasuryController,
     // GlobalTransactionController moved to ExternalModule
   ],
 })

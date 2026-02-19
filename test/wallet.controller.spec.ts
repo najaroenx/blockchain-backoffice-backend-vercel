@@ -13,6 +13,7 @@ describe('WalletController', () => {
   let getThbBalance: jest.Mocked<GetThbBalance>;
   let getSellerWallet: jest.Mocked<GetSellerWalletByMerchantId>;
 
+  // Reset mocks before each test
   beforeEach(async () => {
     getWalletByPhoneOrEmail = { execute: jest.fn() } as any;
     getThbBalance = { execute: jest.fn() } as any;

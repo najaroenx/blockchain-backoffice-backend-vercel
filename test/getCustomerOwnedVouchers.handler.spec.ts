@@ -298,7 +298,9 @@ describe('GetCustomerOwnedVouchers', () => {
 
       const result = await handler.execute('0812345678');
 
-      expect(blockchainService.getUserCouponBalanceBatch).not.toHaveBeenCalled();
+      expect(
+        blockchainService.getUserCouponBalanceBatch,
+      ).not.toHaveBeenCalled();
       expect(result.vouchers).toHaveLength(0);
     });
 
@@ -320,7 +322,11 @@ describe('GetCustomerOwnedVouchers', () => {
     });
 
     it('should not duplicate redeemed codes already in list', async () => {
-      const usedCodeRow = { ...mockCustomerCodeRow, isUsed: true, usedAt: new Date() };
+      const usedCodeRow = {
+        ...mockCustomerCodeRow,
+        isUsed: true,
+        usedAt: new Date(),
+      };
 
       prismaService.$queryRaw.mockResolvedValueOnce([mockCustomerRow]);
       prismaService.$queryRaw.mockResolvedValueOnce([usedCodeRow]);
@@ -350,9 +356,7 @@ describe('GetCustomerOwnedVouchers', () => {
     });
 
     it('should throw error on unexpected exceptions', async () => {
-      prismaService.$queryRaw.mockRejectedValue(
-        new Error('Database error'),
-      );
+      prismaService.$queryRaw.mockRejectedValue(new Error('Database error'));
 
       await expect(handler.execute('0812345678')).rejects.toThrow(
         'Database error',

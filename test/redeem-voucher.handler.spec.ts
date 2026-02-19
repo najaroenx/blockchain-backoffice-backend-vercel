@@ -5,6 +5,7 @@ import { BlockchainService } from '../src/providers/blockchain/blockchain.servic
 import { TokenService } from '../src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { MerchantRefEnrichmentService } from '../src/modules/shared/services/merchant-ref-enrichment.service';
 import {
   MockDataFactory,
   createMockPrismaClient,
@@ -53,6 +54,13 @@ describe('RedeemVoucher', () => {
         {
           provide: ConfigService,
           useValue: configService,
+        },
+        {
+          provide: MerchantRefEnrichmentService,
+          useValue: {
+            enrich: jest.fn().mockResolvedValue(null),
+            enrichBatch: jest.fn().mockResolvedValue(new Map()),
+          },
         },
       ],
     }).compile();

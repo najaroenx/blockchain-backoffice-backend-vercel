@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GetTransactionsByMerchantId } from '../src/modules/internal/transaction/handlers/getTransactionsByMerchantId.handler';
 import { TransactionDBService } from '../src/modules/internal/transaction/services/transaction-db.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { InternalServerErrorException } from '@nestjs/common';
 import { TransactionTypeId } from '../src/constants/transaction-types.enum';
 
@@ -129,6 +130,13 @@ describe('GetTransactionsByMerchantId', () => {
         {
           provide: TransactionDBService,
           useValue: mockTransactionDB,
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            customer: { findUnique: jest.fn() },
+            merchant: { findUnique: jest.fn() },
+          },
         },
       ],
     }).compile();

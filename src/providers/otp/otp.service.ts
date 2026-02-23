@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomInt } from 'crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 
 @Injectable()
@@ -85,10 +86,9 @@ export class OTPService {
    * @returns OTP string
    */
   generateOTP(length: number = 6): string {
-    const digits = '0123456789';
     let otp = '';
     for (let i = 0; i < length; i++) {
-      otp += digits[Math.floor(Math.random() * 10)];
+      otp += randomInt(10).toString();
     }
     return otp;
   }

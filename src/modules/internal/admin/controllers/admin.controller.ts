@@ -22,7 +22,7 @@ import { MintTHBToMerchant } from '../handlers/mintTHBToMerchant.handler';
  */
 @Controller('admin')
 export class AdminController {
-  private logger = new Logger(AdminController.name);
+  private readonly logger = new Logger(AdminController.name);
 
   constructor(private mintTHBToMerchantHandler: MintTHBToMerchant) {}
 

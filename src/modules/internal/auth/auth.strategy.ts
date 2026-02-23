@@ -22,42 +22,28 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
 
   async authenticate(request: Request) {
     /** API key authorization */
-    let authorizationKey = '';
+    const authorizationKey = this.extractAuthorizationKey(request);
 
-    if (typeof request.query.api_key === 'string')
-      authorizationKey = request.query.api_key.replace('Bearer ', '');
-    else if (typeof request.headers['x-api-key'] === 'string')
-      authorizationKey = request.headers['x-api-key'].replace('Bearer ', '');
-    else if (request.headers.authorization)
-      authorizationKey = request.headers.authorization.replace('Bearer ', '');
+    if (
+      authorizationKey &&
+      // If authentication is *not* a JWT
+      !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+={0,2})?$/.test(
+        authorizationKey,
+      )
+    ) {
+      try {
+        const merchantId = request.params['merchantId'];
 
-    if (typeof authorizationKey === 'string') {
-      if (authorizationKey.startsWith('Bearer '))
-        authorizationKey = authorizationKey.replace('Bearer ', '');
-
-      if (
-        // If authentication is *not* a JWT
-        !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+={0,2})?$/.test(
+        const apiKeyDetails = await this.getApiKey.execute(
           authorizationKey,
-        )
-      ) {
-        try {
-          const merchantIdParam = request.params['merchantId'];
-          const merchantId = Array.isArray(merchantIdParam)
-            ? merchantIdParam[0]
-            : merchantIdParam;
+          merchantId,
+        );
 
-          const apiKeyDetails = await this.getApiKey.execute(
-            authorizationKey,
-            merchantId,
-          );
-
-          return this.success({
-            type: 'api-key',
-            id: apiKeyDetails.id,
-          });
-        } catch {}
-      }
+        return this.success({
+          type: 'api-key',
+          id: apiKeyDetails.id,
+        });
+      } catch {}
     }
 
     let bearerToken = request.query['token'] ?? request.headers.authorization;
@@ -79,6 +65,28 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
       console.error('Invalid token', err.toString());
       return this.fail('Invalid token', 400);
     }
+  }
+
+  /**
+   * Extracts and normalizes the authorization key from the request,
+   * checking query params, headers, and stripping "Bearer " prefix.
+   */
+  private extractAuthorizationKey(request: Request): string {
+    let key = '';
+
+    if (typeof request.query.api_key === 'string') key = request.query.api_key;
+    else if (typeof request.headers['x-api-key'] === 'string')
+      key = request.headers['x-api-key'];
+    else if (request.headers.authorization)
+      key = request.headers.authorization as string;
+
+    // Strip "Bearer " prefix (handles double-prefix edge case)
+    key = key.replace('Bearer ', '');
+    if (key.startsWith('Bearer ')) {
+      key = key.replace('Bearer ', '');
+    }
+
+    return key;
   }
 
   // PassportStrategy requires validate even when authenticate is overridden

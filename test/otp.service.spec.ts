@@ -4,6 +4,16 @@ import { InternalServerErrorException } from '@nestjs/common';
 import { OTPService } from '../src/providers/otp/otp.service';
 import { INTERNAL_SERVER_ERROR } from '../src/errors/error.constants';
 
+// Mock crypto.randomInt
+const actualCrypto = jest.requireActual('crypto');
+const mockRandomInt = jest.fn((...args: any[]) =>
+  actualCrypto.randomInt(...args),
+);
+jest.mock('crypto', () => ({
+  ...jest.requireActual('crypto'),
+  randomInt: (...args: any[]) => mockRandomInt(...args),
+}));
+
 // Mock fetch globally
 global.fetch = jest.fn();
 
@@ -40,6 +50,10 @@ describe('OTPService', () => {
   afterEach(() => {
     // Only clear fetch mock between tests, not configService
     (global.fetch as jest.Mock).mockClear();
+    // Restore randomInt to real implementation
+    mockRandomInt.mockImplementation((...args: any[]) =>
+      actualCrypto.randomInt(...args),
+    );
   });
 
   it('should be defined', () => {
@@ -59,13 +73,71 @@ describe('OTPService', () => {
       expect(otp).toMatch(/^\d{4}$/);
     });
 
+    it('should generate OTP with length 1', () => {
+      const otp = service.generateOTP(1);
+      expect(otp).toHaveLength(1);
+      expect(otp).toMatch(/^\d$/);
+    });
+
+    it('should generate OTP with length 8', () => {
+      const otp = service.generateOTP(8);
+      expect(otp).toHaveLength(8);
+      expect(otp).toMatch(/^\d{8}$/);
+    });
+
+    it('should return empty string when length is 0', () => {
+      const otp = service.generateOTP(0);
+      expect(otp).toBe('');
+    });
+
+    it('should only contain numeric characters', () => {
+      for (let i = 0; i < 100; i++) {
+        const otp = service.generateOTP();
+        expect(otp).toMatch(/^\d+$/);
+      }
+    });
+
     it('should generate different OTPs on multiple calls', () => {
-      const otp1 = service.generateOTP();
-      const otp2 = service.generateOTP();
-      // While it's possible they could be the same, it's very unlikely
-      // This test might occasionally fail, but it's a reasonable sanity check
-      expect(typeof otp1).toBe('string');
-      expect(typeof otp2).toBe('string');
+      const otps = new Set<string>();
+      for (let i = 0; i < 50; i++) {
+        otps.add(service.generateOTP());
+      }
+      // With 6-digit OTPs over 50 iterations, we should get many unique values
+      expect(otps.size).toBeGreaterThan(1);
+    });
+
+    it('should use crypto.randomInt for secure random generation', () => {
+      mockRandomInt.mockClear();
+      mockRandomInt.mockReturnValue(5);
+      service.generateOTP(6);
+      expect(mockRandomInt).toHaveBeenCalledTimes(6);
+      expect(mockRandomInt).toHaveBeenCalledWith(10);
+    });
+
+    it('should produce correct OTP when crypto.randomInt returns known values', () => {
+      mockRandomInt.mockClear();
+      // Mock sequential returns: 1, 2, 3, 4, 5, 6
+      mockRandomInt
+        .mockReturnValueOnce(1)
+        .mockReturnValueOnce(2)
+        .mockReturnValueOnce(3)
+        .mockReturnValueOnce(4)
+        .mockReturnValueOnce(5)
+        .mockReturnValueOnce(6);
+
+      const otp = service.generateOTP();
+      expect(otp).toBe('123456');
+    });
+
+    it('should handle all digit values (0-9)', () => {
+      mockRandomInt.mockClear();
+      // Return 0 for all digits
+      mockRandomInt.mockReturnValue(0);
+      expect(service.generateOTP(4)).toBe('0000');
+
+      // Return 9 for all digits
+      mockRandomInt.mockReturnValue(9);
+      expect(service.generateOTP(4)).toBe('9999');
     });
   });
 

@@ -43,6 +43,308 @@ export class CreateTransactionB2C {
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Find or create a customer, ensuring they are associated with the merchant.
+   */
+  private async resolveCustomer(
+    merchantId: string,
+    phone: string,
+  ): Promise<any> {
+    const customerResponse = await this.getCustomerByPhone.execute(
+      merchantId,
+      phone,
+    );
+
+    if ('message' in customerResponse) {
+      return this.createNewCustomer(merchantId, phone);
+    }
+
+    const customer = (customerResponse as any).customer;
+    await this.ensureCustomerMerchantAssociation(customer, merchantId, phone);
+
+    // Re-fetch to get updated associations
+    const refreshed = await this.getCustomerByPhone.execute(merchantId, phone);
+    return (refreshed as any).customer ?? customer;
+  }
+
+  private async createNewCustomer(
+    merchantId: string,
+    phone: string,
+  ): Promise<any> {
+    this.logger.log(
+      `[CreateTransactionB2C] Customer with phone ${phone} not found. Creating new customer...`,
+    );
+    try {
+      const customer = await this.createCustomer.execute(merchantId, {
+        email: `${phone}@customer.generated`,
+        tel: phone,
+        firstName: '',
+        lastName: '',
+      });
+      this.logger.log(
+        `[CreateTransactionB2C] New customer created successfully. ID: ${customer.id}`,
+      );
+      return customer;
+    } catch (error) {
+      this.logger.error(
+        `[CreateTransactionB2C] Failed to create customer: ${error.message}`,
+      );
+      throw new BadRequestException(
+        `Failed to create customer with phone ${phone}: ${error.message}`,
+      );
+    }
+  }
+
+  private async ensureCustomerMerchantAssociation(
+    customer: any,
+    merchantId: string,
+    phone: string,
+  ): Promise<void> {
+    const isAssociated = customer.customerMerChant?.some(
+      (cm: any) => cm.merchantId === merchantId,
+    );
+    if (isAssociated) return;
+
+    this.logger.log(
+      `[CreateTransactionB2C] Customer ${customer.id} found but not associated with merchant ${merchantId}. Adding association...`,
+    );
+    try {
+      await this.updateCustomer.execute(customer.id, {
+        customerMerChant: { create: { merchantId } },
+      });
+      this.logger.log(
+        `[CreateTransactionB2C] Customer ${customer.id} successfully associated with merchant ${merchantId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[CreateTransactionB2C] Failed to associate customer with merchant: ${error.message}`,
+      );
+      throw new BadRequestException(
+        `Failed to register customer with merchant: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Retrieve merchant wallet info and validate it is configured.
+   */
+  private async getMerchantWalletInfo(merchantId: string): Promise<{
+    walletAddress: string;
+    encryptedSeedPhrase: string;
+    derivationIndex: number;
+  }> {
+    this.logger.log(
+      `[CreateTransactionB2C] Getting merchant ${merchantId} wallet information`,
+    );
+    const { merchant } = await this.getMerchant.execute(merchantId);
+    const walletAddress = (merchant as any).wallet?.walletAddress || '';
+    const encryptedSeedPhrase = (merchant as any).wallet?.seedPhrase || '';
+    const derivationIndex = (merchant as any).wallet?.derivationIndex || 0;
+
+    if (!walletAddress) {
+      this.logger.error(
+        `[CreateTransactionB2C] Merchant ${merchantId} wallet address not configured`,
+      );
+      throw new BadRequestException('Merchant wallet not configured');
+    }
+    if (!encryptedSeedPhrase) {
+      this.logger.error(
+        `[CreateTransactionB2C] Merchant ${merchantId} wallet seed phrase not configured`,
+      );
+      throw new BadRequestException(
+        'Merchant wallet seed phrase not configured',
+      );
+    }
+
+    this.logger.log(
+      `[CreateTransactionB2C] Merchant wallet address: ${walletAddress}`,
+    );
+    return { walletAddress, encryptedSeedPhrase, derivationIndex };
+  }
+
+  /**
+   * Decrypt merchant seed phrase, derive private key, and verify address match.
+   */
+  private async decryptMerchantPrivateKey(
+    encryptedSeedPhrase: string,
+    derivationIndex: number,
+    expectedAddress: string,
+  ): Promise<string> {
+    this.logger.log(
+      `[CreateTransactionB2C] Decrypting merchant seed phrase and deriving private key`,
+    );
+    try {
+      const salt = this.configService.get<string>('SALT');
+
+      this.logger.log(`[CreateTransactionB2C] SALT exists: ${!!salt}`);
+      this.logger.log(
+        `[CreateTransactionB2C] SALT length: ${salt?.length || 0}`,
+      );
+      this.logger.log(
+        `[CreateTransactionB2C] SALT (first 10 chars): ${salt?.substring(0, 10)}...`,
+      );
+      this.logger.log(
+        `[CreateTransactionB2C] Encrypted seed phrase length: ${encryptedSeedPhrase?.length || 0}`,
+      );
+      this.logger.log(
+        `[CreateTransactionB2C] Full encrypted seed phrase: ${encryptedSeedPhrase}`,
+      );
+
+      const decryptedSeedPhrase = this.tokenService.decryptKey(
+        salt,
+        encryptedSeedPhrase,
+      );
+
+      if (!decryptedSeedPhrase || decryptedSeedPhrase.length === 0) {
+        this.logger.error(
+          `[CreateTransactionB2C] Decryption returned empty value!`,
+        );
+        this.logger.error(
+          `[CreateTransactionB2C] This means either: 1) SALT is wrong, 2) Encrypted key is corrupted, 3) Wallet was never properly encrypted`,
+        );
+        throw new Error('Decryption returned empty value');
+      }
+
+      const merchantSigner = getSignerFromSeedPhrase(
+        decryptedSeedPhrase,
+        derivationIndex,
+      );
+      const privateKey = merchantSigner.privateKey;
+
+      this.logger.log(
+        `[CreateTransactionB2C] Decryption result type: ${typeof privateKey}`,
+      );
+      this.logger.log(
+        `[CreateTransactionB2C] Derived private key length: ${privateKey?.length || 0}`,
+      );
+
+      await this.verifyPrivateKeyAddress(privateKey, expectedAddress);
+
+      return privateKey;
+    } catch (error) {
+      this.logger.error(
+        `[CreateTransactionB2C] Failed to decrypt merchant seed phrase: ${error.message}`,
+      );
+      this.logger.error(`[CreateTransactionB2C] Error stack: ${error.stack}`);
+      this.logger.error(
+        `[CreateTransactionB2C] Error details: ${JSON.stringify(error)}`,
+      );
+      this.logger.error(
+        `[CreateTransactionB2C] Encrypted seed phrase (first 20 chars): ${encryptedSeedPhrase?.substring(0, 20)}...`,
+      );
+      this.logger.error(
+        `[CreateTransactionB2C] ❌ Cannot proceed with transaction - merchant wallet decryption failed`,
+      );
+      this.logger.error(
+        `[CreateTransactionB2C] Please verify: 1) SALT is correctly loaded (should be 28 chars), 2) Merchant wallet was encrypted properly`,
+      );
+      throw new InternalServerErrorException(
+        'Failed to decrypt merchant wallet credentials. Please check SALT configuration.',
+      );
+    }
+  }
+
+  private async verifyPrivateKeyAddress(
+    privateKey: string,
+    expectedAddress: string,
+  ): Promise<void> {
+    this.logger.log(
+      `[CreateTransactionB2C] Verifying private key matches merchant wallet...`,
+    );
+    const { Wallet } = await import('ethers');
+    const derivedAddress = new Wallet(privateKey).address;
+
+    this.logger.log(
+      `[CreateTransactionB2C] Address derived from private key: ${derivedAddress}`,
+    );
+    this.logger.log(
+      `[CreateTransactionB2C] Merchant wallet address from DB: ${expectedAddress}`,
+    );
+
+    if (derivedAddress.toLowerCase() !== expectedAddress.toLowerCase()) {
+      this.logger.error(
+        `[CreateTransactionB2C] ❌ Private key doesn't match merchant wallet!`,
+      );
+      this.logger.error(
+        `[CreateTransactionB2C] This merchant wallet was encrypted with wrong private key`,
+      );
+      throw new Error('Private key verification failed - address mismatch');
+    }
+
+    this.logger.log(
+      `[CreateTransactionB2C] ✅ Private key verified - matches merchant wallet address`,
+    );
+  }
+
+  /**
+   * Check that the merchant has sufficient balance for the transaction.
+   */
+  private async assertSufficientBalance(
+    merchantWalletAddress: string,
+    pointContractAddress: string,
+    amount: number,
+  ): Promise<void> {
+    try {
+      const { balance: merchantBalance, balanceWei: merchantBalanceWei } =
+        await this.blockchainService.getBalance({
+          walletAddress: merchantWalletAddress,
+          pointAddress: pointContractAddress,
+        });
+      this.logger.log(
+        `[CreateTransactionB2C] Merchant current balance: ${merchantBalance} points`,
+      );
+      this.logger.log(
+        `[CreateTransactionB2C] Required amount: ${amount} points`,
+      );
+
+      const balanceWei = BigInt(merchantBalanceWei);
+      const requiredWei = ethers.parseEther(amount.toString());
+      if (balanceWei < requiredWei) {
+        this.logger.error(
+          `[CreateTransactionB2C] Insufficient balance! Merchant has ${merchantBalance} but needs ${amount}`,
+        );
+        throw new BadRequestException(
+          `Insufficient merchant balance. Available: ${merchantBalance} points, Required: ${amount} points`,
+        );
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      this.logger.warn(
+        `[CreateTransactionB2C] Failed to check balance: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Update or create customer point balance after a successful transfer.
+   */
+  private async upsertCustomerPoints(
+    customer: any,
+    pointId: string,
+    amount: number,
+  ): Promise<void> {
+    const existing = customer.customerPoints?.find(
+      (cp: any) => cp.pointId === pointId,
+    );
+
+    if (existing) {
+      await this.updateCustomer.execute(customer.id, {
+        customerPoints: {
+          update: {
+            where: { id: existing.id },
+            data: { balances: existing.balances + amount },
+          },
+        },
+      });
+    } else {
+      await this.updateCustomer.execute(customer.id, {
+        customerPoints: {
+          create: { pointId, balances: amount },
+        },
+      });
+    }
+  }
+
   async execute(
     merchantId: string,
     pointId: string,
@@ -62,8 +364,6 @@ export class CreateTransactionB2C {
   ): Promise<CreateTransactionResponse> {
     try {
       const { transactionTypeId, phone, eventId, ...rest } = data;
-
-      // Default to TRANSFER if transactionTypeId not provided
       const finalTransactionTypeId =
         transactionTypeId || TransactionTypeId.TRANSFER;
 
@@ -72,234 +372,24 @@ export class CreateTransactionB2C {
         merchantId,
       );
 
-      // Get customer by phone
-      let customerResponse = await this.getCustomerByPhone.execute(
-        merchantId,
-        phone,
+      const customer = await this.resolveCustomer(merchantId, phone);
+
+      const { walletAddress, encryptedSeedPhrase, derivationIndex } =
+        await this.getMerchantWalletInfo(merchantId);
+
+      const merchantPrivateKey = await this.decryptMerchantPrivateKey(
+        encryptedSeedPhrase,
+        derivationIndex,
+        walletAddress,
       );
 
-      let customer: any;
-
-      // If customer not found or not registered with merchant, create/register them
-      if ('message' in customerResponse) {
-        this.logger.log(
-          `[CreateTransactionB2C] Customer with phone ${phone} not found. Creating new customer...`,
-        );
-
-        // Create new customer with phone number
-        // Generate email from phone if not provided
-        const customerEmail = `${phone}@customer.generated`;
-
-        try {
-          const newCustomer = await this.createCustomer.execute(merchantId, {
-            email: customerEmail,
-            tel: phone,
-            firstName: '', // Can be updated later
-            lastName: '',
-          });
-
-          customer = newCustomer;
-          this.logger.log(
-            `[CreateTransactionB2C] New customer created successfully. ID: ${customer.id}`,
-          );
-        } catch (error) {
-          this.logger.error(
-            `[CreateTransactionB2C] Failed to create customer: ${error.message}`,
-          );
-          throw new BadRequestException(
-            `Failed to create customer with phone ${phone}: ${error.message}`,
-          );
-        }
-      } else {
-        customer = customerResponse.customer;
-
-        // Check if customer is registered with this merchant
-        const isCustomerInMerchant = (customer as any).customerMerChant?.some(
-          (cm: any) => cm.merchantId === merchantId,
-        );
-
-        if (!isCustomerInMerchant) {
-          this.logger.log(
-            `[CreateTransactionB2C] Customer ${customer.id} found but not associated with merchant ${merchantId}. Adding association...`,
-          );
-
-          try {
-            await this.updateCustomer.execute(customer.id, {
-              customerMerChant: { create: { merchantId } },
-            });
-
-            // Re-fetch customer to get updated associations
-            customerResponse = await this.getCustomerByPhone.execute(
-              merchantId,
-              phone,
-            );
-            customer = (customerResponse as any).customer;
-
-            this.logger.log(
-              `[CreateTransactionB2C] Customer ${customer.id} successfully associated with merchant ${merchantId}`,
-            );
-          } catch (error) {
-            this.logger.error(
-              `[CreateTransactionB2C] Failed to associate customer with merchant: ${error.message}`,
-            );
-            throw new BadRequestException(
-              `Failed to register customer with merchant: ${error.message}`,
-            );
-          }
-        }
-      }
-
-      // Get merchant wallet for sender address
-      this.logger.log(
-        `[CreateTransactionB2C] Getting merchant ${merchantId} wallet information`,
-      );
-      const { merchant } = await this.getMerchant.execute(merchantId);
-      const merchantWalletAddress =
-        (merchant as any).wallet?.walletAddress || '';
-      const merchantEncryptedSeedPhrase =
-        (merchant as any).wallet?.seedPhrase || '';
-      const merchantDerivationIndex =
-        (merchant as any).wallet?.derivationIndex || 0;
-
-      if (!merchantWalletAddress) {
-        this.logger.error(
-          `[CreateTransactionB2C] Merchant ${merchantId} wallet address not configured`,
-        );
-        throw new BadRequestException('Merchant wallet not configured');
-      }
-
-      if (!merchantEncryptedSeedPhrase) {
-        this.logger.error(
-          `[CreateTransactionB2C] Merchant ${merchantId} wallet seed phrase not configured`,
-        );
-        throw new BadRequestException(
-          'Merchant wallet seed phrase not configured',
-        );
-      }
-
-      this.logger.log(
-        `[CreateTransactionB2C] Merchant wallet address: ${merchantWalletAddress}`,
+      await this.assertSufficientBalance(
+        walletAddress,
+        point.contractAddress,
+        data.amount,
       );
 
-      // Decrypt merchant seed phrase and derive private key
-      this.logger.log(
-        `[CreateTransactionB2C] Decrypting merchant seed phrase and deriving private key`,
-      );
-      let merchantPrivateKey: string;
-      try {
-        const salt = this.configService.get<string>('SALT');
-
-        // Detailed SALT checking
-        this.logger.log(`[CreateTransactionB2C] SALT exists: ${!!salt}`);
-        this.logger.log(
-          `[CreateTransactionB2C] SALT length: ${salt?.length || 0}`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] SALT (first 10 chars): ${salt?.substring(0, 10)}...`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] Encrypted seed phrase length: ${merchantEncryptedSeedPhrase?.length || 0}`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] Full encrypted seed phrase: ${merchantEncryptedSeedPhrase}`,
-        );
-
-        const decryptedSeedPhrase = this.tokenService.decryptKey(
-          salt,
-          merchantEncryptedSeedPhrase,
-        );
-
-        // Validate decryption result
-        if (!decryptedSeedPhrase || decryptedSeedPhrase.length === 0) {
-          this.logger.error(
-            `[CreateTransactionB2C] Decryption returned empty value!`,
-          );
-          this.logger.error(
-            `[CreateTransactionB2C] This means either: 1) SALT is wrong, 2) Encrypted key is corrupted, 3) Wallet was never properly encrypted`,
-          );
-          throw new Error('Decryption returned empty value');
-        }
-
-        // Derive private key from seed phrase
-        const merchantSigner = getSignerFromSeedPhrase(
-          decryptedSeedPhrase,
-          merchantDerivationIndex,
-        );
-        merchantPrivateKey = merchantSigner.privateKey;
-
-        // Detailed decryption result checking
-        this.logger.log(
-          `[CreateTransactionB2C] Decryption result type: ${typeof merchantPrivateKey}`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] Derived private key length: ${merchantPrivateKey?.length || 0}`,
-        );
-
-        // Verify that private key matches merchant wallet address
-        this.logger.log(
-          `[CreateTransactionB2C] Verifying private key matches merchant wallet...`,
-        );
-        try {
-          const { Wallet } = await import('ethers');
-          const verifyWallet = new Wallet(merchantPrivateKey);
-          const derivedAddress = verifyWallet.address;
-
-          this.logger.log(
-            `[CreateTransactionB2C] Address derived from private key: ${derivedAddress}`,
-          );
-          this.logger.log(
-            `[CreateTransactionB2C] Merchant wallet address from DB: ${merchantWalletAddress}`,
-          );
-
-          if (
-            derivedAddress.toLowerCase() !== merchantWalletAddress.toLowerCase()
-          ) {
-            this.logger.error(
-              `[CreateTransactionB2C] ❌ Private key doesn't match merchant wallet!`,
-            );
-            this.logger.error(
-              `[CreateTransactionB2C] This merchant wallet was encrypted with wrong private key`,
-            );
-            throw new Error(
-              'Private key verification failed - address mismatch',
-            );
-          }
-
-          this.logger.log(
-            `[CreateTransactionB2C] ✅ Private key verified - matches merchant wallet address`,
-          );
-        } catch (verifyError) {
-          this.logger.error(
-            `[CreateTransactionB2C] Private key verification failed: ${verifyError.message}`,
-          );
-          throw verifyError;
-        }
-      } catch (error) {
-        this.logger.error(
-          `[CreateTransactionB2C] Failed to decrypt merchant seed phrase: ${error.message}`,
-        );
-        this.logger.error(`[CreateTransactionB2C] Error stack: ${error.stack}`);
-        this.logger.error(
-          `[CreateTransactionB2C] Error details: ${JSON.stringify(error)}`,
-        );
-        this.logger.error(
-          `[CreateTransactionB2C] Encrypted seed phrase (first 20 chars): ${merchantEncryptedSeedPhrase?.substring(0, 20)}...`,
-        );
-
-        // REMOVED FALLBACK: Merchant must use their own wallet, no backend wallet fallback
-        // This ensures proper merchant wallet configuration and SALT environment setup
-        this.logger.error(
-          `[CreateTransactionB2C] ❌ Cannot proceed with transaction - merchant wallet decryption failed`,
-        );
-        this.logger.error(
-          `[CreateTransactionB2C] Please verify: 1) SALT is correctly loaded (should be 28 chars), 2) Merchant wallet was encrypted properly`,
-        );
-        throw new InternalServerErrorException(
-          'Failed to decrypt merchant wallet credentials. Please check SALT configuration.',
-        );
-      }
-
-      // Call blockchain service with merchant private key
+      // Execute blockchain transaction
       this.logger.log(
         `[CreateTransactionB2C] Initiating blockchain transaction`,
       );
@@ -308,50 +398,15 @@ export class CreateTransactionB2C {
       );
       this.logger.log(`[CreateTransactionB2C] Amount: ${data.amount}`);
       this.logger.log(
-        `[CreateTransactionB2C] Customer wallet: ${(customer as any).wallet?.walletAddress}`,
+        `[CreateTransactionB2C] Customer wallet: ${customer.wallet?.walletAddress}`,
       );
       this.logger.log(
-        `[CreateTransactionB2C] Merchant wallet: ${merchantWalletAddress}`,
+        `[CreateTransactionB2C] Merchant wallet: ${walletAddress}`,
       );
-
-      // Check merchant balance before transaction
-      try {
-        const { balance: merchantBalance, balanceWei: merchantBalanceWei } =
-          await this.blockchainService.getBalance({
-            walletAddress: merchantWalletAddress,
-            pointAddress: point.contractAddress,
-          });
-        this.logger.log(
-          `[CreateTransactionB2C] Merchant current balance: ${merchantBalance} points`,
-        );
-        this.logger.log(
-          `[CreateTransactionB2C] Required amount: ${data.amount} points`,
-        );
-
-        const balanceWei = BigInt(merchantBalanceWei);
-        const requiredWei = ethers.parseEther(data.amount.toString());
-        if (balanceWei < requiredWei) {
-          this.logger.error(
-            `[CreateTransactionB2C] Insufficient balance! Merchant has ${merchantBalance} but needs ${data.amount}`,
-          );
-          throw new BadRequestException(
-            `Insufficient merchant balance. Available: ${merchantBalance} points, Required: ${data.amount} points`,
-          );
-        }
-      } catch (error) {
-        if (error instanceof BadRequestException) {
-          throw error;
-        }
-        this.logger.warn(
-          `[CreateTransactionB2C] Failed to check balance: ${error.message}`,
-        );
-      }
-
-      // Log transaction input parameters
       this.logger.log(`[CreateTransactionB2C] Transaction input parameters:`);
       this.logger.log(`[CreateTransactionB2C] - amount: ${data.amount}`);
       this.logger.log(
-        `[CreateTransactionB2C] - to: ${(customer as any).wallet?.walletAddress || ''}`,
+        `[CreateTransactionB2C] - to: ${customer.wallet?.walletAddress || ''}`,
       );
       this.logger.log(
         `[CreateTransactionB2C] - pointAddress: ${point.contractAddress}`,
@@ -365,7 +420,7 @@ export class CreateTransactionB2C {
 
       const { txId } = await this.blockchainService.transaction({
         amount: data.amount,
-        to: (customer as any).wallet?.walletAddress || '',
+        to: customer.wallet?.walletAddress || '',
         pointAddress: point.contractAddress,
         senderPrivateKey: merchantPrivateKey,
       });
@@ -376,15 +431,14 @@ export class CreateTransactionB2C {
 
       const txHashBuffer = new Uint8Array(createBufferFromHex(txId));
       const senderAddressBuffer = Buffer.from(
-        merchantWalletAddress.replace(/^0x/, ''),
+        walletAddress.replace(/^0x/, ''),
         'hex',
       );
       const receiverAddressBuffer = Buffer.from(
-        ((customer as any).wallet?.walletAddress || '').replace(/^0x/, ''),
+        (customer.wallet?.walletAddress || '').replace(/^0x/, ''),
         'hex',
       );
 
-      // Create single transaction record with both sender (merchant) and receiver (customer)
       const transaction = await this.db.createTransaction({
         ...rest,
         senderAddress: senderAddressBuffer,
@@ -406,36 +460,7 @@ export class CreateTransactionB2C {
         `[CreateTransactionB2C] Transaction created. ID: ${transaction.id}`,
       );
 
-      if (customer.customerPoints.length === 0) {
-        await this.updateCustomer.execute(customer.id, {
-          customerPoints: {
-            create: { pointId: point.id, balances: data.amount },
-          },
-        });
-      }
-
-      if (customer.customerPoints.length > 0) {
-        const customerPoint = customer.customerPoints.find(
-          (cp) => cp.pointId === point.id,
-        );
-
-        if (customerPoint) {
-          await this.updateCustomer.execute(customer.id, {
-            customerPoints: {
-              update: {
-                where: { id: customerPoint.id },
-                data: { balances: customerPoint.balances + data.amount },
-              },
-            },
-          });
-        } else {
-          await this.updateCustomer.execute(customer.id, {
-            customerPoints: {
-              create: { pointId: point.id, balances: data.amount },
-            },
-          });
-        }
-      }
+      await this.upsertCustomerPoints(customer, point.id, data.amount);
 
       return {
         ...transaction,
@@ -460,12 +485,9 @@ export class CreateTransactionB2C {
       if (error.message === '500001: RPC server error') {
         throw new InternalServerErrorException(RPC_SERVER_ERROR);
       }
-
-      // Re-throw if it's already an HttpException (like BadRequestException)
       if (error.status) {
         throw error;
       }
-
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

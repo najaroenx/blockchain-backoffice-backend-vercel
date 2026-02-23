@@ -36,6 +36,7 @@ import { GetListingBatchDetailHandler } from '../handlers/getListingBatchDetail.
 import { VoucherValueType } from '@prisma/client';
 import { GetMarketplaceListingsEndUser } from '../handlers/getMarketplaceListtingEnduser.handler';
 import { GetCouponById } from '../handlers/getCouponById.handler';
+import { GetVoucherByListingId } from '../handlers/getVoucherByListingId.handler';
 
 @ApiTags('Voucher')
 @Controller('coupon')
@@ -53,6 +54,7 @@ export class VoucherController {
     private readonly getListingBatchDetailHandler: GetListingBatchDetailHandler,
     private readonly getMarketplaceListingsEndUser: GetMarketplaceListingsEndUser,
     private readonly getCouponByIdHandler: GetCouponById,
+    private readonly getVoucherByListingId: GetVoucherByListingId,
   ) {}
 
   @Get('/')
@@ -431,6 +433,17 @@ export class VoucherController {
       data.pointId,
       data.phone,
     );
+  }
+
+  /**
+   * GET Voucher by Listing ID
+   * GET /coupon/coupon-by-listing/:listingId
+   */
+  @Get('/coupon-by-listing/:listingId')
+  @Public()
+  @HttpCode(200)
+  async getVoucherByListingIds(@Param('listingId') listingId: string) {
+    return this.getVoucherByListingId.execute(listingId);
   }
 
   // GET /coupon/my-coupons/:phone moved to ExternalModule

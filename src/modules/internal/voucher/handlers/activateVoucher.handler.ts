@@ -154,153 +154,44 @@ export class ActivateVoucher {
       );
       const result = await this.prisma.$transaction(
         async (tx) => {
-          // Get the actual merchant who is activating (from point ownership)
           const activatingMerchantId = point.merchantId;
 
-          // For seller vouchers: get existing codes to activate
-          // For own vouchers: generate new codes
-          let codesToActivate: { id: string; code: string }[] = [];
-
-          if (isSellerVoucher) {
-            // Get owned codes that are not yet activated
-            this.logger.log(
-              `[STEP 4.1] Fetching ${amount} owned codes to activate for merchant ${activatingMerchantId}`,
-            );
-            codesToActivate = await tx.voucherCode.findMany({
-              where: {
+          const codesToActivate = isSellerVoucher
+            ? await this.fetchOwnedCodesToActivate(
+                tx,
                 voucherId,
-                currentOwnerId: activatingMerchantId,
-                currentOwnerType: 'MERCHANT',
-                pointId: null, // Only get codes not yet activated
-              },
-              select: { id: true, code: true },
-              take: amount,
-            });
+                activatingMerchantId,
+                amount,
+              )
+            : await this.generateSequentialCodes(tx, voucherId, amount);
 
-            this.logger.log(
-              `[STEP 4.1] Found ${codesToActivate.length} codes to activate`,
-            );
-          } else {
-            // 4.1 นับจำนวน codes ที่มีอยู่แล้วเพื่อเป็น starting number
-            const existingCodesCount = await tx.voucherCode.count({
-              where: { voucherId },
-            });
-
-            // 4.2 สร้าง sequential codes: voucherId-0001, voucherId-0002, ...
-            this.logger.log(
-              `[STEP 4.1] Generating ${amount} sequential codes starting from ${existingCodesCount + 1}`,
-            );
-            for (let i = 1; i <= amount; i++) {
-              const sequenceNumber = existingCodesCount + i;
-              const code = `${voucherId}-${sequenceNumber.toString().padStart(4, '0')}`;
-              codesToActivate.push({ id: '', code }); // id will be set after creation
-            }
-          }
-
-          // Get merchant wallet for blockchain operations (use activating merchant, not voucher owner)
-          const merchant = await tx.merchant.findUnique({
-            where: { id: activatingMerchantId },
-            include: { wallet: true },
-          });
-
-          if (
-            !merchant?.wallet?.walletAddress ||
-            !merchant?.wallet?.seedPhrase
-          ) {
-            throw new Error('Merchant wallet not configured');
-          }
-
-          // Get tokenId from voucher
-          if (!upcomingVoucher.tokenId) {
-            throw new Error(
-              'Voucher does not have tokenId. Please create voucher with blockchain integration first.',
-            );
-          }
-
-          // 4.2 Check merchant NFT balance (merchant already owns NFTs from purchase)
-          this.logger.log(
-            `[STEP 4.2] Checking merchant NFT balance for typeId ${upcomingVoucher.tokenId}`,
+          const merchant = await this.loadAndValidateMerchantWallet(
+            tx,
+            activatingMerchantId,
           );
 
-          try {
-            const merchantNFTBalance =
-              await this.blockchainService.getUserCouponBalance(
-                merchant.wallet.walletAddress,
-                parseInt(upcomingVoucher.tokenId),
-              );
+          this.validateVoucherTokenId(upcomingVoucher);
 
-            this.logger.log(
-              `[STEP 4.2] Merchant NFT balance: ${merchantNFTBalance.balance} (activating ${amount})`,
-            );
-
-            if (parseInt(merchantNFTBalance.balance) < amount) {
-              this.logger.error(
-                `[ERROR] Insufficient NFT balance. Required: ${amount}, Available: ${merchantNFTBalance.balance}`,
-              );
-              throw new BadRequestException(
-                `Merchant has insufficient NFT balance. Required: ${amount}, Available: ${merchantNFTBalance.balance}. ` +
-                  `Please ensure merchant has purchased enough vouchers from seller first.`,
-              );
-            }
-
-            this.logger.log(`[STEP 4.2] Merchant has sufficient NFT balance ✓`);
-          } catch (error) {
-            this.logger.error(
-              `[ERROR] Failed to check NFT balance: ${error.message}`,
-            );
-            throw new BadRequestException(
-              `Failed to verify merchant NFT balance: ${error.message}`,
-            );
-          }
-
-          // 4.2.5 ตรวจสอบและ whitelist merchant ใน marketplace
-          this.logger.log(
-            `[STEP 4.2.5] Checking marketplace whitelist for merchant wallet`,
-          );
-          const isWhitelisted = await this.blockchainService.isWhitelisted(
+          await this.assertSufficientNFTBalance(
             merchant.wallet.walletAddress,
+            upcomingVoucher.tokenId,
+            amount,
           );
 
-          if (!isWhitelisted) {
-            this.logger.log(
-              `[STEP 4.2.5] Merchant ยังไม่ได้ whitelist กำลังเพิ่มเข้า whitelist...`,
-            );
-            await this.blockchainService.addToMarketplaceWhitelist(
-              merchant.wallet.walletAddress,
-            );
-            this.logger.log(`[STEP 4.2.5] Merchant whitelist สำเร็จ ✓`);
-          } else {
-            this.logger.log(`[STEP 4.2.5] Merchant ถูก whitelist แล้ว ✓`);
-          }
+          await this.ensureMerchantWhitelisted(merchant.wallet.walletAddress);
 
-          // 4.3 List on marketplace
-          this.logger.log(
-            `[STEP 4.3] Listing ${amount} coupons on marketplace at price ${pointsCost} per unit`,
-          );
-
-          // Decrypt merchant seed phrase and derive private key
-          const salt = this.configService.get<string>('SALT');
-          const decryptedSeedPhrase = this.tokenService.decryptKey(
-            salt,
+          const decryptedPrivateKey = this.decryptMerchantKey(
             merchant.wallet.seedPhrase,
-          );
-
-          if (!decryptedSeedPhrase) {
-            throw new Error('Failed to decrypt merchant seed phrase');
-          }
-
-          // Derive private key from seed phrase
-          const merchantSigner = getSignerFromSeedPhrase(
-            decryptedSeedPhrase,
             merchant.wallet.derivationIndex || 0,
           );
-          const decryptedPrivateKey = merchantSigner.privateKey;
 
-          // Get point token address for payment token
           const pointTokenAddress = convertBufferToAddress(
             point.contractAddress as any,
           );
 
+          this.logger.log(
+            `[STEP 4.3] Listing ${amount} coupons on marketplace at price ${pointsCost} per unit`,
+          );
           this.logger.log(
             `[STEP 4.3] Using point token ${pointTokenAddress} as payment token`,
           );
@@ -310,141 +201,46 @@ export class ActivateVoucher {
             amount,
             pointsCost.toString(),
             decryptedPrivateKey,
-            pointTokenAddress, // Customer pays with point token
+            pointTokenAddress,
           );
 
           const listingId = listResult.listingId;
-
           this.logger.log(
             `[STEP 4.3] Listed on marketplace with listingId: ${listingId}`,
           );
 
-          // 4.3.1 Verify listing is active before proceeding
-          this.logger.log(
-            `[STEP 4.3.1] Verifying listing ${listingId} is active...`,
+          await this.verifyListingActive(listingId);
+
+          const listingBatch = await this.createListingBatch(
+            tx,
+            merchant.wallet.walletAddress,
+            amount,
+            pointsCost,
+            point.symbol,
           );
 
-          // Wait briefly for blockchain state to sync
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-
-          const listing =
-            await this.blockchainService.getMarketplaceListing(listingId);
-
-          this.logger.log(
-            `[STEP 4.3.1] Listing details: ${JSON.stringify({
-              listingId,
-              isActive: listing.isActive,
-              seller: listing.seller,
-              amount: listing.amount,
-              typeId: listing.typeId,
-              pricePerUnit: listing.pricePerUnit,
-            })}`,
+          await this.persistVoucherCodes(
+            tx,
+            isSellerVoucher,
+            codesToActivate,
+            voucherId,
+            pointsCost,
+            pointId,
+            point.symbol,
+            listingId,
+            listingBatch.id,
+            amount,
           );
 
-          if (!listing.isActive) {
-            this.logger.error(
-              `[ERROR] Listing ${listingId} is not active. Full listing: ${JSON.stringify(listing)}`,
-            );
-            throw new Error(
-              `Listing ${listingId} was created but is not active. Please verify merchant has sufficient coupon balance and approval.`,
-            );
-          }
-
-          this.logger.log(`[STEP 4.3.1] Listing verified as active ✓`);
-
-          // 4.3.2 Create ListingBatch record to group voucher codes for this merchant listing
-          this.logger.log(
-            `[STEP 4.3.2] Creating ListingBatch for merchant wallet ${merchant.wallet.walletAddress}`,
-          );
-          const listingBatch = await tx.listingBatch.create({
-            data: {
-              sellerWalletAddress: merchant.wallet.walletAddress.toLowerCase(),
-              name: `merchant listing: ${merchant.wallet.walletAddress}`,
-              description: null,
-              totalItems: amount,
-              soldItems: 0,
-              totalValue: pointsCost * amount,
-              currency: point.symbol,
-              status: 'ACTIVE',
-            },
-          });
-          this.logger.log(
-            `[STEP 4.3.2] Created ListingBatch ${listingBatch.id} ✓`,
+          const newTotalIssued = await this.updateVoucherTotalIssued(
+            tx,
+            isSellerVoucher,
+            voucherId,
+            upcomingVoucher.totalIssued,
+            amount,
+            point.symbol,
           );
 
-          // 4.4 Create or update voucher codes with listingId as voucherGroupId
-          if (isSellerVoucher) {
-            // Update existing codes owned by merchant
-            this.logger.log(
-              `[STEP 4.4] Updating ${codesToActivate.length} owned voucher codes with listingId: ${listingId}`,
-            );
-
-            const codeIds = codesToActivate.map((c) => c.id);
-            await tx.voucherCode.updateMany({
-              where: { id: { in: codeIds } },
-              data: {
-                pointsCost,
-                pointId,
-                currency: point.symbol,
-                voucherGroupId: listingId,
-                listingBatchId: listingBatch.id,
-              },
-            });
-
-            this.logger.log(
-              `[STEP 4.4] Updated ${codesToActivate.length} codes with voucherGroupId (listingId): ${listingId}`,
-            );
-          } else {
-            // Create new codes
-            this.logger.log(
-              `[STEP 4.4] Creating ${amount} active voucher codes with listingId: ${listingId}`,
-            );
-            const chunkSize = 100;
-            const codes = codesToActivate.map((c) => c.code);
-            for (let i = 0; i < codes.length; i += chunkSize) {
-              const chunk = codes.slice(i, i + chunkSize);
-
-              await tx.voucherCode.createMany({
-                data: chunk.map((code) => ({
-                  code,
-                  voucherId,
-                  pointsCost,
-                  pointId,
-                  currency: point.symbol,
-                  voucherGroupId: listingId,
-                  listingBatchId: listingBatch.id,
-                })),
-              });
-            }
-            this.logger.log(
-              `[STEP 4.4] Created ${amount} codes with voucherGroupId (listingId): ${listingId}`,
-            );
-          }
-
-          // 4.5 ลด totalIssued ของ voucher และ update currency (only for own vouchers)
-          let newTotalIssued = upcomingVoucher.totalIssued;
-          if (!isSellerVoucher) {
-            newTotalIssued = upcomingVoucher.totalIssued - amount;
-            this.logger.log(
-              `[STEP 4.5] Updating voucher: totalIssued ${upcomingVoucher.totalIssued} -> ${newTotalIssued}, currency -> ${point.symbol}`,
-            );
-
-            await tx.voucher.update({
-              where: { id: voucherId },
-              data: {
-                totalIssued: newTotalIssued,
-                currency: point.symbol,
-              },
-            });
-          } else {
-            this.logger.log(
-              `[STEP 4.5] Seller voucher - skipping totalIssued update (remains ${upcomingVoucher.totalIssued})`,
-            );
-          }
-
-          // 4.6 นับจำนวน codes ตามสถานะ
-          // For seller vouchers: count codes owned by this merchant with voucherGroupId
-          // For own vouchers: count all codes with voucherGroupId
           const activeCodesCountQuery = isSellerVoucher
             ? {
                 voucherId,
@@ -458,7 +254,6 @@ export class ActivateVoucher {
             where: activeCodesCountQuery,
           });
 
-          // For seller vouchers: upcoming = remaining owned codes not in this batch
           const upcomingCodesCount = isSellerVoucher
             ? ownedCodesCount - amount
             : newTotalIssued;
@@ -506,5 +301,284 @@ export class ActivateVoucher {
       );
       throw error;
     }
+  }
+
+  // --- Extracted helpers to reduce cognitive complexity ---
+
+  private async fetchOwnedCodesToActivate(
+    tx: any,
+    voucherId: string,
+    merchantId: string,
+    amount: number,
+  ): Promise<{ id: string; code: string }[]> {
+    this.logger.log(
+      `[STEP 4.1] Fetching ${amount} owned codes to activate for merchant ${merchantId}`,
+    );
+    const codes = await tx.voucherCode.findMany({
+      where: {
+        voucherId,
+        currentOwnerId: merchantId,
+        currentOwnerType: 'MERCHANT',
+        pointId: null,
+      },
+      select: { id: true, code: true },
+      take: amount,
+    });
+    this.logger.log(`[STEP 4.1] Found ${codes.length} codes to activate`);
+    return codes;
+  }
+
+  private async generateSequentialCodes(
+    tx: any,
+    voucherId: string,
+    amount: number,
+  ): Promise<{ id: string; code: string }[]> {
+    const existingCodesCount = await tx.voucherCode.count({
+      where: { voucherId },
+    });
+    this.logger.log(
+      `[STEP 4.1] Generating ${amount} sequential codes starting from ${existingCodesCount + 1}`,
+    );
+    const codes: { id: string; code: string }[] = [];
+    for (let i = 1; i <= amount; i++) {
+      const sequenceNumber = existingCodesCount + i;
+      codes.push({
+        id: '',
+        code: `${voucherId}-${sequenceNumber.toString().padStart(4, '0')}`,
+      });
+    }
+    return codes;
+  }
+
+  private async loadAndValidateMerchantWallet(
+    tx: any,
+    merchantId: string,
+  ): Promise<any> {
+    const merchant = await tx.merchant.findUnique({
+      where: { id: merchantId },
+      include: { wallet: true },
+    });
+    if (!merchant?.wallet?.walletAddress || !merchant?.wallet?.seedPhrase) {
+      throw new Error('Merchant wallet not configured');
+    }
+    return merchant;
+  }
+
+  private validateVoucherTokenId(voucher: { tokenId: string | null }): void {
+    if (!voucher.tokenId) {
+      throw new Error(
+        'Voucher does not have tokenId. Please create voucher with blockchain integration first.',
+      );
+    }
+  }
+
+  private async assertSufficientNFTBalance(
+    walletAddress: string,
+    tokenId: string,
+    amount: number,
+  ): Promise<void> {
+    this.logger.log(
+      `[STEP 4.2] Checking merchant NFT balance for typeId ${tokenId}`,
+    );
+    try {
+      const merchantNFTBalance =
+        await this.blockchainService.getUserCouponBalance(
+          walletAddress,
+          parseInt(tokenId),
+        );
+      this.logger.log(
+        `[STEP 4.2] Merchant NFT balance: ${merchantNFTBalance.balance} (activating ${amount})`,
+      );
+      if (parseInt(merchantNFTBalance.balance) < amount) {
+        this.logger.error(
+          `[ERROR] Insufficient NFT balance. Required: ${amount}, Available: ${merchantNFTBalance.balance}`,
+        );
+        throw new BadRequestException(
+          `Merchant has insufficient NFT balance. Required: ${amount}, Available: ${merchantNFTBalance.balance}. ` +
+            `Please ensure merchant has purchased enough vouchers from seller first.`,
+        );
+      }
+      this.logger.log(`[STEP 4.2] Merchant has sufficient NFT balance ✓`);
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      this.logger.error(
+        `[ERROR] Failed to check NFT balance: ${error.message}`,
+      );
+      throw new BadRequestException(
+        `Failed to verify merchant NFT balance: ${error.message}`,
+      );
+    }
+  }
+
+  private async ensureMerchantWhitelisted(
+    walletAddress: string,
+  ): Promise<void> {
+    this.logger.log(
+      `[STEP 4.2.5] Checking marketplace whitelist for merchant wallet`,
+    );
+    const isWhitelisted =
+      await this.blockchainService.isWhitelisted(walletAddress);
+    if (!isWhitelisted) {
+      this.logger.log(
+        `[STEP 4.2.5] Merchant ยังไม่ได้ whitelist กำลังเพิ่มเข้า whitelist...`,
+      );
+      await this.blockchainService.addToMarketplaceWhitelist(walletAddress);
+      this.logger.log(`[STEP 4.2.5] Merchant whitelist สำเร็จ ✓`);
+    } else {
+      this.logger.log(`[STEP 4.2.5] Merchant ถูก whitelist แล้ว ✓`);
+    }
+  }
+
+  private decryptMerchantKey(
+    encryptedSeedPhrase: string,
+    derivationIndex: number,
+  ): string {
+    const salt = this.configService.get<string>('SALT');
+    const decryptedSeedPhrase = this.tokenService.decryptKey(
+      salt,
+      encryptedSeedPhrase,
+    );
+    if (!decryptedSeedPhrase) {
+      throw new Error('Failed to decrypt merchant seed phrase');
+    }
+    const merchantSigner = getSignerFromSeedPhrase(
+      decryptedSeedPhrase,
+      derivationIndex,
+    );
+    return merchantSigner.privateKey;
+  }
+
+  private async verifyListingActive(listingId: string): Promise<void> {
+    this.logger.log(`[STEP 4.3.1] Verifying listing ${listingId} is active...`);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const listing =
+      await this.blockchainService.getMarketplaceListing(listingId);
+    this.logger.log(
+      `[STEP 4.3.1] Listing details: ${JSON.stringify({
+        listingId,
+        isActive: listing.isActive,
+        seller: listing.seller,
+        amount: listing.amount,
+        typeId: listing.typeId,
+        pricePerUnit: listing.pricePerUnit,
+      })}`,
+    );
+    if (!listing.isActive) {
+      this.logger.error(
+        `[ERROR] Listing ${listingId} is not active. Full listing: ${JSON.stringify(listing)}`,
+      );
+      throw new Error(
+        `Listing ${listingId} was created but is not active. Please verify merchant has sufficient coupon balance and approval.`,
+      );
+    }
+    this.logger.log(`[STEP 4.3.1] Listing verified as active ✓`);
+  }
+
+  private async createListingBatch(
+    tx: any,
+    walletAddress: string,
+    amount: number,
+    pointsCost: number,
+    currency: string,
+  ): Promise<any> {
+    this.logger.log(
+      `[STEP 4.3.2] Creating ListingBatch for merchant wallet ${walletAddress}`,
+    );
+    const listingBatch = await tx.listingBatch.create({
+      data: {
+        sellerWalletAddress: walletAddress.toLowerCase(),
+        name: `merchant listing: ${walletAddress}`,
+        description: null,
+        totalItems: amount,
+        soldItems: 0,
+        totalValue: pointsCost * amount,
+        currency,
+        status: 'ACTIVE',
+      },
+    });
+    this.logger.log(`[STEP 4.3.2] Created ListingBatch ${listingBatch.id} ✓`);
+    return listingBatch;
+  }
+
+  private async persistVoucherCodes(
+    tx: any,
+    isSellerVoucher: boolean,
+    codesToActivate: { id: string; code: string }[],
+    voucherId: string,
+    pointsCost: number,
+    pointId: string,
+    currency: string,
+    listingId: string,
+    listingBatchId: string,
+    amount: number,
+  ): Promise<void> {
+    if (isSellerVoucher) {
+      this.logger.log(
+        `[STEP 4.4] Updating ${codesToActivate.length} owned voucher codes with listingId: ${listingId}`,
+      );
+      const codeIds = codesToActivate.map((c) => c.id);
+      await tx.voucherCode.updateMany({
+        where: { id: { in: codeIds } },
+        data: {
+          pointsCost,
+          pointId,
+          currency,
+          voucherGroupId: listingId,
+          listingBatchId,
+        },
+      });
+      this.logger.log(
+        `[STEP 4.4] Updated ${codesToActivate.length} codes with voucherGroupId (listingId): ${listingId}`,
+      );
+      return;
+    }
+
+    this.logger.log(
+      `[STEP 4.4] Creating ${amount} active voucher codes with listingId: ${listingId}`,
+    );
+    const chunkSize = 100;
+    const codes = codesToActivate.map((c) => c.code);
+    for (let i = 0; i < codes.length; i += chunkSize) {
+      const chunk = codes.slice(i, i + chunkSize);
+      await tx.voucherCode.createMany({
+        data: chunk.map((code) => ({
+          code,
+          voucherId,
+          pointsCost,
+          pointId,
+          currency,
+          voucherGroupId: listingId,
+          listingBatchId,
+        })),
+      });
+    }
+    this.logger.log(
+      `[STEP 4.4] Created ${amount} codes with voucherGroupId (listingId): ${listingId}`,
+    );
+  }
+
+  private async updateVoucherTotalIssued(
+    tx: any,
+    isSellerVoucher: boolean,
+    voucherId: string,
+    currentTotalIssued: number,
+    amount: number,
+    currency: string,
+  ): Promise<number> {
+    if (isSellerVoucher) {
+      this.logger.log(
+        `[STEP 4.5] Seller voucher - skipping totalIssued update (remains ${currentTotalIssued})`,
+      );
+      return currentTotalIssued;
+    }
+    const newTotalIssued = currentTotalIssued - amount;
+    this.logger.log(
+      `[STEP 4.5] Updating voucher: totalIssued ${currentTotalIssued} -> ${newTotalIssued}, currency -> ${currency}`,
+    );
+    await tx.voucher.update({
+      where: { id: voucherId },
+      data: { totalIssued: newTotalIssued, currency },
+    });
+    return newTotalIssued;
   }
 }

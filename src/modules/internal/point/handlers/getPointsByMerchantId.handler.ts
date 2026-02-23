@@ -66,82 +66,137 @@ export class GetPointsByMerchantId {
     return where;
   }
 
+  // Whitelist of allowed sortable fields to prevent prototype pollution
+  private readonly ALLOWED_SORT_FIELDS: ReadonlySet<string> = new Set([
+    'id',
+    'name',
+    'symbol',
+    'decimals',
+    'contractAddress',
+    'merchantId',
+    'createdAt',
+    'updatedAt',
+    'imageUrl',
+  ]);
+
+  private parseSortOrder(
+    query: Record<string, any>,
+  ): Prisma.PointOrderByWithRelationInput | undefined {
+    const sortValue = this.parseJSON<[string, 'ASC' | 'DESC']>(
+      query.sort || query._sort,
+    );
+
+    if (!Array.isArray(sortValue) || sortValue.length !== 2) return undefined;
+
+    const [field, order] = sortValue;
+    if (
+      typeof field !== 'string' ||
+      !field ||
+      !this.ALLOWED_SORT_FIELDS.has(field)
+    ) {
+      return undefined;
+    }
+
+    const orderDirection = order.toUpperCase() === 'DESC' ? 'desc' : 'asc';
+    return { [field]: orderDirection } as Prisma.PointOrderByWithRelationInput;
+  }
+
+  private parsePagination(query: Record<string, any>): {
+    skip?: number;
+    take?: number;
+  } {
+    const rangeValue = this.parseJSON<[number, number]>(
+      query.range || query._range,
+    );
+
+    let skip: number | undefined;
+    let take: number | undefined;
+
+    if (
+      Array.isArray(rangeValue) &&
+      rangeValue.length === 2 &&
+      Number.isFinite(rangeValue[0]) &&
+      Number.isFinite(rangeValue[1])
+    ) {
+      const [start, end] = rangeValue.map((value) =>
+        Math.max(0, Math.trunc(Number(value))),
+      );
+      skip = start;
+      take = end >= start ? end - start + 1 : undefined;
+    }
+
+    if (take === undefined) {
+      take = this.parsePositiveInt(query.take);
+    }
+
+    if (skip === undefined) {
+      const rawSkip = query.skip ?? query.offset ?? query.start;
+      skip = this.parsePositiveInt(rawSkip);
+    }
+
+    return { skip, take };
+  }
+
+  private parsePositiveInt(value: unknown): number | undefined {
+    if (value === undefined) return undefined;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return Math.trunc(parsed);
+    }
+    return undefined;
+  }
+
+  private async enrichPointsWithBalance(
+    points: Awaited<
+      ReturnType<PointDBService['getPointsByMerchant']>
+    >['points'],
+    merchantWalletAddress: string | undefined,
+  ) {
+    return Promise.all(
+      points.map(async (point) => {
+        const contractAddress = convertBufferToAddress(point.contractAddress);
+        const remaining = await this.getPointBalance(
+          point.id,
+          merchantWalletAddress,
+          contractAddress,
+        );
+        return { ...point, contractAddress, remaining };
+      }),
+    );
+  }
+
+  private async getPointBalance(
+    pointId: string,
+    merchantWalletAddress: string | undefined,
+    contractAddress: string,
+  ): Promise<string | null> {
+    if (!merchantWalletAddress) return null;
+
+    try {
+      const result = await this.blockchainService.getBalance({
+        walletAddress: merchantWalletAddress,
+        pointAddress: contractAddress,
+      });
+      return result.balance;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to get balance for point ${pointId}: ${error.message}`,
+      );
+      return null;
+    }
+  }
+
   async execute(
     merchantId: string,
     query: Record<string, any> = {},
   ): Promise<GetPointsResponseType> {
     try {
-      const sortValue = this.parseJSON<[string, 'ASC' | 'DESC']>(
-        query.sort || query._sort,
-      );
-      const rangeValue = this.parseJSON<[number, number]>(
-        query.range || query._range,
-      );
+      const orderBy = this.parseSortOrder(query);
+      const { skip, take } = this.parsePagination(query);
+
       const filterValue = this.parseJSON<Record<string, any>>(
         query.filter || query._filter,
       );
-
-      // Whitelist of allowed sortable fields to prevent prototype pollution
-      const ALLOWED_SORT_FIELDS: ReadonlySet<string> = new Set([
-        'id',
-        'name',
-        'symbol',
-        'decimals',
-        'contractAddress',
-        'merchantId',
-        'createdAt',
-        'updatedAt',
-        'imageUrl',
-      ]);
-
-      let orderBy: Prisma.PointOrderByWithRelationInput | undefined;
-      if (Array.isArray(sortValue) && sortValue.length === 2) {
-        const [field, order] = sortValue;
-        if (
-          typeof field === 'string' &&
-          field &&
-          ALLOWED_SORT_FIELDS.has(field)
-        ) {
-          const orderDirection =
-            order.toUpperCase() === 'DESC' ? 'desc' : 'asc';
-          orderBy = {
-            [field]: orderDirection,
-          } as Prisma.PointOrderByWithRelationInput;
-        }
-      }
-
-      let skip: number | undefined;
-      let take: number | undefined;
-      if (
-        Array.isArray(rangeValue) &&
-        rangeValue.length === 2 &&
-        Number.isFinite(rangeValue[0]) &&
-        Number.isFinite(rangeValue[1])
-      ) {
-        const [start, end] = rangeValue.map((value) =>
-          Math.max(0, Math.trunc(Number(value))),
-        );
-        skip = start;
-        take = end >= start ? end - start + 1 : undefined;
-      }
-
-      if (take === undefined && query.take !== undefined) {
-        const parsedTake = Number(query.take);
-        if (Number.isFinite(parsedTake) && parsedTake >= 0) {
-          take = Math.trunc(parsedTake);
-        }
-      }
-
-      if (skip === undefined) {
-        const rawSkip = query.skip ?? query.offset ?? query.start;
-        if (rawSkip !== undefined) {
-          const parsedSkip = Number(rawSkip);
-          if (Number.isFinite(parsedSkip) && parsedSkip >= 0) {
-            skip = Math.trunc(parsedSkip);
-          }
-        }
-      }
-
       const where = this.buildWhere(filterValue);
 
       const { points, total } = await this.db.getPointsByMerchant(merchantId, {
@@ -151,38 +206,14 @@ export class GetPointsByMerchantId {
         where,
       });
 
-      // Fetch merchant wallet for balance lookup
       const merchant = await this.prisma.merchant.findUnique({
         where: { id: merchantId },
         include: { wallet: true },
       });
-      const merchantWalletAddress = merchant?.wallet?.walletAddress;
 
-      const cleanPoint = await Promise.all(
-        points.map(async (point) => {
-          const contractAddress = convertBufferToAddress(point.contractAddress);
-          let remaining: string | null = null;
-
-          if (merchantWalletAddress) {
-            try {
-              const result = await this.blockchainService.getBalance({
-                walletAddress: merchantWalletAddress,
-                pointAddress: contractAddress,
-              });
-              remaining = result.balance;
-            } catch (error) {
-              this.logger.warn(
-                `Failed to get balance for point ${point.id}: ${error.message}`,
-              );
-            }
-          }
-
-          return {
-            ...point,
-            contractAddress,
-            remaining,
-          };
-        }),
+      const cleanPoint = await this.enrichPointsWithBalance(
+        points,
+        merchant?.wallet?.walletAddress,
       );
 
       return {

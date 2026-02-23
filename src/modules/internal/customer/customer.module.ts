@@ -53,6 +53,7 @@ import { ClearCustomerByPhone } from './handlers/clearCustomerByPhone.handler';
     // RegisterCustomerDev,
     GetCustomerPoints,
     ClearCustomerByPhone,
+    GetCustomerPhoneDevForResp,
   ],
 })
 export class CustomerModule {}

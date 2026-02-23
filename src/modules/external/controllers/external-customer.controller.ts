@@ -2,6 +2,7 @@ import { Controller, Get, HttpCode, Param, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { Public } from 'src/modules/internal/auth/public.decorator';
 import { GetCustomerPhone } from 'src/modules/internal/customer/handlers/getCustomerByPhone.handler';
+import { GetCustomerPhoneDevForResp } from 'src/modules/internal/customer/handlers/getCustomerPhoneDevForResp.handler';
 import { GetCustomerPoints } from 'src/modules/internal/customer/handlers/getCustomerPoints.handler';
 import { ClearCustomerByPhone } from 'src/modules/internal/customer/handlers/clearCustomerByPhone.handler';
 
@@ -18,6 +19,7 @@ import { ClearCustomerByPhone } from 'src/modules/internal/customer/handlers/cle
 export class ExternalCustomerController {
   constructor(
     private readonly getCustomerByPhone: GetCustomerPhone,
+    private readonly getCustomerPhoneDevForResp: GetCustomerPhoneDevForResp,
     private readonly getCustomerPoints: GetCustomerPoints,
     private readonly clearCustomerByPhone: ClearCustomerByPhone,
   ) {}
@@ -67,7 +69,7 @@ export class ExternalCustomerController {
     description: 'Customer not found',
   })
   async getCustomerByPhoneDetailed(@Param('phone') phone: string) {
-    return this.getCustomerByPhone.executeDetailed(phone);
+    return this.getCustomerPhoneDevForResp.executeDetailed(phone);
   }
 
   @Public()

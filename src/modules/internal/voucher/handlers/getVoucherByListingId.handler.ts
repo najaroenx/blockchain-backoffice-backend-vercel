@@ -7,6 +7,7 @@ import {
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { GetVoucherByListingResponseDto } from '../dtos/get-voucher-by-listing.dto';
+import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 
 @Injectable()
 export class GetVoucherByListingId {
@@ -15,6 +16,7 @@ export class GetVoucherByListingId {
   constructor(
     private blockchainService: BlockchainService,
     private prisma: PrismaService,
+    private merchantRefEnrichment: MerchantRefEnrichmentService,
   ) {}
 
   async execute(listingId?: string): Promise<GetVoucherByListingResponseDto> {
@@ -102,11 +104,8 @@ export class GetVoucherByListingId {
       this.logger.log(
         '[GetVoucherByListingId] Step 9: Execution completed successfully',
       );
-      this.logger.log(
-        `[107GetVoucherByListingId] Step 10: Voucher found for listing ${listingId}:`,
-        voucherCodes,
-      );
-      // TODO: for temporary use
+
+      // Count available voucher codes
       const availableCount = await this.prisma.voucherCode.count({
         where: {
           voucherId: voucherCodes.voucherId,
@@ -118,11 +117,48 @@ export class GetVoucherByListingId {
         },
       });
       this.logger.log(
-        `[GetVoucherByListingId] Step 11: Available count for voucher ${voucherCodes.voucherId}: ${availableCount} : ${voucherCodes.voucherGroupId}`,
+        `[GetVoucherByListingId] Available count for voucher ${voucherCodes.voucherId}: ${availableCount} : ${voucherCodes.voucherGroupId}`,
       );
-      (voucherCodes.voucher as any).totalRedeemed = availableCount || 0;
-      (voucherCodes.voucher as any).totalAvailable = availableCount || 0;
-      return voucherCodes as unknown as GetVoucherByListingResponseDto;
+
+      // Enrich merchantRef detail
+      const merchantRef = voucherCodes.voucher.merchantRef;
+      const merchantRefDetail = merchantRef
+        ? await this.merchantRefEnrichment.enrich(merchantRef)
+        : null;
+
+      // Build structured response (same pattern as other handlers)
+      const { voucher, point, ...codeFields } = voucherCodes;
+
+      return {
+        ...codeFields,
+        voucher: {
+          id: voucher.id,
+          tokenId: voucher.tokenId,
+          name: voucher.name,
+          description: voucher.description,
+          status: voucher.status,
+          merchantName: voucher.merchantName,
+          merchantId: voucher.merchantId,
+          merchantRef: voucher.merchantRef,
+          sellerMerchantId: voucher.sellerMerchantId,
+          valueType: voucher.valueType,
+          value: voucher.value,
+          thbPurchasePrice: voucher.thbPurchasePrice,
+          currency: voucher.currency,
+          startDate: voucher.startDate,
+          endDate: voucher.endDate,
+          totalIssued: voucher.totalIssued,
+          totalRedeemed: availableCount || 0,
+          totalAvailable: availableCount || 0,
+          imageUrl: voucher.imageUrl,
+          limitPerMember: voucher.limitPerMember,
+          createdAt: voucher.createdAt,
+          updatedAt: voucher.updatedAt,
+          merchant: voucher.merchant,
+          merchantRefDetail: merchantRefDetail || null,
+        },
+        point: point || null,
+      } as unknown as GetVoucherByListingResponseDto;
     } catch (error) {
       this.logger.error(
         `[GetVoucherByListingId] Error occurred while fetching voucher by listing ID: ${listingId}`,

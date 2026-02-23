@@ -25,140 +25,18 @@ export class CreateVoucherWithCodes {
    */
   async execute(data: CreateVoucherDto, merchantId?: string) {
     try {
-      // If merchantId is provided, lookup seller wallet address
-      let sellerWalletAddress: string | undefined;
       if (merchantId) {
-        // Find merchant wallet first
-        const merchantWallet = await this.prisma.wallet.findFirst({
-          where: {
-            merchant: { id: merchantId },
-          },
-        });
-
-        if (merchantWallet) {
-          // Find seller wallet (derivationIndex = merchantWallet.derivationIndex + 1, same phoneNumber)
-          const sellerWallet = await this.prisma.wallet.findFirst({
-            where: {
-              type: 'seller',
-              derivationIndex: merchantWallet.derivationIndex + 1,
-              phoneNumber: merchantWallet.phoneNumber,
-            },
-          });
-
-          if (sellerWallet) {
-            sellerWalletAddress = sellerWallet.walletAddress;
-            this.logger.log(
-              `[CreateVoucherWithCodes] Found seller wallet for merchant ${merchantId}: ${sellerWalletAddress}`,
-            );
-          }
-        }
+        await this.lookupSellerWallet(merchantId);
       }
 
-      // Validate Point exists and belongs to merchant (if provided)
-      let point = null;
-      if (data.pointId) {
-        this.logger.log(`[STEP 0] Validating point ${data.pointId}`);
-        point = await this.prisma.point.findUnique({
-          where: { id: data.pointId },
-          select: { id: true, symbol: true, merchantId: true, name: true },
-        });
+      const point = await this.validatePoint(data);
+      const merchantName = await this.resolveMerchantName(data.merchantId);
 
-        if (!point) {
-          this.logger.error(`[ERROR] Point ${data.pointId} not found`);
-          throw new ConflictException(
-            `Point with ID ${data.pointId} not found`,
-          );
-        }
-
-        if (data.merchantId && point.merchantId !== data.merchantId) {
-          this.logger.error(
-            `[ERROR] Point belongs to different merchant. Point merchantId: ${point.merchantId}, Voucher merchantId: ${data.merchantId}`,
-          );
-          throw new ConflictException(`Point does not belong to this merchant`);
-        }
-
-        this.logger.log(
-          `[STEP 0] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
-        );
-      } else {
-        this.logger.log(
-          `[STEP 0] No pointId provided - will be set during activation`,
-        );
-      }
-
-      // Get merchant information if merchantId is provided
-      let merchantName = 'Unknown';
-      if (data.merchantId) {
-        const merchant = await this.prisma.merchant.findUnique({
-          where: { id: data.merchantId },
-          select: { name: true },
-        });
-        if (merchant) {
-          merchantName = merchant.name;
-        }
-      }
-
-      // สร้างเฉพาะ voucher metadata (ไม่สร้าง codes)
-      const result = await this.prisma.$transaction(
-        async (tx) => {
-          // 1. แยก pointsCost, pointId, dates, merchantRef, merchantId ออกจาก voucherData
-          const {
-            pointsCost,
-            pointId,
-            startDate,
-            endDate,
-            merchantRef,
-            merchantId: _dtoMerchantId, // exclude merchantId from body (seller voucher should not have merchantId)
-            ...voucherData
-          } = data;
-
-          // 2. Generate coupon ID
-          const couponId = `COUPON-${randomUUID()}`;
-
-          // 3. Create coupon type on blockchain (ERC-1155)
-          this.logger.log(`Creating coupon type on blockchain...`);
-          const startTimestamp = Math.floor(
-            new Date(startDate).getTime() / 1000,
-          );
-          const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
-          // Call blockchain service to create coupon type
-          const blockchainResult =
-            await this.blockchainService.createCouponType(
-              voucherData.name,
-              startTimestamp,
-              endTimestamp,
-            );
-
-          const onChainTypeId = blockchainResult.typeId;
-          this.logger.log(
-            `Coupon type created on blockchain. TypeId: ${onChainTypeId}, TxHash: ${blockchainResult.hash}`,
-          );
-
-          // 4. สร้าง voucher (metadata พร้อม tokenId, merchantName, currency, sellerMerchantId)
-          const voucher = await tx.voucher.create({
-            data: {
-              id: couponId,
-              ...voucherData,
-              merchantName, // ← ดึงมาจาก Merchant.name
-              merchantRef, // ← ส่งมาจาก DTO สำหรับ verify ตอน redeem
-              sellerMerchantId: merchantId || null, // ← Merchant ID ที่ seller belong to (from path param)
-              currency: point?.symbol || null, // ← ดึงมาจาก Point.symbol (null ถ้ายังไม่ได้กำหนด)
-              startDate: new Date(startDate),
-              endDate: new Date(endDate),
-              totalRedeemed: 0, // ← เริ่มต้นที่ 0
-              tokenId: onChainTypeId, // Save ERC-1155 typeId from smart contract
-            },
-          });
-
-          this.logger.log(
-            `Created voucher metadata ${voucher.id} with tokenId: ${onChainTypeId}`,
-          );
-
-          return { voucher, pointsCost, pointId };
-        },
-        {
-          timeout: 60000, // Increase timeout to 60 seconds for blockchain operations
-        },
+      const result = await this.createVoucherTransaction(
+        data,
+        merchantId,
+        merchantName,
+        point,
       );
 
       this.logger.log(
@@ -182,18 +60,157 @@ export class CreateVoucherWithCodes {
         error.stack,
       );
 
-      // Re-throw ConflictException (validation errors should not be caught)
       if (error instanceof ConflictException) {
         throw error;
       }
 
-      // ตรวจสอบว่าเป็น duplicate key error หรือไม่
       if (error.code === 'P2002' && error.meta?.target?.includes('id')) {
         throw new ConflictException('Duplicate coupon ID');
       }
 
       throw new InternalServerErrorException('Failed to create voucher');
     }
+  }
+
+  /** Lookup seller wallet address for a merchant */
+  private async lookupSellerWallet(
+    merchantId: string,
+  ): Promise<string | undefined> {
+    const merchantWallet = await this.prisma.wallet.findFirst({
+      where: { merchant: { id: merchantId } },
+    });
+
+    if (!merchantWallet) return undefined;
+
+    const sellerWallet = await this.prisma.wallet.findFirst({
+      where: {
+        type: 'seller',
+        derivationIndex: merchantWallet.derivationIndex + 1,
+        phoneNumber: merchantWallet.phoneNumber,
+      },
+    });
+
+    if (sellerWallet) {
+      this.logger.log(
+        `[CreateVoucherWithCodes] Found seller wallet for merchant ${merchantId}: ${sellerWallet.walletAddress}`,
+      );
+      return sellerWallet.walletAddress;
+    }
+
+    return undefined;
+  }
+
+  /** Validate that the point exists and belongs to the merchant (if provided) */
+  private async validatePoint(data: CreateVoucherDto): Promise<{
+    id: string;
+    symbol: string;
+    merchantId: string;
+    name: string;
+  } | null> {
+    if (!data.pointId) {
+      this.logger.log(
+        `[STEP 0] No pointId provided - will be set during activation`,
+      );
+      return null;
+    }
+
+    this.logger.log(`[STEP 0] Validating point ${data.pointId}`);
+    const point = await this.prisma.point.findUnique({
+      where: { id: data.pointId },
+      select: { id: true, symbol: true, merchantId: true, name: true },
+    });
+
+    if (!point) {
+      this.logger.error(`[ERROR] Point ${data.pointId} not found`);
+      throw new ConflictException(`Point with ID ${data.pointId} not found`);
+    }
+
+    if (data.merchantId && point.merchantId !== data.merchantId) {
+      this.logger.error(
+        `[ERROR] Point belongs to different merchant. Point merchantId: ${point.merchantId}, Voucher merchantId: ${data.merchantId}`,
+      );
+      throw new ConflictException(`Point does not belong to this merchant`);
+    }
+
+    this.logger.log(
+      `[STEP 0] Point validated ✓ (${point.name}, symbol: ${point.symbol})`,
+    );
+    return point;
+  }
+
+  /** Resolve merchant name from merchantId */
+  private async resolveMerchantName(merchantId?: string): Promise<string> {
+    if (!merchantId) return 'Unknown';
+
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: { name: true },
+    });
+    return merchant?.name || 'Unknown';
+  }
+
+  /** Create voucher in a Prisma transaction with blockchain coupon type */
+  private async createVoucherTransaction(
+    data: CreateVoucherDto,
+    merchantId: string | undefined,
+    merchantName: string,
+    point: { id: string; symbol: string } | null,
+  ) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const {
+          pointsCost,
+          pointId,
+          startDate,
+          endDate,
+          merchantRef,
+          merchantId: _mid,
+          ...voucherData
+        } = data;
+        void _mid;
+
+        const couponId = `COUPON-${randomUUID()}`;
+
+        this.logger.log(`Creating coupon type on blockchain...`);
+        const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
+        const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
+
+        const blockchainResult = await this.blockchainService.createCouponType(
+          voucherData.name,
+          startTimestamp,
+          endTimestamp,
+        );
+
+        const onChainTypeId = blockchainResult.typeId;
+        this.logger.log(
+          `Coupon type created on blockchain. TypeId: ${onChainTypeId}, TxHash: ${blockchainResult.hash}`,
+        );
+
+        const voucher = await tx.voucher.create({
+          data: {
+            id: couponId,
+            ...voucherData,
+            merchantName,
+            merchantRef,
+            sellerMerchantId: merchantId || null,
+            currency: point?.symbol || null,
+            startDate: new Date(startDate),
+            endDate: new Date(endDate),
+            totalRedeemed: 0,
+            tokenId: onChainTypeId,
+          },
+        });
+
+        this.logger.log(
+          `Created voucher metadata ${voucher.id} with tokenId: ${onChainTypeId}`,
+        );
+
+        return { voucher, pointsCost, pointId };
+      },
+      {
+        timeout: 60000,
+      },
+    );
   }
 
   /**

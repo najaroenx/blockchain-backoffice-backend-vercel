@@ -141,77 +141,11 @@ export class MerchantBuyCouponFromSeller {
       const decryptedPrivateKey = merchantSigner.privateKey;
 
       // 4. Check THB balance and auto-mint if insufficient (PHASE 1)
-      this.logger.log(
-        `[STEP 4] Checking merchant THB balance for ${merchantWallet.walletAddress}`,
-      );
-      const balanceInfo = await this.blockchainService.getUserTHBBalance(
+      await this.autoMintIfNeeded(
         merchantWallet.walletAddress,
+        totalPriceWei,
+        merchantId,
       );
-      const currentBalance = BigInt(balanceInfo.balanceWei);
-      const requiredAmount = totalPriceWei;
-
-      this.logger.log(
-        `[STEP 4] Current THB balance: ${ethers.formatEther(currentBalance)} THB, Required: ${ethers.formatEther(requiredAmount)} THB`,
-      );
-
-      if (currentBalance < requiredAmount) {
-        const shortage = requiredAmount - currentBalance;
-        this.logger.warn(
-          `[STEP 4] ⚠️ PHASE 1 AUTO-MINT: Insufficient THB balance. Shortage: ${ethers.formatEther(shortage)} THB`,
-        );
-        this.logger.warn(
-          `[STEP 4] ⚠️ Automatically minting ${ethers.formatEther(shortage)} THB to merchant wallet`,
-        );
-
-        // Auto-mint THB using backend admin wallet
-        const mintResult = await this.blockchainService.mintTHB(
-          merchantWallet.walletAddress,
-          shortage,
-        );
-
-        this.logger.warn(
-          `[STEP 4] ✅ Auto-minted ${ethers.formatEther(shortage)} THB. TxHash: ${mintResult.hash}`,
-        );
-
-        // Record THB auto-mint transaction in database
-        const mintTxHashBuffer = Buffer.from(mintResult.hash.slice(2), 'hex');
-        const merchantAddressBuffer = Buffer.from(
-          merchantWallet.walletAddress.slice(2),
-          'hex',
-        );
-        const systemAddressBuffer = Buffer.alloc(20, 0); // System/zero address for mint
-
-        const shortageAmountTHB = Math.floor(
-          Number(shortage / BigInt(10 ** 18)),
-        );
-
-        await this.prisma.transaction.create({
-          data: {
-            txHash: mintTxHashBuffer,
-            senderAddress: systemAddressBuffer,
-            receiverAddress: merchantAddressBuffer,
-            amount: shortageAmountTHB,
-            pointId: null,
-            merchantId: merchantId,
-            senderId: null, // System mint
-            receiverId: merchantId,
-            voucherCodeId: null,
-            transactionTypeId: TransactionTypeId.THB_MINT,
-            type: AssetType.THB_TOKEN,
-            senderType: ParticipantType.SYSTEM,
-            receiverType: ParticipantType.MERCHANT,
-            transactionRefId: randomUUID(),
-          } as any,
-        });
-
-        this.logger.log(
-          `[STEP 4] ✅ THB_MINT transaction recorded. Amount: ${shortageAmountTHB} THB`,
-        );
-      } else {
-        this.logger.log(
-          `[STEP 4] ✅ Sufficient THB balance. No auto-mint needed.`,
-        );
-      }
 
       // 5. Purchase from marketplace using THB token
       this.logger.log(`[STEP 5] Executing blockchain purchase with THB token`);
@@ -286,36 +220,16 @@ export class MerchantBuyCouponFromSeller {
       );
 
       // 9. Create THB_BUY transaction for each VoucherCode
-      this.logger.log(`[STEP 9] Creating THB_BUY transactions for each code`);
-
-      const transactions = [];
-      for (const codeId of purchasedCodeIds) {
-        const transaction = await this.prisma.transaction.create({
-          data: {
-            txHash: txHashBuffer,
-            senderAddress: senderAddressBuffer,
-            receiverAddress: receiverAddressBuffer,
-            amount: pricePerUnitTHB,
-            pointId: null,
-            merchantId: merchantId,
-            senderId: merchantId,
-            receiverId: sellerMerchantId,
-            voucherCodeId: codeId, // Link to specific VoucherCode
-            transactionTypeId: TransactionTypeId.THB_BUY,
-            type: AssetType.THB_TOKEN,
-            senderType: ParticipantType.MERCHANT,
-            receiverType: sellerMerchantId
-              ? ParticipantType.SELLER
-              : ParticipantType.SYSTEM,
-            transactionRefId: transactionRefId,
-          } as any,
-        });
-        transactions.push(transaction);
-      }
-
-      this.logger.log(
-        `[STEP 9] Created ${transactions.length} THB_BUY transactions. RefId: ${transactionRefId}`,
-      );
+      const transactions = await this.createThbBuyTransactions({
+        purchasedCodeIds,
+        txHashBuffer,
+        senderAddressBuffer,
+        receiverAddressBuffer,
+        pricePerUnitTHB,
+        merchantId,
+        sellerMerchantId,
+        transactionRefId,
+      });
 
       // 10. Update VoucherCodes ownership (no need to create new voucher)
       // VoucherCodes stay linked to seller's voucher (which has tokenId for blockchain)
@@ -344,46 +258,7 @@ export class MerchantBuyCouponFromSeller {
       );
 
       // 11. Update ListingBatch stats
-      this.logger.log(`[STEP 11] Updating ListingBatch stats`);
-
-      // Group by listingBatchId to update batch stats
-      const batchCounts = new Map<string, number>();
-      for (const code of codesToTransfer) {
-        if (code.listingBatchId) {
-          batchCounts.set(
-            code.listingBatchId,
-            (batchCounts.get(code.listingBatchId) || 0) + 1,
-          );
-        }
-      }
-
-      // Update ListingBatch soldItems for each affected batch
-      for (const [batchId, count] of batchCounts) {
-        await this.prisma.listingBatch.update({
-          where: { id: batchId },
-          data: {
-            soldItems: { increment: count },
-          },
-        });
-
-        // Check if batch is sold out
-        const batch = await this.prisma.listingBatch.findUnique({
-          where: { id: batchId },
-          select: { totalItems: true, soldItems: true },
-        });
-
-        if (batch && batch.soldItems >= batch.totalItems) {
-          await this.prisma.listingBatch.update({
-            where: { id: batchId },
-            data: { status: 'SOLD_OUT' },
-          });
-          this.logger.log(`[INFO] ListingBatch ${batchId} is now SOLD_OUT`);
-        }
-      }
-
-      this.logger.log(
-        `[STEP 11] Updated ListingBatch stats. Codes retain listingBatchId for purchase tracking.`,
-      );
+      await this.updateListingBatchStats(codesToTransfer);
 
       this.logger.log(
         `[SUCCESS] Merchant purchased ${amount} coupons from seller. Transactions created: ${transactions.length}`,
@@ -421,5 +296,161 @@ export class MerchantBuyCouponFromSeller {
       );
       throw error;
     }
+  }
+
+  /** Check THB balance and auto-mint if insufficient (PHASE 1) */
+  private async autoMintIfNeeded(
+    walletAddress: string,
+    requiredAmount: bigint,
+    merchantId: string,
+  ) {
+    this.logger.log(
+      `[STEP 4] Checking merchant THB balance for ${walletAddress}`,
+    );
+    const balanceInfo =
+      await this.blockchainService.getUserTHBBalance(walletAddress);
+    const currentBalance = BigInt(balanceInfo.balanceWei);
+
+    this.logger.log(
+      `[STEP 4] Current THB balance: ${ethers.formatEther(currentBalance)} THB, Required: ${ethers.formatEther(requiredAmount)} THB`,
+    );
+
+    if (currentBalance >= requiredAmount) {
+      this.logger.log(
+        `[STEP 4] ✅ Sufficient THB balance. No auto-mint needed.`,
+      );
+      return;
+    }
+
+    const shortage = requiredAmount - currentBalance;
+    this.logger.warn(
+      `[STEP 4] ⚠️ PHASE 1 AUTO-MINT: Insufficient THB balance. Shortage: ${ethers.formatEther(shortage)} THB`,
+    );
+    this.logger.warn(
+      `[STEP 4] ⚠️ Automatically minting ${ethers.formatEther(shortage)} THB to merchant wallet`,
+    );
+
+    const mintResult = await this.blockchainService.mintTHB(
+      walletAddress,
+      shortage,
+    );
+
+    this.logger.warn(
+      `[STEP 4] ✅ Auto-minted ${ethers.formatEther(shortage)} THB. TxHash: ${mintResult.hash}`,
+    );
+
+    const mintTxHashBuffer = Buffer.from(mintResult.hash.slice(2), 'hex');
+    const merchantAddressBuffer = Buffer.from(walletAddress.slice(2), 'hex');
+    const systemAddressBuffer = Buffer.alloc(20, 0);
+    const shortageAmountTHB = Math.floor(Number(shortage / BigInt(10 ** 18)));
+
+    await this.prisma.transaction.create({
+      data: {
+        txHash: mintTxHashBuffer,
+        senderAddress: systemAddressBuffer,
+        receiverAddress: merchantAddressBuffer,
+        amount: shortageAmountTHB,
+        pointId: null,
+        merchantId: merchantId,
+        senderId: null,
+        receiverId: merchantId,
+        voucherCodeId: null,
+        transactionTypeId: TransactionTypeId.THB_MINT,
+        type: AssetType.THB_TOKEN,
+        senderType: ParticipantType.SYSTEM,
+        receiverType: ParticipantType.MERCHANT,
+        transactionRefId: randomUUID(),
+      } as any,
+    });
+
+    this.logger.log(
+      `[STEP 4] ✅ THB_MINT transaction recorded. Amount: ${shortageAmountTHB} THB`,
+    );
+  }
+
+  /** Create THB_BUY transaction records for each purchased voucher code */
+  private async createThbBuyTransactions(params: {
+    purchasedCodeIds: string[];
+    txHashBuffer: Buffer;
+    senderAddressBuffer: Buffer;
+    receiverAddressBuffer: Buffer;
+    pricePerUnitTHB: number;
+    merchantId: string;
+    sellerMerchantId: string | null;
+    transactionRefId: string;
+  }) {
+    this.logger.log(`[STEP 9] Creating THB_BUY transactions for each code`);
+
+    const transactions = [];
+    for (const codeId of params.purchasedCodeIds) {
+      const transaction = await this.prisma.transaction.create({
+        data: {
+          txHash: params.txHashBuffer,
+          senderAddress: params.senderAddressBuffer,
+          receiverAddress: params.receiverAddressBuffer,
+          amount: params.pricePerUnitTHB,
+          pointId: null,
+          merchantId: params.merchantId,
+          senderId: params.merchantId,
+          receiverId: params.sellerMerchantId,
+          voucherCodeId: codeId,
+          transactionTypeId: TransactionTypeId.THB_BUY,
+          type: AssetType.THB_TOKEN,
+          senderType: ParticipantType.MERCHANT,
+          receiverType: params.sellerMerchantId
+            ? ParticipantType.SELLER
+            : ParticipantType.SYSTEM,
+          transactionRefId: params.transactionRefId,
+        } as any,
+      });
+      transactions.push(transaction);
+    }
+
+    this.logger.log(
+      `[STEP 9] Created ${transactions.length} THB_BUY transactions. RefId: ${params.transactionRefId}`,
+    );
+
+    return transactions;
+  }
+
+  /** Update ListingBatch sold counts and mark SOLD_OUT if needed */
+  private async updateListingBatchStats(
+    codesToTransfer: { id: string; listingBatchId: string | null }[],
+  ) {
+    this.logger.log(`[STEP 11] Updating ListingBatch stats`);
+
+    const batchCounts = new Map<string, number>();
+    for (const code of codesToTransfer) {
+      if (code.listingBatchId) {
+        batchCounts.set(
+          code.listingBatchId,
+          (batchCounts.get(code.listingBatchId) || 0) + 1,
+        );
+      }
+    }
+
+    for (const [batchId, count] of batchCounts) {
+      await this.prisma.listingBatch.update({
+        where: { id: batchId },
+        data: { soldItems: { increment: count } },
+      });
+
+      const batch = await this.prisma.listingBatch.findUnique({
+        where: { id: batchId },
+        select: { totalItems: true, soldItems: true },
+      });
+
+      if (batch && batch.soldItems >= batch.totalItems) {
+        await this.prisma.listingBatch.update({
+          where: { id: batchId },
+          data: { status: 'SOLD_OUT' },
+        });
+        this.logger.log(`[INFO] ListingBatch ${batchId} is now SOLD_OUT`);
+      }
+    }
+
+    this.logger.log(
+      `[STEP 11] Updated ListingBatch stats. Codes retain listingBatchId for purchase tracking.`,
+    );
   }
 }

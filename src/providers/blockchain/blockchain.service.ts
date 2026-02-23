@@ -107,78 +107,21 @@ export class BlockchainService {
     // 1. ถ้ามี endDate ใช้ endDate (กำหนดวันเอง)
     // 2. ถ้าไม่มี endDate แต่มี expiryMonths ใช้ expiryMonths (เลือกระยะเวลา)
     // 3. ถ้าไม่มีทั้งสอง error
-    let finalExpiryTimestamp: number;
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const effectiveStartDate = startDate || currentTimestamp;
 
-    if (endDate) {
-      // กรณีที่ 1: กำหนดวันเอง
-      finalExpiryTimestamp = endDate;
-
-      // Validate: endDate ต้องมากกว่า startDate
-      if (startDate && endDate <= startDate) {
-        throw new Error('endDate must be greater than startDate');
-      }
-
-      // Validate: endDate ต้องอยู่ในอนาคต
-      if (endDate <= currentTimestamp) {
-        throw new Error('endDate must be in the future');
-      }
-
-      console.log('[BlockchainService] Using custom date range');
-      if (startDate) {
-        console.log('[BlockchainService] Start date:', startDate);
-      }
-      console.log('[BlockchainService] End date:', endDate);
-    } else if (expiryMonths) {
-      // กรณีที่ 2: เลือกระยะเวลา
-      const validMonths = [3, 6, 9, 12, 24];
-      if (!validMonths.includes(expiryMonths)) {
-        throw new Error(
-          `Invalid expiryMonths. Must be one of: ${validMonths.join(', ')}`,
-        );
-      }
-
-      // คำนวณ timestamp จากจำนวนเดือน (1 เดือน = ~30.44 วัน)
-      const secondsPerMonth = 30.44 * 24 * 60 * 60; // ~2,629,743 seconds
-      finalExpiryTimestamp =
-        effectiveStartDate + Math.floor(expiryMonths * secondsPerMonth);
-
-      console.log('[BlockchainService] Using predefined duration');
-      console.log('[BlockchainService] Expiry months:', expiryMonths, 'months');
-      if (startDate) {
-        console.log('[BlockchainService] Start date:', startDate);
-      }
-      console.log(
-        '[BlockchainService] Calculated end date:',
-        finalExpiryTimestamp,
-      );
-    } else {
-      // กรณีที่ 3: ไม่มีทั้งสอง
-      throw new Error('Either endDate or expiryMonths must be provided');
-    }
+    const finalExpiryTimestamp = this.calculateExpiryTimestamp(
+      currentTimestamp,
+      effectiveStartDate,
+      startDate,
+      endDate,
+      expiryMonths,
+    );
 
     // คำนวณ epochDuration ที่เหมาะสมตามระยะเวลา
     const remainingTime = finalExpiryTimestamp - currentTimestamp;
     const daysRemaining = remainingTime / 86400;
-
-    let epochDuration: number;
-    if (daysRemaining <= 1) {
-      // <= 1 วัน: ใช้ 1 ชั่วโมง (3600 seconds)
-      epochDuration = 3600;
-    } else if (daysRemaining <= 7) {
-      // 1-7 วัน: ใช้ 12 ชั่วโมง (43200 seconds)
-      epochDuration = 43200;
-    } else if (daysRemaining <= 30) {
-      // 7-30 วัน: ใช้ 1 วัน (86400 seconds)
-      epochDuration = 86400;
-    } else if (daysRemaining <= 90) {
-      // 1-3 เดือน: ใช้ 3 วัน (259200 seconds)
-      epochDuration = 259200;
-    } else {
-      // > 3 เดือน: ใช้ 7 วัน (604800 seconds)
-      epochDuration = 604800;
-    }
+    const epochDuration = this.calculateEpochDuration(daysRemaining);
 
     // คำนวณ windowSize จาก epochDuration
     const windowSize = Math.ceil(remainingTime / epochDuration);
@@ -322,6 +265,79 @@ export class BlockchainService {
     } catch {
       return this.DEFAULT_BLOCK_TIME;
     }
+  }
+
+  /** Calculate the final expiry timestamp from endDate or expiryMonths */
+  private calculateExpiryTimestamp(
+    currentTimestamp: number,
+    effectiveStartDate: number,
+    startDate: number | undefined,
+    endDate: number | undefined,
+    expiryMonths: number | undefined,
+  ): number {
+    if (endDate) {
+      return this.validateAndUseEndDate(currentTimestamp, startDate, endDate);
+    }
+    if (expiryMonths) {
+      return this.calculateFromExpiryMonths(
+        effectiveStartDate,
+        startDate,
+        expiryMonths,
+      );
+    }
+    throw new Error('Either endDate or expiryMonths must be provided');
+  }
+
+  private validateAndUseEndDate(
+    currentTimestamp: number,
+    startDate: number | undefined,
+    endDate: number,
+  ): number {
+    if (startDate && endDate <= startDate) {
+      throw new Error('endDate must be greater than startDate');
+    }
+    if (endDate <= currentTimestamp) {
+      throw new Error('endDate must be in the future');
+    }
+    console.log('[BlockchainService] Using custom date range');
+    if (startDate) {
+      console.log('[BlockchainService] Start date:', startDate);
+    }
+    console.log('[BlockchainService] End date:', endDate);
+    return endDate;
+  }
+
+  private calculateFromExpiryMonths(
+    effectiveStartDate: number,
+    startDate: number | undefined,
+    expiryMonths: number,
+  ): number {
+    const validMonths = [3, 6, 9, 12, 24];
+    if (!validMonths.includes(expiryMonths)) {
+      throw new Error(
+        `Invalid expiryMonths. Must be one of: ${validMonths.join(', ')}`,
+      );
+    }
+    const secondsPerMonth = 30.44 * 24 * 60 * 60;
+    const result =
+      effectiveStartDate + Math.floor(expiryMonths * secondsPerMonth);
+
+    console.log('[BlockchainService] Using predefined duration');
+    console.log('[BlockchainService] Expiry months:', expiryMonths, 'months');
+    if (startDate) {
+      console.log('[BlockchainService] Start date:', startDate);
+    }
+    console.log('[BlockchainService] Calculated end date:', result);
+    return result;
+  }
+
+  /** Select appropriate epoch duration based on remaining days */
+  private calculateEpochDuration(daysRemaining: number): number {
+    if (daysRemaining <= 1) return 3600; // 1 hour
+    if (daysRemaining <= 7) return 43200; // 12 hours
+    if (daysRemaining <= 30) return 86400; // 1 day
+    if (daysRemaining <= 90) return 259200; // 3 days
+    return 604800; // 7 days
   }
 
   async transaction({
@@ -1686,35 +1702,7 @@ export class BlockchainService {
         : new Wallet(this.privateKey, this.provider);
 
       // 1. Approve marketplace to transfer coupons
-      const couponContract = new Contract(
-        this.couponAddress,
-        CouponArtifact.abi,
-        signer,
-      );
-
-      console.log('[Blockchain] Checking current approval status...');
-      const sellerAddress = signer.address;
-      const isCurrentlyApproved = await couponContract.isApprovedForAll(
-        sellerAddress,
-        this.marketplaceAddress,
-      );
-      console.log('[Blockchain] - Seller address:', sellerAddress);
-      console.log('[Blockchain] - Currently approved:', isCurrentlyApproved);
-
-      if (!isCurrentlyApproved) {
-        console.log(
-          '[Blockchain] Approving marketplace for coupon transfer...',
-        );
-        const approveTx = await couponContract.setApprovalForAll(
-          this.marketplaceAddress,
-          true,
-          { gasLimit: 15000000 },
-        );
-        const approveReceipt = await approveTx.wait();
-        console.log('[Blockchain] - Approval tx:', approveReceipt.hash);
-      } else {
-        console.log('[Blockchain] Marketplace already approved ✓');
-      }
+      await this.ensureMarketplaceApproval(signer);
 
       // 2. Create listing on marketplace
       const marketplaceContract = new Contract(
@@ -1740,103 +1728,10 @@ export class BlockchainService {
       console.log(`[Blockchain] Total logs: ${receipt.logs.length}`);
 
       // Parse CouponListed event with multiple fallback methods
-      let listingId = '0';
-
-      // Method 1: Direct extraction from topics (fastest - listingId is indexed parameter in topics[1])
-      try {
-        const COUPON_LISTED_EVENT_SIGNATURE =
-          '0xe694c172c6060c783e16922da96667b80fac2b705fc5972a8712212db8fe0b70';
-
-        for (const log of receipt.logs) {
-          // Filter by marketplace address and event signature
-          if (
-            log.address.toLowerCase() ===
-              this.marketplaceAddress.toLowerCase() &&
-            log.topics[0] === COUPON_LISTED_EVENT_SIGNATURE
-          ) {
-            // listingId is the first indexed parameter (topics[1])
-            listingId = BigInt(log.topics[1]).toString();
-            console.log(
-              `[Blockchain] Found CouponListed event via direct topic extraction. ListingId: ${listingId}`,
-            );
-            break;
-          }
-        }
-      } catch (error) {
-        console.error(
-          `[Blockchain] Error extracting listingId from topics: ${error.message}`,
-        );
-      }
-
-      // Method 2: Parse using contract interface (ethers v6)
-      if (listingId === '0') {
-        try {
-          for (const log of receipt.logs) {
-            try {
-              const parsedLog = marketplaceContract.interface.parseLog({
-                topics: log.topics,
-                data: log.data,
-              });
-
-              if (parsedLog && parsedLog.name === 'CouponListed') {
-                listingId = parsedLog.args.listingId?.toString();
-                console.log(
-                  `[Blockchain] Found CouponListed event via parseLog. ListingId: ${listingId}`,
-                );
-                break;
-              }
-            } catch (e) {
-              // Skip logs that don't match this event
-              continue;
-            }
-          }
-        } catch (error) {
-          console.error(
-            `[Blockchain] Error parsing logs with interface: ${error.message}`,
-          );
-        }
-      }
-
-      // Method 3: Get latest listing ID from getActiveListings as fallback
-      if (listingId === '0') {
-        console.log(
-          '[Blockchain] Event parsing failed. Fetching latest listing ID from getActiveListings()...',
-        );
-        try {
-          const activeListings = await marketplaceContract.getActiveListings();
-          if (activeListings.length > 0) {
-            // Get the last listing ID (most recently created)
-            listingId = activeListings[activeListings.length - 1].toString();
-            console.log(
-              `[Blockchain] Retrieved latest listing ID from getActiveListings: ${listingId}`,
-            );
-          }
-        } catch (error) {
-          console.error(
-            `[Blockchain] Failed to get active listings: ${error.message}`,
-          );
-        }
-      }
-
-      // Final validation
-      if (listingId === '0' || !listingId) {
-        console.error('[Blockchain] ERROR: Unable to determine listing ID!');
-        console.error(
-          '[Blockchain] Receipt logs:',
-          JSON.stringify(
-            receipt.logs.map((log) => ({
-              address: log.address,
-              topics: log.topics,
-              data: log.data,
-            })),
-            null,
-            2,
-          ),
-        );
-        throw new Error(
-          'Failed to create listing: Unable to extract listing ID from transaction receipt. The transaction may have reverted.',
-        );
-      }
+      const listingId = await this.extractListingIdFromReceipt(
+        receipt,
+        marketplaceContract,
+      );
 
       console.log('[Blockchain] Listing created successfully');
       console.log('[Blockchain] - Listing ID:', listingId);
@@ -1856,6 +1751,151 @@ export class BlockchainService {
         `Failed to list coupon: ${error.message}`,
       );
     }
+  }
+
+  /** Ensure the seller's coupons are approved for marketplace transfer */
+  private async ensureMarketplaceApproval(signer: any) {
+    const couponContract = new Contract(
+      this.couponAddress,
+      CouponArtifact.abi,
+      signer,
+    );
+
+    console.log('[Blockchain] Checking current approval status...');
+    const sellerAddress = signer.address;
+    const isCurrentlyApproved = await couponContract.isApprovedForAll(
+      sellerAddress,
+      this.marketplaceAddress,
+    );
+    console.log('[Blockchain] - Seller address:', sellerAddress);
+    console.log('[Blockchain] - Currently approved:', isCurrentlyApproved);
+
+    if (isCurrentlyApproved) {
+      console.log('[Blockchain] Marketplace already approved ✓');
+      return;
+    }
+
+    console.log('[Blockchain] Approving marketplace for coupon transfer...');
+    const approveTx = await couponContract.setApprovalForAll(
+      this.marketplaceAddress,
+      true,
+      { gasLimit: 15000000 },
+    );
+    const approveReceipt = await approveTx.wait();
+    console.log('[Blockchain] - Approval tx:', approveReceipt.hash);
+  }
+
+  /** Extract listingId from receipt using multiple fallback strategies */
+  private async extractListingIdFromReceipt(
+    receipt: any,
+    marketplaceContract: any,
+  ): Promise<string> {
+    const listingId =
+      this.extractListingIdFromTopics(receipt) ||
+      this.extractListingIdFromParsedLogs(receipt, marketplaceContract) ||
+      (await this.extractListingIdFromActiveListings(marketplaceContract));
+
+    if (!listingId || listingId === '0') {
+      console.error('[Blockchain] ERROR: Unable to determine listing ID!');
+      console.error(
+        '[Blockchain] Receipt logs:',
+        JSON.stringify(
+          receipt.logs.map((log: any) => ({
+            address: log.address,
+            topics: log.topics,
+            data: log.data,
+          })),
+          null,
+          2,
+        ),
+      );
+      throw new Error(
+        'Failed to create listing: Unable to extract listing ID from transaction receipt. The transaction may have reverted.',
+      );
+    }
+
+    return listingId;
+  }
+
+  /** Method 1: Direct topic extraction (fastest) */
+  private extractListingIdFromTopics(receipt: any): string | null {
+    try {
+      const COUPON_LISTED_SIGNATURE =
+        '0xe694c172c6060c783e16922da96667b80fac2b705fc5972a8712212db8fe0b70';
+
+      for (const log of receipt.logs) {
+        if (
+          log.address.toLowerCase() === this.marketplaceAddress.toLowerCase() &&
+          log.topics[0] === COUPON_LISTED_SIGNATURE
+        ) {
+          const id = BigInt(log.topics[1]).toString();
+          console.log(
+            `[Blockchain] Found CouponListed event via direct topic extraction. ListingId: ${id}`,
+          );
+          return id;
+        }
+      }
+    } catch (error) {
+      console.error(
+        `[Blockchain] Error extracting listingId from topics: ${error.message}`,
+      );
+    }
+    return null;
+  }
+
+  /** Method 2: Parse using contract interface (ethers v6) */
+  private extractListingIdFromParsedLogs(
+    receipt: any,
+    marketplaceContract: any,
+  ): string | null {
+    try {
+      for (const log of receipt.logs) {
+        try {
+          const parsedLog = marketplaceContract.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+          if (parsedLog?.name === 'CouponListed') {
+            const id = parsedLog.args.listingId?.toString();
+            console.log(
+              `[Blockchain] Found CouponListed event via parseLog. ListingId: ${id}`,
+            );
+            return id;
+          }
+        } catch {
+          // Skip logs that don't match this event
+        }
+      }
+    } catch (error) {
+      console.error(
+        `[Blockchain] Error parsing logs with interface: ${error.message}`,
+      );
+    }
+    return null;
+  }
+
+  /** Method 3: Fallback - get latest listing ID from active listings */
+  private async extractListingIdFromActiveListings(
+    marketplaceContract: any,
+  ): Promise<string | null> {
+    console.log(
+      '[Blockchain] Event parsing failed. Fetching latest listing ID from getActiveListings()...',
+    );
+    try {
+      const activeListings = await marketplaceContract.getActiveListings();
+      if (activeListings.length > 0) {
+        const id = activeListings[activeListings.length - 1].toString();
+        console.log(
+          `[Blockchain] Retrieved latest listing ID from getActiveListings: ${id}`,
+        );
+        return id;
+      }
+    } catch (error) {
+      console.error(
+        `[Blockchain] Failed to get active listings: ${error.message}`,
+      );
+    }
+    return null;
   }
 
   /**

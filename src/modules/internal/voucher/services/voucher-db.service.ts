@@ -69,15 +69,61 @@ export class VoucherDBService {
       `[getVouchersByMerchant] Querying vouchers for merchantId: ${merchantId}`,
     );
 
-    // Strategy 1: Get vouchers owned by merchant (merchantId = merchantId)
+    const vouchers = await this.fetchMergedVouchers(merchantId);
+
+    console.log(
+      `[getVouchersByMerchant] Found ${vouchers.length} vouchers for merchant ${merchantId}`,
+    );
+
+    const groupedMap = new Map<string, any>();
+
+    for (const voucher of vouchers) {
+      const isPurchased = voucher.merchantId !== merchantId;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { voucherCodes, ...voucherData } = voucher;
+
+      const finalUpcomingCount = await this.countUpcomingCodes(
+        voucher,
+        merchantId,
+        isPurchased,
+      );
+
+      const { activeCodesCount, redeemedCodesCount } =
+        await this.countActiveAndRedeemedCodes(
+          voucher.id,
+          merchantId,
+          isPurchased,
+        );
+
+      if (activeCodesCount > 0 || redeemedCodesCount > 0) {
+        await this.processActivatedGroups(
+          voucher,
+          merchantId,
+          isPurchased,
+          voucherData,
+          groupedMap,
+        );
+      }
+
+      if (finalUpcomingCount > 0) {
+        this.addUpcomingGroup(
+          voucher,
+          voucherData,
+          finalUpcomingCount,
+          groupedMap,
+        );
+      }
+    }
+
+    return this.buildResultFromGroupMap(groupedMap);
+  }
+
+  /** Fetch owned + purchased vouchers merged without duplicates */
+  private async fetchMergedVouchers(merchantId: string): Promise<any[]> {
     const ownedVouchers = await this.repository.findMany<any>({
       where: { merchantId },
       include: {
-        merchant: {
-          include: {
-            wallet: true,
-          },
-        },
+        merchant: { include: { wallet: true } },
         voucherCodes: {
           select: {
             pointsCost: true,
@@ -90,26 +136,16 @@ export class VoucherDBService {
       },
     });
 
-    // Strategy 2: Get voucher codes purchased from seller (currentOwnerId = merchantId, currentOwnerType = 'MERCHANT')
     const purchasedCodes = await this.prisma.voucherCode.findMany({
       where: {
         currentOwnerId: merchantId,
         currentOwnerType: 'MERCHANT',
       },
       include: {
-        voucher: {
-          include: {
-            merchant: {
-              include: {
-                wallet: true,
-              },
-            },
-          },
-        },
+        voucher: { include: { merchant: { include: { wallet: true } } } },
       },
     });
 
-    // Group purchased codes by voucherId and add to vouchers list
     const purchasedVoucherMap = new Map<string, any>();
     for (const code of purchasedCodes) {
       if (!purchasedVoucherMap.has(code.voucherId)) {
@@ -127,250 +163,220 @@ export class VoucherDBService {
       });
     }
 
-    // Merge owned vouchers with purchased vouchers (avoid duplicates)
     const ownedVoucherIds = new Set(ownedVouchers.map((v) => v.id));
-    const vouchers = [
+    return [
       ...ownedVouchers,
       ...Array.from(purchasedVoucherMap.values()).filter(
         (v) => !ownedVoucherIds.has(v.id),
       ),
     ];
+  }
 
-    console.log(
-      `[getVouchersByMerchant] Found ${ownedVouchers.length} owned vouchers + ${purchasedVoucherMap.size} purchased voucher types for merchant ${merchantId}`,
-    );
-
-    console.log(
-      `[getVouchersByMerchant] Found ${vouchers.length} vouchers for merchant ${merchantId}`,
-    );
-    console.log(
-      `[getVouchersByMerchant] Vouchers:`,
-      JSON.stringify(
-        vouchers.map((v) => ({
-          id: v.id,
-          name: v.name,
-          status: v.status,
-          merchantId: v.merchantId,
-          totalIssued: v.totalIssued,
-          voucherCodesCount: v.voucherCodes?.length || 0,
-        })),
-        null,
-        2,
-      ),
-    );
-
-    // Group vouchers โดย createdAt ของ VoucherCode
-    const groupedMap = new Map<string, any>();
-
-    for (const voucher of vouchers) {
-      // Check if this voucher is owned by merchant or purchased from seller
-      const isPurchasedFromSeller = voucher.merchantId !== merchantId;
-
-      // upcoming codes = codes ที่รอใช้งาน (ยังไม่ activate)
-      let upcomingCodesCount = 0;
-      if (isPurchasedFromSeller) {
-        // For purchased vouchers: count codes owned by merchant but not yet activated
-        upcomingCodesCount = await this.prisma.voucherCode.count({
+  /** Count upcoming (not-yet-activated) codes, with blockchain fallback for owned vouchers */
+  private async countUpcomingCodes(
+    voucher: any,
+    merchantId: string,
+    isPurchased: boolean,
+  ): Promise<number> {
+    const upcomingCodesCount = isPurchased
+      ? await this.prisma.voucherCode.count({
           where: {
             voucherId: voucher.id,
             currentOwnerId: merchantId,
             currentOwnerType: 'MERCHANT',
-            pointId: null, // Not yet activated
+            pointId: null,
           },
-        });
-      } else {
-        // For owned vouchers: count codes not yet activated (exclude seller placeholder codes)
-        upcomingCodesCount = await this.prisma.voucherCode.count({
+        })
+      : await this.prisma.voucherCode.count({
           where: {
             voucherId: voucher.id,
-            pointId: null, // Not yet activated
-            voucherGroupId: null, // Not seller placeholder codes
-          },
-        });
-      }
-
-      // ถ้าไม่มี codes เลย ดึงจำนวนจาก blockchain (merchant wallet balance)
-      // Only for owned vouchers, not for purchased vouchers
-      let finalUpcomingCount = upcomingCodesCount;
-
-      if (
-        !isPurchasedFromSeller &&
-        upcomingCodesCount === 0 &&
-        voucher.tokenId &&
-        voucher.merchant?.wallet?.walletAddress
-      ) {
-        try {
-          // ดึง balance ของ coupon type นี้จาก merchant wallet
-          const balanceResult =
-            await this.blockchainService.getUserCouponBalance(
-              voucher.merchant.wallet.walletAddress,
-              parseInt(voucher.tokenId),
-            );
-          finalUpcomingCount = parseInt(balanceResult.balance);
-
-          console.log(
-            `[getVouchersByMerchant] Voucher ${voucher.id} (${voucher.name}): ` +
-              `No codes in DB, blockchain balance = ${finalUpcomingCount}`,
-          );
-        } catch (error) {
-          console.error(
-            `[getVouchersByMerchant] Failed to get blockchain balance for voucher ${voucher.id}:`,
-            error.message,
-          );
-          // Fallback: ถ้า blockchain call ล้มเหลว ใช้ totalIssued
-          finalUpcomingCount =
-            voucher.totalIssued > 0 ? voucher.totalIssued : 0;
-        }
-      }
-
-      // active codes = codes ที่ activate แล้ว (มี pointId) และยังไม่ถูกใช้
-      // For purchased vouchers, filter by currentOwnerId
-      const activeCodesCount = await this.prisma.voucherCode.count({
-        where: {
-          voucherId: voucher.id,
-          pointId: { not: null },
-          isUsed: false,
-          ...(isPurchasedFromSeller
-            ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
-            : {}),
-        },
-      });
-
-      // redeemed codes = codes ที่ถูก redeem ไปแล้ว
-      const redeemedCodesCount = await this.prisma.voucherCode.count({
-        where: {
-          voucherId: voucher.id,
-          pointId: { not: null },
-          isUsed: true,
-          ...(isPurchasedFromSeller
-            ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
-            : {}),
-        },
-      });
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { voucherCodes, ...voucherData } = voucher;
-
-      // ถ้ามี active codes หรือ redeemed codes - หา voucherGroupId ที่ไม่ซ้ำกัน
-      if (activeCodesCount > 0 || redeemedCodesCount > 0) {
-        // หา voucherGroupId ที่ไม่ซ้ำกันของ codes ที่ merchant activate แล้ว (มี pointId)
-        const activatedCodes = await this.prisma.voucherCode.findMany({
-          where: {
-            voucherId: voucher.id,
-            voucherGroupId: { not: null },
-            pointId: { not: null },
-            ...(isPurchasedFromSeller
-              ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
-              : {}),
-          },
-          select: {
-            voucherGroupId: true,
-            createdAt: true,
-            pointsCost: true,
-            pointId: true,
-            currency: true,
-          },
-          distinct: ['voucherGroupId'],
-          orderBy: {
-            createdAt: 'asc',
+            pointId: null,
+            voucherGroupId: null,
           },
         });
 
-        // แยกกลุ่มตาม voucherGroupId
-        for (const codeGroup of activatedCodes) {
-          const activeGroupKey = `active|${codeGroup.voucherGroupId}`;
-
-          // นับ codes ที่มี voucherGroupId เดียวกัน (แยกตาม status)
-          const availableCodesInGroup = await this.prisma.voucherCode.count({
-            where: {
-              voucherId: voucher.id,
-              voucherGroupId: codeGroup.voucherGroupId,
-              isUsed: false,
-              ...(isPurchasedFromSeller
-                ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
-                : {}),
-            },
-          });
-
-          const redeemedCodesInGroup = await this.prisma.voucherCode.count({
-            where: {
-              voucherId: voucher.id,
-              voucherGroupId: codeGroup.voucherGroupId,
-              isUsed: true,
-              ...(isPurchasedFromSeller
-                ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' }
-                : {}),
-            },
-          });
-
-          if (!groupedMap.has(activeGroupKey)) {
-            groupedMap.set(activeGroupKey, {
-              baseData: {
-                ...voucherData,
-                merchantRef: voucherData.merchantRef || null,
-                pointsCost: codeGroup.pointsCost,
-                pointId: codeGroup.pointId,
-                currency: codeGroup.currency,
-                activatedAt: codeGroup.createdAt,
-                voucherGroupId: codeGroup.voucherGroupId,
-              },
-              activeCount: 0,
-              redeemedCount: 0,
-              upcomingCount: 0,
-              voucherIds: [],
-            });
-          }
-
-          const activeGroup = groupedMap.get(activeGroupKey);
-          activeGroup.activeCount += availableCodesInGroup;
-          activeGroup.redeemedCount += redeemedCodesInGroup;
-          if (!activeGroup.voucherIds.includes(voucher.id)) {
-            activeGroup.voucherIds.push(voucher.id);
-          }
-        }
-      }
-
-      // ถ้ายังมี upcoming codes
-      if (finalUpcomingCount > 0) {
-        const upcomingGroupKey = `upcoming|${voucher.id}`;
-
-        if (!groupedMap.has(upcomingGroupKey)) {
-          groupedMap.set(upcomingGroupKey, {
-            baseData: {
-              ...voucherData,
-              merchantRef: voucherData.merchantRef || null,
-              // ไม่มี pointsCost, pointId, currency เพราะยังไม่ได้ activate
-            },
-            activeCount: 0,
-            upcomingCount: 0,
-            voucherIds: [],
-          });
-        }
-
-        const upcomingGroup = groupedMap.get(upcomingGroupKey);
-        upcomingGroup.upcomingCount += finalUpcomingCount;
-        if (!upcomingGroup.voucherIds.includes(voucher.id)) {
-          upcomingGroup.voucherIds.push(voucher.id);
-        }
-      }
+    if (
+      isPurchased ||
+      upcomingCodesCount > 0 ||
+      !voucher.tokenId ||
+      !voucher.merchant?.wallet?.walletAddress
+    ) {
+      return upcomingCodesCount;
     }
 
-    // สร้าง result array
+    return this.getBlockchainUpcomingCount(voucher);
+  }
+
+  /** Fetch upcoming count from blockchain balance (fallback) */
+  private async getBlockchainUpcomingCount(voucher: any): Promise<number> {
+    try {
+      const balanceResult = await this.blockchainService.getUserCouponBalance(
+        voucher.merchant.wallet.walletAddress,
+        parseInt(voucher.tokenId),
+      );
+      const count = parseInt(balanceResult.balance);
+      console.log(
+        `[getVouchersByMerchant] Voucher ${voucher.id} (${voucher.name}): No codes in DB, blockchain balance = ${count}`,
+      );
+      return count;
+    } catch (error) {
+      console.error(
+        `[getVouchersByMerchant] Failed to get blockchain balance for voucher ${voucher.id}:`,
+        error.message,
+      );
+      return voucher.totalIssued > 0 ? voucher.totalIssued : 0;
+    }
+  }
+
+  /** Build ownership filter for purchased vouchers */
+  private ownerFilter(merchantId: string, isPurchased: boolean) {
+    return isPurchased
+      ? { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' as const }
+      : {};
+  }
+
+  /** Count active and redeemed codes for a voucher */
+  private async countActiveAndRedeemedCodes(
+    voucherId: string,
+    merchantId: string,
+    isPurchased: boolean,
+  ) {
+    const filter = this.ownerFilter(merchantId, isPurchased);
+
+    const activeCodesCount = await this.prisma.voucherCode.count({
+      where: {
+        voucherId,
+        pointId: { not: null },
+        isUsed: false,
+        ...filter,
+      },
+    });
+
+    const redeemedCodesCount = await this.prisma.voucherCode.count({
+      where: {
+        voucherId,
+        pointId: { not: null },
+        isUsed: true,
+        ...filter,
+      },
+    });
+
+    return { activeCodesCount, redeemedCodesCount };
+  }
+
+  /** Process activated code groups and populate groupedMap */
+  private async processActivatedGroups(
+    voucher: any,
+    merchantId: string,
+    isPurchased: boolean,
+    voucherData: any,
+    groupedMap: Map<string, any>,
+  ) {
+    const filter = this.ownerFilter(merchantId, isPurchased);
+
+    const activatedCodes = await this.prisma.voucherCode.findMany({
+      where: {
+        voucherId: voucher.id,
+        voucherGroupId: { not: null },
+        pointId: { not: null },
+        ...filter,
+      },
+      select: {
+        voucherGroupId: true,
+        createdAt: true,
+        pointsCost: true,
+        pointId: true,
+        currency: true,
+      },
+      distinct: ['voucherGroupId'],
+      orderBy: { createdAt: 'asc' },
+    });
+
+    for (const codeGroup of activatedCodes) {
+      const key = `active|${codeGroup.voucherGroupId}`;
+
+      const availableCodesInGroup = await this.prisma.voucherCode.count({
+        where: {
+          voucherId: voucher.id,
+          voucherGroupId: codeGroup.voucherGroupId,
+          isUsed: false,
+          ...filter,
+        },
+      });
+
+      const redeemedCodesInGroup = await this.prisma.voucherCode.count({
+        where: {
+          voucherId: voucher.id,
+          voucherGroupId: codeGroup.voucherGroupId,
+          isUsed: true,
+          ...filter,
+        },
+      });
+
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, {
+          baseData: {
+            ...voucherData,
+            merchantRef: voucherData.merchantRef || null,
+            pointsCost: codeGroup.pointsCost,
+            pointId: codeGroup.pointId,
+            currency: codeGroup.currency,
+            activatedAt: codeGroup.createdAt,
+            voucherGroupId: codeGroup.voucherGroupId,
+          },
+          activeCount: 0,
+          redeemedCount: 0,
+          upcomingCount: 0,
+          voucherIds: [],
+        });
+      }
+
+      const activeGroup = groupedMap.get(key);
+      activeGroup.activeCount += availableCodesInGroup;
+      activeGroup.redeemedCount += redeemedCodesInGroup;
+      if (!activeGroup.voucherIds.includes(voucher.id)) {
+        activeGroup.voucherIds.push(voucher.id);
+      }
+    }
+  }
+
+  /** Add an upcoming group entry to groupedMap */
+  private addUpcomingGroup(
+    voucher: any,
+    voucherData: any,
+    upcomingCount: number,
+    groupedMap: Map<string, any>,
+  ) {
+    const key = `upcoming|${voucher.id}`;
+
+    if (!groupedMap.has(key)) {
+      groupedMap.set(key, {
+        baseData: {
+          ...voucherData,
+          merchantRef: voucherData.merchantRef || null,
+        },
+        activeCount: 0,
+        upcomingCount: 0,
+        voucherIds: [],
+      });
+    }
+
+    const upcomingGroup = groupedMap.get(key);
+    upcomingGroup.upcomingCount += upcomingCount;
+    if (!upcomingGroup.voucherIds.includes(voucher.id)) {
+      upcomingGroup.voucherIds.push(voucher.id);
+    }
+  }
+
+  /** Build final result array from the grouped map */
+  private buildResultFromGroupMap(groupedMap: Map<string, any>) {
     console.log(
       `[getVouchersByMerchant] Processing groupedMap with ${groupedMap.size} groups`,
     );
+
     const result = [];
     for (const group of groupedMap.values()) {
-      // ถ้ามี active codes หรือ redeemed codes
       if (group.activeCount > 0 || group.redeemedCount > 0) {
-        console.log(
-          `[getVouchersByMerchant] Adding active group:`,
-          JSON.stringify({
-            voucherIds: group.voucherIds,
-            activeCount: group.activeCount,
-            redeemedCount: group.redeemedCount,
-          }),
-        );
         result.push({
           ...group.baseData,
           status: 'active',
@@ -381,15 +387,7 @@ export class VoucherDBService {
         });
       }
 
-      // ถ้ายังมี upcoming codes
       if (group.upcomingCount > 0) {
-        console.log(
-          `[getVouchersByMerchant] Adding upcoming group:`,
-          JSON.stringify({
-            voucherIds: group.voucherIds,
-            upcomingCount: group.upcomingCount,
-          }),
-        );
         result.push({
           ...group.baseData,
           status: 'upcoming',
@@ -402,21 +400,6 @@ export class VoucherDBService {
     }
 
     console.log(`[getVouchersByMerchant] Final result count: ${result.length}`);
-    console.log(
-      `[getVouchersByMerchant] Returning:`,
-      JSON.stringify(
-        result.map((r) => ({
-          id: r.id,
-          name: r.name,
-          status: r.status,
-          totalIssued: r.totalIssued,
-          availableCount: r.availableCount,
-        })),
-        null,
-        2,
-      ),
-    );
-
     return result;
   }
 

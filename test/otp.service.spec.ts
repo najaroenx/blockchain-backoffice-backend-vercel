@@ -6,7 +6,9 @@ import { INTERNAL_SERVER_ERROR } from '../src/errors/error.constants';
 
 // Mock crypto.randomInt
 const actualCrypto = jest.requireActual('crypto');
-const mockRandomInt = jest.fn((...args: any[]) => actualCrypto.randomInt(...args));
+const mockRandomInt = jest.fn((...args: any[]) =>
+  actualCrypto.randomInt(...args),
+);
 jest.mock('crypto', () => ({
   ...jest.requireActual('crypto'),
   randomInt: (...args: any[]) => mockRandomInt(...args),
@@ -49,7 +51,9 @@ describe('OTPService', () => {
     // Only clear fetch mock between tests, not configService
     (global.fetch as jest.Mock).mockClear();
     // Restore randomInt to real implementation
-    mockRandomInt.mockImplementation((...args: any[]) => actualCrypto.randomInt(...args));
+    mockRandomInt.mockImplementation((...args: any[]) =>
+      actualCrypto.randomInt(...args),
+    );
   });
 
   it('should be defined', () => {

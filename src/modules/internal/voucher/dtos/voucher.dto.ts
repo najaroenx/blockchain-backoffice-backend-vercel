@@ -7,9 +7,30 @@ import {
   IsDateString,
   ValidateNested,
   IsNotEmpty,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
+  Validate,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { VoucherStatus, VoucherValueType } from '@prisma/client';
+
+@ValidatorConstraint({ name: 'aisPointMaxValue', async: false })
+export class AisPointMaxValueConstraint
+  implements ValidatorConstraintInterface
+{
+  validate(_value: any, args: ValidationArguments) {
+    const obj = args.object as any;
+    if (obj.valueType === 'aispoint' && obj.value !== undefined) {
+      return obj.value <= 100;
+    }
+    return true;
+  }
+
+  defaultMessage() {
+    return 'AIS Point voucher value must not exceed 100';
+  }
+}
 
 export class CreateVoucherDto {
   @IsString()
@@ -29,6 +50,7 @@ export class CreateVoucherDto {
   valueType: VoucherValueType;
 
   @IsNumber()
+  @Validate(AisPointMaxValueConstraint)
   value: number;
 
   @IsInt()
@@ -80,6 +102,7 @@ export class UpdateVoucherDto {
 
   @IsNumber()
   @IsOptional()
+  @Validate(AisPointMaxValueConstraint)
   value?: number;
 
   @IsInt()

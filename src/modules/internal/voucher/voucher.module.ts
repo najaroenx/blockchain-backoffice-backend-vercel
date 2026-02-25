@@ -17,6 +17,7 @@ import { AddToWhitelist } from './handlers/addToWhitelist.handler';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
 import { TokenModule } from 'src/providers/token/token.module';
 import { SharedModule } from 'src/modules/shared/shared.module';
+import { AisTransferModule } from 'src/providers/ais-transfer/ais-transfer.module';
 import { GetVoucherByListingId } from './handlers/getVoucherByListingId.handler';
 import { GetVoucherById } from './handlers/getVoucherById.handler';
 import { GetVoucherByMerchantRef } from './handlers/getVoucherByMerchantRef.handler';
@@ -29,7 +30,13 @@ import { GetMarketplaceListingsEndUser } from './handlers/getMarketplaceListting
 import { GetCouponById } from './handlers/getCouponById.handler';
 import { GetMarketplaceListingsByMerchantRef } from './handlers/getMarketplaceListingsByMerchantRef.handler';
 @Module({
-  imports: [PrismaModule, BlockchainModule, TokenModule, SharedModule],
+  imports: [
+    PrismaModule,
+    BlockchainModule,
+    TokenModule,
+    SharedModule,
+    AisTransferModule,
+  ],
   controllers: [VoucherController],
   providers: [
     VoucherDBService,

@@ -788,7 +788,6 @@ export class RedeemVoucher {
             const revertResult = await this.aisTransferService.transferReverse({
               transactionID: reverseTransactionID,
               msisdn: receiverPhone,
-              sessionID: aisTransactionID, // original transfer-in transactionID
             });
             this.logger.log(
               `[REVERT] AIS transfer reversed successfully: transactionID=${reverseTransactionID}, success=${revertResult.success}`,

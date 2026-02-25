@@ -166,6 +166,17 @@ export class ManageCouponHandler {
           );
         }
 
+        // Validate AIS Point voucher value must not exceed 100
+        if (
+          value !== undefined &&
+          voucher.valueType === 'aispoint' &&
+          value > 100
+        ) {
+          throw new BadRequestException(
+            'AIS Point voucher value must not exceed 100',
+          );
+        }
+
         // 1. อัปเดตข้อมูล voucher (ถ้ามี)
         const voucherUpdateData: any = {};
 

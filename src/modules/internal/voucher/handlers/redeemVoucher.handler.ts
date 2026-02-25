@@ -13,6 +13,8 @@ import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
+import { AisTransferService } from 'src/providers/ais-transfer/ais-transfer.service';
+import { nanoid } from 'nanoid';
 
 @Injectable()
 export class RedeemVoucher {
@@ -25,6 +27,7 @@ export class RedeemVoucher {
     private tokenService: TokenService,
     private configService: ConfigService,
     private merchantRefEnrichment: MerchantRefEnrichmentService,
+    private aisTransferService: AisTransferService,
   ) {
     this.salt = this.configService.get<string>('SALT');
   }
@@ -712,26 +715,93 @@ export class RedeemVoucher {
         `[STEP 1] Voucher type validated: aispoint (value: ${voucherCode.voucher.value})`,
       );
 
+      // Validate AIS Point voucher value must not exceed 100
+      const transferAmount = voucherCode.voucher.value;
+      if (transferAmount > 100) {
+        throw new BadRequestException(
+          'AIS Point voucher value must not exceed 100',
+        );
+      }
+
       // Call the normal redeem flow
       const redeemResult = await this.execute(code, phone, merchantRef);
 
-      // Additional: Transfer points to receiver (AIS-specific logic)
-      // TODO: Call AIS API to transfer points
-      // Amount to transfer = voucher.value (the AIS point amount)
-      const transferAmount = voucherCode.voucher.value;
+      // Transfer AIS points to receiver via AIS API
+      const aisTransactionID = `${code}_${nanoid(16)}`;
 
       this.logger.log(
-        `[SUCCESS AIS] Voucher redeemed. Points (${transferAmount}) prepared for transfer to ${receiverPhone}`,
+        `[STEP 2] Calling AIS transfer-in: transactionID=${aisTransactionID}, msisdn=${receiverPhone}, points=${transferAmount}`,
       );
 
-      return {
-        ...redeemResult,
-        pointTransfer: {
-          phone: phone,
-          receiverPhone: receiverPhone,
-          amount: transferAmount,
-        },
-      };
+      let aisResult;
+      let aisTransferSucceeded = false;
+      try {
+        aisResult = await this.aisTransferService.transferIn({
+          transactionID: aisTransactionID,
+          msisdn: receiverPhone,
+          points: transferAmount,
+        });
+
+        aisTransferSucceeded = aisResult.success;
+
+        this.logger.log(
+          `[STEP 2] AIS transfer-in result: success=${aisResult.success}, transactionID=${aisResult.transactionID}`,
+        );
+      } catch (aisError) {
+        this.logger.error(
+          `[STEP 2] AIS transfer-in failed: ${aisError.message}`,
+          aisError.stack,
+        );
+        // Blockchain redeem already succeeded — log the error but don't fail the whole operation
+        aisResult = {
+          success: false,
+          transactionID: aisTransactionID,
+          error: aisError.message,
+        };
+      }
+
+      try {
+        this.logger.log(
+          `[SUCCESS AIS] Voucher redeemed. Points (${transferAmount}) transferred to ${receiverPhone} (ais success: ${aisResult.success})`,
+        );
+
+        return {
+          ...redeemResult,
+          pointTransfer: {
+            phone: phone,
+            receiverPhone: receiverPhone,
+            amount: transferAmount,
+            aisTransactionID: aisResult.transactionID,
+            aisSuccess: aisResult.success,
+            aisError: aisResult.error || null,
+            aisData: aisResult.data || null,
+          },
+        };
+      } catch (postTransferError) {
+        // If AIS transfer-in succeeded but subsequent processing failed, revert the transfer
+        if (aisTransferSucceeded) {
+          this.logger.warn(
+            `[REVERT] AIS transfer-in succeeded but post-transfer processing failed. Reverting transfer: ${aisTransactionID}`,
+          );
+          const reverseTransactionID = `${code}_reverse_${nanoid(16)}`;
+          try {
+            const revertResult = await this.aisTransferService.transferReverse({
+              transactionID: reverseTransactionID,
+              msisdn: receiverPhone,
+              sessionID: aisTransactionID, // original transfer-in transactionID
+            });
+            this.logger.log(
+              `[REVERT] AIS transfer reversed successfully: transactionID=${reverseTransactionID}, success=${revertResult.success}`,
+            );
+          } catch (revertError) {
+            this.logger.error(
+              `[REVERT CRITICAL] Failed to reverse AIS transfer: transactionID=${reverseTransactionID}, originalTransactionID=${aisTransactionID}, error=${revertError.message}`,
+              revertError.stack,
+            );
+          }
+        }
+        throw postTransferError;
+      }
     } catch (error) {
       this.logger.error(
         `[ERROR AIS] Failed to redeem AIS voucher: ${error.message}`,

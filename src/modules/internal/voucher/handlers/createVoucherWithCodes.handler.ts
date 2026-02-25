@@ -3,6 +3,7 @@ import {
   InternalServerErrorException,
   Logger,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
@@ -25,6 +26,13 @@ export class CreateVoucherWithCodes {
    */
   async execute(data: CreateVoucherDto, merchantId?: string) {
     try {
+      // Validate AIS Point voucher value must not exceed 100
+      if (data.valueType === 'aispoint' && data.value > 100) {
+        throw new BadRequestException(
+          'AIS Point voucher value must not exceed 100',
+        );
+      }
+
       if (merchantId) {
         await this.lookupSellerWallet(merchantId);
       }

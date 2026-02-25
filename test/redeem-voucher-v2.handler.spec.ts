@@ -21,6 +21,7 @@ describe('RedeemVoucher', () => {
   let mockToken: any;
   let mockConfig: any;
   let mockMerchantRef: any;
+  let mockAisTransfer: any;
 
   beforeEach(() => {
     mockPrisma = {
@@ -63,12 +64,25 @@ describe('RedeemVoucher', () => {
     mockMerchantRef = {
       enrich: jest.fn().mockResolvedValue({ name: 'Store' }),
     };
+    mockAisTransfer = {
+      transferIn: jest.fn().mockResolvedValue({
+        success: true,
+        transactionID: 'ais_tx_1',
+        data: {},
+      }),
+      transferReverse: jest.fn().mockResolvedValue({
+        success: true,
+        transactionID: 'ais_tx_1',
+        data: {},
+      }),
+    };
     handler = new RedeemVoucher(
       mockPrisma as any,
       mockBlockchain as any,
       mockToken as any,
       mockConfig as any,
       mockMerchantRef as any,
+      mockAisTransfer as any,
     );
   });
 

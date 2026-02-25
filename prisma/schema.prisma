@@ -357,3 +357,24 @@ model TempLinkCreateUser {
   @@index([merchantId])
   @@index([expire])
 }
+
+// AIS Transfer API call log — request/response เก็บเป็น Bytes (blob)
+model AisTransferLog {
+  id           String   @id @default(cuid())
+  transactionID String  // AIS transaction ID ที่ใช้ยิง
+  action       String   // "TRANSFER_IN" | "TRANSFER_REVERSE"
+  url          String   // Full URL ที่ยิงไป
+  requestBody  Bytes    // JSON body แปลงเป็น Buffer
+  responseBody Bytes?   // Response JSON เป็น Buffer (nullable กรณี network error)
+  httpStatus   Int?     // HTTP status code (nullable กรณี network error)
+  success      Boolean  // สำเร็จหรือไม่
+  errorMessage String?  // Error message ถ้ามี
+  msisdn       String   // เบอร์โทรลูกค้า
+  points       Int?     // จำนวน points (เฉพาะ transferIn)
+  createdAt    DateTime @default(now()) @map(name: "created_at")
+
+  @@index([transactionID])
+  @@index([msisdn])
+  @@index([action])
+  @@index([createdAt])
+}

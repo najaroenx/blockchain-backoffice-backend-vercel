@@ -8,7 +8,6 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { ConfigService } from '@nestjs/config';
 import { TokenService } from 'src/providers/token/token.service';
-import { ListingBatchStatus } from '@prisma/client';
 
 @Injectable()
 export class SellerListOnMarketplace {

@@ -764,7 +764,6 @@ export class RedeemVoucher {
         this.logger.log(
           `[SUCCESS AIS] Voucher redeemed. Points (${transferAmount}) transferred to ${receiverPhone} (ais success: ${aisResult.success})`,
         );
-
         return {
           ...redeemResult,
           pointTransfer: {
@@ -781,7 +780,7 @@ export class RedeemVoucher {
         // If AIS transfer-in succeeded but subsequent processing failed, revert the transfer
         if (aisTransferSucceeded) {
           this.logger.warn(
-            `[REVERT] AIS transfer-in succeeded but post-transfer processing failed. Reverting transfer: ${aisTransactionID}`,
+            `[REVERT] AIS transfer-in succeeded but post-transfer processing failed. Reverting transfer: ${aisTransactionID} to receiver ${receiverPhone}`,
           );
           const reverseTransactionID = `${code}_reverse_${nanoid(16)}`;
           try {

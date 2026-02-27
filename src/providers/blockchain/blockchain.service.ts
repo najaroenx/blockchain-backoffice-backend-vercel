@@ -927,10 +927,12 @@ export class BlockchainService {
       });
 
       let typeId = null;
-      if (event) {
-        const parsedLog = contract.interface.parseLog(event);
-        typeId = parsedLog?.args?.typeId?.toString();
+      if (!event) {
+        throw new Error('CouponTypeCreated event not found');
       }
+
+      const parsedLog = contract.interface.parseLog(event);
+      typeId = parsedLog?.args?.typeId?.toString();
 
       console.log(
         `[Blockchain] Coupon type created successfully. TypeId: ${typeId}, Tx: ${receipt.hash}`,

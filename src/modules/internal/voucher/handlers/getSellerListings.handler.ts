@@ -15,6 +15,10 @@ export interface ListingBatchSummary {
   status: ListingBatchStatus;
   createdAt: Date;
   voucherTypes: number; // Count of unique voucher types in this batch
+  valueType: string | null;
+  value: number | null;
+  thbPrice: number | null;
+  imageUrl: string | null;
 }
 
 export interface GetSellerListingsResult {
@@ -67,6 +71,15 @@ export class GetSellerListingsHandler {
         voucherCodes: {
           select: {
             voucherId: true,
+            thbPrice: true,
+            voucher: {
+              select: {
+                name: true,
+                valueType: true,
+                value: true,
+                imageUrl: true,
+              },
+            },
           },
         },
       },
@@ -79,9 +92,12 @@ export class GetSellerListingsHandler {
         listing.voucherCodes.map((vc) => vc.voucherId),
       );
 
+      // Get voucher info from first voucher code
+      const firstCode = listing.voucherCodes[0];
+
       return {
         id: listing.id,
-        name: listing.name,
+        name: firstCode?.voucher?.name,
         description: listing.description,
         sellerWalletAddress: listing.sellerWalletAddress,
         totalItems: listing.totalItems,
@@ -92,6 +108,10 @@ export class GetSellerListingsHandler {
         status: listing.status,
         createdAt: listing.createdAt,
         voucherTypes: uniqueVoucherIds.size,
+        valueType: firstCode?.voucher?.valueType ?? null,
+        value: firstCode?.voucher?.value ?? null,
+        thbPrice: firstCode?.thbPrice ?? null,
+        imageUrl: firstCode?.voucher?.imageUrl ?? null,
       };
     });
 

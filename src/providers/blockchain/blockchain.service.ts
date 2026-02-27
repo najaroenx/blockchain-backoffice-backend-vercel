@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { createPoint } from './types';
 import * as PointFactoryArtifact from './abis/NewPointTokenFactory.json';
 import * as PointTokenArtifact from './abis/NewPointToken.json';
@@ -63,6 +67,54 @@ export class BlockchainService {
     this.thbAddress = this.configService.get<string>('THB_ADDRESS');
     this.couponAddress = this.configService.get<string>('COUPON_ADDRESS');
     this.vaultAddress = this.configService.get<string>('VAULT_ADDRESS');
+  }
+
+  /**
+   * Detect if an error is due to blockchain/RPC being unreachable (network, timeout, connection refused)
+   * and throw 503 ServiceUnavailableException. Otherwise throw 500 InternalServerErrorException.
+   */
+  private handleBlockchainError(
+    error: any,
+    context: string,
+    fallbackMessage?: string,
+  ): never {
+    const msg = error?.message?.toLowerCase?.() ?? '';
+    const code = error?.code?.toLowerCase?.() ?? '';
+
+    const isNetworkDown =
+      code === 'network_error' ||
+      code === 'server_error' ||
+      code === 'timeout' ||
+      code === 'econnrefused' ||
+      code === 'enotfound' ||
+      code === 'etimedout' ||
+      code === 'econnreset' ||
+      code === 'econnaborted' ||
+      msg.includes('could not detect network') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('network error') ||
+      msg.includes('econnrefused') ||
+      msg.includes('enotfound') ||
+      msg.includes('etimedout') ||
+      msg.includes('econnreset') ||
+      msg.includes('socket hang up') ||
+      msg.includes('getaddrinfo') ||
+      msg.includes('connect econnrefused') ||
+      msg.includes('request timeout') ||
+      msg.includes('missing response');
+
+    if (isNetworkDown) {
+      console.error(
+        `[BlockchainService] [${context}] Blockchain unavailable: ${error.message}`,
+      );
+      throw new ServiceUnavailableException(
+        `Blockchain service unavailable: ${error.message}`,
+      );
+    }
+
+    throw new InternalServerErrorException(
+      fallbackMessage || `${context} failed: ${error.message}`,
+    );
   }
 
   async createNewPointToken({
@@ -429,16 +481,22 @@ export class BlockchainService {
 
       // Re-throw with more specific error message if available
       if (error.reason) {
-        throw new InternalServerErrorException(
+        this.handleBlockchainError(
+          error,
+          'transaction',
           `Blockchain error: ${error.reason}`,
         );
       }
       if (error.shortMessage) {
-        throw new InternalServerErrorException(
+        this.handleBlockchainError(
+          error,
+          'transaction',
           `Blockchain error: ${error.shortMessage}`,
         );
       }
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'transaction',
         `${RPC_SERVER_ERROR}: ${error.message}`,
       );
     }
@@ -470,7 +528,7 @@ export class BlockchainService {
         txId: tx.hash,
       };
     } catch (error) {
-      throw new InternalServerErrorException(RPC_SERVER_ERROR);
+      this.handleBlockchainError(error, 'mint', RPC_SERVER_ERROR);
     }
   }
 
@@ -501,7 +559,7 @@ export class BlockchainService {
         txId: tx.hash,
       };
     } catch (error) {
-      throw new InternalServerErrorException(RPC_SERVER_ERROR);
+      this.handleBlockchainError(error, 'burn', RPC_SERVER_ERROR);
     }
   }
 
@@ -526,7 +584,7 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error('[BlockchainService] Get balance failed:', error.message);
-      throw new InternalServerErrorException('Failed to get balance');
+      this.handleBlockchainError(error, 'getBalance', 'Failed to get balance');
     }
   }
 
@@ -557,7 +615,7 @@ export class BlockchainService {
         txId: tx.hash,
       };
     } catch (error) {
-      throw new InternalServerErrorException(RPC_SERVER_ERROR);
+      this.handleBlockchainError(error, 'transactionC2C', RPC_SERVER_ERROR);
     }
   }
 
@@ -644,7 +702,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to get voucher balance: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'getVoucherBalance',
         `Failed to get voucher balance from blockchain: ${error.message}`,
       );
     }
@@ -720,7 +780,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to redeem coupon: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'redeemVoucher',
         `Failed to redeem coupon on blockchain: ${error.message}`,
       );
     }
@@ -762,7 +824,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to get voucher data: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'getVoucherData',
         `Failed to get voucher data from blockchain: ${error.message}`,
       );
     }
@@ -827,7 +891,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to mint voucher: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'mintVoucher',
         `Failed to mint voucher on blockchain: ${error.message}`,
       );
     }
@@ -877,7 +943,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to batch mint vouchers: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'batchMintVouchers',
         `Failed to batch mint vouchers on blockchain: ${error.message}`,
       );
     }
@@ -947,7 +1015,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to create coupon type: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'createCouponType',
         `Failed to create coupon type on blockchain: ${error.message}`,
       );
     }
@@ -996,7 +1066,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to mint coupon: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'mintCoupon',
         `Failed to mint coupon on blockchain: ${error.message}`,
       );
     }
@@ -1056,7 +1128,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to batch mint coupons: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'batchMintCoupons',
         `Failed to batch mint coupons on blockchain: ${error.message}`,
       );
     }
@@ -1094,7 +1168,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to get listing: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'getMarketplaceListing',
         `Failed to get listing: ${error.message}`,
       );
     }
@@ -1179,7 +1255,9 @@ export class BlockchainService {
       return listings;
     } catch (error) {
       console.error(`[Blockchain] Failed to get listings: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'getAllActiveMarketplaceListings',
         `Failed to get listings: ${error.message}`,
       );
     }
@@ -1227,7 +1305,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to delist coupon: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'delistCoupon',
         `Failed to delist coupon: ${error.message}`,
       );
     }
@@ -1257,7 +1337,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to get THB balance: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'getUserTHBBalance',
         `Failed to get THB balance: ${error.message}`,
       );
     }
@@ -1294,7 +1376,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to mint THB: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'mintTHB',
         `Failed to mint THB: ${error.message}`,
       );
     }
@@ -1335,7 +1419,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to approve THB: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'approveTHB',
         `Failed to approve THB: ${error.message}`,
       );
     }
@@ -1428,7 +1514,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to lock funds: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'lockFundsForCouponType',
         `Failed to lock funds in vault: ${error.message}`,
       );
     }
@@ -1453,7 +1541,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to check vault escrow: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'hasActiveVaultEscrow',
         `Failed to check vault escrow: ${error.message}`,
       );
     }
@@ -1492,7 +1582,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to release vault funds: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'releaseVaultFundsPartial',
         `Failed to release vault funds: ${error.message}`,
       );
     }
@@ -1584,7 +1676,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to lock escrow via marketplace: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'lockEscrowThroughMarketplace',
         `Failed to lock escrow via marketplace: ${error.message}`,
       );
     }
@@ -1619,7 +1713,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to get coupon balance: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'getUserCouponBalance',
         `Failed to get coupon balance: ${error.message}`,
       );
     }
@@ -1664,7 +1760,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to get coupon balances in batch: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'getUserCouponBalanceBatch',
         `Failed to get coupon balances in batch: ${error.message}`,
       );
     }
@@ -1749,7 +1847,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to list coupon: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'listCoupon',
         `Failed to list coupon: ${error.message}`,
       );
     }
@@ -2106,7 +2206,9 @@ export class BlockchainService {
       };
     } catch (error) {
       console.error(`[Blockchain] Failed to buy coupon: ${error.message}`);
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'buyCoupon',
         `Failed to buy coupon: ${error.message}`,
       );
     }
@@ -2151,7 +2253,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to whitelist address: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'addToMarketplaceWhitelist',
         `Failed to whitelist address: ${error.message}`,
       );
     }
@@ -2187,7 +2291,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to check whitelist status: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'isWhitelisted',
         `Failed to check whitelist status: ${error.message}`,
       );
     }
@@ -2234,7 +2340,9 @@ export class BlockchainService {
       console.error(
         `[Blockchain] Failed to batch whitelist addresses: ${error.message}`,
       );
-      throw new InternalServerErrorException(
+      this.handleBlockchainError(
+        error,
+        'batchAddToMarketplaceWhitelist',
         `Failed to batch whitelist addresses: ${error.message}`,
       );
     }

@@ -37,13 +37,13 @@ USER merchant-backoffice
 EXPOSE 4000
 # DEV FOR RESETTING DB
 # DEV / SAFE MODE (reset + generate)
-CMD ["sh", "-c", "\
-    npx prisma migrate reset --force --skip-generate && \
-    node dist/src/main \
-"]
-# PROD MODE (migrate + seed + start)
 # CMD ["sh", "-c", "\
-#     npx prisma migrate deploy && \
-#     npx prisma db seed && \
+#     npx prisma migrate reset --force --skip-generate && \
 #     node dist/src/main \
 # "]
+# PROD MODE (migrate + seed + start)
+CMD ["sh", "-c", "\
+    npx prisma migrate deploy && \
+    npx prisma db seed && \
+    node dist/src/main \
+"]

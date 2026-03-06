@@ -51,9 +51,17 @@ export class GetVoucherById {
 
   constructor(private prisma: PrismaService) {}
 
-  async execute(voucherId: string): Promise<any> {
+  async execute(
+    voucherId: string,
+    codeStatus?: 'used' | 'unused',
+  ): Promise<any> {
     try {
-      this.logger.log(`[START] Getting voucher by id: ${voucherId}`);
+      this.logger.log(
+        `[START] Getting voucher by id: ${voucherId}, codeStatus: ${codeStatus || 'all'}`,
+      );
+
+      const isUsedFilter =
+        codeStatus === 'used' ? true : codeStatus === 'unused' ? false : null;
 
       const rows = await this.prisma.$queryRaw<VoucherRow[]>`
         SELECT
@@ -93,6 +101,7 @@ export class GetVoucherById {
             FROM "VoucherCode" cc
             WHERE cc."voucherId" = v."id"
               AND cc."voucherGroupId" IS NOT NULL
+              AND (${isUsedFilter}::boolean IS NULL OR cc."isUsed" = ${isUsedFilter}::boolean)
           ) AS "totalCodes"
         FROM "Voucher" v
         LEFT JOIN "Merchant" m ON m."id" = v."merchantId"
@@ -101,7 +110,7 @@ export class GetVoucherById {
           FROM "VoucherCode" vc
           WHERE vc."voucherId" = v."id"
             AND vc."voucherGroupId" IS NOT NULL
-            AND vc."isUsed" = false
+            AND (${isUsedFilter}::boolean IS NULL OR vc."isUsed" = ${isUsedFilter}::boolean)
           ORDER BY vc."created_at" DESC
           LIMIT 1
         ) lc ON true

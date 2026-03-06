@@ -227,8 +227,11 @@ export class VoucherController {
   @Get('/:id')
   @Public()
   @HttpCode(200)
-  async getVoucherById(@Param('id') id: string) {
-    return this.voucherService.getVoucherById(id);
+  async getVoucherById(
+    @Param('id') id: string,
+    @Query('codeStatus') codeStatus?: 'used' | 'unused',
+  ) {
+    return this.voucherService.getVoucherById(id, codeStatus);
   }
 
   @Post('/')

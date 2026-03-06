@@ -198,6 +198,7 @@ export class CreateVoucherWithCodes {
           data: {
             id: couponId,
             ...voucherData,
+            merchantId: _mid || null,
             merchantName,
             merchantRef,
             sellerMerchantId: merchantId || null,

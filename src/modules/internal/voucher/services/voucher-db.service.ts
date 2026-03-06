@@ -60,8 +60,11 @@ export class VoucherDBService {
     );
   }
 
-  async getVoucherById(voucherId: string): Promise<any> {
-    return this.getVoucherByIdHandler.execute(voucherId);
+  async getVoucherById(
+    voucherId: string,
+    codeStatus?: 'used' | 'unused',
+  ): Promise<any> {
+    return this.getVoucherByIdHandler.execute(voucherId, codeStatus);
   }
 
   async getVouchersByMerchant(merchantId: string): Promise<any[]> {

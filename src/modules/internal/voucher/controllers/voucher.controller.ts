@@ -229,7 +229,7 @@ export class VoucherController {
   @HttpCode(200)
   async getVoucherById(
     @Param('id') id: string,
-    @Query('codeStatus') codeStatus?: 'used' | 'unused',
+    @Query('status') codeStatus?: 'used' | 'unused',
   ) {
     return this.voucherService.getVoucherById(id, codeStatus);
   }

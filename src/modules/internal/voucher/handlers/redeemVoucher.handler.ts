@@ -406,11 +406,12 @@ export class RedeemVoucher {
   private async resolveMerchantForRedemption(voucher: any, voucherCode: any) {
     this.logger.log(`[STEP 9] Getting merchant wallet address`);
 
-    let merchantId = voucher.merchantId;
+    let merchantId = null;
+    let merchant = null;
 
-    if (!merchantId && voucherCode.pointId) {
+    if (voucherCode.pointId) {
       this.logger.log(
-        `[STEP 9] Voucher has no merchantId (seller voucher), looking up from Point: ${voucherCode.pointId}`,
+        `[STEP 9] Resolving merchant from Point: ${voucherCode.pointId}`,
       );
       const point = await this.prisma.point.findUnique({
         where: { id: voucherCode.pointId },
@@ -419,6 +420,48 @@ export class RedeemVoucher {
       if (point?.merchantId) {
         merchantId = point.merchantId;
         this.logger.log(`[STEP 9] Found merchant from Point: ${merchantId}`);
+      } else {
+        this.logger.warn(
+          `[STEP 9] Point ${voucherCode.pointId} has no merchantId; falling back to voucher merchant metadata`,
+        );
+      }
+    }
+
+    if (!merchantId) {
+      merchantId = voucher.merchantId || voucher.merchant?.id || null;
+    }
+
+    if (!merchantId) {
+      const fallbackMerchantNames = await this.resolveLegacyMerchantNames(
+        voucher,
+        voucherCode,
+      );
+
+      if (fallbackMerchantNames.length > 0) {
+        this.logger.log(
+          `[STEP 9] Using legacy fallback merchant lookup by name: ${fallbackMerchantNames.join(', ')}`,
+        );
+
+        merchant = await this.prisma.merchant.findFirst({
+          where: {
+            OR: fallbackMerchantNames.map((name) => ({ name })),
+          },
+          select: {
+            id: true,
+            walletId: true,
+            wallet: true,
+            name: true,
+            imageUrl: true,
+            website: true,
+          },
+        });
+
+        if (merchant?.id) {
+          merchantId = merchant.id;
+          this.logger.log(
+            `[STEP 9] Found merchant by fallback name lookup: ${merchantId}`,
+          );
+        }
       }
     }
 
@@ -428,16 +471,19 @@ export class RedeemVoucher {
       );
     }
 
-    const merchant = await this.prisma.merchant.findUnique({
-      where: { id: merchantId },
-      select: {
-        walletId: true,
-        wallet: true,
-        name: true,
-        imageUrl: true,
-        website: true,
-      },
-    });
+    if (!merchant) {
+      merchant = await this.prisma.merchant.findUnique({
+        where: { id: merchantId },
+        select: {
+          id: true,
+          walletId: true,
+          wallet: true,
+          name: true,
+          imageUrl: true,
+          website: true,
+        },
+      });
+    }
 
     if (!merchant?.wallet) {
       throw new BadRequestException(
@@ -450,6 +496,39 @@ export class RedeemVoucher {
       merchant,
       merchantAddress: merchant.wallet.walletAddress || '',
     };
+  }
+
+  private async resolveLegacyMerchantNames(
+    voucher: any,
+    voucherCode: any,
+  ): Promise<string[]> {
+    // TODO: Persist activatedByMerchantId on VoucherCode during activation and
+    // buy flows so redemption can avoid legacy name-based fallback entirely.
+    const names = new Set<string>();
+
+    if (voucherCode.pointId) {
+      return [];
+    }
+
+    if (voucher.merchant?.name) {
+      names.add(voucher.merchant.name);
+    }
+
+    if (voucher.merchantName) {
+      names.add(voucher.merchantName);
+    }
+
+    if (voucher.merchantRef) {
+      const merchantRefDetail = await this.merchantRefEnrichment.enrich(
+        voucher.merchantRef,
+      );
+
+      if (merchantRefDetail?.name) {
+        names.add(merchantRefDetail.name);
+      }
+    }
+
+    return [...names];
   }
 
   /** Build the full redeem response */

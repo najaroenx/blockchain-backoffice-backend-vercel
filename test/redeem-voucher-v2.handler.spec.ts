@@ -39,7 +39,7 @@ describe('RedeemVoucher', () => {
         }),
       },
       point: { findUnique: jest.fn() },
-      merchant: { findUnique: jest.fn() },
+      merchant: { findUnique: jest.fn(), findFirst: jest.fn() },
       transaction: {
         create: jest.fn().mockResolvedValue({
           id: 'tx1',
@@ -613,6 +613,157 @@ describe('RedeemVoucher', () => {
           where: { tel: '0899999999' },
         }),
       );
+    });
+
+    it('should resolve merchant by fallback name when AIS voucher has no merchantId and no pointId', async () => {
+      mockPrisma.customer.findFirst.mockResolvedValue({
+        id: 'c1',
+        tel: '0812345678',
+        wallet: {
+          walletAddress: '0xabc123',
+          seedPhrase: 'enc-seed',
+          derivationIndex: 0,
+        },
+      });
+      mockPrisma.voucherCode.findUnique
+        .mockResolvedValueOnce({
+          voucher: { valueType: 'aispoint', value: 50 },
+        })
+        .mockResolvedValueOnce({
+          id: 'vc1',
+          code: 'CODE1',
+          isUsed: false,
+          pointId: null,
+          voucherGroupId: 'g1',
+          currentOwnerId: null,
+          currentOwnerType: null,
+          currency: null,
+          voucher: {
+            id: 'v1',
+            tokenId: '1',
+            merchantRef: 'ref1',
+            name: 'AIS Voucher',
+            description: 'AIS Desc',
+            imageUrl: null,
+            status: 'active',
+            endDate: new Date(Date.now() + 86400000),
+            startDate: null,
+            valueType: 'aispoint',
+            value: 50,
+            currency: null,
+            totalRedeemed: 0,
+            merchantId: null,
+            merchantName: 'Fallback Merchant',
+            merchant: null,
+          },
+        });
+      mockBlockchain.getUserCouponBalance.mockResolvedValue({ balance: '5' });
+      mockBlockchain.redeemVoucher.mockResolvedValue({
+        hash: '0xhash123',
+        blockNumber: 100,
+      });
+      mockMerchantRef.enrich.mockResolvedValue({ name: 'Fallback Merchant' });
+      mockPrisma.merchant.findFirst.mockResolvedValue({
+        id: 'm-fallback',
+        walletId: 'w1',
+        name: 'Fallback Merchant',
+        imageUrl: null,
+        website: null,
+        wallet: { walletAddress: '0xmerchant' },
+      });
+      mockPrisma.$transaction.mockImplementation(async (ops) => Promise.all(ops));
+
+      const result = await handler.executeAIS(
+        'CODE1',
+        '0812345678',
+        'ref1',
+        '0899999999',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.transaction.receiverId).toBe('m-fallback');
+      expect(mockPrisma.merchant.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [{ name: 'Fallback Merchant' }],
+          },
+        }),
+      );
+    });
+
+    it('should prefer point merchant over voucher merchant metadata during redemption', async () => {
+      mockPrisma.customer.findFirst.mockResolvedValue({
+        id: 'c1',
+        tel: '0812345678',
+        wallet: {
+          walletAddress: '0xabc123',
+          seedPhrase: 'enc-seed',
+          derivationIndex: 0,
+        },
+      });
+      mockPrisma.voucherCode.findUnique.mockResolvedValue({
+        id: 'vc1',
+        code: 'CODE1',
+        isUsed: false,
+        pointId: 'point-1',
+        voucherGroupId: 'g1',
+        currentOwnerId: null,
+        currentOwnerType: null,
+        currency: 'POINT',
+        voucher: {
+          id: 'v1',
+          tokenId: '1',
+          merchantRef: 'ref1',
+          name: 'Test Voucher',
+          description: 'Desc',
+          imageUrl: null,
+          status: 'active',
+          endDate: new Date(Date.now() + 86400000),
+          startDate: null,
+          valueType: 'fixed',
+          value: 100,
+          currency: 'POINT',
+          totalRedeemed: 0,
+          merchantId: 'voucher-merchant',
+          merchantName: 'Voucher Merchant',
+          merchant: {
+            id: 'voucher-merchant',
+            name: 'Voucher Merchant',
+            description: '',
+            imageUrl: null,
+          },
+        },
+      });
+      mockPrisma.point.findUnique.mockResolvedValue({ merchantId: 'point-merchant' });
+      mockBlockchain.getUserCouponBalance.mockResolvedValue({ balance: '5' });
+      mockBlockchain.redeemVoucher.mockResolvedValue({
+        hash: '0xhash123',
+        blockNumber: 100,
+      });
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: 'point-merchant',
+        walletId: 'w1',
+        name: 'Point Merchant',
+        imageUrl: null,
+        website: null,
+        wallet: { walletAddress: '0xmerchant' },
+      });
+      mockPrisma.$transaction.mockImplementation(async (ops) => Promise.all(ops));
+
+      const result = await handler.execute('CODE1', '0812345678', 'ref1');
+
+      expect(result.success).toBe(true);
+      expect(result.transaction.receiverId).toBe('point-merchant');
+      expect(mockPrisma.point.findUnique).toHaveBeenCalledWith({
+        where: { id: 'point-1' },
+        select: { merchantId: true },
+      });
+      expect(mockPrisma.merchant.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'point-merchant' },
+        }),
+      );
+      expect(mockPrisma.merchant.findFirst).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when voucher is not aispoint', async () => {

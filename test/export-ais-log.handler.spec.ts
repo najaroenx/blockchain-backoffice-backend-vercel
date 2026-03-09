@@ -33,7 +33,9 @@ describe('ExportAisLog', () => {
     });
 
     expect(prisma.aisTransferLog.findMany).toHaveBeenCalled();
-    expect(result.fileName).toBe('ais-transfer-log-2026-03-01-to-2026-03-09.xlsx');
+    expect(result.fileName).toBe(
+      'ais-transfer-log-2026-03-01-to-2026-03-09.xlsx',
+    );
     expect(result.fileBuffer).toBeInstanceOf(Buffer);
     expect(result.fileBuffer.length).toBeGreaterThan(0);
   });

@@ -87,9 +87,9 @@ describe('AdminOnlyGuard', () => {
       return undefined;
     });
 
-    expect(() =>
-      guard.canActivate(createContext('Bearer some-token')),
-    ).toThrow(new UnauthorizedException('Invalid admin credentials'));
+    expect(() => guard.canActivate(createContext('Bearer some-token'))).toThrow(
+      new UnauthorizedException('Invalid admin credentials'),
+    );
   });
 
   it('rejects access when admin basic auth config is missing', () => {

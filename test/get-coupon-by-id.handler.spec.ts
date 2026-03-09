@@ -39,6 +39,7 @@ describe('GetCouponById', () => {
       endDate: new Date(),
       tokenId: 'token-1',
       merchantId: 'merchant-1',
+      sellerMerchantId: null,
       merchantName: 'Test Merchant',
       merchantRef: 'ref-1',
       thbPurchasePrice: 50,
@@ -103,7 +104,11 @@ describe('GetCouponById', () => {
   it('should return null merchant when voucher has no merchantId', async () => {
     const codeNoMerchant = {
       ...mockVoucherCode,
-      voucher: { ...mockVoucherCode.voucher, merchantId: null },
+      voucher: {
+        ...mockVoucherCode.voucher,
+        merchantId: null,
+        sellerMerchantId: null,
+      },
     };
     prisma.voucherCode.findUnique.mockResolvedValue(codeNoMerchant);
     merchantRefEnrichment.enrich.mockResolvedValue(null);
@@ -112,6 +117,43 @@ describe('GetCouponById', () => {
 
     expect(result.merchant).toBeNull();
     expect(prisma.merchant.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('should fallback to sellerMerchantId when voucher merchantId is null', async () => {
+    const sellerVoucherCode = {
+      ...mockVoucherCode,
+      voucher: {
+        ...mockVoucherCode.voucher,
+        merchantId: null,
+        sellerMerchantId: 'seller-merchant-1',
+      },
+    };
+    prisma.voucherCode.findUnique.mockResolvedValue(sellerVoucherCode);
+    prisma.merchant.findUnique.mockResolvedValue({
+      id: 'seller-merchant-1',
+      name: 'Seller Merchant',
+      imageUrl: null,
+      description: 'Seller Desc',
+    });
+    merchantRefEnrichment.enrich.mockResolvedValue(null);
+
+    const result = await handler.execute('vc-1');
+
+    expect(prisma.merchant.findUnique).toHaveBeenCalledWith({
+      where: { id: 'seller-merchant-1' },
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+        description: true,
+      },
+    });
+    expect(result.merchant).toEqual(
+      expect.objectContaining({
+        id: 'seller-merchant-1',
+        name: 'Seller Merchant',
+      }),
+    );
   });
 
   it('should return null point when no point associated', async () => {

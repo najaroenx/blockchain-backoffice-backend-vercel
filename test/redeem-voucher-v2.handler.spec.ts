@@ -308,6 +308,86 @@ describe('RedeemVoucher', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('should resolve sellerMerchantId when voucher merchantId is null', async () => {
+      mockPrisma.customer.findFirst.mockResolvedValue({
+        id: 'c1',
+        tel: '0812345678',
+        wallet: {
+          walletAddress: '0xabc',
+          seedPhrase: 'enc',
+          derivationIndex: 0,
+        },
+      });
+      mockPrisma.voucherCode.findUnique.mockResolvedValue({
+        id: 'vc1',
+        code: 'CODE1',
+        isUsed: false,
+        pointId: 'p1',
+        voucherGroupId: 'g1',
+        currentOwnerId: 'c1',
+        currentOwnerType: 'CUSTOMER',
+        voucher: {
+          id: 'v1',
+          merchantId: null,
+          sellerMerchantId: 'seller-merchant-1',
+          merchantName: 'Seller Merchant',
+          merchantRef: 'ref1',
+          endDate: null,
+          startDate: null,
+          tokenId: '10',
+          valueType: 'cash',
+          value: 100,
+          currency: 'PTS',
+          description: 'Seller voucher',
+          imageUrl: null,
+          merchant: null,
+        },
+      });
+      mockPrisma.point.findUnique.mockResolvedValue({
+        merchantId: null,
+      });
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: 'seller-merchant-1',
+        name: 'Seller Merchant',
+        imageUrl: null,
+        website: null,
+        wallet: {
+          walletAddress: '0xmerchant',
+        },
+      });
+      mockBlockchain.getUserCouponBalance.mockResolvedValue({ balance: '1' });
+      mockBlockchain.redeemVoucher.mockResolvedValue({ hash: '0xredeem' });
+      mockPrisma.$transaction.mockResolvedValue([
+        {
+          id: 'vc1',
+          code: 'CODE1',
+          isUsed: true,
+          usedBy: 'c1',
+          usedAt: new Date(),
+          pointsCost: 100,
+          voucher: {},
+        },
+        {
+          id: 'tx1',
+          transactionTypeId: 'REDEEM',
+          amount: 1,
+          createdAt: new Date(),
+          transactionRefId: 'tr1',
+        },
+      ]);
+
+      const result = await handler.execute('CODE1', '0812345678', 'ref1');
+
+      expect(mockPrisma.merchant.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'seller-merchant-1' },
+        }),
+      );
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.transaction.receiverId).toBe('seller-merchant-1');
+    });
+
     it('should throw NotFoundException when customer wallet not configured', async () => {
       mockPrisma.customer.findFirst.mockResolvedValue({
         id: 'c1',

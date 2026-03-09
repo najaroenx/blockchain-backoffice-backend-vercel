@@ -7,6 +7,7 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
+import { resolveVoucherMerchantId } from '../utils/resolve-voucher-merchant.util';
 
 @Injectable()
 export class GetCouponById {
@@ -39,6 +40,7 @@ export class GetCouponById {
               endDate: true,
               tokenId: true,
               merchantId: true,
+              sellerMerchantId: true,
               merchantName: true,
               merchantRef: true,
               thbPurchasePrice: true,
@@ -66,11 +68,13 @@ export class GetCouponById {
           )
         : null;
 
-      // Get merchant info if voucher has merchantId
+      const resolvedMerchantId = resolveVoucherMerchantId(voucherCode.voucher);
+
+      // Get merchant info from primary merchant or seller fallback
       let merchant = null;
-      if (voucherCode.voucher?.merchantId) {
+      if (resolvedMerchantId) {
         merchant = await this.prisma.merchant.findUnique({
-          where: { id: voucherCode.voucher.merchantId },
+          where: { id: resolvedMerchantId },
           select: {
             id: true,
             name: true,

@@ -16,6 +16,10 @@ import {
 } from '../types';
 import { CustomerDBService } from 'src/modules/internal/customer/services/customer-db.service';
 import { PrismaService } from 'prisma/prisma.service';
+import {
+  resolveVoucherMerchantId,
+  resolveVoucherMerchantName,
+} from 'src/modules/internal/voucher/utils/resolve-voucher-merchant.util';
 
 @Injectable()
 export class GetAllTransactionsByCustomerPhone {
@@ -134,6 +138,13 @@ export class GetAllTransactionsByCustomerPhone {
             };
           };
 
+          const resolvedVoucherMerchantId = resolveVoucherMerchantId(
+            voucherCode?.voucher as any,
+          );
+          const resolvedVoucherMerchantName = resolveVoucherMerchantName(
+            voucherCode?.voucher as any,
+          );
+
           // Determine direction from customer's perspective
           const transactionDirection =
             rest.senderId === customer.id ? 'SENT' : 'RECEIVED';
@@ -151,8 +162,8 @@ export class GetAllTransactionsByCustomerPhone {
             senderType: (rest as any).senderType || null,
             receiverType: (rest as any).receiverType || null,
             merchant: {
-              id: rest.merchantId,
-              name: merchant?.name || null,
+              id: rest.merchantId || resolvedVoucherMerchantId,
+              name: merchant?.name || resolvedVoucherMerchantName || null,
               imageUrl: merchant?.imageUrl || null,
             },
             point: formatPointInfo(

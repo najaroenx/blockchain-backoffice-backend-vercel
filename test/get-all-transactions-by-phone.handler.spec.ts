@@ -110,4 +110,40 @@ describe('GetAllTransactionsByCustomerPhone', () => {
     const result = await handler.execute('081');
     expect(result.transactions[0].sender.displayName).toBe('0812345678');
   });
+
+  it('falls back to voucher seller merchant info when transaction merchant is null', async () => {
+    const date = new Date('2024-06-01');
+    customerDb.getCustomerByPhoneDetailed.mockResolvedValue({ id: 'c1' });
+    db.getAllTransactionsByCustomerId.mockResolvedValue([
+      {
+        ...makeTx('VOUCHER', date),
+        merchantId: null,
+        merchant: null,
+        voucherCode: {
+          currency: 'THB',
+          voucher: {
+            id: 'v1',
+            sellerMerchantId: 'seller-1',
+            merchantId: null,
+            merchantName: 'Seller One',
+            tokenId: 't1',
+            name: 'V',
+            description: null,
+            valueType: 'FIXED',
+            value: 100,
+            currency: 'THB',
+            imageUrl: null,
+            startDate: null,
+            endDate: null,
+          },
+        },
+      },
+    ]);
+    prisma.customer.findUnique.mockResolvedValue({ tel: '081' });
+
+    const result = await handler.execute('081');
+
+    expect(result.transactions[0].merchant.id).toBe('seller-1');
+    expect(result.transactions[0].merchant.name).toBe('Seller One');
+  });
 });

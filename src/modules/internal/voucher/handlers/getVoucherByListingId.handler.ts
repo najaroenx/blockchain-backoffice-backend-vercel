@@ -8,6 +8,10 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { GetVoucherByListingResponseDto } from '../dtos/get-voucher-by-listing.dto';
 import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
+import {
+  resolveVoucherMerchantId,
+  resolveVoucherMerchantName,
+} from '../utils/resolve-voucher-merchant.util';
 
 @Injectable()
 export class GetVoucherByListingId {
@@ -126,6 +130,24 @@ export class GetVoucherByListingId {
         ? await this.merchantRefEnrichment.enrich(merchantRef)
         : null;
 
+      let resolvedMerchant = voucherCodes.voucher.merchant;
+      const resolvedMerchantId = resolveVoucherMerchantId(voucherCodes.voucher);
+
+      if (!resolvedMerchant && resolvedMerchantId) {
+        resolvedMerchant = await this.prisma.merchant.findUnique({
+          where: { id: resolvedMerchantId },
+          select: {
+            id: true,
+            name: true,
+            wallet: {
+              select: {
+                walletAddress: true,
+              },
+            },
+          },
+        });
+      }
+
       // Build structured response (same pattern as other handlers)
       const { voucher, point, ...codeFields } = voucherCodes;
 
@@ -137,8 +159,8 @@ export class GetVoucherByListingId {
           name: voucher.name,
           description: voucher.description,
           status: voucher.status,
-          merchantName: voucher.merchantName,
-          merchantId: voucher.merchantId,
+          merchantName: resolveVoucherMerchantName(voucher),
+          merchantId: resolvedMerchantId,
           merchantRef: voucher.merchantRef,
           sellerMerchantId: voucher.sellerMerchantId,
           valueType: voucher.valueType,
@@ -154,7 +176,7 @@ export class GetVoucherByListingId {
           limitPerMember: voucher.limitPerMember,
           createdAt: voucher.createdAt,
           updatedAt: voucher.updatedAt,
-          merchant: voucher.merchant,
+          merchant: resolvedMerchant,
           merchantRefDetail: merchantRefDetail || null,
         },
         point: point || null,

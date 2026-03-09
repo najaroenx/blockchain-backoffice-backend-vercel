@@ -13,6 +13,10 @@ import { AssetType, ParticipantType } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
+import {
+  resolveVoucherMerchantId,
+  resolveVoucherMerchantName,
+} from '../utils/resolve-voucher-merchant.util';
 
 @Injectable()
 export class BuyCouponFromMarketplace {
@@ -155,6 +159,7 @@ export class BuyCouponFromMarketplace {
             value: true,
             currency: true,
             merchantId: true,
+            sellerMerchantId: true,
             merchantRef: true,
             merchant: {
               select: {
@@ -337,12 +342,12 @@ export class BuyCouponFromMarketplace {
   private resolveSellerMerchantId(voucherCode: {
     currentOwnerType: string;
     currentOwnerId: string;
-    voucher: { merchantId: string };
+    voucher: { merchantId?: string | null; sellerMerchantId?: string | null };
   }): string {
     const sellerMerchantId =
       voucherCode.currentOwnerType === 'MERCHANT' && voucherCode.currentOwnerId
         ? voucherCode.currentOwnerId
-        : voucherCode.voucher.merchantId;
+        : resolveVoucherMerchantId(voucherCode.voucher);
 
     if (!sellerMerchantId) {
       throw new BadRequestException('Cannot determine voucher owner');
@@ -451,6 +456,7 @@ export class BuyCouponFromMarketplace {
     );
 
     const transactionRefId = randomUUID();
+    const voucherMerchantId = resolveVoucherMerchantId(voucherCode.voucher);
 
     const [, , purchaseTransaction, transferTransaction] =
       await this.prisma.$transaction([
@@ -476,10 +482,10 @@ export class BuyCouponFromMarketplace {
             receiverAddress: merchantAddressBuffer,
             amount: voucherCode.pointsCost,
             pointId: voucherCode.pointId,
-            merchantId: voucherCode.voucher.merchantId,
+            merchantId: voucherMerchantId,
             merchantRef: voucherCode.voucher.merchantRef || null,
             senderId: customerId,
-            receiverId: voucherCode.voucher.merchantId,
+            receiverId: voucherMerchantId,
             voucherCodeId: voucherCode.id,
             transactionTypeId: TransactionTypeId.TRANSFER,
             type: AssetType.POINT,
@@ -496,9 +502,9 @@ export class BuyCouponFromMarketplace {
             receiverAddress: customerAddressBuffer,
             amount: 1,
             pointId: voucherCode.pointId,
-            merchantId: voucherCode.voucher.merchantId,
+            merchantId: voucherMerchantId,
             merchantRef: voucherCode.voucher.merchantRef || null,
-            senderId: voucherCode.voucher.merchantId,
+            senderId: voucherMerchantId,
             receiverId: customerId,
             voucherCodeId: voucherCode.id,
             transactionTypeId: TransactionTypeId.TRANSFER,
@@ -585,7 +591,7 @@ export class BuyCouponFromMarketplace {
         description: voucher.description,
         valueType: voucher.valueType,
         value: voucher.value,
-        merchantName: voucher.merchant?.name || '',
+        merchantName: resolveVoucherMerchantName(voucher) || '',
         startDate: voucher.startDate,
         endDate: voucher.endDate,
       },

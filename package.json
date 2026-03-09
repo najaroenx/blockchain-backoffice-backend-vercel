@@ -37,6 +37,7 @@
     "test:e2e": "jest --config test/jest-e2e.json",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "seed": "tsc prisma/seed.ts --outDir dist/prisma && node dist/prisma/seed.js",
+    "migrate:voucher:merchant-ref:moomuekkung": "ts-node scripts/migrate-voucher-merchant-ref-moomuekkung.ts",
     "pre-commit": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "prepare": "husky install",
     "db:reset": "prisma migrate reset --force && prisma generate && prisma studio"

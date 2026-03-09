@@ -97,4 +97,39 @@ describe('GetVoucherTransactionsByCustomerPhone', () => {
       InternalServerErrorException,
     );
   });
+
+  it('falls back to voucher seller merchant info when transaction merchant is null', async () => {
+    customerDb.getCustomerByPhoneDetailed.mockResolvedValue({ id: 'c1' });
+    db.getAllTransactionsByCustomerId.mockResolvedValue([
+      {
+        ...makeTx('VOUCHER'),
+        merchantId: null,
+        receiverId: null,
+        merchant: null,
+        voucherCode: {
+          currency: 'THB',
+          voucher: {
+            id: 'v1',
+            sellerMerchantId: 'seller-1',
+            merchantId: null,
+            merchantName: 'Seller One',
+            tokenId: 't1',
+            name: 'Voucher',
+            description: 'desc',
+            valueType: 'FIXED',
+            value: 100,
+            currency: 'THB',
+            imageUrl: null,
+            startDate: null,
+            endDate: null,
+          },
+        },
+      },
+    ]);
+
+    const result = await handler.execute(null, '081');
+
+    expect(result.transactions[0].merchant.id).toBe('seller-1');
+    expect(result.transactions[0].merchant.name).toBe('Seller One');
+  });
 });

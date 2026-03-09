@@ -9,11 +9,13 @@ import {
 import { GetVoucherByListingId } from 'src/modules/internal/voucher/handlers/getVoucherByListingId.handler';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
+import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 
 describe('GetVoucherByListingId', () => {
   let handler: GetVoucherByListingId;
   let blockchainService: any;
   let prisma: any;
+  let merchantRefEnrichment: any;
 
   beforeEach(() => {
     blockchainService = { getMarketplaceListing: jest.fn() };
@@ -22,10 +24,15 @@ describe('GetVoucherByListingId', () => {
         findFirst: jest.fn(),
         count: jest.fn(),
       },
+      merchant: {
+        findUnique: jest.fn(),
+      },
     };
+    merchantRefEnrichment = { enrich: jest.fn().mockResolvedValue(null) };
     handler = new GetVoucherByListingId(
       blockchainService as unknown as BlockchainService,
       prisma as unknown as PrismaService,
+      merchantRefEnrichment as unknown as MerchantRefEnrichmentService,
     );
   });
 
@@ -104,6 +111,57 @@ describe('GetVoucherByListingId', () => {
 
     await expect(handler.execute('listing1')).rejects.toThrow(
       InternalServerErrorException,
+    );
+  });
+
+  it('should fallback to seller merchant when voucher merchantId is null', async () => {
+    blockchainService.getMarketplaceListing.mockResolvedValue({
+      isActive: true,
+      seller: '0x1',
+      typeId: 1,
+    });
+
+    prisma.voucherCode.findFirst.mockResolvedValue({
+      voucherId: 'v1',
+      voucherGroupId: 'listing1',
+      voucher: {
+        id: 'v1',
+        name: 'Test Voucher',
+        merchantId: null,
+        sellerMerchantId: 'seller-1',
+        merchantName: 'Seller One',
+        merchantRef: null,
+        tokenId: '1',
+        description: 'Desc',
+        status: 'active',
+        valueType: 'cash',
+        value: 100,
+        thbPurchasePrice: null,
+        currency: 'THB',
+        startDate: null,
+        endDate: null,
+        totalIssued: 1,
+        imageUrl: null,
+        limitPerMember: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        merchant: null,
+      },
+      point: { id: 'p1', name: 'Point', symbol: 'PT' },
+    });
+    prisma.voucherCode.count.mockResolvedValue(1);
+    prisma.merchant.findUnique.mockResolvedValue({
+      id: 'seller-1',
+      name: 'Seller One',
+      wallet: { walletAddress: '0xabc' },
+    });
+
+    const result = await handler.execute('listing1');
+
+    expect((result as any).voucher.merchantId).toBe('seller-1');
+    expect((result as any).voucher.merchantName).toBe('Seller One');
+    expect((result as any).voucher.merchant).toEqual(
+      expect.objectContaining({ id: 'seller-1', name: 'Seller One' }),
     );
   });
 });

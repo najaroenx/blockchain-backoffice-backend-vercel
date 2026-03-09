@@ -15,6 +15,7 @@ import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 import { AisTransferService } from 'src/providers/ais-transfer/ais-transfer.service';
 import { nanoid } from 'nanoid';
+import { resolveVoucherMerchantId } from '../utils/resolve-voucher-merchant.util';
 
 type RedeemValidationOptions = {
   requirePointId?: boolean;
@@ -192,6 +193,7 @@ export class RedeemVoucher {
             currency: true,
             totalRedeemed: true,
             merchantId: true,
+            sellerMerchantId: true,
             merchantName: true,
             merchant: {
               select: {
@@ -428,7 +430,7 @@ export class RedeemVoucher {
     }
 
     if (!merchantId) {
-      merchantId = voucher.merchantId || voucher.merchant?.id || null;
+      merchantId = resolveVoucherMerchantId(voucher);
     }
 
     if (!merchantId) {

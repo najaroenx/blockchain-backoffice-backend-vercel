@@ -371,4 +371,86 @@ describe('BuyCouponFromMarketplace', () => {
     expect(result.success).toBe(true);
     expect(mockPrisma.listingBatch.update).toHaveBeenCalled();
   });
+
+  it('should use sellerMerchantId for marketplace transactions when merchantId is null', async () => {
+    mockPrisma.customer.findFirst.mockResolvedValue({
+      id: 'c1',
+      walletId: 'w1',
+    });
+    mockPrisma.voucherCode.findFirst.mockResolvedValue({
+      id: 'vc1',
+      code: 'SELLER-CODE',
+      pointId: 'p1',
+      isUsed: false,
+      voucherGroupId: '123',
+      pointsCost: 50,
+      currency: 'PTS',
+      listingBatchId: null,
+      currentOwnerType: null,
+      currentOwnerId: null,
+      point: {
+        id: 'p1',
+        name: 'P',
+        symbol: 'PTS',
+        contractAddress: Buffer.from('ab', 'hex'),
+        imageUrl: null,
+      },
+      voucher: {
+        id: 'v1',
+        endDate: null,
+        startDate: null,
+        merchantId: null,
+        sellerMerchantId: 'seller-merchant-1',
+        merchantRef: null,
+        name: 'Seller Voucher',
+        description: '',
+        valueType: 'fixed',
+        value: 100,
+        merchantName: 'Seller Merchant',
+        merchant: null,
+      },
+    });
+    mockPrisma.customerPoint.findFirst.mockResolvedValue({
+      id: 'cp1',
+      balances: 200,
+    });
+    mockPrisma.wallet.findUnique.mockResolvedValue({
+      walletAddress: '0xcustomer',
+      seedPhrase: 'enc',
+      derivationIndex: 0,
+    });
+    mockBlockchain.getMarketplaceListing.mockResolvedValue({
+      isActive: true,
+      paymentToken: '0xab',
+    });
+    mockBlockchain.buyCoupon.mockResolvedValue({
+      hash: '0xhash',
+      blockNumber: 10,
+    });
+    mockPrisma.wallet.findFirst.mockResolvedValue({
+      walletAddress: '0xmerchant',
+    });
+    mockPrisma.$transaction.mockImplementation(async (ops) => Promise.all(ops));
+
+    await handler.execute('g1', 'p1', '0812345678');
+
+    expect(mockPrisma.transaction.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          merchantId: 'seller-merchant-1',
+          receiverId: 'seller-merchant-1',
+        }),
+      }),
+    );
+    expect(mockPrisma.transaction.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          merchantId: 'seller-merchant-1',
+          senderId: 'seller-merchant-1',
+        }),
+      }),
+    );
+  });
 });

@@ -214,16 +214,17 @@ export class GetCustomerOwnedVouchers {
         v."startDate" AS "voucherStartDate",
         v."endDate" AS "voucherEndDate",
         v."merchantRef" AS "voucherMerchantRef",
-        COALESCE(v."merchantId", mrs.id) AS "voucherMerchantId",
-        COALESCE(m.name, mrs.name, v."merchantName") AS "voucherMerchantName",
+        COALESCE(v."merchantId", v."sellerMerchantId", mrs.id) AS "voucherMerchantId",
+        COALESCE(m.name, sm.name, mrs.name, v."merchantName") AS "voucherMerchantName",
         v."tokenId" AS "voucherTokenId",
-        COALESCE(m."imageUrl", mrs."imageUrl") AS "merchantImageUrl",
-        m.name AS "merchantDbName",
+        COALESCE(m."imageUrl", sm."imageUrl", mrs."imageUrl") AS "merchantImageUrl",
+        COALESCE(m.name, sm.name) AS "merchantDbName",
         t.id AS "txId",
         t."transactionTypeId" AS "txTransactionTypeId"
       FROM "VoucherCode" vc
       JOIN "Voucher" v ON vc."voucherId" = v.id
       LEFT JOIN "Merchant" m ON v."merchantId" = m.id
+      LEFT JOIN "Merchant" sm ON v."sellerMerchantId" = sm.id
       LEFT JOIN "MerchantRefStore" mrs ON v."merchantRef" = mrs."merchantRef"
       LEFT JOIN LATERAL (
         SELECT t2.id, t2."transactionTypeId"
@@ -279,13 +280,14 @@ export class GetCustomerOwnedVouchers {
         v."startDate" AS "voucherStartDate",
         v."endDate" AS "voucherEndDate",
         v."merchantRef" AS "voucherMerchantRef",
-        COALESCE(v."merchantId", mrs.id) AS "voucherMerchantId",
-        COALESCE(m.name, mrs.name, v."merchantName") AS "voucherMerchantName",
-        COALESCE(m."imageUrl", mrs."imageUrl") AS "merchantImageUrl",
+        COALESCE(v."merchantId", v."sellerMerchantId", mrs.id) AS "voucherMerchantId",
+        COALESCE(m.name, sm.name, mrs.name, v."merchantName") AS "voucherMerchantName",
+        COALESCE(m."imageUrl", sm."imageUrl", mrs."imageUrl") AS "merchantImageUrl",
         sample_vc."pointsCost" AS "samplePointsCost",
         sample_vc.currency AS "sampleCurrency"
       FROM "Voucher" v
       LEFT JOIN "Merchant" m ON v."merchantId" = m.id
+      LEFT JOIN "Merchant" sm ON v."sellerMerchantId" = sm.id
       LEFT JOIN "MerchantRefStore" mrs ON v."merchantRef" = mrs."merchantRef"
       LEFT JOIN LATERAL (
         SELECT vc2."pointsCost", vc2.currency

@@ -14,6 +14,10 @@ import {
   TransactionVoucherInfo,
 } from '../types';
 import { CustomerDBService } from 'src/modules/internal/customer/services/customer-db.service';
+import {
+  resolveVoucherMerchantId,
+  resolveVoucherMerchantName,
+} from 'src/modules/internal/voucher/utils/resolve-voucher-merchant.util';
 
 @Injectable()
 export class GetVoucherTransactionsByCustomerPhone {
@@ -128,6 +132,13 @@ export class GetVoucherTransactionsByCustomerPhone {
           };
         };
 
+        const resolvedVoucherMerchantId = resolveVoucherMerchantId(
+          voucherCode?.voucher as any,
+        );
+        const resolvedVoucherMerchantName = resolveVoucherMerchantName(
+          voucherCode?.voucher as any,
+        );
+
         return {
           id: rest.id,
           txHash: convertBufferToAddress(rest.txHash),
@@ -139,8 +150,8 @@ export class GetVoucherTransactionsByCustomerPhone {
           senderId: rest.senderId || null,
           receiverId: rest.receiverId || null,
           merchant: {
-            id: rest.merchantId,
-            name: merchant?.name || null,
+            id: rest.merchantId || resolvedVoucherMerchantId,
+            name: merchant?.name || resolvedVoucherMerchantName || null,
             imageUrl: merchant?.imageUrl || null,
           },
           point: formatPointInfo(

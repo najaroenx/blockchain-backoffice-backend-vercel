@@ -5,7 +5,6 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
-// Use string literal for 'expired' status until Prisma types are regenerated after migration
 const EXPIRED_STATUS = 'expired' as const;
 
 // Raw SQL result types
@@ -306,13 +305,17 @@ export class GetMarketplaceListings {
       );
       return true;
     }
-    if ((detail.voucherStatus as string) === EXPIRED_STATUS) {
+    if (this.normalizeVoucherStatus(detail.voucherStatus) === EXPIRED_STATUS) {
       this.logger.log(
         `[GetMarketplaceListings] 🚫 Filtered expired status voucher: voucherId=${detail.voucherId}`,
       );
       return true;
     }
     return false;
+  }
+
+  private normalizeVoucherStatus(status: string | null | undefined): string {
+    return status?.toLowerCase() ?? '';
   }
 
   /** Check if listing matches the requested merchantId filter */

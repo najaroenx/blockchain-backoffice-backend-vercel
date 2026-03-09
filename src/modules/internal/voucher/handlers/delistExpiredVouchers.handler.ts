@@ -5,8 +5,9 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
-// Use string literal for 'expired' status until Prisma types are regenerated after migration
-const EXPIRED_STATUS = 'expired' as const;
+type VoucherStatusEnumRow = {
+  enumlabel: string;
+};
 
 @Injectable()
 export class DelistExpiredVouchers {
@@ -27,13 +28,17 @@ export class DelistExpiredVouchers {
   }> {
     this.logger.log('[DelistExpiredVouchers] Starting cron job...');
     const now = new Date();
+    const expiredStatus = await this.resolveExpiredStatusLiteral();
     const errors: string[] = [];
     let processed = 0;
     let delisted = 0;
     let failed = 0;
 
     try {
-      const expiredListedCodes = await this.findExpiredListedCodes(now);
+      const expiredListedCodes = await this.findExpiredListedCodes(
+        now,
+        expiredStatus,
+      );
 
       this.logger.log(
         `[DelistExpiredVouchers] Found ${expiredListedCodes.length} unique expired listings`,
@@ -59,7 +64,7 @@ export class DelistExpiredVouchers {
         }
       }
 
-      await this.markVouchersExpired(voucherIdsToExpire, now);
+      await this.markVouchersExpired(voucherIdsToExpire, now, expiredStatus);
 
       this.logger.log(
         `[DelistExpiredVouchers] Completed. Processed: ${processed}, Delisted: ${delisted}, Failed: ${failed}`,
@@ -75,14 +80,35 @@ export class DelistExpiredVouchers {
     }
   }
 
+  private async resolveExpiredStatusLiteral(): Promise<string> {
+    const voucherStatusValues = await this.prisma.$queryRaw<
+      VoucherStatusEnumRow[]
+    >`
+      SELECT e.enumlabel
+      FROM pg_enum e
+      JOIN pg_type t ON t.oid = e.enumtypid
+      WHERE t.typname = 'VoucherStatus'
+    `;
+
+    const expiredStatus = voucherStatusValues.find(
+      ({ enumlabel }) => enumlabel.toLowerCase() === 'expired',
+    )?.enumlabel;
+
+    if (!expiredStatus) {
+      throw new Error('VoucherStatus enum is missing an expired value');
+    }
+
+    return expiredStatus;
+  }
+
   /** Find all voucher codes with active listings whose vouchers have expired */
-  private async findExpiredListedCodes(now: Date) {
+  private async findExpiredListedCodes(now: Date, expiredStatus: string) {
     return this.prisma.voucherCode.findMany({
       where: {
         voucherGroupId: { not: null },
         voucher: {
           endDate: { lt: now },
-          status: { not: EXPIRED_STATUS as any },
+          status: { not: expiredStatus as any },
         },
       },
       include: {
@@ -226,24 +252,25 @@ export class DelistExpiredVouchers {
   private async markVouchersExpired(
     voucherIdsToExpire: Set<string>,
     now: Date,
+    expiredStatus: string,
   ) {
     if (voucherIdsToExpire.size > 0) {
       const voucherIds = Array.from(voucherIdsToExpire);
       await this.prisma.voucher.updateMany({
         where: { id: { in: voucherIds } },
-        data: { status: EXPIRED_STATUS as any },
+        data: { status: expiredStatus as any },
       });
       this.logger.log(
-        `[DelistExpiredVouchers] Updated ${voucherIds.length} vouchers to 'expired' status`,
+        `[DelistExpiredVouchers] Updated ${voucherIds.length} vouchers to '${expiredStatus}' status`,
       );
     }
 
     const expiredNoListingVouchers = await this.prisma.voucher.updateMany({
       where: {
         endDate: { lt: now },
-        status: { not: EXPIRED_STATUS as any },
+        status: { not: expiredStatus as any },
       },
-      data: { status: EXPIRED_STATUS as any },
+      data: { status: expiredStatus as any },
     });
 
     if (expiredNoListingVouchers.count > 0) {

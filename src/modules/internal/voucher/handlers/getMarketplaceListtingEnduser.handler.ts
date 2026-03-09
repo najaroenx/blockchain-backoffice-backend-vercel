@@ -6,7 +6,6 @@ import { PrismaService } from 'prisma/prisma.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 
-// Use string literal for 'expired' status until Prisma types are regenerated after migration
 const EXPIRED_STATUS = 'expired' as const;
 
 // Raw SQL result types (shared with getMarketplaceListings.handler.ts)
@@ -318,7 +317,11 @@ export class GetMarketplaceListingsEndUser {
     if (detail.voucherEndDate && new Date(detail.voucherEndDate) < now) {
       return true;
     }
-    return (detail.voucherStatus as string) === EXPIRED_STATUS;
+    return this.normalizeVoucherStatus(detail.voucherStatus) === EXPIRED_STATUS;
+  }
+
+  private normalizeVoucherStatus(status: string | null | undefined): string {
+    return status?.toLowerCase() ?? '';
   }
 
   /** Check if listing matches the requested merchantId filter */

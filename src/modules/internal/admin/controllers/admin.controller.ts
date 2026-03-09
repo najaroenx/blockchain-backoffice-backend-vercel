@@ -1,4 +1,29 @@
-import { Controller, Post, Body, Logger } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Logger,
+  Post,
+  Query,
+  Res,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBasicAuth,
+  ApiOperation,
+  ApiProduces,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { Response } from 'express';
+import { Public } from 'src/modules/internal/auth/public.decorator';
+import { ExportAisLogQueryDto } from '../dtos/export-ais-log-query.dto';
+import { AdminOnlyGuard } from '../guards/admin-only.guard';
+import { ExportAisLog } from '../handlers/export-ais-log.handler';
 import { MintTHBToMerchant } from '../handlers/mintTHBToMerchant.handler';
 
 /**
@@ -20,11 +45,15 @@ import { MintTHBToMerchant } from '../handlers/mintTHBToMerchant.handler';
  * - Must be disabled or heavily restricted in production
  * - Consider using API keys or admin-only authentication
  */
+@ApiTags('Admin')
 @Controller('admin')
 export class AdminController {
   private readonly logger = new Logger(AdminController.name);
 
-  constructor(private mintTHBToMerchantHandler: MintTHBToMerchant) {}
+  constructor(
+    private readonly mintTHBToMerchantHandler: MintTHBToMerchant,
+    private readonly exportAisLogHandler: ExportAisLog,
+  ) {}
 
   /**
    * PHASE 1: Mint THB tokens to merchant wallet
@@ -54,5 +83,77 @@ export class AdminController {
     );
 
     return this.mintTHBToMerchantHandler.execute(merchantId, amount);
+  }
+
+  @Get('export-ais-log')
+  @Public()
+  @UseGuards(AdminOnlyGuard)
+  @HttpCode(200)
+  @ApiBasicAuth()
+  @ApiOperation({
+    summary: 'Export AIS transfer log',
+    description:
+      'ส่งออก AIS transfer log ตามช่วงวันที่ในรูปแบบไฟล์ Excel (.xlsx)',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: true,
+    description: 'วันเริ่มต้นของข้อมูลในรูปแบบ YYYY-MM-DD',
+    example: '2026-03-01',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description:
+      'วันสิ้นสุดของข้อมูลในรูปแบบ YYYY-MM-DD ถ้าไม่ส่งมาจะใช้เวลาปัจจุบัน',
+    example: '2026-03-09',
+  })
+  @ApiProduces(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  @ApiResponse({
+    status: 200,
+    description: 'ส่งออกไฟล์ AIS transfer log สำเร็จ',
+    schema: {
+      type: 'string',
+      format: 'binary',
+    },
+    headers: {
+      'Content-Disposition': {
+        description: 'ชื่อไฟล์ที่ดาวน์โหลด',
+        schema: {
+          type: 'string',
+          example:
+            'attachment; filename="ais-transfer-log-2026-03-01-to-2026-03-09.xlsx"',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'ข้อมูลวันที่ไม่ถูกต้อง เช่น รูปแบบไม่ใช่ YYYY-MM-DD หรือ startDate มากกว่า endDate',
+  })
+  @ApiUnauthorizedResponse({
+    description:
+      'ต้องส่ง Basic auth ด้วย admin username หรือ email และ password ที่ตั้งไว้ใน config',
+  })
+  async exportAisLog(
+    @Query() query: ExportAisLogQueryDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const { fileBuffer, fileName } =
+      await this.exportAisLogHandler.execute(query);
+
+    response.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fileName}"`,
+    );
+
+    return new StreamableFile(fileBuffer);
   }
 }

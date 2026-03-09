@@ -289,7 +289,11 @@ export class GetMarketplaceListingsByMerchantRef {
     if (detail.voucherEndDate && new Date(detail.voucherEndDate) < now) {
       return true;
     }
-    return (detail.voucherStatus as string) === EXPIRED_STATUS;
+    return this.normalizeVoucherStatus(detail.voucherStatus) === EXPIRED_STATUS;
+  }
+
+  private normalizeVoucherStatus(status: string | null | undefined): string {
+    return status?.toLowerCase() ?? '';
   }
 
   /** Resolve seller wallet address and actual merchant from detail + code owner map */

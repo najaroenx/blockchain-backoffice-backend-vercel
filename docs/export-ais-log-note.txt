@@ -1,0 +1,23 @@
+Notes
+
+[Recommended]
+เขียนรายละเอียดงานในรูปแบบสั้น กระชับ และแยกเป็นหัวข้อเพื่อให้ทีมสามารถหยิบไปใช้งานต่อใน ApiDog, Swagger และการทดสอบจริงได้ทันที
+
+[Objective / Context]
+- จัดทำเอกสารและ spec สำหรับ API Export AIS Log เพื่อให้ทีมสามารถนำ endpoint นี้ไปใช้งานต่อใน ApiDog ได้สะดวก
+- ระบุรายละเอียดของ query parameters และ response แบบไฟล์ Excel ให้ชัดเจนในเอกสาร API
+
+[Technical Details / Spec]
+- Endpoint: GET /admin/export-ais-log
+- Query Params: รองรับ `startDate` แบบ required และ `endDate` แบบ optional โดยทั้งสองค่าต้องอยู่ในรูปแบบ YYYY-MM-DD
+- Response Format: เมื่อสำเร็จจะส่งกลับไฟล์ Excel ประเภท application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+- Validation: ตรวจสอบรูปแบบวันที่ และตรวจสอบว่า `startDate` ต้องไม่มากกว่า `endDate`
+- Documentation Update: เพิ่ม Swagger decorators ใน `admin.controller.ts` และสร้างไฟล์ OpenAPI ที่ `docs/apidog/admin-export-ais-log-api.json` สำหรับ import เข้า ApiDog
+
+[Definition of Done (DoD)]
+- [x] เพิ่ม Swagger/OpenAPI metadata ให้ endpoint export-ais-log เสร็จ
+- [x] สร้างไฟล์ OpenAPI JSON สำหรับ import เข้า ApiDog เสร็จ
+- [x] ตรวจสอบ syntax/error ของไฟล์ controller ที่แก้แล้ว
+- [ ] ทดสอบ import spec เข้า ApiDog และตรวจสอบ field ครบถ้วน
+- [ ] ทดสอบเรียก API เพื่อดาวน์โหลดไฟล์ Excel ด้วย query parameters จริง
+- [ ] อัปเดต documentation ชุดกลางของทีม หากต้องรวม endpoint นี้ใน collection หลัก

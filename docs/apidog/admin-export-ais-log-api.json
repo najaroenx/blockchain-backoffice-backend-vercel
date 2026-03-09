@@ -1,0 +1,180 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin Export AIS Log API",
+    "version": "1.0.0",
+    "description": "Admin API for exporting AIS transfer logs as an Excel file"
+  },
+  "servers": [
+    {
+      "url": "https://your-api-domain.com",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/admin/export-ais-log": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Export AIS transfer log",
+        "description": "Exports AIS transfer logs for the requested date range as an Excel (.xlsx) file",
+        "operationId": "exportAisLog",
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "description": "Start date in YYYY-MM-DD format",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-03-01"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "End date in YYYY-MM-DD format. If omitted, the current time is used",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-03-09"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Excel file generated successfully",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Attachment header containing the generated file name",
+                "schema": {
+                  "type": "string",
+                  "example": "attachment; filename=\"ais-transfer-log-2026-03-01-to-2026-03-09.xlsx\""
+                }
+              }
+            },
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid date range or invalid date format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                },
+                "examples": {
+                  "invalidFormat": {
+                    "summary": "Invalid format",
+                    "value": {
+                      "statusCode": 400,
+                      "message": [
+                        "startDate must be in YYYY-MM-DD format"
+                      ],
+                      "error": "Bad Request"
+                    }
+                  },
+                  "invalidRange": {
+                    "summary": "Invalid date range",
+                    "value": {
+                      "statusCode": 400,
+                      "message": "startDate must be before or equal to endDate",
+                      "error": "Bad Request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid admin Basic authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedResponse"
+                },
+                "examples": {
+                  "invalidCredentials": {
+                    "summary": "Invalid admin credentials",
+                    "value": {
+                      "statusCode": 401,
+                      "message": "Invalid admin credentials",
+                      "error": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BasicAuth": {
+        "type": "http",
+        "scheme": "basic"
+      }
+    },
+    "schemas": {
+      "BadRequestResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "example": 400
+          },
+          "message": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "error": {
+            "type": "string",
+            "example": "Bad Request"
+          }
+        },
+        "required": ["statusCode", "message", "error"]
+      },
+      "UnauthorizedResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "example": 401
+          },
+          "message": {
+            "type": "string",
+            "example": "Invalid admin credentials"
+          },
+          "error": {
+            "type": "string",
+            "example": "Unauthorized"
+          }
+        },
+        "required": ["statusCode", "message", "error"]
+      }
+    }
+  }
+}

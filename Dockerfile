@@ -1,7 +1,7 @@
 # Stage 1: Build the NestJS app
-FROM node:20-alpine AS builder
+FROM node:20-alpine3.22 AS builder
 
-RUN apk update && apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
@@ -18,9 +18,9 @@ RUN npx prisma generate
 RUN yarn run build
 
 # Stage 2: Production image
-FROM node:20-alpine
+FROM node:20-alpine3.22
 
-RUN apk update && apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S merchant-backoffice -u 1001

@@ -18,7 +18,10 @@ export function resolveVoucherMerchantId(
   }
 
   return (
-    voucher.merchantId || voucher.sellerMerchantId || voucher.merchant?.id || null
+    voucher.merchantId ||
+    voucher.sellerMerchantId ||
+    voucher.merchant?.id ||
+    null
   );
 }
 

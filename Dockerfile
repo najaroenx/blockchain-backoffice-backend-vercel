@@ -17,6 +17,10 @@ RUN npx prisma generate
 # Build NestJS app
 RUN yarn run build
 
+# Compile standalone TS scripts to JS for runtime execution
+RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/migrate-voucher-merchant-ref-moomuekkung.ts --outDir dist/scripts
+RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
+
 # Stage 2: Production image
 FROM node:20-alpine3.22
 
@@ -27,14 +31,10 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
-ENV RUN_TARGETED_VOUCHER_MIGRATION=true
-
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=merchant-backoffice:nodejs /app/scripts ./scripts
-COPY --from=builder --chown=merchant-backoffice:nodejs /app/tsconfig*.json ./
 
 USER merchant-backoffice
 
@@ -48,7 +48,7 @@ EXPOSE 4000
 # PROD MODE (migrate + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    if [ \"$RUN_TARGETED_VOUCHER_MIGRATION\" = \"true\" ]; then yarn run migrate:voucher:merchant-ref:moomuekkung; fi && \
-    npx prisma db seed && \
+    node dist/scripts/migrate-voucher-merchant-ref-moomuekkung.js && \
+    node dist/prisma/seed.js && \
     node dist/src/main \
 "]

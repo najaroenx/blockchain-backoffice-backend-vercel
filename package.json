@@ -17,10 +17,6 @@
     "minimatch": ">=10.2.1",
     "test-exclude": "^7.0.1"
   },
-  "prisma": {
-    "seed": "node dist/prisma/seed.js",
-    "schema": "prisma/schema.prisma"
-  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -29,7 +25,7 @@
     "start:debug": "nest start --debug --watch",
     "start:product-zone": "node dist/src/main",
     "start:develop-zone": "yarn run seed && node dist/src/main",
-    "start:migrate:product-zone": "prisma migrate deploy && prisma db seed && yarn run start:product-zone",
+    "start:migrate:product-zone": "prisma migrate deploy && yarn run seed && yarn run start:product-zone",
     "start:migrate:develop-zone": "prisma migrate deploy && yarn run start:develop-zone",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest --config jest.config.js",
@@ -37,7 +33,6 @@
     "test:e2e": "jest --config test/jest-e2e.json",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "seed": "tsc prisma/seed.ts --outDir dist/prisma && node dist/prisma/seed.js",
-    "migrate:voucher:merchant-ref:moomuekkung": "ts-node scripts/migrate-voucher-merchant-ref-moomuekkung.ts",
     "pre-commit": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "prepare": "husky install",
     "db:reset": "prisma migrate reset --force && prisma generate && prisma studio"

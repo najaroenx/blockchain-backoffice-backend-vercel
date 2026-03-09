@@ -671,7 +671,9 @@ describe('RedeemVoucher', () => {
         website: null,
         wallet: { walletAddress: '0xmerchant' },
       });
-      mockPrisma.$transaction.mockImplementation(async (ops) => Promise.all(ops));
+      mockPrisma.$transaction.mockImplementation(async (ops) =>
+        Promise.all(ops),
+      );
 
       const result = await handler.executeAIS(
         'CODE1',
@@ -734,7 +736,9 @@ describe('RedeemVoucher', () => {
           },
         },
       });
-      mockPrisma.point.findUnique.mockResolvedValue({ merchantId: 'point-merchant' });
+      mockPrisma.point.findUnique.mockResolvedValue({
+        merchantId: 'point-merchant',
+      });
       mockBlockchain.getUserCouponBalance.mockResolvedValue({ balance: '5' });
       mockBlockchain.redeemVoucher.mockResolvedValue({
         hash: '0xhash123',
@@ -748,7 +752,9 @@ describe('RedeemVoucher', () => {
         website: null,
         wallet: { walletAddress: '0xmerchant' },
       });
-      mockPrisma.$transaction.mockImplementation(async (ops) => Promise.all(ops));
+      mockPrisma.$transaction.mockImplementation(async (ops) =>
+        Promise.all(ops),
+      );
 
       const result = await handler.execute('CODE1', '0812345678', 'ref1');
 

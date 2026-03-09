@@ -181,6 +181,54 @@ describe('CreateVoucherWithCodes', () => {
       expect(prismaService.point.findUnique).not.toHaveBeenCalled();
     });
 
+    it('should persist seller vouchers with sellerMerchantId and null merchantId', async () => {
+      prismaService.point.findUnique.mockResolvedValue(mockPoint);
+      prismaService.wallet = {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce({
+            derivationIndex: 3,
+            phoneNumber: '0812345678',
+          })
+          .mockResolvedValueOnce({
+            walletAddress: '0xseller',
+          }),
+      };
+      prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);
+      blockchainService.createCouponType.mockResolvedValue(
+        mockBlockchainResult,
+      );
+
+      const voucherCreate = jest.fn().mockResolvedValue({
+        ...mockVoucher,
+        merchantId: null,
+        sellerMerchantId: 'seller-merchant-1',
+      });
+
+      prismaService.$transaction.mockImplementation(async (callback: any) => {
+        return await callback({
+          voucher: {
+            create: voucherCreate,
+          },
+        });
+      });
+
+      await handler.execute(createVoucherDto, 'seller-merchant-1');
+
+      expect(prismaService.merchant.findUnique).toHaveBeenCalledWith({
+        where: { id: 'seller-merchant-1' },
+        select: { name: true },
+      });
+      expect(voucherCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            merchantId: null,
+            sellerMerchantId: 'seller-merchant-1',
+          }),
+        }),
+      );
+    });
+
     it('should throw ConflictException when point not found', async () => {
       prismaService.point.findUnique.mockResolvedValue(null);
       prismaService.merchant.findUnique.mockResolvedValue(mockMerchant);

@@ -38,7 +38,9 @@ export class CreateVoucherWithCodes {
       }
 
       const point = await this.validatePoint(data);
-      const merchantName = await this.resolveMerchantName(data.merchantId);
+      const merchantName = await this.resolveMerchantName(
+        merchantId || data.merchantId,
+      );
 
       const result = await this.createVoucherTransaction(
         data,
@@ -178,6 +180,9 @@ export class CreateVoucherWithCodes {
         void _mid;
 
         const couponId = `COUPON-${randomUUID()}`;
+        const isSellerVoucher = Boolean(merchantId);
+        const persistedMerchantId = isSellerVoucher ? null : _mid || null;
+        const persistedSellerMerchantId = isSellerVoucher ? merchantId : null;
 
         this.logger.log(`Creating coupon type on blockchain...`);
         const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
@@ -198,10 +203,10 @@ export class CreateVoucherWithCodes {
           data: {
             id: couponId,
             ...voucherData,
-            merchantId: _mid || null,
+            merchantId: persistedMerchantId,
             merchantName,
             merchantRef,
-            sellerMerchantId: merchantId || null,
+            sellerMerchantId: persistedSellerMerchantId,
             currency: point?.symbol || null,
             startDate: new Date(startDate),
             endDate: new Date(endDate),

@@ -18,15 +18,24 @@ export class GetSellerVouchers {
         `[START] Getting seller vouchers${merchantId ? ` for merchant: ${merchantId}` : ' (all sellers)'}`,
       );
 
-      // Build where clause - seller vouchers have merchantId = null but sellerMerchantId = merchantId
-      const whereClause: any = {
-        merchantId: null, // Seller vouchers have no merchant assigned yet (not purchased by marketer)
-      };
-
-      // If merchantId provided, filter by sellerMerchantId
-      if (merchantId) {
-        whereClause.sellerMerchantId = merchantId;
-      }
+      // Seller vouchers should have merchantId = null and sellerMerchantId set.
+      // Keep a compatibility branch for older records created with merchantId set.
+      const whereClause: any = merchantId
+        ? {
+            OR: [
+              {
+                merchantId: null,
+                sellerMerchantId: merchantId,
+              },
+              {
+                merchantId,
+                sellerMerchantId: null,
+              },
+            ],
+          }
+        : {
+            merchantId: null,
+          };
 
       // Get all seller vouchers (not yet purchased by merchants)
       const vouchers = await this.prisma.voucher.findMany({

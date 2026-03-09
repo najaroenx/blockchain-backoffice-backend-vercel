@@ -34,7 +34,12 @@ describe('GetSellerVouchers', () => {
     const result = await handler.execute('m1');
     expect(prisma.voucher.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { merchantId: null, sellerMerchantId: 'm1' },
+        where: {
+          OR: [
+            { merchantId: null, sellerMerchantId: 'm1' },
+            { merchantId: 'm1', sellerMerchantId: null },
+          ],
+        },
       }),
     );
     expect(result.vouchers[0].stats.availableForSale).toBe(50); // 100 - 30 - 20
@@ -97,5 +102,18 @@ describe('GetSellerVouchers', () => {
   it('rethrows errors', async () => {
     prisma.voucher.findMany.mockRejectedValue(new Error('fail'));
     await expect(handler.execute('m1')).rejects.toThrow('fail');
+  });
+
+  it('keeps all-seller query scoped to unassigned vouchers only', async () => {
+    prisma.voucher.findMany.mockResolvedValue([]);
+    prisma.$queryRaw.mockResolvedValue([]);
+
+    await handler.execute();
+
+    expect(prisma.voucher.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { merchantId: null },
+      }),
+    );
   });
 });

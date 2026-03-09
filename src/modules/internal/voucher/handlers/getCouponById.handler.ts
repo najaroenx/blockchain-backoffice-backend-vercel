@@ -61,7 +61,9 @@ export class GetCouponById {
       }
 
       const merchantRefDetail = voucherCode.voucher?.merchantRef
-        ? await this.merchantRefEnrichment.enrich(voucherCode.voucher.merchantRef)
+        ? await this.merchantRefEnrichment.enrich(
+            voucherCode.voucher.merchantRef,
+          )
         : null;
 
       // Get merchant info if voucher has merchantId

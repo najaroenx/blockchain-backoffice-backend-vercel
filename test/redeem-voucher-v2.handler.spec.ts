@@ -588,7 +588,9 @@ describe('RedeemVoucher', () => {
         website: null,
         wallet: { walletAddress: '0xmerchant' },
       });
-      mockPrisma.$transaction.mockImplementation(async (ops) => Promise.all(ops));
+      mockPrisma.$transaction.mockImplementation(async (ops) =>
+        Promise.all(ops),
+      );
 
       const result = await handler.executeAIS(
         'CODE1',

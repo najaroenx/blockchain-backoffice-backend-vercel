@@ -6,12 +6,16 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
+import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 
 @Injectable()
 export class GetCouponById {
   private logger = new Logger(GetCouponById.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private merchantRefEnrichment: MerchantRefEnrichmentService,
+  ) {}
 
   async execute(couponId: string): Promise<any> {
     try {
@@ -56,6 +60,10 @@ export class GetCouponById {
         throw new NotFoundException(`Coupon with id ${couponId} not found`);
       }
 
+      const merchantRefDetail = voucherCode.voucher?.merchantRef
+        ? await this.merchantRefEnrichment.enrich(voucherCode.voucher.merchantRef)
+        : null;
+
       // Get merchant info if voucher has merchantId
       let merchant = null;
       if (voucherCode.voucher?.merchantId) {
@@ -98,6 +106,7 @@ export class GetCouponById {
               endDate: voucherCode.voucher.endDate,
               tokenId: voucherCode.voucher.tokenId,
               merchantRef: voucherCode.voucher.merchantRef,
+              merchantRefDetail,
               thbPurchasePrice: voucherCode.voucher.thbPurchasePrice,
             }
           : null,

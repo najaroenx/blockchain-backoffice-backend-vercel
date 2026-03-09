@@ -529,20 +529,91 @@ describe('RedeemVoucher', () => {
   });
 
   describe('executeAIS', () => {
-    it('should throw NotFoundException when receiver not found', async () => {
-      mockPrisma.customer.findFirst
-        .mockResolvedValueOnce({ id: 'c1', wallet: {} }) // redeemer found
-        .mockResolvedValueOnce(null); // receiver not found
+    it('should redeem AIS voucher for external receiver without pointId', async () => {
+      mockPrisma.customer.findFirst.mockResolvedValue({
+        id: 'c1',
+        tel: '0812345678',
+        wallet: {
+          walletAddress: '0xabc123',
+          seedPhrase: 'enc-seed',
+          derivationIndex: 0,
+        },
+      });
+      mockPrisma.voucherCode.findUnique
+        .mockResolvedValueOnce({
+          voucher: { valueType: 'aispoint', value: 100 },
+        })
+        .mockResolvedValueOnce({
+          id: 'vc1',
+          code: 'CODE1',
+          isUsed: false,
+          pointId: null,
+          voucherGroupId: 'g1',
+          currentOwnerId: null,
+          currentOwnerType: null,
+          currency: null,
+          voucher: {
+            id: 'v1',
+            tokenId: '1',
+            merchantRef: 'ref1',
+            name: 'AIS Voucher',
+            description: 'AIS Desc',
+            imageUrl: null,
+            status: 'active',
+            endDate: new Date(Date.now() + 86400000),
+            startDate: null,
+            valueType: 'aispoint',
+            value: 100,
+            currency: null,
+            totalRedeemed: 0,
+            merchantId: 'm1',
+            merchantName: 'TestMerchant',
+            merchant: {
+              id: 'm1',
+              name: 'TestMerchant',
+              description: '',
+              imageUrl: null,
+            },
+          },
+        });
+      mockBlockchain.getUserCouponBalance.mockResolvedValue({ balance: '5' });
+      mockBlockchain.redeemVoucher.mockResolvedValue({
+        hash: '0xhash123',
+        blockNumber: 100,
+      });
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        walletId: 'w1',
+        name: 'TestMerchant',
+        imageUrl: null,
+        website: null,
+        wallet: { walletAddress: '0xmerchant' },
+      });
+      mockPrisma.$transaction.mockImplementation(async (ops) => Promise.all(ops));
 
-      await expect(
-        handler.executeAIS('CODE1', '0812345678', 'ref1', '0899999999'),
-      ).rejects.toThrow(NotFoundException);
+      const result = await handler.executeAIS(
+        'CODE1',
+        '0812345678',
+        'ref1',
+        '0899999999',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.transaction.point).toBeNull();
+      expect(result.pointTransfer.receiverPhone).toBe('0899999999');
+      expect(mockAisTransfer.transferIn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msisdn: '0899999999',
+          points: 100,
+        }),
+      );
+      expect(mockPrisma.customer.findFirst).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tel: '0899999999' },
+        }),
+      );
     });
 
     it('should throw BadRequestException when voucher is not aispoint', async () => {
-      mockPrisma.customer.findFirst
-        .mockResolvedValueOnce({ id: 'c1', wallet: {} })
-        .mockResolvedValueOnce({ id: 'c2', wallet: {} });
       mockPrisma.voucherCode.findUnique.mockResolvedValue({
         voucher: { valueType: 'fixed', value: 100 },
       });
@@ -550,6 +621,8 @@ describe('RedeemVoucher', () => {
       await expect(
         handler.executeAIS('CODE1', '0812345678', 'ref1', '0899999999'),
       ).rejects.toThrow(BadRequestException);
+
+      expect(mockPrisma.customer.findFirst).not.toHaveBeenCalled();
     });
   });
 });

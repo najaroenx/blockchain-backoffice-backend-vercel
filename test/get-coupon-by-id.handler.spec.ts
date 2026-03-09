@@ -10,6 +10,7 @@ import { GetCouponById } from 'src/modules/internal/voucher/handlers/getCouponBy
 describe('GetCouponById', () => {
   let handler: GetCouponById;
   let prisma: any;
+  let merchantRefEnrichment: any;
 
   const mockVoucherCode = {
     id: 'vc-1',
@@ -55,7 +56,10 @@ describe('GetCouponById', () => {
       voucherCode: { findUnique: jest.fn() },
       merchant: { findUnique: jest.fn() },
     };
-    handler = new GetCouponById(prisma);
+    merchantRefEnrichment = {
+      enrich: jest.fn(),
+    };
+    handler = new GetCouponById(prisma, merchantRefEnrichment);
     jest.clearAllMocks();
   });
 
@@ -67,12 +71,31 @@ describe('GetCouponById', () => {
       imageUrl: null,
       description: 'Desc',
     });
+    merchantRefEnrichment.enrich.mockResolvedValue({
+      id: 'mref-1',
+      merchantRef: 'ref-1',
+      name: 'Merchant Ref Name',
+      category: 'food',
+      description: 'Merchant ref description',
+      imageUrl: null,
+      locationUrl: null,
+      website: null,
+      isActive: true,
+      createdAt: new Date('2026-03-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-02T00:00:00.000Z'),
+    });
 
     const result = await handler.execute('vc-1');
 
     expect(result.id).toBe('vc-1');
     expect(result.code).toBe('CODE001');
     expect(result.voucher.name).toBe('Test Voucher');
+    expect(result.voucher.merchantRefDetail).toEqual(
+      expect.objectContaining({
+        merchantRef: 'ref-1',
+        name: 'Merchant Ref Name',
+      }),
+    );
     expect(result.merchant.id).toBe('merchant-1');
     expect(result.point.id).toBe('p-1');
   });
@@ -83,6 +106,7 @@ describe('GetCouponById', () => {
       voucher: { ...mockVoucherCode.voucher, merchantId: null },
     };
     prisma.voucherCode.findUnique.mockResolvedValue(codeNoMerchant);
+    merchantRefEnrichment.enrich.mockResolvedValue(null);
 
     const result = await handler.execute('vc-1');
 
@@ -94,10 +118,25 @@ describe('GetCouponById', () => {
     const codeNoPoint = { ...mockVoucherCode, point: null };
     prisma.voucherCode.findUnique.mockResolvedValue(codeNoPoint);
     prisma.merchant.findUnique.mockResolvedValue({ id: 'merchant-1' });
+    merchantRefEnrichment.enrich.mockResolvedValue(null);
 
     const result = await handler.execute('vc-1');
 
     expect(result.point).toBeNull();
+  });
+
+  it('should return null merchantRefDetail when voucher has no merchantRef', async () => {
+    const codeWithoutMerchantRef = {
+      ...mockVoucherCode,
+      voucher: { ...mockVoucherCode.voucher, merchantRef: null },
+    };
+    prisma.voucherCode.findUnique.mockResolvedValue(codeWithoutMerchantRef);
+    prisma.merchant.findUnique.mockResolvedValue({ id: 'merchant-1' });
+
+    const result = await handler.execute('vc-1');
+
+    expect(result.voucher.merchantRefDetail).toBeNull();
+    expect(merchantRefEnrichment.enrich).not.toHaveBeenCalled();
   });
 
   it('should throw NotFoundException when coupon not found', async () => {

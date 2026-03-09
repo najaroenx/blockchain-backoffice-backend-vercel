@@ -16,6 +16,10 @@ import { MerchantRefEnrichmentService } from 'src/modules/shared/services/mercha
 import { AisTransferService } from 'src/providers/ais-transfer/ais-transfer.service';
 import { nanoid } from 'nanoid';
 
+type RedeemValidationOptions = {
+  requirePointId?: boolean;
+};
+
 @Injectable()
 export class RedeemVoucher {
   private logger = new Logger(RedeemVoucher.name);
@@ -32,7 +36,12 @@ export class RedeemVoucher {
     this.salt = this.configService.get<string>('SALT');
   }
 
-  async execute(code: string, phone: string, merchantRef: string) {
+  async execute(
+    code: string,
+    phone: string,
+    merchantRef: string,
+    options: RedeemValidationOptions = {},
+  ) {
     try {
       this.logger.log(
         `[START] Redeeming voucher code: ${code} for customer phone: ${phone} at merchant: ${merchantRef}`,
@@ -47,6 +56,7 @@ export class RedeemVoucher {
         code,
         customerId,
         merchantRef,
+        options,
       );
       const voucher = voucherCode.voucher;
 
@@ -149,6 +159,7 @@ export class RedeemVoucher {
     code: string,
     customerId: string,
     merchantRef: string,
+    options: RedeemValidationOptions = {},
   ) {
     this.logger.log(`[STEP 1] Validating voucher code: ${code}`);
     const voucherCode = await this.prisma.voucherCode.findUnique({
@@ -204,7 +215,9 @@ export class RedeemVoucher {
     this.assertCodeNotUsed(voucherCode);
     this.assertMerchantRefMatch(voucherCode, merchantRef);
     this.assertVoucherNotExpired(voucherCode.voucher);
-    this.assertPointIdConfigured(voucherCode, code);
+    if (options.requirePointId !== false) {
+      this.assertPointIdConfigured(voucherCode, code);
+    }
     this.assertCodeActivated(voucherCode);
     this.assertOwnership(voucherCode, customerId);
 
@@ -654,41 +667,8 @@ export class RedeemVoucher {
         `[START AIS] Redeeming AIS voucher code: ${code} for customer phone: ${phone}, receiver: ${receiverPhone} at merchant: ${merchantRef}`,
       );
 
-      // 0. Find redeemer customer by phone
-      this.logger.log(`[STEP 0] Finding redeemer customer by phone: ${phone}`);
-      const customer = await this.prisma.customer.findFirst({
-        where: { tel: phone },
-        include: { wallet: true },
-      });
-
-      if (!customer) {
-        this.logger.error(`[ERROR] Customer with phone ${phone} not found`);
-        throw new NotFoundException(`Customer with phone ${phone} not found`);
-      }
-
-      // 0b. Find receiver customer by receiverPhone
       this.logger.log(
-        `[STEP 0b] Finding receiver customer by phone: ${receiverPhone}`,
-      );
-      const receiverCustomer = await this.prisma.customer.findFirst({
-        where: { tel: receiverPhone },
-        include: { wallet: true },
-      });
-
-      if (!receiverCustomer) {
-        this.logger.error(
-          `[ERROR] Receiver customer with phone ${receiverPhone} not found`,
-        );
-        throw new NotFoundException(
-          `Receiver customer with phone ${receiverPhone} not found`,
-        );
-      }
-
-      const customerId = customer.id;
-      const receiverCustomerId = receiverCustomer.id;
-
-      this.logger.log(
-        `[STEP 0] Redeemer: ${customerId}, Receiver: ${receiverCustomerId}`,
+        `[STEP 0] Using receiver phone ${receiverPhone} as AIS destination`,
       );
 
       // 1. First validate that this is an AIS voucher
@@ -723,8 +703,10 @@ export class RedeemVoucher {
         );
       }
 
-      // Call the normal redeem flow
-      const redeemResult = await this.execute(code, phone, merchantRef);
+      // Reuse redeem flow but skip pointId requirement for AIS vouchers.
+      const redeemResult = await this.execute(code, phone, merchantRef, {
+        requirePointId: false,
+      });
 
       // Transfer AIS points to receiver via AIS API
       const aisTransactionID = `${code}_${nanoid(16)}`;

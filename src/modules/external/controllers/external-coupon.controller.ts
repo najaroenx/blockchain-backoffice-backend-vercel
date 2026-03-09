@@ -182,9 +182,9 @@ export class ExternalCouponController {
   @Public()
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Redeem AIS Voucher (Transfer Points to Another Customer)',
+    summary: 'Redeem AIS Voucher (Transfer Points to AIS Phone Number)',
     description:
-      'แลก voucher ประเภท AIS Point โดยโอนคะแนนไปให้เบอร์โทรศัพท์อื่น. Voucher ต้องเป็นประเภท "aispoint" เท่านั้น และเบอร์ผู้แลกกับผู้รับต้องไม่เหมือนกัน',
+      'แลก voucher ประเภท AIS Point โดยโอนคะแนนไปยังหมายเลขโทรศัพท์ AIS ปลายทางได้โดยไม่จำเป็นต้องเป็น customer ในระบบ. Voucher ต้องเป็นประเภท "aispoint" เท่านั้น',
   })
   @ApiBody({
     description: 'AIS Voucher redemption details',
@@ -210,7 +210,7 @@ export class ExternalCouponController {
           type: 'string',
           example: '0987654321',
           description:
-            'เบอร์โทรศัพท์ของผู้รับคะแนน AIS Point (ต้องไม่ซ้ำกับ phone)',
+            'เบอร์โทรศัพท์ปลายทางสำหรับรับคะแนน AIS Point โดยไม่จำเป็นต้องมี customer record ในระบบ',
         },
       },
       required: ['code', 'phone', 'merchantRef', 'receiverPhone'],
@@ -223,7 +223,7 @@ export class ExternalCouponController {
   @ApiResponse({
     status: 400,
     description:
-      'Bad Request - Invalid voucher type, same phone, or other validation errors',
+      'Bad Request - Invalid voucher type, value exceeds AIS limit, merchant mismatch, or other validation errors',
   })
   @ApiResponse({
     status: 404,

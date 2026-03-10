@@ -591,6 +591,7 @@ export class BuyCouponFromMarketplace {
         description: voucher.description,
         valueType: voucher.valueType,
         value: voucher.value,
+        merchantRef: voucher.merchantRef || null,
         merchantName: resolveVoucherMerchantName(voucher) || '',
         startDate: voucher.startDate,
         endDate: voucher.endDate,

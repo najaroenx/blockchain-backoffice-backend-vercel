@@ -229,7 +229,7 @@ describe('BuyCouponFromMarketplace', () => {
         endDate: null,
         startDate: null,
         merchantId: 'm1',
-        merchantRef: null,
+        merchantRef: 'merchant-ref-001',
         name: 'V1',
         description: '',
         valueType: 'fixed',
@@ -270,6 +270,7 @@ describe('BuyCouponFromMarketplace', () => {
       '0xcustomer',
     );
     expect(result.success).toBe(true);
+    expect(result.voucher.merchantRef).toBe('merchant-ref-001');
   });
 
   it('should throw BadRequestException on blockchain buy failure', async () => {

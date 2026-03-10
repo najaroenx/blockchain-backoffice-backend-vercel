@@ -944,9 +944,14 @@ export class RedeemVoucher {
       data?: any;
     };
   }) {
+    const displayMessage = this.getAisFailureDisplayMessage(
+      params.aisResult.data,
+      params.aisResult.error || 'AIS transfer-in failed',
+    );
+
     return new BadRequestException({
       statusCode: HttpStatus.BAD_REQUEST,
-      message: params.aisResult.error || 'AIS transfer-in failed',
+      message: displayMessage,
       error: 'Bad Request',
       code: 'AIS_TRANSFER_FAILED',
       details: {
@@ -960,6 +965,7 @@ export class RedeemVoucher {
         },
         ais: {
           success: params.aisResult.success,
+          displayMessage,
           error: params.aisResult.error || null,
           data: params.aisResult.data || null,
         },
@@ -1064,6 +1070,41 @@ export class RedeemVoucher {
       message,
       error: this.getHttpErrorName(HttpStatus.INTERNAL_SERVER_ERROR),
     };
+  }
+
+  private getAisFailureDisplayMessage(
+    responseData: unknown,
+    fallbackMessage: string,
+  ): string {
+    if (!responseData || typeof responseData !== 'object') {
+      return fallbackMessage;
+    }
+
+    const body = responseData as {
+      msg_en?: unknown;
+      msg_th?: unknown;
+      description?: unknown;
+      message?: unknown;
+    };
+
+    const localizedMessages = [body.msg_en, body.msg_th].filter(
+      (value): value is string =>
+        typeof value === 'string' && value.trim().length > 0,
+    );
+
+    if (localizedMessages.length > 0) {
+      return localizedMessages.join(' / ');
+    }
+
+    if (typeof body.description === 'string' && body.description.trim()) {
+      return body.description;
+    }
+
+    if (typeof body.message === 'string' && body.message.trim()) {
+      return body.message;
+    }
+
+    return fallbackMessage;
   }
 
   private getHttpErrorName(statusCode: number): string {

@@ -925,8 +925,15 @@ describe('RedeemVoucher', () => {
       mockAisTransfer.transferIn.mockResolvedValue({
         success: false,
         transactionID: 'ais_tx_failed',
-        error: 'AIS rejected msisdn',
-        data: { status: '40010' },
+        error: 'AIS API error: HTTP 200 OK, AIS status=E0004, message=MSISDN NOT FOUND',
+        data: {
+          status: 'E0004',
+          description: 'MSISDN NOT FOUND',
+          msg_th:
+            'สงวนสิทธิ์สำหรับลูกค้าเอไอเอสรายบุคคล และลูกค้าเอไอเอส ประเภท SMEs ที่สมัครเข้าร่วมโครงการ เอไอเอส พอยท์ แล้วเท่านั้น',
+          msg_en:
+            'AIS points conversion program is for AIS individual /AIS residential customers and registered SMEs only.',
+        },
       });
       mockBlockchain.getUserCouponBalance.mockResolvedValue({ balance: '5' });
 
@@ -942,7 +949,8 @@ describe('RedeemVoucher', () => {
       expect(exception.getResponse()).toMatchObject({
         statusCode: 400,
         code: 'AIS_TRANSFER_FAILED',
-        message: 'AIS rejected msisdn',
+        message:
+          'AIS points conversion program is for AIS individual /AIS residential customers and registered SMEs only. / สงวนสิทธิ์สำหรับลูกค้าเอไอเอสรายบุคคล และลูกค้าเอไอเอส ประเภท SMEs ที่สมัครเข้าร่วมโครงการ เอไอเอส พอยท์ แล้วเท่านั้น',
         details: {
           stage: 'ais_transfer_in',
           receiverPhone: '0899999999',
@@ -952,8 +960,18 @@ describe('RedeemVoucher', () => {
           },
           ais: {
             success: false,
-            error: 'AIS rejected msisdn',
-            data: { status: '40010' },
+            displayMessage:
+              'AIS points conversion program is for AIS individual /AIS residential customers and registered SMEs only. / สงวนสิทธิ์สำหรับลูกค้าเอไอเอสรายบุคคล และลูกค้าเอไอเอส ประเภท SMEs ที่สมัครเข้าร่วมโครงการ เอไอเอส พอยท์ แล้วเท่านั้น',
+            error:
+              'AIS API error: HTTP 200 OK, AIS status=E0004, message=MSISDN NOT FOUND',
+            data: {
+              status: 'E0004',
+              description: 'MSISDN NOT FOUND',
+              msg_th:
+                'สงวนสิทธิ์สำหรับลูกค้าเอไอเอสรายบุคคล และลูกค้าเอไอเอส ประเภท SMEs ที่สมัครเข้าร่วมโครงการ เอไอเอส พอยท์ แล้วเท่านั้น',
+              msg_en:
+                'AIS points conversion program is for AIS individual /AIS residential customers and registered SMEs only.',
+            },
           },
         },
       });

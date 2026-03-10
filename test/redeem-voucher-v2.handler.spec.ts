@@ -11,7 +11,12 @@ jest.mock('src/libs/derive-wallet', () => ({
   deriveChildWallet: jest.fn(() => ({ address: '0xaddr', chainCode: 'chain' })),
 }));
 
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ServiceUnavailableException,
+  HttpException,
+} from '@nestjs/common';
 import { RedeemVoucher } from 'src/modules/internal/voucher/handlers/redeemVoucher.handler';
 
 describe('RedeemVoucher', () => {
@@ -688,6 +693,12 @@ describe('RedeemVoucher', () => {
           points: 100,
         }),
       );
+      expect(
+        mockBlockchain.getUserCouponBalance.mock.invocationCallOrder[0],
+      ).toBeLessThan(mockAisTransfer.transferIn.mock.invocationCallOrder[0]);
+      expect(
+        mockAisTransfer.transferIn.mock.invocationCallOrder[0],
+      ).toBeLessThan(mockBlockchain.redeemVoucher.mock.invocationCallOrder[0]);
       expect(mockPrisma.customer.findFirst).not.toHaveBeenCalledWith(
         expect.objectContaining({
           where: { tel: '0899999999' },
@@ -862,6 +873,275 @@ describe('RedeemVoucher', () => {
       ).rejects.toThrow(BadRequestException);
 
       expect(mockPrisma.customer.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('should stop before blockchain when AIS transfer-in returns failure', async () => {
+      mockPrisma.customer.findFirst.mockResolvedValue({
+        id: 'c1',
+        tel: '0812345678',
+        wallet: {
+          walletAddress: '0xabc123',
+          seedPhrase: 'enc-seed',
+          derivationIndex: 0,
+        },
+      });
+      mockPrisma.voucherCode.findUnique
+        .mockResolvedValueOnce({
+          voucher: { valueType: 'aispoint', value: 50 },
+        })
+        .mockResolvedValueOnce({
+          id: 'vc1',
+          code: 'CODE1',
+          isUsed: false,
+          pointId: null,
+          voucherGroupId: 'g1',
+          currentOwnerId: null,
+          currentOwnerType: null,
+          currency: null,
+          voucher: {
+            id: 'v1',
+            tokenId: '1',
+            merchantRef: 'ref1',
+            name: 'AIS Voucher',
+            description: 'AIS Desc',
+            imageUrl: null,
+            status: 'active',
+            endDate: new Date(Date.now() + 86400000),
+            startDate: null,
+            valueType: 'aispoint',
+            value: 50,
+            currency: null,
+            totalRedeemed: 0,
+            merchantId: 'm1',
+            merchantName: 'TestMerchant',
+            merchant: {
+              id: 'm1',
+              name: 'TestMerchant',
+              description: '',
+              imageUrl: null,
+            },
+          },
+        });
+      mockAisTransfer.transferIn.mockResolvedValue({
+        success: false,
+        transactionID: 'ais_tx_failed',
+        error: 'AIS rejected msisdn',
+        data: { status: '40010' },
+      });
+      mockBlockchain.getUserCouponBalance.mockResolvedValue({ balance: '5' });
+
+      const execution = handler.executeAIS(
+        'CODE1',
+        '0812345678',
+        'ref1',
+        '0899999999',
+      );
+      const exception = await execution.catch((error) => error);
+
+      expect(exception).toBeInstanceOf(BadRequestException);
+      expect(exception.getResponse()).toMatchObject({
+        statusCode: 400,
+        code: 'AIS_TRANSFER_FAILED',
+        message: 'AIS rejected msisdn',
+        details: {
+          stage: 'ais_transfer_in',
+          receiverPhone: '0899999999',
+          rollback: {
+            attempted: false,
+            succeeded: false,
+          },
+          ais: {
+            success: false,
+            error: 'AIS rejected msisdn',
+            data: { status: '40010' },
+          },
+        },
+      });
+
+      expect(mockBlockchain.getUserCouponBalance).toHaveBeenCalledTimes(1);
+      expect(mockBlockchain.redeemVoucher).not.toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockAisTransfer.transferReverse).not.toHaveBeenCalled();
+    });
+
+    it('should reverse AIS transfer when blockchain fails after transfer-in success', async () => {
+      mockPrisma.customer.findFirst.mockResolvedValue({
+        id: 'c1',
+        tel: '0812345678',
+        wallet: {
+          walletAddress: '0xabc123',
+          seedPhrase: 'enc-seed',
+          derivationIndex: 0,
+        },
+      });
+      mockPrisma.voucherCode.findUnique
+        .mockResolvedValueOnce({
+          voucher: { valueType: 'aispoint', value: 50 },
+        })
+        .mockResolvedValueOnce({
+          id: 'vc1',
+          code: 'CODE1',
+          isUsed: false,
+          pointId: null,
+          voucherGroupId: 'g1',
+          currentOwnerId: null,
+          currentOwnerType: null,
+          currency: null,
+          voucher: {
+            id: 'v1',
+            tokenId: '1',
+            merchantRef: 'ref1',
+            name: 'AIS Voucher',
+            description: 'AIS Desc',
+            imageUrl: null,
+            status: 'active',
+            endDate: new Date(Date.now() + 86400000),
+            startDate: null,
+            valueType: 'aispoint',
+            value: 50,
+            currency: null,
+            totalRedeemed: 0,
+            merchantId: 'm1',
+            merchantName: 'TestMerchant',
+            merchant: {
+              id: 'm1',
+              name: 'TestMerchant',
+              description: '',
+              imageUrl: null,
+            },
+          },
+        });
+      mockBlockchain.getUserCouponBalance.mockResolvedValue({ balance: '5' });
+      mockBlockchain.redeemVoucher.mockRejectedValue(
+        new Error('chain exploded'),
+      );
+
+      const execution = handler.executeAIS(
+        'CODE1',
+        '0812345678',
+        'ref1',
+        '0899999999',
+      );
+      const exception = await execution.catch((error) => error);
+
+      expect(exception).toBeInstanceOf(HttpException);
+      expect(exception.getResponse()).toMatchObject({
+        statusCode: 400,
+        code: 'AIS_REDEEM_ROLLED_BACK',
+        message:
+          'Blockchain or persistence failed after AIS transfer, but rollback completed',
+        details: {
+          stage: 'blockchain_or_persistence',
+          receiverPhone: '0899999999',
+          rollback: {
+            attempted: true,
+            succeeded: true,
+          },
+          originalError: {
+            statusCode: 400,
+            message: 'Failed to redeem voucher on blockchain: chain exploded',
+            error: 'Bad Request',
+          },
+        },
+      });
+
+      expect(mockAisTransfer.transferIn).toHaveBeenCalledTimes(1);
+      expect(mockAisTransfer.transferReverse).toHaveBeenCalledTimes(1);
+      expect(mockAisTransfer.transferReverse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msisdn: '0899999999',
+        }),
+      );
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should surface manual reconciliation error when reverse also fails', async () => {
+      mockPrisma.customer.findFirst.mockResolvedValue({
+        id: 'c1',
+        tel: '0812345678',
+        wallet: {
+          walletAddress: '0xabc123',
+          seedPhrase: 'enc-seed',
+          derivationIndex: 0,
+        },
+      });
+      mockPrisma.voucherCode.findUnique
+        .mockResolvedValueOnce({
+          voucher: { valueType: 'aispoint', value: 50 },
+        })
+        .mockResolvedValueOnce({
+          id: 'vc1',
+          code: 'CODE1',
+          isUsed: false,
+          pointId: null,
+          voucherGroupId: 'g1',
+          currentOwnerId: null,
+          currentOwnerType: null,
+          currency: null,
+          voucher: {
+            id: 'v1',
+            tokenId: '1',
+            merchantRef: 'ref1',
+            name: 'AIS Voucher',
+            description: 'AIS Desc',
+            imageUrl: null,
+            status: 'active',
+            endDate: new Date(Date.now() + 86400000),
+            startDate: null,
+            valueType: 'aispoint',
+            value: 50,
+            currency: null,
+            totalRedeemed: 0,
+            merchantId: 'm1',
+            merchantName: 'TestMerchant',
+            merchant: {
+              id: 'm1',
+              name: 'TestMerchant',
+              description: '',
+              imageUrl: null,
+            },
+          },
+        });
+      mockBlockchain.getUserCouponBalance.mockResolvedValue({ balance: '5' });
+      mockBlockchain.redeemVoucher.mockRejectedValue(
+        new Error('chain exploded'),
+      );
+      mockAisTransfer.transferReverse.mockRejectedValue(
+        new Error('reverse exploded'),
+      );
+
+      const execution = handler.executeAIS(
+        'CODE1',
+        '0812345678',
+        'ref1',
+        '0899999999',
+      );
+
+      const exception = await execution.catch((error) => error);
+
+      expect(exception).toBeInstanceOf(ServiceUnavailableException);
+      expect(exception.getResponse()).toMatchObject({
+        statusCode: 503,
+        code: 'AIS_ROLLBACK_FAILED',
+        message:
+          'AIS transferred but rollback failed, manual reconciliation required',
+        details: {
+          stage: 'rollback',
+          receiverPhone: '0899999999',
+          rollback: {
+            attempted: true,
+            succeeded: false,
+            error: {
+              statusCode: 500,
+              message: 'reverse exploded',
+            },
+          },
+          originalError: {
+            statusCode: 400,
+            message: 'Failed to redeem voucher on blockchain: chain exploded',
+          },
+        },
+      });
     });
   });
 });

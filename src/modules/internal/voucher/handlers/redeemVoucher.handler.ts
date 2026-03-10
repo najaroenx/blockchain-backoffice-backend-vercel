@@ -3,6 +3,9 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  ServiceUnavailableException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
@@ -48,87 +51,15 @@ export class RedeemVoucher {
         `[START] Redeeming voucher code: ${code} for customer phone: ${phone} at merchant: ${merchantRef}`,
       );
 
-      // 0. Find customer by phone
-      const customer = await this.findCustomerByPhone(phone);
-      const customerId = customer.id;
-
-      // 1-6. Validate voucher code
-      const voucherCode = await this.validateVoucherCode(
+      const redeemContext = await this.prepareRedeemContext(
         code,
-        customerId,
+        phone,
         merchantRef,
         options,
       );
-      const voucher = voucherCode.voucher;
+      const redeemResult = await this.executeRedeemCore(redeemContext);
 
-      // 7. Get customer wallet credentials
-      const { customerAddress, customerPrivateKey } =
-        this.getCustomerWalletCredentials(customer);
-
-      // 7.5 Verify on-chain balance
-      await this.verifyOnChainBalance(customerAddress, voucher.tokenId);
-
-      // 8. Redeem on blockchain
-      const blockchainTx = await this.redeemOnBlockchain(
-        code,
-        voucher,
-        customerAddress,
-        customerPrivateKey,
-      );
-
-      // 9. Resolve merchant
-      const { merchantId, merchant, merchantAddress } =
-        await this.resolveMerchantForRedemption(voucher, voucherCode);
-
-      // 10. Update database
-      const [updatedCode, redeemTransaction] = await this.prisma.$transaction([
-        this.prisma.voucherCode.update({
-          where: { id: voucherCode.id },
-          data: { isUsed: true, usedBy: customerId, usedAt: new Date() },
-          include: { voucher: true },
-        }),
-        this.prisma.transaction.create({
-          data: {
-            txHash: Buffer.from(blockchainTx.hash.slice(2), 'hex'),
-            senderAddress: Buffer.from(customerAddress.slice(2), 'hex'),
-            receiverAddress: Buffer.from(merchantAddress.slice(2), 'hex'),
-            amount: 1,
-            pointId: voucherCode.pointId,
-            senderId: customerId,
-            receiverId: merchantId,
-            merchantId,
-            merchantRef: voucher.merchantRef || null,
-            voucherCodeId: voucherCode.id,
-            transactionTypeId: TransactionTypeId.REDEEM,
-            type: AssetType.VOUCHER,
-            senderType: ParticipantType.CUSTOMER,
-            receiverType: ParticipantType.MERCHANT,
-            transactionRefId: randomUUID(),
-          },
-        }),
-      ]);
-
-      this.logger.log(
-        `[STEP 10] REDEEM transaction created. TxId: ${redeemTransaction.id}`,
-      );
-      this.logger.log(
-        `[SUCCESS] Voucher code redeemed successfully for customer: ${customerId}`,
-      );
-
-      // 11. Build and return response
-      return this.buildRedeemResponse({
-        voucher,
-        voucherCode,
-        merchant,
-        merchantId,
-        merchantAddress,
-        customer,
-        customerId,
-        customerAddress,
-        blockchainTx,
-        updatedCode,
-        redeemTransaction,
-      });
+      return this.buildRedeemResponse(redeemResult);
     } catch (error) {
       this.logger.error(
         `[FATAL ERROR] Failed to redeem voucher: ${error.message}`,
@@ -339,6 +270,120 @@ export class RedeemVoucher {
     return {
       customerAddress,
       customerPrivateKey: customerSigner.privateKey,
+    };
+  }
+
+  private async prepareRedeemContext(
+    code: string,
+    phone: string,
+    merchantRef: string,
+    options: RedeemValidationOptions = {},
+  ) {
+    const customer = await this.findCustomerByPhone(phone);
+    const customerId = customer.id;
+    const voucherCode = await this.validateVoucherCode(
+      code,
+      customerId,
+      merchantRef,
+      options,
+    );
+    const voucher = voucherCode.voucher;
+    const { customerAddress, customerPrivateKey } =
+      this.getCustomerWalletCredentials(customer);
+
+    return {
+      code,
+      customer,
+      customerId,
+      voucherCode,
+      voucher,
+      customerAddress,
+      customerPrivateKey,
+    };
+  }
+
+  private async executeRedeemCore(
+    redeemContext: {
+      code: string;
+      customer: any;
+      customerId: string;
+      voucherCode: any;
+      voucher: any;
+      customerAddress: string;
+      customerPrivateKey: string;
+    },
+    options: { skipOnChainBalance?: boolean } = {},
+  ) {
+    const {
+      code,
+      customer,
+      customerId,
+      voucherCode,
+      voucher,
+      customerAddress,
+      customerPrivateKey,
+    } = redeemContext;
+
+    if (!options.skipOnChainBalance) {
+      await this.verifyOnChainBalance(customerAddress, voucher.tokenId);
+    }
+
+    const blockchainTx = await this.redeemOnBlockchain(
+      code,
+      voucher,
+      customerAddress,
+      customerPrivateKey,
+    );
+
+    const { merchantId, merchant, merchantAddress } =
+      await this.resolveMerchantForRedemption(voucher, voucherCode);
+
+    const [updatedCode, redeemTransaction] = await this.prisma.$transaction([
+      this.prisma.voucherCode.update({
+        where: { id: voucherCode.id },
+        data: { isUsed: true, usedBy: customerId, usedAt: new Date() },
+        include: { voucher: true },
+      }),
+      this.prisma.transaction.create({
+        data: {
+          txHash: Buffer.from(blockchainTx.hash.slice(2), 'hex'),
+          senderAddress: Buffer.from(customerAddress.slice(2), 'hex'),
+          receiverAddress: Buffer.from(merchantAddress.slice(2), 'hex'),
+          amount: 1,
+          pointId: voucherCode.pointId,
+          senderId: customerId,
+          receiverId: merchantId,
+          merchantId,
+          merchantRef: voucher.merchantRef || null,
+          voucherCodeId: voucherCode.id,
+          transactionTypeId: TransactionTypeId.REDEEM,
+          type: AssetType.VOUCHER,
+          senderType: ParticipantType.CUSTOMER,
+          receiverType: ParticipantType.MERCHANT,
+          transactionRefId: randomUUID(),
+        },
+      }),
+    ]);
+
+    this.logger.log(
+      `[STEP 10] REDEEM transaction created. TxId: ${redeemTransaction.id}`,
+    );
+    this.logger.log(
+      `[SUCCESS] Voucher code redeemed successfully for customer: ${customerId}`,
+    );
+
+    return {
+      voucher,
+      voucherCode,
+      merchant,
+      merchantId,
+      merchantAddress,
+      customer,
+      customerId,
+      customerAddress,
+      blockchainTx,
+      updatedCode,
+      redeemTransaction,
     };
   }
 
@@ -784,90 +829,254 @@ export class RedeemVoucher {
         );
       }
 
-      // Reuse redeem flow but skip pointId requirement for AIS vouchers.
-      const redeemResult = await this.execute(code, phone, merchantRef, {
-        requirePointId: false,
-      });
+      const redeemContext = await this.prepareRedeemContext(
+        code,
+        phone,
+        merchantRef,
+        {
+          requirePointId: false,
+        },
+      );
 
-      // Transfer AIS points to receiver via AIS API
+      await this.verifyOnChainBalance(
+        redeemContext.customerAddress,
+        redeemContext.voucher.tokenId,
+      );
+
       const aisTransactionID = `${code}_${nanoid(16)}`;
 
       this.logger.log(
         `[STEP 2] Calling AIS transfer-in: transactionID=${aisTransactionID}, msisdn=${receiverPhone}, points=${transferAmount}`,
       );
 
-      let aisResult;
-      let aisTransferSucceeded = false;
-      try {
-        aisResult = await this.aisTransferService.transferIn({
-          transactionID: aisTransactionID,
-          msisdn: receiverPhone,
-          points: transferAmount,
+      const aisResult = await this.aisTransferService.transferIn({
+        transactionID: aisTransactionID,
+        msisdn: receiverPhone,
+        points: transferAmount,
+      });
+
+      this.logger.log(
+        `[STEP 2] AIS transfer-in result: success=${aisResult.success}, transactionID=${aisResult.transactionID}`,
+      );
+
+      if (!aisResult.success) {
+        throw this.buildAisTransferFailureException({
+          aisTransactionID,
+          receiverPhone,
+          aisResult,
         });
-
-        aisTransferSucceeded = aisResult.success;
-
-        this.logger.log(
-          `[STEP 2] AIS transfer-in result: success=${aisResult.success}, transactionID=${aisResult.transactionID}`,
-        );
-      } catch (aisError) {
-        this.logger.error(
-          `[STEP 2] AIS transfer-in failed: ${aisError.message}`,
-          aisError.stack,
-        );
-        // Blockchain redeem already succeeded — log the error but don't fail the whole operation
-        aisResult = {
-          success: false,
-          transactionID: aisTransactionID,
-          error: aisError.message,
-        };
       }
 
+      let redeemResult;
+      let reverseTransactionID: string | null = null;
       try {
-        this.logger.log(
-          `[SUCCESS AIS] Voucher redeemed. Points (${transferAmount}) transferred to ${receiverPhone} (ais success: ${aisResult.success})`,
+        redeemResult = await this.executeRedeemCore(redeemContext, {
+          skipOnChainBalance: true,
+        });
+      } catch (downstreamError) {
+        this.logger.warn(
+          `[REVERT] AIS transfer-in succeeded but blockchain or persistence failed. Reverting transfer: ${aisTransactionID} to receiver ${receiverPhone}`,
         );
-        return {
-          ...redeemResult,
-          pointTransfer: {
-            phone: phone,
-            receiverPhone: receiverPhone,
-            amount: transferAmount,
-            aisTransactionID: aisResult.transactionID,
-            aisSuccess: aisResult.success,
-            aisError: aisResult.error || null,
-            aisData: aisResult.data || null,
-          },
-        };
-      } catch (postTransferError) {
-        // If AIS transfer-in succeeded but subsequent processing failed, revert the transfer
-        if (aisTransferSucceeded) {
-          this.logger.warn(
-            `[REVERT] AIS transfer-in succeeded but post-transfer processing failed. Reverting transfer: ${aisTransactionID} to receiver ${receiverPhone}`,
+        reverseTransactionID = `${code}_reverse_${nanoid(16)}`;
+        try {
+          const revertResult = await this.aisTransferService.transferReverse({
+            transactionID: reverseTransactionID,
+            msisdn: receiverPhone,
+          });
+          this.logger.log(
+            `[REVERT] AIS transfer reversed successfully: transactionID=${reverseTransactionID}, success=${revertResult.success}`,
           );
-          const reverseTransactionID = `${code}_reverse_${nanoid(16)}`;
-          try {
-            const revertResult = await this.aisTransferService.transferReverse({
-              transactionID: reverseTransactionID,
-              msisdn: receiverPhone,
-            });
-            this.logger.log(
-              `[REVERT] AIS transfer reversed successfully: transactionID=${reverseTransactionID}, success=${revertResult.success}`,
-            );
-          } catch (revertError) {
-            this.logger.error(
-              `[REVERT CRITICAL] Failed to reverse AIS transfer: transactionID=${reverseTransactionID}, originalTransactionID=${aisTransactionID}, error=${revertError.message}`,
-              revertError.stack,
-            );
-          }
+        } catch (revertError) {
+          this.logger.error(
+            `[REVERT CRITICAL] Failed to reverse AIS transfer: transactionID=${reverseTransactionID}, originalTransactionID=${aisTransactionID}, error=${revertError.message}`,
+            revertError.stack,
+          );
+          throw this.buildAisRollbackFailedException({
+            aisTransactionID,
+            reverseTransactionID,
+            receiverPhone,
+            originalError: downstreamError,
+            rollbackError: revertError,
+          });
         }
-        throw postTransferError;
+
+        throw this.buildAisRolledBackException({
+          aisTransactionID,
+          reverseTransactionID,
+          receiverPhone,
+          originalError: downstreamError,
+        });
       }
+
+      const response = await this.buildRedeemResponse(redeemResult);
+
+      this.logger.log(
+        `[SUCCESS AIS] Voucher redeemed. Points (${transferAmount}) transferred to ${receiverPhone} (ais success: ${aisResult.success})`,
+      );
+
+      return {
+        ...response,
+        pointTransfer: {
+          phone: phone,
+          receiverPhone: receiverPhone,
+          amount: transferAmount,
+          aisTransactionID: aisResult.transactionID,
+          aisSuccess: aisResult.success,
+          aisError: aisResult.error || null,
+          aisData: aisResult.data || null,
+        },
+      };
     } catch (error) {
       this.logger.error(
         `[ERROR AIS] Failed to redeem AIS voucher: ${error.message}`,
       );
       throw error;
+    }
+  }
+
+  private buildAisTransferFailureException(params: {
+    aisTransactionID: string;
+    receiverPhone: string;
+    aisResult: {
+      success: boolean;
+      transactionID: string;
+      error?: string;
+      data?: any;
+    };
+  }) {
+    return new BadRequestException({
+      statusCode: HttpStatus.BAD_REQUEST,
+      message: params.aisResult.error || 'AIS transfer-in failed',
+      error: 'Bad Request',
+      code: 'AIS_TRANSFER_FAILED',
+      details: {
+        stage: 'ais_transfer_in',
+        aisTransactionID: params.aisTransactionID,
+        receiverPhone: params.receiverPhone,
+        rollback: {
+          attempted: false,
+          succeeded: false,
+          reverseTransactionID: null,
+        },
+        ais: {
+          success: params.aisResult.success,
+          error: params.aisResult.error || null,
+          data: params.aisResult.data || null,
+        },
+      },
+    });
+  }
+
+  private buildAisRolledBackException(params: {
+    aisTransactionID: string;
+    reverseTransactionID: string;
+    receiverPhone: string;
+    originalError: unknown;
+  }) {
+    const originalError = this.normalizeException(params.originalError);
+
+    return new HttpException(
+      {
+        statusCode: originalError.statusCode,
+        message:
+          'Blockchain or persistence failed after AIS transfer, but rollback completed',
+        error: originalError.error,
+        code: 'AIS_REDEEM_ROLLED_BACK',
+        details: {
+          stage: 'blockchain_or_persistence',
+          aisTransactionID: params.aisTransactionID,
+          receiverPhone: params.receiverPhone,
+          rollback: {
+            attempted: true,
+            succeeded: true,
+            reverseTransactionID: params.reverseTransactionID,
+          },
+          originalError,
+        },
+      },
+      originalError.statusCode,
+    );
+  }
+
+  private buildAisRollbackFailedException(params: {
+    aisTransactionID: string;
+    reverseTransactionID: string;
+    receiverPhone: string;
+    originalError: unknown;
+    rollbackError: unknown;
+  }) {
+    return new ServiceUnavailableException({
+      statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+      message:
+        'AIS transferred but rollback failed, manual reconciliation required',
+      error: 'Service Unavailable',
+      code: 'AIS_ROLLBACK_FAILED',
+      details: {
+        stage: 'rollback',
+        aisTransactionID: params.aisTransactionID,
+        receiverPhone: params.receiverPhone,
+        rollback: {
+          attempted: true,
+          succeeded: false,
+          reverseTransactionID: params.reverseTransactionID,
+          error: this.normalizeException(params.rollbackError),
+        },
+        originalError: this.normalizeException(params.originalError),
+      },
+    });
+  }
+
+  private normalizeException(error: unknown): {
+    statusCode: number;
+    message: string;
+    error: string;
+  } {
+    if (error instanceof HttpException) {
+      const statusCode = error.getStatus();
+      const response = error.getResponse();
+
+      if (typeof response === 'string') {
+        return {
+          statusCode,
+          message: response,
+          error: this.getHttpErrorName(statusCode),
+        };
+      }
+
+      const body = response as {
+        message?: string | string[];
+        error?: string;
+      };
+
+      return {
+        statusCode,
+        message: Array.isArray(body.message)
+          ? body.message.join(', ')
+          : body.message || error.message,
+        error: body.error || this.getHttpErrorName(statusCode),
+      };
+    }
+
+    const message = error instanceof Error ? error.message : 'Unknown error';
+
+    return {
+      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      message,
+      error: this.getHttpErrorName(HttpStatus.INTERNAL_SERVER_ERROR),
+    };
+  }
+
+  private getHttpErrorName(statusCode: number): string {
+    switch (statusCode) {
+      case HttpStatus.BAD_REQUEST:
+        return 'Bad Request';
+      case HttpStatus.NOT_FOUND:
+        return 'Not Found';
+      case HttpStatus.SERVICE_UNAVAILABLE:
+        return 'Service Unavailable';
+      case HttpStatus.INTERNAL_SERVER_ERROR:
+      default:
+        return 'Internal Server Error';
     }
   }
 }

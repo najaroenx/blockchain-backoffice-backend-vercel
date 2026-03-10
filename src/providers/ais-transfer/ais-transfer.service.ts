@@ -81,6 +81,14 @@ export class AisTransferService {
       });
 
       const responseData = await response.json().catch(() => ({}));
+      const success = this.isAisSuccess(responseData);
+      const errorMessage = success
+        ? null
+        : this.buildAisErrorMessage(
+            response.status,
+            response.statusText,
+            responseData,
+          );
 
       // Log to database (non-blocking)
       await this.logTransfer({
@@ -90,33 +98,35 @@ export class AisTransferService {
         requestBody: body,
         responseBody: responseData,
         httpStatus: response.status,
-        success: response.ok,
-        errorMessage: response.ok
-          ? null
-          : `AIS API error: ${response.status} ${response.statusText}`,
+        success,
+        errorMessage,
         msisdn,
         points,
       });
 
-      if (!response.ok) {
+      if (response.status === 401) {
         this.logger.error(
-          `[TRANSFER-IN] AIS API error: ${response.status} ${response.statusText}`,
+          `[TRANSFER-IN] AIS API unauthorized: ${response.status} ${response.statusText}`,
           JSON.stringify(responseData),
         );
 
-        // If 401, clear ADMD token cache and retry once
-        if (response.status === 401) {
-          this.logger.warn(
-            '[TRANSFER-IN] Token expired, retrying with new token',
-          );
-          this.admdService.clearCache();
-          return this.transferIn(params);
-        }
+        this.logger.warn(
+          '[TRANSFER-IN] Token expired, retrying with new token',
+        );
+        this.admdService.clearCache();
+        return this.transferIn(params);
+      }
+
+      if (!success) {
+        this.logger.error(
+          `[TRANSFER-IN] AIS business error: ${errorMessage}`,
+          JSON.stringify(responseData),
+        );
 
         return {
           success: false,
           transactionID,
-          error: `AIS API error: ${response.status} ${response.statusText}`,
+          error: errorMessage,
           data: responseData,
         };
       }
@@ -194,6 +204,14 @@ export class AisTransferService {
       });
 
       const responseData = await response.json().catch(() => ({}));
+      const success = this.isAisSuccess(responseData);
+      const errorMessage = success
+        ? null
+        : this.buildAisErrorMessage(
+            response.status,
+            response.statusText,
+            responseData,
+          );
 
       // Log to database (non-blocking)
       await this.logTransfer({
@@ -203,33 +221,35 @@ export class AisTransferService {
         requestBody: body,
         responseBody: responseData,
         httpStatus: response.status,
-        success: response.ok,
-        errorMessage: response.ok
-          ? null
-          : `AIS API error: ${response.status} ${response.statusText}`,
+        success,
+        errorMessage,
         msisdn,
         points: null,
       });
 
-      if (!response.ok) {
+      if (response.status === 401) {
         this.logger.error(
-          `[TRANSFER-REVERSE] AIS API error: ${response.status} ${response.statusText}`,
+          `[TRANSFER-REVERSE] AIS API unauthorized: ${response.status} ${response.statusText}`,
           JSON.stringify(responseData),
         );
 
-        // If 401, clear ADMD token cache and retry once
-        if (response.status === 401) {
-          this.logger.warn(
-            '[TRANSFER-REVERSE] Token expired, retrying with new token',
-          );
-          this.admdService.clearCache();
-          return this.transferReverse(params);
-        }
+        this.logger.warn(
+          '[TRANSFER-REVERSE] Token expired, retrying with new token',
+        );
+        this.admdService.clearCache();
+        return this.transferReverse(params);
+      }
+
+      if (!success) {
+        this.logger.error(
+          `[TRANSFER-REVERSE] AIS business error: ${errorMessage}`,
+          JSON.stringify(responseData),
+        );
 
         return {
           success: false,
           transactionID,
-          error: `AIS API error: ${response.status} ${response.statusText}`,
+          error: errorMessage,
           data: responseData,
         };
       }
@@ -267,6 +287,68 @@ export class AisTransferService {
         `AIS transfer reverse failed: ${error.message}`,
       );
     }
+  }
+
+  private isAisSuccess(responseData: unknown): boolean {
+    return this.getAisStatus(responseData) === '20000';
+  }
+
+  private getAisStatus(responseData: unknown): string | null {
+    if (!responseData || typeof responseData !== 'object') {
+      return null;
+    }
+
+    const maybeStatus = (responseData as { status?: unknown }).status;
+
+    if (maybeStatus === undefined || maybeStatus === null) {
+      return null;
+    }
+
+    return String(maybeStatus);
+  }
+
+  private getAisMessage(responseData: unknown): string | null {
+    if (!responseData || typeof responseData !== 'object') {
+      return null;
+    }
+
+    const messageSources = [
+      (responseData as { message?: unknown }).message,
+      (responseData as { description?: unknown }).description,
+      (responseData as { msg?: unknown }).msg,
+      (responseData as { errorMessage?: unknown }).errorMessage,
+      (responseData as { error?: unknown }).error,
+    ];
+
+    for (const candidate of messageSources) {
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  private buildAisErrorMessage(
+    httpStatus: number,
+    httpStatusText: string,
+    responseData: unknown,
+  ): string {
+    const aisStatus = this.getAisStatus(responseData);
+    const aisMessage = this.getAisMessage(responseData);
+    const parts = [`HTTP ${httpStatus} ${httpStatusText}`.trim()];
+
+    if (aisStatus) {
+      parts.push(`AIS status=${aisStatus}`);
+    } else {
+      parts.push('AIS status missing');
+    }
+
+    if (aisMessage) {
+      parts.push(`message=${aisMessage}`);
+    }
+
+    return `AIS API error: ${parts.join(', ')}`;
   }
 
   /**

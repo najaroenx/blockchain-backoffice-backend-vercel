@@ -18,7 +18,6 @@ RUN npx prisma generate
 RUN yarn run build
 
 # Compile standalone TS scripts to JS for runtime execution
-RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/migrate-voucher-merchant-ref-moomuekkung.ts --outDir dist/scripts
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
 
 # Stage 2: Production image
@@ -48,7 +47,6 @@ EXPOSE 4000
 # PROD MODE (migrate + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    node dist/scripts/migrate-voucher-merchant-ref-moomuekkung.js && \
     node dist/prisma/seed.js && \
     node dist/src/main \
 "]

@@ -14,6 +14,7 @@ import {
   AisTransferResponse,
 } from './types';
 import { randomUUID } from 'crypto';
+import { addHours } from 'date-fns';
 
 @Injectable()
 export class AisTransferService {
@@ -383,6 +384,7 @@ export class AisTransferService {
           errorMessage: params.errorMessage,
           msisdn: params.msisdn,
           points: params.points,
+          createdAt: this.getUtcPlus7Date(),
         },
       });
       this.logger.log(
@@ -395,5 +397,9 @@ export class AisTransferService {
         logError.stack,
       );
     }
+  }
+
+  private getUtcPlus7Date(): Date {
+    return addHours(new Date(), 7);
   }
 }

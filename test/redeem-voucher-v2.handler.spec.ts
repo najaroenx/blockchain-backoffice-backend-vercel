@@ -95,9 +95,16 @@ describe('RedeemVoucher', () => {
     it('should throw NotFoundException when customer not found', async () => {
       mockPrisma.customer.findFirst.mockResolvedValue(null);
 
-      await expect(
-        handler.execute('CODE1', '0812345678', 'ref1'),
-      ).rejects.toThrow(NotFoundException);
+      const exception = await handler
+        .execute('CODE1', '0812345678', 'ref1')
+        .catch((error) => error);
+
+      expect(exception).toBeInstanceOf(NotFoundException);
+      expect(exception.getResponse()).toEqual({
+        statusCode: 404,
+        message: 'Customer with phone 0812345678 not found',
+        error: 'Not Found',
+      });
     });
 
     it('should throw NotFoundException when voucher code not found', async () => {
@@ -545,6 +552,7 @@ describe('RedeemVoucher', () => {
 
       const result = await handler.execute('CODE1', '0812345678', 'ref1');
       expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
       expect(result.message).toContain('successfully');
       expect(result.blockchain).toBeDefined();
     });
@@ -685,6 +693,7 @@ describe('RedeemVoucher', () => {
       );
 
       expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
       expect(result.transaction.point).toBeNull();
       expect(result.pointTransfer.receiverPhone).toBe('0899999999');
       expect(mockAisTransfer.transferIn).toHaveBeenCalledWith(

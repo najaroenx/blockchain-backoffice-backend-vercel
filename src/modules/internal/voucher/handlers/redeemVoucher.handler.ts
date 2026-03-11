@@ -65,7 +65,7 @@ export class RedeemVoucher {
         `[FATAL ERROR] Failed to redeem voucher: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw this.toRedeemHttpException(error);
     }
   }
 
@@ -671,6 +671,7 @@ export class RedeemVoucher {
     };
 
     return {
+      statusCode: HttpStatus.OK,
       success: true,
       message: 'Voucher redeemed successfully',
       voucher: {
@@ -930,7 +931,7 @@ export class RedeemVoucher {
       this.logger.error(
         `[ERROR AIS] Failed to redeem AIS voucher: ${error.message}`,
       );
-      throw error;
+      throw this.toRedeemHttpException(error);
     }
   }
 
@@ -1070,6 +1071,40 @@ export class RedeemVoucher {
       message,
       error: this.getHttpErrorName(HttpStatus.INTERNAL_SERVER_ERROR),
     };
+  }
+
+  private toRedeemHttpException(error: unknown): HttpException {
+    if (error instanceof HttpException) {
+      const statusCode = error.getStatus();
+      const response = error.getResponse();
+      const responseBody =
+        typeof response === 'string'
+          ? {
+              statusCode,
+              message: response,
+              error: this.getHttpErrorName(statusCode),
+            }
+          : {
+              statusCode,
+              error: this.getHttpErrorName(statusCode),
+              ...(response as Record<string, unknown>),
+            };
+
+      switch (statusCode) {
+        case HttpStatus.BAD_REQUEST:
+          return new BadRequestException(responseBody);
+        case HttpStatus.NOT_FOUND:
+          return new NotFoundException(responseBody);
+        case HttpStatus.SERVICE_UNAVAILABLE:
+          return new ServiceUnavailableException(responseBody);
+        default:
+          return new HttpException(responseBody, statusCode);
+      }
+    }
+
+    const normalizedError = this.normalizeException(error);
+
+    return new HttpException(normalizedError, normalizedError.statusCode);
   }
 
   private getAisFailureDisplayMessage(

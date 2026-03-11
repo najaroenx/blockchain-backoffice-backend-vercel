@@ -12,6 +12,8 @@ describe('AisTransferService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-03-11T03:00:00.000Z'));
 
     mockAdmdService = {
       getAccessToken: jest.fn().mockResolvedValue('token-123'),
@@ -45,6 +47,7 @@ describe('AisTransferService', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     (global.fetch as jest.Mock).mockReset();
   });
 
@@ -69,6 +72,7 @@ describe('AisTransferService', () => {
           transactionID: 'txn-1',
           success: true,
           httpStatus: 200,
+          createdAt: new Date('2026-03-11T10:00:00.000Z'),
         }),
       }),
     );

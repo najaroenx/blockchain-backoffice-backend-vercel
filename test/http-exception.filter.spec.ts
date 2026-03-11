@@ -4,6 +4,7 @@ import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 describe('HttpExceptionFilter', () => {
   let filter: HttpExceptionFilter;
   let mockResponse: any;
+  let mockRequest: any;
   let mockHost: ArgumentsHost;
 
   beforeEach(() => {
@@ -12,9 +13,14 @@ describe('HttpExceptionFilter', () => {
       status: jest.fn().mockReturnThis(), // allow chaining .json()
       json: jest.fn(),
     };
+    mockRequest = {
+      method: 'POST',
+      url: '/coupon/redeem',
+    };
     mockHost = {
       switchToHttp: () => ({
         getResponse: () => mockResponse,
+        getRequest: () => mockRequest,
       }),
     } as unknown as ArgumentsHost;
   });

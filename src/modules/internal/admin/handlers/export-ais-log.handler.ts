@@ -137,8 +137,21 @@ export class ExportAisLog {
       errorMessage: log.errorMessage,
       msisdn: log.msisdn,
       points: log.points,
-      createdAt: format(log.createdAt, 'yyyy-MM-dd HH:mm:ss'),
+      createdAt: this.formatBangkokDateTime(log.createdAt),
     };
+  }
+
+  private formatBangkokDateTime(value: Date): string {
+    return new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).format(value);
   }
 
   private decodeBytes(value: Uint8Array<ArrayBufferLike> | null): string {

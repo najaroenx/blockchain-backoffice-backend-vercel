@@ -40,6 +40,25 @@ describe('ExportAisLog', () => {
     expect(result.fileBuffer.length).toBeGreaterThan(0);
   });
 
+  it('exports Created At in Thailand time (UTC+7)', async () => {
+    const row = (handler as any).mapLogRow({
+      id: 'log-1',
+      transactionID: 'txn-1',
+      action: 'TRANSFER_IN',
+      url: 'https://ais.example.com/transfer-in',
+      requestBody: Buffer.from(JSON.stringify({ foo: 'bar' })),
+      responseBody: Buffer.from(JSON.stringify({ status: '20000' })),
+      httpStatus: 200,
+      success: true,
+      errorMessage: null,
+      msisdn: '0899999999',
+      points: 40,
+      createdAt: new Date('2026-03-11T05:16:17.044Z'),
+    });
+
+    expect(row.createdAt).toBe('2026-03-11 12:16:17');
+  });
+
   it('throws a service unavailable error when the AisTransferLog table is missing', async () => {
     prisma.aisTransferLog.findMany.mockRejectedValue({
       code: 'P2021',

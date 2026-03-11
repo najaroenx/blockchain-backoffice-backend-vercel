@@ -17,10 +17,28 @@ export class ResponseInterceptor implements NestInterceptor {
           return data;
         }
 
+        const normalizedData =
+          data && typeof data === 'object' && !Array.isArray(data)
+            ? (data as Record<string, unknown>)
+            : null;
+        const statusCode =
+          typeof normalizedData?.statusCode === 'number'
+            ? normalizedData.statusCode
+            : 200;
+
+        const responseData = normalizedData
+          ? Object.fromEntries(
+              Object.entries(normalizedData).filter(
+                ([key]) => key !== 'statusCode',
+              ),
+            )
+          : (data ?? null);
+
         return {
+          statusCode,
           status: 'success',
           message: 'OK',
-          data: data ?? null,
+          data: responseData,
         };
       }),
     );

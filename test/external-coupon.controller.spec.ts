@@ -4,12 +4,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExternalCouponController } from 'src/modules/external/controllers/external-coupon.controller';
 import { VoucherDBService } from 'src/modules/internal/voucher/services/voucher-db.service';
 import { GetCouponById } from 'src/modules/internal/voucher/handlers/getCouponById.handler';
+import { GetVoucherByLatestCode } from 'src/modules/internal/voucher/handlers/getVoucherByLatestCode.handler';
 import { GetMarketplaceListingsByMerchantRef } from 'src/modules/internal/voucher/handlers/getMarketplaceListingsByMerchantRef.handler';
 
 describe('ExternalCouponController', () => {
   let controller: ExternalCouponController;
   let voucherService: jest.Mocked<VoucherDBService>;
   let getCouponById: jest.Mocked<GetCouponById>;
+  let getVoucherByLatestCode: jest.Mocked<GetVoucherByLatestCode>;
   let getMarketplaceListings: jest.Mocked<GetMarketplaceListingsByMerchantRef>;
 
   beforeEach(async () => {
@@ -19,6 +21,7 @@ describe('ExternalCouponController', () => {
       redeemAISVoucher: jest.fn(),
     } as any;
     getCouponById = { execute: jest.fn() } as any;
+    getVoucherByLatestCode = { execute: jest.fn() } as any;
     getMarketplaceListings = { execute: jest.fn() } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -26,6 +29,7 @@ describe('ExternalCouponController', () => {
       providers: [
         { provide: VoucherDBService, useValue: voucherService },
         { provide: GetCouponById, useValue: getCouponById },
+        { provide: GetVoucherByLatestCode, useValue: getVoucherByLatestCode },
         {
           provide: GetMarketplaceListingsByMerchantRef,
           useValue: getMarketplaceListings,
@@ -41,6 +45,21 @@ describe('ExternalCouponController', () => {
     const result = await controller.getCouponById('c1');
     expect(getCouponById.execute).toHaveBeenCalledWith('c1');
     expect(result).toEqual({ id: 'c1' });
+  });
+
+  it('getVoucherByLatestCode delegates to handler', async () => {
+    getVoucherByLatestCode.execute.mockResolvedValue({ id: 'v1' } as any);
+
+    const result = await controller.getVoucherByLatestCode(
+      '8-BATCH-cmmcyastl005pzw010strv1uu-12-15',
+      'unused',
+    );
+
+    expect(getVoucherByLatestCode.execute).toHaveBeenCalledWith(
+      '8-BATCH-cmmcyastl005pzw010strv1uu-12-15',
+      'unused',
+    );
+    expect(result).toEqual({ id: 'v1' });
   });
 
   it('getCustomerOwnedVouchers defaults page=1, limit=20, status=all', async () => {

@@ -30,6 +30,7 @@ import { DashboardModule } from '../internal/dashboard/dashboard.module';
  * - /points/{pointId} - Get point by ID
  * - /coupon/my-coupons/{phone} - Get user coupons
  * - /coupon/code/{id} - Get coupon by ID
+ * - /coupon/latest-code/{code} - Get voucher aggregate by code string
  * - /coupon/redeem - Redeem coupon
  * - /coupon/redeem-ais - Redeem AIS coupon
  * - /transaction/customer/{phone} - Get all transactions

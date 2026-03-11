@@ -106,6 +106,7 @@ describe('TransactionController', () => {
     const body = { amount: 10, phone: '081' } as any;
     createTransactionB2C.execute.mockResolvedValue({ txHash: '0x' } as any);
     const result = await controller.transaction('m1', 'p1', body);
+
     expect(createTransactionB2C.execute).toHaveBeenCalledWith('m1', 'p1', body);
     expect(result).toEqual({ txHash: '0x' });
   });

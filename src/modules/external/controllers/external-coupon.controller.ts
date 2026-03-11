@@ -17,6 +17,7 @@ import {
 import { Public } from 'src/modules/internal/auth/public.decorator';
 import { VoucherDBService } from 'src/modules/internal/voucher/services/voucher-db.service';
 import { GetCouponById } from 'src/modules/internal/voucher/handlers/getCouponById.handler';
+import { GetVoucherByLatestCode } from 'src/modules/internal/voucher/handlers/getVoucherByLatestCode.handler';
 import { GetMarketplaceListingsByMerchantRef } from 'src/modules/internal/voucher/handlers/getMarketplaceListingsByMerchantRef.handler';
 import { RedeemAISVoucherDto } from 'src/modules/internal/voucher/dtos/redeem-voucher.dto';
 
@@ -25,6 +26,7 @@ import { RedeemAISVoucherDto } from 'src/modules/internal/voucher/dtos/redeem-vo
  *
  * Endpoints for external integration:
  * - GET /coupon/code/{id} - Get coupon by ID
+ * - GET /coupon/latest-code/{code} - Get voucher by code string
  * - GET /coupon/my-coupons/{phone} - Get user coupons
  * - POST /coupon/redeem - Redeem coupon
  * - POST /coupon/redeem-ais - Redeem AIS coupon
@@ -35,6 +37,7 @@ export class ExternalCouponController {
   constructor(
     private readonly voucherService: VoucherDBService,
     private readonly getCouponByIdHandler: GetCouponById,
+    private readonly getVoucherByLatestCodeHandler: GetVoucherByLatestCode,
     private readonly getMarketplaceListingsByMerchantRefHandler: GetMarketplaceListingsByMerchantRef,
   ) {}
 
@@ -66,6 +69,39 @@ export class ExternalCouponController {
   })
   async getCouponById(@Param('id') id: string) {
     return this.getCouponByIdHandler.execute(id);
+  }
+
+  /**
+   * Get voucher aggregate response by latest voucher code string
+   * GET /coupon/latest-code/:code
+   * Returns voucher details in the same shape as internal GET /coupon/:id
+   */
+  @Get('/latest-code/:code')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get Voucher by Latest Code',
+    description:
+      'ดึงข้อมูล Voucher ด้วยค่า VoucherCode.code และคืน response แบบเดียวกับ voucher by id',
+  })
+  @ApiParam({
+    name: 'code',
+    description: 'VoucherCode.code ที่ต้องการค้นหา',
+    example: '8-BATCH-cmmcyastl005pzw010strv1uu-12-15',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Voucher retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Voucher code not found',
+  })
+  async getVoucherByLatestCode(
+    @Param('code') code: string,
+    @Query('status') codeStatus?: 'used' | 'unused',
+  ) {
+    return this.getVoucherByLatestCodeHandler.execute(code, codeStatus);
   }
 
   /**

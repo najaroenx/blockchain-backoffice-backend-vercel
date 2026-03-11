@@ -28,6 +28,7 @@ import { DelistExpiredVouchers } from './handlers/delistExpiredVouchers.handler'
 import { DelistExpiredVouchersCron } from './cron/delistExpiredVouchers.cron';
 import { GetMarketplaceListingsEndUser } from './handlers/getMarketplaceListtingEnduser.handler';
 import { GetCouponById } from './handlers/getCouponById.handler';
+import { GetVoucherByLatestCode } from './handlers/getVoucherByLatestCode.handler';
 import { GetMarketplaceListingsByMerchantRef } from './handlers/getMarketplaceListingsByMerchantRef.handler';
 @Module({
   imports: [
@@ -62,11 +63,13 @@ import { GetMarketplaceListingsByMerchantRef } from './handlers/getMarketplaceLi
     DelistExpiredVouchersCron,
     GetMarketplaceListingsEndUser,
     GetCouponById,
+    GetVoucherByLatestCode,
     GetMarketplaceListingsByMerchantRef,
   ],
   exports: [
     VoucherDBService,
     GetCouponById,
+    GetVoucherByLatestCode,
     GetMarketplaceListingsByMerchantRef,
   ],
 })

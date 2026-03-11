@@ -1,7 +1,6 @@
 import * as Joi from 'joi';
 
 export const configSchema = Joi.object({
-  ENABLE_AUTH: Joi.boolean(),
   ADMIN_USERNAME: Joi.string().allow('').default(''),
   ADMIN_PASSWORD: Joi.string().allow('').default(''),
   POINT_FACTORY_ADDRESS: Joi.string(),

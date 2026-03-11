@@ -934,7 +934,8 @@ describe('RedeemVoucher', () => {
       mockAisTransfer.transferIn.mockResolvedValue({
         success: false,
         transactionID: 'ais_tx_failed',
-        error: 'AIS API error: HTTP 200 OK, AIS status=E0004, message=MSISDN NOT FOUND',
+        error:
+          'AIS API error: HTTP 200 OK, AIS status=E0004, message=MSISDN NOT FOUND',
         data: {
           status: 'E0004',
           description: 'MSISDN NOT FOUND',

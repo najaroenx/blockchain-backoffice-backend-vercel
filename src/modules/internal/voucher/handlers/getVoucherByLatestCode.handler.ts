@@ -17,10 +17,7 @@ export class GetVoucherByLatestCode {
     private readonly getVoucherById: GetVoucherById,
   ) {}
 
-  async execute(
-    code: string,
-    codeStatus?: 'used' | 'unused',
-  ): Promise<any> {
+  async execute(code: string, codeStatus?: 'used' | 'unused'): Promise<any> {
     try {
       this.logger.log(
         `[START] Getting voucher by latest code: ${code}, codeStatus: ${codeStatus || 'all'}`,

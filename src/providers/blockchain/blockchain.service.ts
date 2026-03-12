@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   ServiceUnavailableException,
@@ -18,6 +19,26 @@ import { transaction, transactionC2C } from './types/transaction.type';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { RPC_SERVER_ERROR } from 'src/errors/error.constants';
 import { randomUUID } from 'crypto';
+
+interface MarketplaceListingContractView {
+  seller: string;
+  typeId: bigint;
+  amount: bigint;
+  pricePerUnit: bigint;
+  paymentToken: string;
+  active: boolean;
+  listedAt: bigint;
+}
+
+interface MarketplaceListingView {
+  seller: string;
+  typeId: string;
+  amount: string;
+  pricePerUnit: string;
+  paymentToken: string;
+  isActive: boolean;
+  listedAt: number;
+}
 
 @Injectable()
 export class BlockchainService {
@@ -39,16 +60,7 @@ export class BlockchainService {
 
   // In-memory cache for active marketplace listings (reduces N+1 RPC calls)
   private listingsCache: {
-    data: Array<{
-      listingId: string;
-      seller: string;
-      typeId: string;
-      amount: string;
-      pricePerUnit: string;
-      paymentToken: string;
-      isActive: boolean;
-      listedAt: number;
-    }>;
+    data: Array<MarketplaceListingView & { listingId: string }>;
     timestamp: number;
   } | null = null;
   private readonly LISTINGS_CACHE_TTL_MS = 30_000; // 30 seconds
@@ -115,6 +127,79 @@ export class BlockchainService {
     throw new InternalServerErrorException(
       fallbackMessage || `${context} failed: ${error.message}`,
     );
+  }
+
+  private getMarketplaceContract(runner: any = this.provider) {
+    if (!this.marketplaceAddress) {
+      throw new Error('MARKETPLACE_ADDRESS not configured');
+    }
+
+    return new Contract(
+      this.marketplaceAddress,
+      MarketplaceArtifact.abi,
+      runner,
+    );
+  }
+
+  private normalizeListingId(listingId: string | number | bigint): bigint {
+    if (typeof listingId === 'bigint') {
+      return listingId;
+    }
+
+    if (typeof listingId === 'number') {
+      if (!Number.isInteger(listingId) || listingId < 0) {
+        throw new BadRequestException(`Invalid listing ID: ${listingId}`);
+      }
+
+      return BigInt(listingId);
+    }
+
+    const normalizedListingId = listingId?.trim();
+
+    if (!normalizedListingId || !/^\d+$/.test(normalizedListingId)) {
+      throw new BadRequestException(`Invalid listing ID: ${listingId}`);
+    }
+
+    return BigInt(normalizedListingId);
+  }
+
+  private toMarketplaceListingContractView(
+    listing: any,
+  ): MarketplaceListingContractView {
+    return {
+      seller: listing.seller,
+      typeId: BigInt(listing.typeId.toString()),
+      amount: BigInt(listing.amount.toString()),
+      pricePerUnit: BigInt(listing.pricePerUnit.toString()),
+      paymentToken: listing.paymentToken,
+      active: Boolean(listing.active),
+      listedAt: BigInt(listing.listedAt.toString()),
+    };
+  }
+
+  private mapMarketplaceListing(
+    listing: MarketplaceListingContractView,
+  ): MarketplaceListingView {
+    return {
+      seller: listing.seller,
+      typeId: listing.typeId.toString(),
+      amount: listing.amount.toString(),
+      pricePerUnit: ethers.formatEther(listing.pricePerUnit),
+      paymentToken: listing.paymentToken,
+      isActive: listing.active,
+      listedAt: Number(listing.listedAt),
+    };
+  }
+
+  private async readMarketplaceListing(
+    listingId: string | number | bigint,
+    runner: any = this.provider,
+  ): Promise<MarketplaceListingContractView> {
+    const marketplaceContract = this.getMarketplaceContract(runner);
+    const normalizedListingId = this.normalizeListingId(listingId);
+    const listing = await marketplaceContract.getListing(normalizedListingId);
+
+    return this.toMarketplaceListingContractView(listing);
   }
 
   async createNewPointToken({
@@ -1141,32 +1226,18 @@ export class BlockchainService {
    * @param listingId - Listing ID
    * @returns Listing details
    */
-  async getMarketplaceListing(listingId: string) {
+  async getMarketplaceListing(listingId: string): Promise<MarketplaceListingView> {
     try {
       console.log('[Blockchain] Fetching listing:', listingId);
 
-      if (!this.marketplaceAddress) {
-        throw new Error('MARKETPLACE_ADDRESS not configured');
+      const listing = await this.readMarketplaceListing(listingId);
+
+      return this.mapMarketplaceListing(listing);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
       }
 
-      const marketplaceContract = new Contract(
-        this.marketplaceAddress,
-        MarketplaceArtifact.abi,
-        this.provider,
-      );
-
-      const listing = await marketplaceContract.getListing(listingId);
-
-      return {
-        seller: listing.seller,
-        typeId: listing.typeId.toString(),
-        amount: listing.amount.toString(),
-        pricePerUnit: ethers.formatEther(listing.pricePerUnit),
-        paymentToken: listing.paymentToken,
-        isActive: listing.active,
-        listedAt: Number(listing.listedAt),
-      };
-    } catch (error) {
       console.error(`[Blockchain] Failed to get listing: ${error.message}`);
       this.handleBlockchainError(
         error,
@@ -1210,15 +1281,7 @@ export class BlockchainService {
 
       console.log('[Blockchain] Fetching all active listings (cache miss)...');
 
-      if (!this.marketplaceAddress) {
-        throw new Error('MARKETPLACE_ADDRESS not configured');
-      }
-
-      const marketplaceContract = new Contract(
-        this.marketplaceAddress,
-        MarketplaceArtifact.abi,
-        this.provider,
-      );
+      const marketplaceContract = this.getMarketplaceContract(this.provider);
 
       // 2 parallel RPC calls instead of N+1 individual getListing() calls
       const [listingIds, listingStructs] = await Promise.all([
@@ -1234,16 +1297,13 @@ export class BlockchainService {
 
       // Zip listing IDs with struct data (same order from contract)
       const listings = listingIds.map((id: bigint, index: number) => {
-        const listing = listingStructs[index];
+        const listing = this.mapMarketplaceListing(
+          this.toMarketplaceListingContractView(listingStructs[index]),
+        );
+
         return {
           listingId: id.toString(),
-          seller: listing.seller,
-          typeId: listing.typeId.toString(),
-          amount: listing.amount.toString(),
-          pricePerUnit: ethers.formatEther(listing.pricePerUnit),
-          paymentToken: listing.paymentToken,
-          isActive: listing.active,
-          listedAt: Number(listing.listedAt),
+          ...listing,
         };
       });
 
@@ -1281,11 +1341,7 @@ export class BlockchainService {
       }
 
       const signer = new Wallet(sellerPrivateKey, this.provider);
-      const marketplaceContract = new Contract(
-        this.marketplaceAddress,
-        MarketplaceArtifact.abi,
-        signer,
-      );
+      const marketplaceContract = this.getMarketplaceContract(signer);
 
       const tx = await marketplaceContract.delistCoupon(listingId, {
         gasLimit: 15000000,
@@ -1630,7 +1686,7 @@ export class BlockchainService {
         signer,
       );
 
-      const listing = await marketplaceContract.getListing(listingId);
+      const listing = await this.readMarketplaceListing(listingId, signer);
       if (!listing.active) {
         throw new Error('Listing is not active');
       }
@@ -2031,14 +2087,10 @@ export class BlockchainService {
       const buyerAddress = signer.address;
 
       // 1. Get listing details
-      const marketplaceContract = new Contract(
-        this.marketplaceAddress,
-        MarketplaceArtifact.abi,
-        signer,
-      );
+      const marketplaceContract = this.getMarketplaceContract(signer);
 
       console.log('[Blockchain] Fetching listing details...');
-      const listing = await marketplaceContract.getListing(listingId);
+      const listing = await this.readMarketplaceListing(listingId, signer);
 
       if (!listing.active) {
         throw new Error('Listing is not active');

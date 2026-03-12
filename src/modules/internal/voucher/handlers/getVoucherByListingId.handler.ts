@@ -1,4 +1,5 @@
 import {
+  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -50,7 +51,7 @@ export class GetVoucherByListingId {
           ...listing,
         };
       } catch (error) {
-        if (error instanceof NotFoundException) throw error;
+        if (error instanceof HttpException) throw error;
         this.logger.log(
           `[GetVoucherByListingId] Step 3: No listing found for listingId: ${listingId}`,
         );
@@ -109,20 +110,47 @@ export class GetVoucherByListingId {
         '[GetVoucherByListingId] Step 9: Execution completed successfully',
       );
 
-      // Count available voucher codes
-      const availableCount = await this.prisma.voucherCode.count({
-        where: {
-          voucherId: voucherCodes.voucherId,
-          voucherGroupId: voucherCodes.voucherGroupId,
-          isUsed: false,
-          currentOwnerId: {
-            not: null,
+      const [availableCountInDb, redeemedCount] = await Promise.all([
+        this.prisma.voucherCode.count({
+          where: {
+            voucherId: voucherCodes.voucherId,
+            voucherGroupId: voucherCodes.voucherGroupId,
+            isUsed: false,
+            OR: [
+              {
+                currentOwnerType: null,
+              },
+              {
+                currentOwnerType: {
+                  not: 'CUSTOMER',
+                },
+              },
+            ],
           },
-        },
-      });
+        }),
+        this.prisma.voucherCode.count({
+          where: {
+            voucherId: voucherCodes.voucherId,
+            voucherGroupId: voucherCodes.voucherGroupId,
+            isUsed: true,
+          },
+        }),
+      ]);
+
+      const availableCountOnChain = Number.parseInt(objectListings.amount, 10);
+      const totalAvailable = Number.isNaN(availableCountOnChain)
+        ? availableCountInDb
+        : availableCountOnChain;
+
       this.logger.log(
-        `[GetVoucherByListingId] Available count for voucher ${voucherCodes.voucherId}: ${availableCount} : ${voucherCodes.voucherGroupId}`,
+        `[GetVoucherByListingId] Counts for voucher ${voucherCodes.voucherId}: availableOnChain=${totalAvailable}, availableInDb=${availableCountInDb}, redeemed=${redeemedCount}, listing=${voucherCodes.voucherGroupId}`,
       );
+
+      if (!Number.isNaN(availableCountOnChain) && availableCountInDb !== totalAvailable) {
+        this.logger.warn(
+          `[GetVoucherByListingId] Listing ${voucherCodes.voucherGroupId} availability mismatch. blockchain=${totalAvailable}, db=${availableCountInDb}`,
+        );
+      }
 
       // Enrich merchantRef detail
       const merchantRef = voucherCodes.voucher.merchantRef;
@@ -170,8 +198,8 @@ export class GetVoucherByListingId {
           startDate: voucher.startDate,
           endDate: voucher.endDate,
           totalIssued: voucher.totalIssued,
-          totalRedeemed: availableCount || 0,
-          totalAvailable: availableCount || 0,
+          totalRedeemed: redeemedCount,
+          totalAvailable,
           imageUrl: voucher.imageUrl,
           limitPerMember: voucher.limitPerMember,
           createdAt: voucher.createdAt,
@@ -190,7 +218,7 @@ export class GetVoucherByListingId {
       );
       this.logger.error(`[GetVoucherByListingId] Error stack: ${error.stack}`);
 
-      if (error instanceof NotFoundException) {
+      if (error instanceof HttpException) {
         throw error;
       }
 

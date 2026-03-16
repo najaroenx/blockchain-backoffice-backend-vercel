@@ -147,4 +147,21 @@ describe('GetTransactionById', () => {
     expect(result.voucher).not.toBeNull();
     expect(result.voucher!.name).toBe('Test Voucher');
   });
+
+  it('should return null point info when POINT transaction has no point relation', async () => {
+    const pointlessTx = {
+      ...mockTransaction,
+      pointId: null,
+      point: null,
+    };
+
+    dbService.getTransactionById.mockResolvedValue(pointlessTx as any);
+    prisma.merchant.findUnique.mockResolvedValue({ name: 'Merchant' });
+    prisma.customer.findUnique.mockResolvedValue({ tel: '0812345678' });
+
+    const result = await handler.execute('tx-123');
+
+    expect(result.point).toBeNull();
+    expect(result.voucher).toBeNull();
+  });
 });

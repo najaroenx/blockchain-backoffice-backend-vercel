@@ -110,8 +110,7 @@ export class GetTransactionById {
         transactionTypeId: string,
         assetType?: string,
       ) => {
-        // New structure: check type field - if VOUCHER, no point info
-        if (assetType === 'VOUCHER') {
+        if (!point || assetType === 'VOUCHER') {
           return null;
         }
 

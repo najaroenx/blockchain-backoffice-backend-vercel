@@ -1226,7 +1226,9 @@ export class BlockchainService {
    * @param listingId - Listing ID
    * @returns Listing details
    */
-  async getMarketplaceListing(listingId: string): Promise<MarketplaceListingView> {
+  async getMarketplaceListing(
+    listingId: string,
+  ): Promise<MarketplaceListingView> {
     try {
       console.log('[Blockchain] Fetching listing:', listingId);
 

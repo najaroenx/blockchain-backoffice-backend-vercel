@@ -146,7 +146,10 @@ export class GetVoucherByListingId {
         `[GetVoucherByListingId] Counts for voucher ${voucherCodes.voucherId}: availableOnChain=${totalAvailable}, availableInDb=${availableCountInDb}, redeemed=${redeemedCount}, listing=${voucherCodes.voucherGroupId}`,
       );
 
-      if (!Number.isNaN(availableCountOnChain) && availableCountInDb !== totalAvailable) {
+      if (
+        !Number.isNaN(availableCountOnChain) &&
+        availableCountInDb !== totalAvailable
+      ) {
         this.logger.warn(
           `[GetVoucherByListingId] Listing ${voucherCodes.voucherGroupId} availability mismatch. blockchain=${totalAvailable}, db=${availableCountInDb}`,
         );

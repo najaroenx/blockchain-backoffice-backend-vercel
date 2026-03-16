@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
+import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 
 interface VoucherRow {
   id: string;
@@ -49,7 +50,10 @@ interface VoucherRow {
 export class GetVoucherById {
   private logger = new Logger(GetVoucherById.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private merchantRefEnrichment: MerchantRefEnrichmentService,
+  ) {}
 
   async execute(
     voucherId: string,
@@ -123,6 +127,9 @@ export class GetVoucherById {
       }
 
       const row = rows[0];
+      const merchantRefDetail = row.merchantRef
+        ? await this.merchantRefEnrichment.enrich(row.merchantRef)
+        : null;
 
       const result = {
         id: row.id,
@@ -139,7 +146,7 @@ export class GetVoucherById {
         totalRedeemed: row.totalRedeemed,
         merchantId: row.merchantId,
         merchantName: row.merchantName,
-        merchantRef: row.merchantRef,
+        merchantRefDetail,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         merchant: row.m_id

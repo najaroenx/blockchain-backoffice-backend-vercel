@@ -981,12 +981,14 @@ export class VoucherDBService {
     status?: 'unused' | 'used' | 'all',
     page?: number,
     limit?: number,
+    merchantRef?: string,
   ) {
     return await this.getCustomerOwnedVouchersHandler.execute(
       phone,
       status,
       page,
       limit,
+      merchantRef,
     );
   }
 }

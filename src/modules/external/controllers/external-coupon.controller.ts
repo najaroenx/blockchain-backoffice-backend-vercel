@@ -13,6 +13,7 @@ import {
   ApiResponse,
   ApiBody,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { Public } from 'src/modules/internal/auth/public.decorator';
 import { VoucherDBService } from 'src/modules/internal/voucher/services/voucher-db.service';
@@ -120,6 +121,12 @@ export class ExternalCouponController {
     description: 'เบอร์โทรศัพท์ของลูกค้า (10 digits)',
     example: '0984360421',
   })
+  @ApiQuery({
+    name: 'merchantRef',
+    required: false,
+    description: 'กรอง coupon ตาม merchantRef ของ voucher',
+    example: 'merchant-ref-001',
+  })
   @ApiResponse({
     status: 200,
     description: 'Coupons retrieved successfully',
@@ -133,6 +140,7 @@ export class ExternalCouponController {
     @Query('status') status?: 'unused' | 'used' | 'all',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('merchantRef') merchantRef?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
@@ -142,6 +150,7 @@ export class ExternalCouponController {
       status || 'all',
       pageNum,
       limitNum,
+      merchantRef,
     );
   }
 

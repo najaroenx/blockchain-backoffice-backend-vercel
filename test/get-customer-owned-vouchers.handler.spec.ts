@@ -155,6 +155,119 @@ describe('GetCustomerOwnedVouchers', () => {
     expect(result.status).toBe('used');
   });
 
+  it('should filter vouchers by merchantRef', async () => {
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        { id: 'cust1', tel: '0891234567', walletAddress: '0xwallet' },
+      ])
+      .mockResolvedValueOnce([
+        {
+          codeId: 'code1',
+          code: 'ABC123',
+          voucherGroupId: 'grp1',
+          pointsCost: 10,
+          currency: 'PT',
+          isUsed: false,
+          usedAt: null,
+          codeCreatedAt: new Date(),
+          voucherId: 'v1',
+          voucherName: 'V1',
+          voucherDescription: 'Desc',
+          voucherImageUrl: null,
+          voucherValue: 100,
+          voucherValueType: 'cash',
+          voucherStatus: 'active',
+          voucherStartDate: new Date('2025-01-01'),
+          voucherEndDate: new Date('2025-12-31'),
+          voucherMerchantRef: 'ref-1',
+          voucherMerchantId: 'm1',
+          voucherMerchantName: 'Merchant1',
+          voucherTokenId: '1',
+          merchantImageUrl: null,
+          merchantDbName: 'M1',
+          txId: 'tx1',
+          txTransactionTypeId: 'TRANSFER',
+        },
+        {
+          codeId: 'code2',
+          code: 'DEF456',
+          voucherGroupId: 'grp2',
+          pointsCost: 20,
+          currency: 'PT',
+          isUsed: false,
+          usedAt: null,
+          codeCreatedAt: new Date(),
+          voucherId: 'v2',
+          voucherName: 'V2',
+          voucherDescription: 'Desc 2',
+          voucherImageUrl: null,
+          voucherValue: 200,
+          voucherValueType: 'cash',
+          voucherStatus: 'active',
+          voucherStartDate: new Date('2025-01-01'),
+          voucherEndDate: new Date('2025-12-31'),
+          voucherMerchantRef: 'ref-2',
+          voucherMerchantId: 'm2',
+          voucherMerchantName: 'Merchant2',
+          voucherTokenId: '2',
+          merchantImageUrl: null,
+          merchantDbName: 'M2',
+          txId: 'tx2',
+          txTransactionTypeId: 'TRANSFER',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          voucherId: 'v1',
+          tokenId: '1',
+          voucherName: 'V1',
+          voucherDescription: 'Desc',
+          voucherImageUrl: null,
+          voucherValue: 100,
+          voucherValueType: 'cash',
+          voucherStatus: 'active',
+          voucherStartDate: new Date('2025-01-01'),
+          voucherEndDate: new Date('2025-12-31'),
+          voucherMerchantRef: 'ref-1',
+          voucherMerchantId: 'm1',
+          voucherMerchantName: 'Merchant1',
+          merchantImageUrl: null,
+          samplePointsCost: 10,
+          sampleCurrency: 'PT',
+        },
+        {
+          voucherId: 'v2',
+          tokenId: '2',
+          voucherName: 'V2',
+          voucherDescription: 'Desc 2',
+          voucherImageUrl: null,
+          voucherValue: 200,
+          voucherValueType: 'cash',
+          voucherStatus: 'active',
+          voucherStartDate: new Date('2025-01-01'),
+          voucherEndDate: new Date('2025-12-31'),
+          voucherMerchantRef: 'ref-2',
+          voucherMerchantId: 'm2',
+          voucherMerchantName: 'Merchant2',
+          merchantImageUrl: null,
+          samplePointsCost: 20,
+          sampleCurrency: 'PT',
+        },
+      ]);
+
+    const balanceMap = new Map();
+    balanceMap.set('1', 1);
+    balanceMap.set('2', 1);
+    blockchainService.getUserCouponBalanceBatch.mockResolvedValue(balanceMap);
+    merchantRefEnrichment.enrichBatch.mockResolvedValue(new Map());
+
+    const result = await handler.execute('0891234567', 'all', 1, 20, 'ref-2');
+
+    expect(result.total).toBe(1);
+    expect(result.vouchers).toHaveLength(1);
+    expect((result.vouchers[0] as any).latestVoucher.merchantRef).toBe('ref-2');
+  });
+
   it('should fallback to individual balance calls on batch failure', async () => {
     prisma.$queryRaw
       .mockResolvedValueOnce([

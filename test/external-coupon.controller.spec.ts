@@ -72,6 +72,7 @@ describe('ExternalCouponController', () => {
       'all',
       1,
       20,
+      undefined,
     );
     expect(result).toEqual({ data: [] });
   });
@@ -86,6 +87,29 @@ describe('ExternalCouponController', () => {
       'unused',
       2,
       10,
+      undefined,
+    );
+  });
+
+  it('getCustomerOwnedVouchers passes merchantRef filter', async () => {
+    voucherService.getCustomerOwnedVouchers.mockResolvedValue({
+      data: [],
+    } as any);
+
+    await controller.getCustomerOwnedVouchers(
+      '081',
+      'all',
+      '1',
+      '20',
+      'merchant-ref-001',
+    );
+
+    expect(voucherService.getCustomerOwnedVouchers).toHaveBeenCalledWith(
+      '081',
+      'all',
+      1,
+      20,
+      'merchant-ref-001',
     );
   });
 

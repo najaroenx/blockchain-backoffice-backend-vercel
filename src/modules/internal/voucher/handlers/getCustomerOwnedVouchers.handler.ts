@@ -73,10 +73,11 @@ export class GetCustomerOwnedVouchers {
     status?: 'unused' | 'used' | 'all',
     page: number = 1,
     limit: number = 20,
+    merchantRef?: string,
   ): Promise<GetCustomerOwnedVouchersResponseType> {
     try {
       this.logger.log(
-        `[START] Getting owned vouchers for phone: ${phone}, status: ${status}`,
+        `[START] Getting owned vouchers for phone: ${phone}, status: ${status}, merchantRef: ${merchantRef || 'all'}`,
       );
 
       const customer = await this.findCustomerWithWallet(phone);
@@ -102,8 +103,13 @@ export class GetCustomerOwnedVouchers {
         customerCodes,
       );
 
-      const filteredVouchers = this.applyStatusFilter(
+      const merchantFilteredVouchers = this.applyMerchantRefFilter(
         vouchersWithBalance,
+        merchantRef,
+      );
+
+      const filteredVouchers = this.applyStatusFilter(
+        merchantFilteredVouchers,
         status,
       );
 
@@ -111,10 +117,10 @@ export class GetCustomerOwnedVouchers {
       const skip = (page - 1) * limit;
       const paginatedVouchers = filteredVouchers.slice(skip, skip + limit);
 
-      const unusedCount = vouchersWithBalance.filter(
+      const unusedCount = merchantFilteredVouchers.filter(
         (item) => !item.code?.isUsed,
       ).length;
-      const usedCount = vouchersWithBalance.filter(
+      const usedCount = merchantFilteredVouchers.filter(
         (item) => item.code?.isUsed,
       ).length;
 
@@ -500,6 +506,20 @@ export class GetCustomerOwnedVouchers {
       return vouchersWithBalance.filter((item) => item.code?.isUsed);
     }
     return vouchersWithBalance;
+  }
+
+  /** Apply optional merchantRef filter to vouchers */
+  private applyMerchantRefFilter(
+    vouchersWithBalance: any[],
+    merchantRef?: string,
+  ) {
+    if (!merchantRef) {
+      return vouchersWithBalance;
+    }
+
+    return vouchersWithBalance.filter(
+      (item) => item.voucher?.merchantRef === merchantRef,
+    );
   }
 
   /** Enrich grouped vouchers with MerchantRefStore details */

@@ -25,7 +25,18 @@ export class GetVoucherByLatestCode {
 
       const voucherCode = await this.prisma.voucherCode.findUnique({
         where: { code },
-        select: { voucherId: true },
+        select: {
+          id: true,
+          code: true,
+          pointsCost: true,
+          currency: true,
+          isUsed: true,
+          usedAt: true,
+          usedBy: true,
+          currentOwnerId: true,
+          createdAt: true,
+          voucherId: true,
+        },
       });
 
       if (!voucherCode) {
@@ -40,7 +51,20 @@ export class GetVoucherByLatestCode {
 
       this.logger.log(`[SUCCESS] Retrieved voucher for latest code ${code}`);
 
-      return result;
+      return {
+        ...result,
+        latestCode: {
+          id: voucherCode.id,
+          code: voucherCode.code,
+          pointsCost: voucherCode.pointsCost,
+          currency: voucherCode.currency,
+          isUsed: voucherCode.isUsed,
+          usedAt: voucherCode.usedAt,
+          usedBy: voucherCode.usedBy,
+          currentOwnerId: voucherCode.currentOwnerId,
+          createdAt: voucherCode.createdAt,
+        },
+      };
     } catch (error) {
       this.logger.error(
         `[FATAL ERROR] Failed to get voucher by latest code: ${error.message}`,

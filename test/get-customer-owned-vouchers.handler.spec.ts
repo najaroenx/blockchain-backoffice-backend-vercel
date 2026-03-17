@@ -456,6 +456,173 @@ describe('GetCustomerOwnedVouchers', () => {
     );
   });
 
+  it('should not return vouchers when the code is no longer owned by the requesting customer', async () => {
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        { id: 'cust1', tel: '089', walletAddress: '0xw' },
+      ])
+      .mockResolvedValueOnce([
+        {
+          codeId: 'c1',
+          code: 'NOT-OWNED-CODE',
+          voucherGroupId: 'g1',
+          pointsCost: 10,
+          currency: 'PT',
+          isUsed: false,
+          usedAt: null,
+          codeCreatedAt: new Date(),
+          voucherId: 'v1',
+          voucherName: 'V1',
+          voucherDescription: 'D',
+          voucherImageUrl: null,
+          voucherValue: 50,
+          voucherValueType: 'cash',
+          voucherStatus: 'active',
+          voucherStartDate: new Date('2025-01-01'),
+          voucherEndDate: new Date('2025-12-31'),
+          voucherMerchantRef: null,
+          voucherMerchantId: 'm1',
+          voucherMerchantName: 'M1',
+          voucherTokenId: '1',
+          merchantImageUrl: null,
+          merchantDbName: 'M1',
+          txId: null,
+          txTransactionTypeId: null,
+          currentOwnerId: 'other-customer',
+          currentOwnerType: 'CUSTOMER',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          voucherId: 'v1',
+          tokenId: '1',
+          voucherName: 'V1',
+          voucherDescription: 'D',
+          voucherImageUrl: null,
+          voucherValue: 50,
+          voucherValueType: 'cash',
+          voucherStatus: 'active',
+          voucherStartDate: new Date('2025-01-01'),
+          voucherEndDate: new Date('2025-12-31'),
+          voucherMerchantRef: null,
+          voucherMerchantId: 'm1',
+          voucherMerchantName: 'M1',
+          merchantImageUrl: null,
+          samplePointsCost: 10,
+          sampleCurrency: 'PT',
+        },
+      ]);
+
+    blockchainService.getUserCouponBalanceBatch.mockResolvedValue(
+      new Map([['1', 1]]),
+    );
+
+    const result = await handler.execute('089');
+
+    expect(result.vouchers).toHaveLength(0);
+    expect(result.total).toBe(0);
+  });
+
+  it('should select the newest owned latestCode in the same group even if rows are out of order', async () => {
+    const olderDate = new Date('2025-01-15T00:00:00.000Z');
+    const newerDate = new Date('2025-01-20T00:00:00.000Z');
+
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        { id: 'cust1', tel: '089', walletAddress: '0xw' },
+      ])
+      .mockResolvedValueOnce([
+        {
+          codeId: 'c1',
+          code: 'OLD-CODE',
+          voucherGroupId: 'g1',
+          pointsCost: 10,
+          currency: 'PT',
+          isUsed: false,
+          usedAt: null,
+          codeCreatedAt: olderDate,
+          voucherId: 'v1',
+          voucherName: 'V1',
+          voucherDescription: 'D',
+          voucherImageUrl: null,
+          voucherValue: 50,
+          voucherValueType: 'cash',
+          voucherStatus: 'active',
+          voucherStartDate: new Date('2025-01-01'),
+          voucherEndDate: new Date('2025-12-31'),
+          voucherMerchantRef: null,
+          voucherMerchantId: 'm1',
+          voucherMerchantName: 'M1',
+          voucherTokenId: '1',
+          merchantImageUrl: null,
+          merchantDbName: 'M1',
+          txId: null,
+          txTransactionTypeId: null,
+          currentOwnerId: 'cust1',
+          currentOwnerType: 'CUSTOMER',
+        },
+        {
+          codeId: 'c2',
+          code: 'NEW-CODE',
+          voucherGroupId: 'g1',
+          pointsCost: 10,
+          currency: 'PT',
+          isUsed: false,
+          usedAt: null,
+          codeCreatedAt: newerDate,
+          voucherId: 'v1',
+          voucherName: 'V1',
+          voucherDescription: 'D',
+          voucherImageUrl: null,
+          voucherValue: 50,
+          voucherValueType: 'cash',
+          voucherStatus: 'active',
+          voucherStartDate: new Date('2025-01-01'),
+          voucherEndDate: new Date('2025-12-31'),
+          voucherMerchantRef: null,
+          voucherMerchantId: 'm1',
+          voucherMerchantName: 'M1',
+          voucherTokenId: '1',
+          merchantImageUrl: null,
+          merchantDbName: 'M1',
+          txId: null,
+          txTransactionTypeId: null,
+          currentOwnerId: 'cust1',
+          currentOwnerType: 'CUSTOMER',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          voucherId: 'v1',
+          tokenId: '1',
+          voucherName: 'V1',
+          voucherDescription: 'D',
+          voucherImageUrl: null,
+          voucherValue: 50,
+          voucherValueType: 'cash',
+          voucherStatus: 'active',
+          voucherStartDate: new Date('2025-01-01'),
+          voucherEndDate: new Date('2025-12-31'),
+          voucherMerchantRef: null,
+          voucherMerchantId: 'm1',
+          voucherMerchantName: 'M1',
+          merchantImageUrl: null,
+          samplePointsCost: 10,
+          sampleCurrency: 'PT',
+        },
+      ]);
+
+    blockchainService.getUserCouponBalanceBatch.mockResolvedValue(
+      new Map([['1', 2]]),
+    );
+
+    const result = await handler.execute('089');
+
+    expect(result.vouchers).toHaveLength(1);
+    expect(result.vouchers[0].latestVoucher.latestCode).toBe('NEW-CODE');
+    expect(result.vouchers[0].totalCodes).toBe(2);
+  });
+
   it('should re-throw error from execute', async () => {
     prisma.$queryRaw.mockRejectedValueOnce(new Error('fatal'));
 

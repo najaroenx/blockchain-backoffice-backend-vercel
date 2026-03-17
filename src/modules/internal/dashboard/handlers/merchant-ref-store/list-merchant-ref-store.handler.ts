@@ -83,15 +83,19 @@ export class GetMerchantRefStoreByIdHandler {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(id: string): Promise<MerchantRefStoreResponse> {
-    this.logger.debug(`Getting MerchantRefStore by id: ${id}`);
+  async execute(merchantRef: string): Promise<MerchantRefStoreResponse> {
+    this.logger.debug(
+      `Getting MerchantRefStore by merchantRef: ${merchantRef}`,
+    );
 
     const store = await this.prisma.merchantRefStore.findUnique({
-      where: { id },
+      where: { merchantRef },
     });
 
     if (!store) {
-      throw new NotFoundException(`MerchantRefStore with id ${id} not found`);
+      throw new NotFoundException(
+        `MerchantRefStore with merchantRef ${merchantRef} not found`,
+      );
     }
 
     return store as MerchantRefStoreResponse;

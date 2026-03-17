@@ -37,6 +37,8 @@ interface CustomerCodeRow {
   merchantDbName: string | null;
   txId: string | null;
   txTransactionTypeId: string | null;
+  currentOwnerId?: string | null;
+  currentOwnerType?: string | null;
 }
 
 interface ActiveVoucherRow {
@@ -101,6 +103,7 @@ export class GetCustomerOwnedVouchers {
         balanceMap,
         codesByVoucherId,
         customerCodes,
+        customerId,
       );
 
       const merchantFilteredVouchers = this.applyMerchantRefFilter(
@@ -226,7 +229,9 @@ export class GetCustomerOwnedVouchers {
         COALESCE(m."imageUrl", sm."imageUrl", mrs."imageUrl") AS "merchantImageUrl",
         COALESCE(m.name, sm.name) AS "merchantDbName",
         t.id AS "txId",
-        t."transactionTypeId" AS "txTransactionTypeId"
+        t."transactionTypeId" AS "txTransactionTypeId",
+        vc."currentOwnerId" AS "currentOwnerId",
+        vc."currentOwnerType" AS "currentOwnerType"
       FROM "VoucherCode" vc
       JOIN "Voucher" v ON vc."voucherId" = v.id
       LEFT JOIN "Merchant" m ON v."merchantId" = m.id
@@ -369,6 +374,7 @@ export class GetCustomerOwnedVouchers {
     balanceMap: Map<string, number>,
     codesByVoucherId: Map<string, CustomerCodeRow[]>,
     customerCodes: CustomerCodeRow[],
+    customerId: string,
   ) {
     const vouchersWithBalance: Array<{
       voucher: ReturnType<typeof this.buildVoucherFromActive>;
@@ -378,6 +384,7 @@ export class GetCustomerOwnedVouchers {
         voucherGroupId: string | null;
         isUsed: boolean;
         usedAt: Date | null;
+        codeCreatedAt: Date;
       } | null;
       onChainBalance: string;
       pointsCost: number;
@@ -391,8 +398,14 @@ export class GetCustomerOwnedVouchers {
       codesByVoucherId,
       vouchersWithBalance,
       addedCodeIds,
+      customerId,
     );
-    this.addRedeemedVouchers(customerCodes, addedCodeIds, vouchersWithBalance);
+    this.addRedeemedVouchers(
+      customerCodes,
+      addedCodeIds,
+      vouchersWithBalance,
+      customerId,
+    );
 
     this.logger.log(
       `[STEP 5] Total vouchers reconciled: ${vouchersWithBalance.length}`,
@@ -407,6 +420,7 @@ export class GetCustomerOwnedVouchers {
     codesByVoucherId: Map<string, CustomerCodeRow[]>,
     result: any[],
     addedCodeIds: Set<string>,
+    customerId: string,
   ) {
     for (const av of activeVouchers) {
       const onChainBalance = balanceMap.get(av.tokenId) || 0;
@@ -416,10 +430,18 @@ export class GetCustomerOwnedVouchers {
       const unusedCodes = codes.filter((c) => !c.isUsed);
 
       for (let i = 0; i < onChainBalance; i++) {
-        const codeRow = unusedCodes[i] || null;
+        const candidateCode = unusedCodes[i] || null;
+        const codeRow = this.isCodeOwnedByCustomer(candidateCode, customerId)
+          ? candidateCode
+          : null;
+
+        if (!codeRow) {
+          continue;
+        }
+
         result.push({
           voucher: this.buildVoucherFromActive(av),
-          code: codeRow ? this.buildCodeShape(codeRow) : null,
+          code: this.buildCodeShape(codeRow),
           onChainBalance: onChainBalance.toString(),
           pointsCost: codeRow?.pointsCost || av.samplePointsCost || 0,
           currency: codeRow?.currency || av.sampleCurrency || '',
@@ -434,9 +456,17 @@ export class GetCustomerOwnedVouchers {
     customerCodes: CustomerCodeRow[],
     addedCodeIds: Set<string>,
     result: any[],
+    customerId: string,
   ) {
     for (const codeRow of customerCodes) {
-      if (!codeRow.isUsed || addedCodeIds.has(codeRow.codeId)) continue;
+      if (
+        !codeRow.isUsed ||
+        addedCodeIds.has(codeRow.codeId) ||
+        !this.isCodeOwnedByCustomer(codeRow, customerId)
+      ) {
+        continue;
+      }
+
       result.push({
         voucher: this.buildVoucherFromCode(codeRow),
         code: this.buildCodeShape(codeRow),
@@ -446,6 +476,28 @@ export class GetCustomerOwnedVouchers {
       });
       addedCodeIds.add(codeRow.codeId);
     }
+  }
+
+  /** Only expose a code when it is still owned by the requesting customer. */
+  private isCodeOwnedByCustomer(
+    codeRow: CustomerCodeRow | null,
+    customerId: string,
+  ) {
+    if (!codeRow) {
+      return false;
+    }
+
+    if (
+      codeRow.currentOwnerId === undefined &&
+      codeRow.currentOwnerType === undefined
+    ) {
+      return true;
+    }
+
+    return (
+      codeRow.currentOwnerId === customerId &&
+      codeRow.currentOwnerType === 'CUSTOMER'
+    );
   }
 
   /** Build voucher shape from ActiveVoucherRow */
@@ -494,6 +546,7 @@ export class GetCustomerOwnedVouchers {
       voucherGroupId: c.voucherGroupId,
       isUsed: c.isUsed,
       usedAt: c.usedAt,
+      codeCreatedAt: c.codeCreatedAt,
     };
   }
 
@@ -558,6 +611,7 @@ export class GetCustomerOwnedVouchers {
    */
   private groupVouchersByGroupId(vouchersWithBalance: any[]): any[] {
     const groupedMap = new Map<string, any>();
+    const latestCodeCreatedAtByKey = new Map<string, Date>();
     const now = new Date();
 
     for (const item of vouchersWithBalance) {
@@ -593,7 +647,7 @@ export class GetCustomerOwnedVouchers {
             merchantId: voucher.merchantId || null,
             merchantName: voucher.merchantName || null,
             merchantImageUrl: voucher.merchantImageUrl || null,
-            latestCode: code?.code || null,
+            latestCode: null,
             codeStatus: codeStatus,
             pointsCost: pointsCost || 0,
             currency: currency || null,
@@ -605,8 +659,19 @@ export class GetCustomerOwnedVouchers {
 
       const group = groupedMap.get(key);
 
-      // Set latestCode to the first code encountered (since we already ordered by createdAt desc)
-      if (!group.latestVoucher.latestCode && code?.code) {
+      // latestCode must be the newest code owned by this customer for the group.
+      if (code?.code && code?.codeCreatedAt) {
+        const currentLatestCreatedAt = latestCodeCreatedAtByKey.get(key);
+        const candidateCreatedAt = new Date(code.codeCreatedAt);
+
+        if (
+          !currentLatestCreatedAt ||
+          candidateCreatedAt > currentLatestCreatedAt
+        ) {
+          latestCodeCreatedAtByKey.set(key, candidateCreatedAt);
+          group.latestVoucher.latestCode = code.code;
+        }
+      } else if (!group.latestVoucher.latestCode && code?.code) {
         group.latestVoucher.latestCode = code.code;
       }
 

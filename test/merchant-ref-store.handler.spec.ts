@@ -218,12 +218,15 @@ describe('MerchantRefStore Handlers', () => {
       handler = new GetMerchantRefStoreByIdHandler(prisma);
     });
 
-    it('should return store by id', async () => {
+    it('should return store by merchantRef', async () => {
       prisma.merchantRefStore.findUnique.mockResolvedValue(mockStore);
 
-      const result = await handler.execute('mrs-1');
+      const result = await handler.execute('REF001');
 
       expect(result).toEqual(mockStore);
+      expect(prisma.merchantRefStore.findUnique).toHaveBeenCalledWith({
+        where: { merchantRef: 'REF001' },
+      });
     });
 
     it('should throw NotFoundException when not found', async () => {

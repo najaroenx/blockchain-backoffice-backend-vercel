@@ -82,12 +82,12 @@ describe('MerchantRefStoreController', () => {
     });
   });
 
-  it('should get store by ID', async () => {
+  it('should get store by merchantRef from canonical route', async () => {
     mockGetByIdHandler.execute.mockResolvedValue(sampleStore);
 
-    const result = await controller.getById('store-1');
+    const result = await controller.getByMerchantRef('ref-001');
     expect(result).toEqual(sampleStore);
-    expect(mockGetByIdHandler.execute).toHaveBeenCalledWith('store-1');
+    expect(mockGetByIdHandler.execute).toHaveBeenCalledWith('ref-001');
   });
 
   it('should get store by merchantRef', async () => {

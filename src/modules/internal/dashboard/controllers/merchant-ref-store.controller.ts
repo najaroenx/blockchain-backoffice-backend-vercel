@@ -51,17 +51,19 @@ export class MerchantRefStoreController {
   }
 
   /**
-   * GET /merchant-ref-store/:id
-   * Get a single MerchantRefStore by ID
+   * GET /merchant-ref-store/:merchantRef
+   * Get a single MerchantRefStore by merchantRef
    */
   @Get(':id')
-  async getById(@Param('id') id: string): Promise<MerchantRefStoreResponse> {
-    return this.getByIdHandler.execute(id);
+  async getByMerchantRef(
+    @Param('id') merchantRef: string,
+  ): Promise<MerchantRefStoreResponse> {
+    return this.getByIdHandler.execute(merchantRef);
   }
 
   /**
    * GET /merchant-ref-store/ref/:merchantRef
-   * Get a single MerchantRefStore by merchantRef
+   * Get a single MerchantRefStore by merchantRef (alias route)
    */
   @Get('ref/:merchantRef')
   async getByRef(

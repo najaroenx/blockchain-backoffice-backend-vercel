@@ -5,12 +5,17 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Put,
   Query,
   Req,
 } from '@nestjs/common';
-import { CreateMerchantDto, UpdateMerchantDto } from '../dtos';
+import {
+  CreateMerchantDto,
+  UpdateMerchantDto,
+  UpdateMerchantStatusDto,
+} from '../dtos';
 import { MerchantFilterDto } from '../../../../common/dtos/pagination.dto';
 
 import { GetMerchants } from '../handlers/getMerchants.handler';
@@ -79,12 +84,6 @@ export class MerchantController {
 
     return this.createMerchantHandler.execute(userId, data);
   }
-
-  /**
-   * Get all merchants with pagination and filtering
-   * GET /merchant/all?page=1&limit=20&name=test&location=bangkok
-   * TODO: need implement more use only test
-   */
   @Get('/all')
   @Public()
   @HttpCode(200)
@@ -99,6 +98,18 @@ export class MerchantController {
     @Param('merchantId') merchantId: string,
   ) {
     return this.updateMerchantHandler.execute(merchantId, data);
+  }
+
+  @Patch('/:merchantId/status')
+  @Public()
+  @HttpCode(200)
+  async updateStatus(
+    @Param('merchantId') merchantId: string,
+    @Body() data: UpdateMerchantStatusDto,
+  ) {
+    return this.updateMerchantHandler.execute(merchantId, {
+      status: data.status,
+    });
   }
 
   /**

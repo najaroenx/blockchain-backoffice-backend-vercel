@@ -99,6 +99,7 @@ model Merchant {
   customerMerChant CustomerMerChant[]
   vouchers         Voucher[]
   tel              String
+  status           Boolean            @default(false)
   walletId         String?            @unique
   wallet           Wallet?            @relation(fields: [walletId], references: [id])
 }
@@ -111,6 +112,12 @@ model ApiKey {
   merchantId  String?
   createdAt   DateTime  @default(now()) @map(name: "created_at")
   updatedAt   DateTime  @updatedAt @map(name: "updated_at")
+  keyHash     String?   @unique
+  keyPrefix   String?
+  scopes      String[]  @default([])
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  isActive    Boolean   @default(true)
   merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 

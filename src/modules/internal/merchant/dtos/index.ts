@@ -1,4 +1,10 @@
-import { IsOptional, IsString, IsInt, IsArray } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsInt,
+  IsArray,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateMerchantDto {
   @IsString()
@@ -74,4 +80,13 @@ export class UpdateMerchantDto {
   @IsString()
   @IsOptional()
   walletId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  status?: boolean;
+}
+
+export class UpdateMerchantStatusDto {
+  @IsBoolean()
+  status: boolean;
 }

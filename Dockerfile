@@ -44,7 +44,8 @@ RUN yarn install --frozen-lockfile --production=true \
 # Stage 4: Production image
 FROM node:24-alpine
 
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat \
+    && apk upgrade --no-cache zlib
 
 RUN npm install -g npm@11.12.0 --no-audit --no-fund
 

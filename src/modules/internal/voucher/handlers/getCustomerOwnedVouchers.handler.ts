@@ -74,7 +74,7 @@ export class GetCustomerOwnedVouchers {
     phone: string,
     status?: 'unused' | 'used' | 'all',
     page: number = 1,
-    limit: number = 20,
+    limit?: number,
     merchantRef?: string,
   ): Promise<GetCustomerOwnedVouchersResponseType> {
     try {
@@ -116,36 +116,42 @@ export class GetCustomerOwnedVouchers {
         status,
       );
 
-      const totalCount = filteredVouchers.length;
-      const skip = (page - 1) * limit;
-      const paginatedVouchers = filteredVouchers.slice(skip, skip + limit);
+      const groupedVouchers = this.groupVouchersByGroupId(filteredVouchers);
+      const totalCount = groupedVouchers.length;
+      const hasLimit = typeof limit === 'number' && limit > 0;
+      const effectivePage = hasLimit ? page : 1;
+      const paginatedVouchers = hasLimit
+        ? groupedVouchers.slice(
+            (effectivePage - 1) * limit,
+            (effectivePage - 1) * limit + limit,
+          )
+        : groupedVouchers;
 
-      const unusedCount = merchantFilteredVouchers.filter(
-        (item) => !item.code?.isUsed,
+      const unusedCount = groupedVouchers.filter(
+        (item) => item.latestVoucher?.codeStatus === 'unused',
       ).length;
-      const usedCount = merchantFilteredVouchers.filter(
-        (item) => item.code?.isUsed,
+      const usedCount = groupedVouchers.filter(
+        (item) => item.latestVoucher?.codeStatus === 'used',
       ).length;
 
       this.logger.log(
-        `[SUCCESS] Returning ${paginatedVouchers.length} vouchers (page ${page}, limit ${limit})`,
+        `[SUCCESS] Returning ${paginatedVouchers.length} vouchers (page ${effectivePage}, limit ${hasLimit ? limit : 'all'})`,
       );
 
-      const groupedVouchers = this.groupVouchersByGroupId(paginatedVouchers);
-      await this.enrichWithMerchantRef(groupedVouchers);
+      await this.enrichWithMerchantRef(paginatedVouchers);
 
       return {
         total: totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-        page,
-        limit,
+        totalPages: hasLimit ? Math.ceil(totalCount / limit) : totalCount > 0 ? 1 : 0,
+        page: effectivePage,
+        limit: hasLimit ? limit : null,
         status: status || 'all',
         summary: {
           total: totalCount,
           unused: unusedCount,
           used: usedCount,
         },
-        vouchers: groupedVouchers,
+        vouchers: paginatedVouchers,
       };
     } catch (error) {
       this.logger.error(
@@ -184,12 +190,14 @@ export class GetCustomerOwnedVouchers {
   /** Return an empty response shape */
   private emptyResponse(
     status: string | undefined,
-    limit: number,
+    limit?: number,
   ): GetCustomerOwnedVouchersResponseType {
+    const hasLimit = typeof limit === 'number' && limit > 0;
+
     return {
       status: (status || 'all') as 'all' | 'unused' | 'used',
       page: 1,
-      limit,
+      limit: hasLimit ? limit : null,
       total: 0,
       totalPages: 0,
       summary: { total: 0, unused: 0, used: 0 },
@@ -628,7 +636,10 @@ export class GetCustomerOwnedVouchers {
         codeStatus = 'used';
       }
 
-      const key = `${groupId}|${codeStatus}`;
+      const nullGroupKey = code?.id || code?.code || voucher.id;
+      const key = groupId
+        ? `${groupId}|${codeStatus}`
+        : `ungrouped:${nullGroupKey}|${codeStatus}`;
 
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {

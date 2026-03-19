@@ -219,20 +219,59 @@ describe('GetCustomerOwnedVouchers', () => {
     });
 
     it('should apply pagination correctly', async () => {
+      const groupedBaseCodeRow = {
+        ...mockCustomerCodeRow,
+        voucherGroupId: 'group-1',
+      };
+      const groupedCodeRow = {
+        ...groupedBaseCodeRow,
+        codeId: 'code-3',
+        code: 'CODE-3',
+        codeCreatedAt: new Date('2024-01-25'),
+      };
+      const secondGroupCodeRow = {
+        ...groupedBaseCodeRow,
+        codeId: 'code-4',
+        code: 'CODE-4',
+        voucherGroupId: 'group-2',
+        voucherId: 'voucher-2',
+        voucherName: 'Test Voucher 2',
+        voucherTokenId: '101',
+        codeCreatedAt: new Date('2024-01-30'),
+      };
+      const secondActiveVoucherRow = {
+        ...mockActiveVoucherRow,
+        voucherId: 'voucher-2',
+        tokenId: '101',
+        voucherName: 'Test Voucher 2',
+      };
+
       prismaService.$queryRaw.mockResolvedValueOnce([mockCustomerRow]);
-      prismaService.$queryRaw.mockResolvedValueOnce([mockCustomerCodeRow]);
-      prismaService.$queryRaw.mockResolvedValueOnce([mockActiveVoucherRow]);
+      prismaService.$queryRaw.mockResolvedValueOnce([
+        groupedBaseCodeRow,
+        groupedCodeRow,
+        secondGroupCodeRow,
+      ]);
+      prismaService.$queryRaw.mockResolvedValueOnce([
+        mockActiveVoucherRow,
+        secondActiveVoucherRow,
+      ]);
 
       blockchainService.getUserCouponBalanceBatch.mockResolvedValue(
-        new Map([['100', 5]]),
+        new Map([
+          ['100', 2],
+          ['101', 1],
+        ]),
       );
 
-      const result = await handler.execute('0812345678', 'all', 2, 2);
+      const result = await handler.execute('0812345678', 'all', 2, 1);
 
       expect(result.page).toBe(2);
-      expect(result.limit).toBe(2);
-      expect(result.total).toBeGreaterThanOrEqual(0);
-      expect(result.totalPages).toBeGreaterThanOrEqual(0);
+      expect(result.limit).toBe(1);
+      expect(result.total).toBe(2);
+      expect(result.totalPages).toBe(2);
+      expect(result.vouchers).toHaveLength(1);
+      expect(result.vouchers[0].voucherGroupId).toBe('group-2');
     });
 
     it('should handle blockchain service errors gracefully', async () => {
@@ -340,11 +379,13 @@ describe('GetCustomerOwnedVouchers', () => {
 
       const result = await handler.execute('0812345678');
 
-      // 2 grouped entries: unused (virtual) + used (redeemed), no duplicates
-      expect(result.vouchers).toHaveLength(2);
+      expect(result.vouchers).toHaveLength(1);
+      expect((result.vouchers[0] as any).latestVoucher?.codeStatus).toBe(
+        'used',
+      );
     });
 
-    it('should use default pagination values', async () => {
+    it('should return all grouped vouchers when limit is omitted', async () => {
       prismaService.$queryRaw.mockResolvedValueOnce([mockCustomerRow]);
       prismaService.$queryRaw.mockResolvedValueOnce([]);
       prismaService.$queryRaw.mockResolvedValueOnce([]);
@@ -352,7 +393,43 @@ describe('GetCustomerOwnedVouchers', () => {
       const result = await handler.execute('0812345678');
 
       expect(result.page).toBe(1);
-      expect(result.limit).toBe(20);
+      expect(result.limit).toBeNull();
+      expect(result.totalPages).toBe(0);
+    });
+
+    it('should keep null voucherGroupId codes as separate response items', async () => {
+      const nullGroupCodeRow = {
+        ...mockCustomerCodeRow,
+        codeId: 'code-5',
+        code: 'CODE-5',
+        voucherGroupId: null,
+      };
+      const secondNullGroupCodeRow = {
+        ...mockCustomerCodeRow,
+        codeId: 'code-6',
+        code: 'CODE-6',
+        voucherGroupId: null,
+        codeCreatedAt: new Date('2024-01-26'),
+      };
+
+      prismaService.$queryRaw.mockResolvedValueOnce([mockCustomerRow]);
+      prismaService.$queryRaw.mockResolvedValueOnce([
+        nullGroupCodeRow,
+        secondNullGroupCodeRow,
+      ]);
+      prismaService.$queryRaw.mockResolvedValueOnce([mockActiveVoucherRow]);
+
+      blockchainService.getUserCouponBalanceBatch.mockResolvedValue(
+        new Map([['100', 2]]),
+      );
+
+      const result = await handler.execute('0812345678');
+
+      expect(result.total).toBe(2);
+      expect(result.vouchers).toHaveLength(2);
+      expect(
+        result.vouchers.every((voucher) => voucher.voucherGroupId === null),
+      ).toBe(true);
     });
 
     it('should throw error on unexpected exceptions', async () => {

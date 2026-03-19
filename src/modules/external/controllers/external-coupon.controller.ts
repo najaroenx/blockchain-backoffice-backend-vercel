@@ -143,7 +143,7 @@ export class ExternalCouponController {
     @Query('merchantRef') merchantRef?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
 
     return this.voucherService.getCustomerOwnedVouchers(
       phone,

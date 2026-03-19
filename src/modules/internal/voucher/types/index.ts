@@ -36,7 +36,7 @@ export type CustomerOwnedVoucherItem = {
 
 export type CustomerOwnedVouchersPagination = {
   page: number;
-  limit: number;
+  limit: number | null;
   total: number;
   totalPages: number;
 };
@@ -49,7 +49,7 @@ export type CustomerOwnedVouchersSummary = {
 
 export type GetCustomerOwnedVouchersResponseType = {
   page: number;
-  limit: number;
+  limit: number | null;
   total: number;
   totalPages: number;
   status: 'unused' | 'used' | 'all';

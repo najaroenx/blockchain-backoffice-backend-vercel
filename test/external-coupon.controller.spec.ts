@@ -62,7 +62,7 @@ describe('ExternalCouponController', () => {
     expect(result).toEqual({ id: 'v1' });
   });
 
-  it('getCustomerOwnedVouchers defaults page=1, limit=20, status=all', async () => {
+  it('getCustomerOwnedVouchers defaults page=1, no limit, status=all', async () => {
     voucherService.getCustomerOwnedVouchers.mockResolvedValue({
       data: [],
     } as any);
@@ -71,7 +71,7 @@ describe('ExternalCouponController', () => {
       '081',
       'all',
       1,
-      20,
+      undefined,
       undefined,
     );
     expect(result).toEqual({ data: [] });

@@ -34,6 +34,7 @@ export class OTPService {
       this.logger.log(`Sending OTP to phone: ${phoneNumber}`, `${otp}`);
 
       // Create Base64 encoded credentials for Basic Auth
+      // Create Base64 encoded credentials for Basic Auth
       const credentials = Buffer.from(
         `${this.otpApiUsername}:${this.otpApiPassword}`,
       ).toString('base64');

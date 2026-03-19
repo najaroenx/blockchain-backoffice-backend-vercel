@@ -7,7 +7,6 @@ import {
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { Merchant, Prisma } from '@prisma/client';
 import { MerchantDBService } from '../services/merchant-db.service';
-import { CreateApiKey } from 'src/modules/internal/api-key/handlers/createApiKey.handler';
 import { PrismaService } from 'prisma/prisma.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
@@ -20,7 +19,6 @@ export class CreateMerchant {
 
   constructor(
     private db: MerchantDBService,
-    private createApiKey: CreateApiKey,
     private prisma: PrismaService,
     private tokenService: TokenService,
     private configService: ConfigService,
@@ -164,12 +162,18 @@ export class CreateMerchant {
           },
         });
 
-        return { merchant, sellerWalletAddress: sellerWallet.walletAddress };
-      });
+        const generatedApiKey = await this.tokenService.generateRandomString(
+          {},
+        );
+        await tx.apiKey.create({
+          data: {
+            name: 'default api key',
+            apiKey: generatedApiKey,
+            merchantId: merchant.id,
+          },
+        });
 
-      // 5. สร้าง default API key (นอก transaction)
-      await this.createApiKey.execute(result.merchant.id, {
-        name: 'default api key',
+        return { merchant, sellerWalletAddress: sellerWallet.walletAddress };
       });
 
       // 5.5. Auto-whitelist merchant & seller wallet addresses on marketplace

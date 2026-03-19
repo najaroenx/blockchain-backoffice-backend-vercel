@@ -142,7 +142,11 @@ export class GetCustomerOwnedVouchers {
 
       return {
         total: totalCount,
-        totalPages: hasLimit ? Math.ceil(totalCount / limit) : totalCount > 0 ? 1 : 0,
+        totalPages: hasLimit
+          ? Math.ceil(totalCount / limit)
+          : totalCount > 0
+            ? 1
+            : 0,
         page: effectivePage,
         limit: hasLimit ? limit : null,
         status: status || 'all',

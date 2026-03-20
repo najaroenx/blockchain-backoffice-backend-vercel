@@ -39,7 +39,7 @@ export class OTPService {
         `${this.otpApiUsername}:${this.otpApiPassword}`,
       ).toString('base64');
       const bodyReq = {
-        sender: 'mechant',
+        sender: 'myAvatar',
         text: `รหัส OTP คือ ${otp} จะหมดอายุใน 5 นาที และจะใช้ได้ 1 ครั้งเท่านั้น`,
         destinations: [
           {

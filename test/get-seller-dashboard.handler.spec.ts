@@ -16,6 +16,7 @@ describe('GetSellerDashboardHandler', () => {
       voucher: { findMany: jest.fn() },
       transaction: { findMany: jest.fn() },
       merchant: { findMany: jest.fn() },
+      merchantRefStore: { findMany: jest.fn() },
     };
     handler = new GetSellerDashboardHandler(prisma as unknown as PrismaService);
   });
@@ -111,12 +112,24 @@ describe('GetSellerDashboardHandler', () => {
   describe('getCouponDropdown', () => {
     it('should return all coupons when no marketerMerchantId', async () => {
       prisma.voucher = {
-        findMany: jest.fn().mockResolvedValue([{ id: 'v1', name: 'V1' }]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ id: 'v1', name: 'V1', merchantRef: 'ref-1' }]),
       };
+      prisma.merchantRefStore.findMany.mockResolvedValue([
+        { merchantRef: 'ref-1', name: 'Store 1' },
+      ]);
 
       const result = await handler.getCouponDropdown('seller1');
 
-      expect(result.coupons).toEqual([{ id: 'v1', name: 'V1' }]);
+      expect(result.coupons).toEqual([
+        {
+          id: 'v1',
+          name: 'V1',
+          merchantRef: 'ref-1',
+          merchantRefName: 'Store 1',
+        },
+      ]);
     });
 
     it('should filter by marketer purchases', async () => {
@@ -137,16 +150,25 @@ describe('GetSellerDashboardHandler', () => {
         ]),
       };
       prisma.voucher = {
-        findMany: jest.fn().mockResolvedValue([{ id: 'v1', name: 'V1' }]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ id: 'v1', name: 'V1', merchantRef: 'ref-1' }]),
       };
+      prisma.merchantRefStore.findMany.mockResolvedValue([
+        { merchantRef: 'ref-1', name: 'Store 1' },
+      ]);
 
-      const result = await handler.getCouponDropdown('seller1', 'marketer1');
+      await handler.getCouponDropdown('seller1', 'marketer1');
 
       expect(prisma.voucher.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: { in: ['v1'] } },
         }),
       );
+      expect(prisma.merchantRefStore.findMany).toHaveBeenCalledWith({
+        where: { merchantRef: { in: ['ref-1'] } },
+        select: { merchantRef: true, name: true },
+      });
     });
 
     it('should return empty when marketer has no purchases from seller', async () => {

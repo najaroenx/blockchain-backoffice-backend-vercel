@@ -32,9 +32,27 @@ describe('ExternalDashboardController', () => {
   });
 
   it('getMerchantRefCouponDropdown delegates to handler', async () => {
-    handler.getCouponDropdown.mockResolvedValue([{ id: 'c1' }] as any);
+    handler.getCouponDropdown.mockResolvedValue({
+      coupons: [
+        {
+          id: 'c1',
+          name: 'Coupon 1',
+          merchantRef: 'ref1',
+          merchantRefName: 'Store Ref 1',
+        },
+      ],
+    } as any);
     const result = await controller.getMerchantRefCouponDropdown('ref1');
     expect(handler.getCouponDropdown).toHaveBeenCalledWith('ref1');
-    expect(result).toEqual([{ id: 'c1' }]);
+    expect(result).toEqual({
+      coupons: [
+        {
+          id: 'c1',
+          name: 'Coupon 1',
+          merchantRef: 'ref1',
+          merchantRefName: 'Store Ref 1',
+        },
+      ],
+    });
   });
 });

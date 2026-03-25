@@ -11,8 +11,9 @@ describe('GetMerchantRefDashboardHandler', () => {
     prisma = {
       $queryRaw: jest.fn(),
       voucher: { findMany: jest.fn() },
+      merchantRefStore: { findMany: jest.fn() },
     };
-    handler = new GetMerchantRefDashboardHandler(prisma as any);
+    handler = new GetMerchantRefDashboardHandler(prisma);
   });
 
   it('returns dashboard with coupon and end user summary', async () => {
@@ -83,15 +84,31 @@ describe('GetMerchantRefDashboardHandler', () => {
   describe('getCouponDropdown', () => {
     it('returns vouchers for merchantRef', async () => {
       prisma.voucher.findMany.mockResolvedValue([
-        { id: 'v1', name: 'Voucher A' },
-        { id: 'v2', name: 'Voucher B' },
+        { id: 'v1', name: 'Voucher A', merchantRef: 'ref1' },
+        { id: 'v2', name: 'Voucher B', merchantRef: 'ref1' },
+      ]);
+      prisma.merchantRefStore.findMany.mockResolvedValue([
+        { merchantRef: 'ref1', name: 'Store Ref 1' },
       ]);
 
       const result = await handler.getCouponDropdown('ref1');
-      expect(result.coupons).toHaveLength(2);
+      expect(result.coupons).toEqual([
+        {
+          id: 'v1',
+          name: 'Voucher A',
+          merchantRef: 'ref1',
+          merchantRefName: 'Store Ref 1',
+        },
+        {
+          id: 'v2',
+          name: 'Voucher B',
+          merchantRef: 'ref1',
+          merchantRefName: 'Store Ref 1',
+        },
+      ]);
       expect(prisma.voucher.findMany).toHaveBeenCalledWith({
         where: { merchantRef: 'ref1' },
-        select: { id: true, name: true },
+        select: { id: true, name: true, merchantRef: true },
         orderBy: { name: 'asc' },
       });
     });

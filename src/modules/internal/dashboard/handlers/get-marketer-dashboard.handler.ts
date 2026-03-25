@@ -39,7 +39,7 @@ type VoucherCodeRow = {
 
 @Injectable()
 export class GetMarketerDashboardHandler {
-  private logger = new Logger(GetMarketerDashboardHandler.name);
+  private readonly logger = new Logger(GetMarketerDashboardHandler.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -403,7 +403,8 @@ export class GetMarketerDashboardHandler {
         });
       }
 
-      const stats = pointStatsMap.get(pointId)!;
+      const stats = pointStatsMap.get(pointId);
+      if (!stats) continue;
       const value = code.pointsCost ?? 0;
       stats.total += value;
       stats.sold += value;
@@ -574,14 +575,52 @@ export class GetMarketerDashboardHandler {
             : []),
         ],
       },
-      select: { id: true, name: true },
+      select: { id: true, name: true, merchantRef: true },
       orderBy: { name: 'asc' },
     });
+
+    const coupons = await this.attachMerchantRefNames(vouchers);
 
     this.logger.log(
       `[SUCCESS] Found ${vouchers.length} coupons for marketer dropdown`,
     );
 
-    return { coupons: vouchers };
+    return { coupons };
+  }
+
+  private async attachMerchantRefNames(
+    vouchers: Array<{ id: string; name: string; merchantRef: string | null }>,
+  ): Promise<CouponDropdownResponse['coupons']> {
+    const merchantRefs = [
+      ...new Set(vouchers.map((v) => v.merchantRef).filter(Boolean)),
+    ];
+
+    if (merchantRefs.length === 0) {
+      return vouchers.map((voucher) => ({
+        ...voucher,
+        merchantRefName: null,
+      }));
+    }
+
+    const merchantRefStores = await this.prisma.merchantRefStore.findMany({
+      where: {
+        merchantRef: { in: merchantRefs },
+      },
+      select: {
+        merchantRef: true,
+        name: true,
+      },
+    });
+
+    const merchantRefNameMap = new Map(
+      merchantRefStores.map((store) => [store.merchantRef, store.name]),
+    );
+
+    return vouchers.map((voucher) => ({
+      ...voucher,
+      merchantRefName: voucher.merchantRef
+        ? (merchantRefNameMap.get(voucher.merchantRef) ?? null)
+        : null,
+    }));
   }
 }

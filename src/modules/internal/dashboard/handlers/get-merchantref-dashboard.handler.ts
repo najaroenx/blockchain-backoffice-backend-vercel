@@ -153,14 +153,52 @@ export class GetMerchantRefDashboardHandler {
 
     const vouchers = await this.prisma.voucher.findMany({
       where: { merchantRef },
-      select: { id: true, name: true },
+      select: { id: true, name: true, merchantRef: true },
       orderBy: { name: 'asc' },
     });
+
+    const coupons = await this.attachMerchantRefNames(vouchers);
 
     this.logger.log(
       `[SUCCESS] Found ${vouchers.length} coupons for merchantRef dropdown`,
     );
 
-    return { coupons: vouchers };
+    return { coupons };
+  }
+
+  private async attachMerchantRefNames(
+    vouchers: Array<{ id: string; name: string; merchantRef: string | null }>,
+  ): Promise<CouponDropdownResponse['coupons']> {
+    const merchantRefs = [
+      ...new Set(vouchers.map((v) => v.merchantRef).filter(Boolean)),
+    ];
+
+    if (merchantRefs.length === 0) {
+      return vouchers.map((voucher) => ({
+        ...voucher,
+        merchantRefName: null,
+      }));
+    }
+
+    const merchantRefStores = await this.prisma.merchantRefStore.findMany({
+      where: {
+        merchantRef: { in: merchantRefs },
+      },
+      select: {
+        merchantRef: true,
+        name: true,
+      },
+    });
+
+    const merchantRefNameMap = new Map(
+      merchantRefStores.map((store) => [store.merchantRef, store.name]),
+    );
+
+    return vouchers.map((voucher) => ({
+      ...voucher,
+      merchantRefName: voucher.merchantRef
+        ? (merchantRefNameMap.get(voucher.merchantRef) ?? null)
+        : null,
+    }));
   }
 }

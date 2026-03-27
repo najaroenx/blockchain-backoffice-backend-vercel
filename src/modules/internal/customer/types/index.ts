@@ -1,7 +1,12 @@
-import { Customer, CustomerPoint, Point } from '@prisma/client';
+import { Customer, CustomerPoint, Point, Wallet } from '@prisma/client';
 
 export type GetCustomersByMerchantIdResponseType = {
   customers: Array<Omit<Customer, 'walletAddress'> & { walletAddress: string }>;
+  counts: number;
+};
+
+export type GetAllCustomersByMerchantWithWalletResponseType = {
+  customers: Array<Customer & { wallet?: Wallet | null }>;
   counts: number;
 };
 

@@ -1,18 +1,25 @@
 import { StreamableFile } from '@nestjs/common';
 import { AdminController } from 'src/modules/internal/admin/controllers/admin.controller';
 import { ExportAisLog } from 'src/modules/internal/admin/handlers/export-ais-log.handler';
+import { ExportDatabase } from 'src/modules/internal/admin/handlers/export-database.handler';
 import { MintTHBToMerchant } from 'src/modules/internal/admin/handlers/mintTHBToMerchant.handler';
 
 describe('AdminController', () => {
   let controller: AdminController;
   let mintHandler: jest.Mocked<MintTHBToMerchant>;
   let exportAisLogHandler: jest.Mocked<ExportAisLog>;
+  let exportDatabaseHandler: jest.Mocked<ExportDatabase>;
 
   beforeEach(() => {
     mintHandler = { execute: jest.fn() } as any;
     exportAisLogHandler = { execute: jest.fn() } as any;
+    exportDatabaseHandler = { execute: jest.fn() } as any;
 
-    controller = new AdminController(mintHandler, exportAisLogHandler);
+    controller = new AdminController(
+      mintHandler,
+      exportAisLogHandler,
+      exportDatabaseHandler,
+    );
   });
 
   it('mintTHBToMerchant delegates to handler', async () => {
@@ -52,6 +59,31 @@ describe('AdminController', () => {
       2,
       'Content-Disposition',
       'attachment; filename="ais-transfer-log-2026-03-01-to-2026-03-09.xlsx"',
+    );
+    expect(result).toBeInstanceOf(StreamableFile);
+  });
+
+  it('exportDatabase sets download headers and returns a streamable file', async () => {
+    const fileBuffer = Buffer.from('{"ok":true}');
+    const setHeader = jest.fn();
+
+    exportDatabaseHandler.execute.mockResolvedValue({
+      fileBuffer,
+      fileName: 'database-export-2026-03-27T10-00-00-000Z.json',
+    });
+
+    const result = await controller.exportDatabase({ setHeader } as any);
+
+    expect(exportDatabaseHandler.execute).toHaveBeenCalledWith();
+    expect(setHeader).toHaveBeenNthCalledWith(
+      1,
+      'Content-Type',
+      'application/json',
+    );
+    expect(setHeader).toHaveBeenNthCalledWith(
+      2,
+      'Content-Disposition',
+      'attachment; filename="database-export-2026-03-27T10-00-00-000Z.json"',
     );
     expect(result).toBeInstanceOf(StreamableFile);
   });

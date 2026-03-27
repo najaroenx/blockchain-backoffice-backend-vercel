@@ -8,7 +8,6 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { CreateTransactionBodyDto } from '../dtos';
-// import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { GetTransactionsByCustomerId } from '../handlers/getTransactionsByCustomerId.handler';
 import { GetTransactionsByMerchantId } from '../handlers/getTransactionsByMerchantId.handler';
 import { GetPointTransactionsByCustomerPhone } from '../handlers/getPointTransactionsByCustomerPhone.handler';
@@ -33,6 +32,26 @@ export class TransactionController {
   @Public()
   @HttpCode(200)
   async getTransactions(@Param('merchantId') merchantId: string) {
+    return this.getTransactionsByMerchantId.execute(merchantId);
+  }
+
+  @Get('/all')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get All Transactions by Merchant',
+    description: 'ดึงธุรกรรมทั้งหมดของร้านค้าตาม merchantId',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'รหัสร้านค้า',
+    example: 'cmih1s6qu00050i01m3cactjj',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction history retrieved successfully',
+  })
+  async getAllTransactions(@Param('merchantId') merchantId: string) {
     return this.getTransactionsByMerchantId.execute(merchantId);
   }
 

@@ -1,0 +1,94 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin Export Database SQL API",
+    "version": "1.0.0",
+    "description": "Public API for exporting the full database as an importable PostgreSQL SQL file, including sensitive fields"
+  },
+  "servers": [
+    {
+      "url": "https://your-api-domain.com",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/admin/export-database-sql": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Export full database as SQL",
+        "description": "Exports all database tables as a downloadable SQL file. The file includes TRUNCATE plus INSERT statements and can be imported back into PostgreSQL. This endpoint is public and includes sensitive fields.",
+        "operationId": "exportDatabaseSql",
+        "responses": {
+          "200": {
+            "description": "SQL export generated successfully",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Attachment header containing the generated file name",
+                "schema": {
+                  "type": "string",
+                  "example": "attachment; filename=\"database-export-2026-03-27T10-00-00-000Z.sql\""
+                }
+              }
+            },
+            "content": {
+              "application/sql": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "SQL export preview",
+                    "value": "BEGIN;\nTRUNCATE TABLE \"TransactionType\", \"Wallet\", \"User\" RESTART IDENTITY CASCADE;\nINSERT INTO \"Wallet\" (\"id\", \"walletAddress\") VALUES ('wallet_001', '0xabc123');\nCOMMIT;"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error while exporting SQL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
+                "examples": {
+                  "serverError": {
+                    "summary": "Internal server error",
+                    "value": {
+                      "statusCode": 500,
+                      "message": "Internal server error",
+                      "error": "Internal Server Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "InternalServerErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "example": 500
+          },
+          "message": {
+            "type": "string",
+            "example": "Internal server error"
+          },
+          "error": {
+            "type": "string",
+            "example": "Internal Server Error"
+          }
+        },
+        "required": ["statusCode", "message", "error"]
+      }
+    }
+  }
+}

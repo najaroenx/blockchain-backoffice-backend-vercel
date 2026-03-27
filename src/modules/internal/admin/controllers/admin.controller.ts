@@ -25,6 +25,7 @@ import { ExportAisLogQueryDto } from '../dtos/export-ais-log-query.dto';
 import { AdminOnlyGuard } from '../guards/admin-only.guard';
 import { ExportAisLog } from '../handlers/export-ais-log.handler';
 import { ExportDatabase } from '../handlers/export-database.handler';
+import { ExportDatabaseSql } from '../handlers/export-database-sql.handler';
 import { MintTHBToMerchant } from '../handlers/mintTHBToMerchant.handler';
 
 /**
@@ -55,6 +56,7 @@ export class AdminController {
     private readonly mintTHBToMerchantHandler: MintTHBToMerchant,
     private readonly exportAisLogHandler: ExportAisLog,
     private readonly exportDatabaseHandler: ExportDatabase,
+    private readonly exportDatabaseSqlHandler: ExportDatabaseSql,
   ) {}
 
   /**
@@ -192,6 +194,48 @@ export class AdminController {
     const { fileBuffer, fileName } = await this.exportDatabaseHandler.execute();
 
     response.setHeader('Content-Type', 'application/json');
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fileName}"`,
+    );
+
+    return new StreamableFile(fileBuffer);
+  }
+
+  @Get('export-database-sql')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Export full database as SQL',
+    description:
+      'ส่งออกข้อมูลทุกตารางใน database เป็นไฟล์ SQL สำหรับ import กลับเข้า PostgreSQL ได้โดยตรง รวมข้อมูล sensitive ทั้งหมด',
+  })
+  @ApiProduces('application/sql')
+  @ApiResponse({
+    status: 200,
+    description: 'ส่งออกไฟล์ SQL สำเร็จ',
+    schema: {
+      type: 'string',
+      format: 'binary',
+    },
+    headers: {
+      'Content-Disposition': {
+        description: 'ชื่อไฟล์ที่ดาวน์โหลด',
+        schema: {
+          type: 'string',
+          example:
+            'attachment; filename="database-export-2026-03-27T10-00-00-000Z.sql"',
+        },
+      },
+    },
+  })
+  async exportDatabaseSql(
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const { fileBuffer, fileName } =
+      await this.exportDatabaseSqlHandler.execute();
+
+    response.setHeader('Content-Type', 'application/sql');
     response.setHeader(
       'Content-Disposition',
       `attachment; filename="${fileName}"`,

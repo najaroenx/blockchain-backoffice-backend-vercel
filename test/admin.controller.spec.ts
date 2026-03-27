@@ -2,6 +2,7 @@ import { StreamableFile } from '@nestjs/common';
 import { AdminController } from 'src/modules/internal/admin/controllers/admin.controller';
 import { ExportAisLog } from 'src/modules/internal/admin/handlers/export-ais-log.handler';
 import { ExportDatabase } from 'src/modules/internal/admin/handlers/export-database.handler';
+import { ExportDatabaseSql } from 'src/modules/internal/admin/handlers/export-database-sql.handler';
 import { MintTHBToMerchant } from 'src/modules/internal/admin/handlers/mintTHBToMerchant.handler';
 
 describe('AdminController', () => {
@@ -9,16 +10,19 @@ describe('AdminController', () => {
   let mintHandler: jest.Mocked<MintTHBToMerchant>;
   let exportAisLogHandler: jest.Mocked<ExportAisLog>;
   let exportDatabaseHandler: jest.Mocked<ExportDatabase>;
+  let exportDatabaseSqlHandler: jest.Mocked<ExportDatabaseSql>;
 
   beforeEach(() => {
     mintHandler = { execute: jest.fn() } as any;
     exportAisLogHandler = { execute: jest.fn() } as any;
     exportDatabaseHandler = { execute: jest.fn() } as any;
+    exportDatabaseSqlHandler = { execute: jest.fn() } as any;
 
     controller = new AdminController(
       mintHandler,
       exportAisLogHandler,
       exportDatabaseHandler,
+      exportDatabaseSqlHandler,
     );
   });
 
@@ -84,6 +88,31 @@ describe('AdminController', () => {
       2,
       'Content-Disposition',
       'attachment; filename="database-export-2026-03-27T10-00-00-000Z.json"',
+    );
+    expect(result).toBeInstanceOf(StreamableFile);
+  });
+
+  it('exportDatabaseSql sets download headers and returns a streamable file', async () => {
+    const fileBuffer = Buffer.from('BEGIN; COMMIT;');
+    const setHeader = jest.fn();
+
+    exportDatabaseSqlHandler.execute.mockResolvedValue({
+      fileBuffer,
+      fileName: 'database-export-2026-03-27T10-00-00-000Z.sql',
+    });
+
+    const result = await controller.exportDatabaseSql({ setHeader } as any);
+
+    expect(exportDatabaseSqlHandler.execute).toHaveBeenCalledWith();
+    expect(setHeader).toHaveBeenNthCalledWith(
+      1,
+      'Content-Type',
+      'application/sql',
+    );
+    expect(setHeader).toHaveBeenNthCalledWith(
+      2,
+      'Content-Disposition',
+      'attachment; filename="database-export-2026-03-27T10-00-00-000Z.sql"',
     );
     expect(result).toBeInstanceOf(StreamableFile);
   });

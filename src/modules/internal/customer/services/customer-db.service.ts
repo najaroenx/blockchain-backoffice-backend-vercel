@@ -91,9 +91,7 @@ export class CustomerDBService {
     return { customers, count };
   }
 
-  async getAllCustomersByMerchantWithWallet(
-    merchantId: string,
-  ): Promise<{
+  async getAllCustomersByMerchantWithWallet(merchantId: string): Promise<{
     customers: (Customer & { wallet?: Wallet | null })[];
     count: number;
   }> {

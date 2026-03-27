@@ -1,0 +1,263 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin Export Database API",
+    "version": "1.0.0",
+    "description": "Public API for exporting the full database as a JSON file, including sensitive fields"
+  },
+  "servers": [
+    {
+      "url": "https://your-api-domain.com",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/admin/export-database": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Export full database as JSON",
+        "description": "Exports all database tables as a downloadable JSON file. This endpoint is currently public and includes sensitive fields such as encrypted wallet seed phrases, chain codes, and API keys.",
+        "operationId": "exportDatabase",
+        "responses": {
+          "200": {
+            "description": "Database export generated successfully",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Attachment header containing the generated file name",
+                "schema": {
+                  "type": "string",
+                  "example": "attachment; filename=\"database-export-2026-03-27T10-00-00-000Z.json\""
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseExportResponse"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Successful export",
+                    "value": {
+                      "exportedAt": "2026-03-27T10:00:00.000Z",
+                      "counts": {
+                        "points": 10,
+                        "users": 3,
+                        "sessions": 8,
+                        "userMerchants": 5,
+                        "wallets": 20,
+                        "merchants": 4,
+                        "apiKeys": 6,
+                        "merchantRefStores": 12,
+                        "transactions": 100,
+                        "customers": 50,
+                        "customerMerChants": 40,
+                        "customerPoints": 75,
+                        "transactionTypes": 5,
+                        "vouchers": 30,
+                        "listingBatches": 7,
+                        "voucherCodes": 120,
+                        "treasuries": 2,
+                        "tempLinkCreateUsers": 4,
+                        "aisTransferLogs": 15
+                      },
+                      "data": {
+                        "points": [],
+                        "users": [],
+                        "sessions": [],
+                        "userMerchants": [],
+                        "wallets": [
+                          {
+                            "id": "wallet_001",
+                            "walletAddress": "0xabc123",
+                            "seedPhrase": "encrypted-seed",
+                            "chainCode": "encrypted-chain",
+                            "derivationIndex": 1,
+                            "email": "",
+                            "phoneNumber": "0812345678",
+                            "type": "customer",
+                            "status": "active"
+                          }
+                        ],
+                        "merchants": [],
+                        "apiKeys": [],
+                        "merchantRefStores": [],
+                        "transactions": [
+                          {
+                            "id": "tx_001",
+                            "txHash": "0xabcd",
+                            "amount": 100
+                          }
+                        ],
+                        "customers": [],
+                        "customerMerChants": [],
+                        "customerPoints": [],
+                        "transactionTypes": [],
+                        "vouchers": [],
+                        "listingBatches": [],
+                        "voucherCodes": [],
+                        "treasuries": [],
+                        "tempLinkCreateUsers": [],
+                        "aisTransferLogs": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error while exporting database",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
+                "examples": {
+                  "serverError": {
+                    "summary": "Internal server error",
+                    "value": {
+                      "statusCode": 500,
+                      "message": "Internal server error",
+                      "error": "Internal Server Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DatabaseExportResponse": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-03-27T10:00:00.000Z"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/DatabaseExportCounts"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DatabaseExportData"
+          }
+        },
+        "required": ["exportedAt", "counts", "data"]
+      },
+      "DatabaseExportCounts": {
+        "type": "object",
+        "properties": {
+          "points": { "type": "integer", "example": 10 },
+          "users": { "type": "integer", "example": 3 },
+          "sessions": { "type": "integer", "example": 8 },
+          "userMerchants": { "type": "integer", "example": 5 },
+          "wallets": { "type": "integer", "example": 20 },
+          "merchants": { "type": "integer", "example": 4 },
+          "apiKeys": { "type": "integer", "example": 6 },
+          "merchantRefStores": { "type": "integer", "example": 12 },
+          "transactions": { "type": "integer", "example": 100 },
+          "customers": { "type": "integer", "example": 50 },
+          "customerMerChants": { "type": "integer", "example": 40 },
+          "customerPoints": { "type": "integer", "example": 75 },
+          "transactionTypes": { "type": "integer", "example": 5 },
+          "vouchers": { "type": "integer", "example": 30 },
+          "listingBatches": { "type": "integer", "example": 7 },
+          "voucherCodes": { "type": "integer", "example": 120 },
+          "treasuries": { "type": "integer", "example": 2 },
+          "tempLinkCreateUsers": { "type": "integer", "example": 4 },
+          "aisTransferLogs": { "type": "integer", "example": 15 }
+        },
+        "required": [
+          "points",
+          "users",
+          "sessions",
+          "userMerchants",
+          "wallets",
+          "merchants",
+          "apiKeys",
+          "merchantRefStores",
+          "transactions",
+          "customers",
+          "customerMerChants",
+          "customerPoints",
+          "transactionTypes",
+          "vouchers",
+          "listingBatches",
+          "voucherCodes",
+          "treasuries",
+          "tempLinkCreateUsers",
+          "aisTransferLogs"
+        ]
+      },
+      "DatabaseExportData": {
+        "type": "object",
+        "description": "All exported tables. Each property is an array of raw records from the corresponding table.",
+        "properties": {
+          "points": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "users": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "sessions": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "userMerchants": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "wallets": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "merchants": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "apiKeys": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "merchantRefStores": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "transactions": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "customers": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "customerMerChants": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "customerPoints": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "transactionTypes": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "vouchers": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "listingBatches": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "voucherCodes": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "treasuries": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "tempLinkCreateUsers": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "aisTransferLogs": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+        },
+        "required": [
+          "points",
+          "users",
+          "sessions",
+          "userMerchants",
+          "wallets",
+          "merchants",
+          "apiKeys",
+          "merchantRefStores",
+          "transactions",
+          "customers",
+          "customerMerChants",
+          "customerPoints",
+          "transactionTypes",
+          "vouchers",
+          "listingBatches",
+          "voucherCodes",
+          "treasuries",
+          "tempLinkCreateUsers",
+          "aisTransferLogs"
+        ]
+      },
+      "InternalServerErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "example": 500
+          },
+          "message": {
+            "type": "string",
+            "example": "Internal server error"
+          },
+          "error": {
+            "type": "string",
+            "example": "Internal Server Error"
+          }
+        },
+        "required": ["statusCode", "message", "error"]
+      }
+    }
+  }
+}

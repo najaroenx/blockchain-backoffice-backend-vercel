@@ -91,6 +91,34 @@ export class CustomerDBService {
     return { customers, count };
   }
 
+  async getAllCustomersByMerchantWithWallet(merchantId: string): Promise<{
+    customers: (Customer & { wallet?: Wallet | null })[];
+    count: number;
+  }> {
+    const where = {
+      customerMerChant: {
+        some: {
+          merchantId,
+        },
+      },
+    };
+
+    const [count, customers] = await Promise.all([
+      this.repository.count({ where }),
+      this.repository.findMany<Customer>({
+        where,
+        include: {
+          wallet: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+    ]);
+
+    return { customers, count };
+  }
+
   async getCustomersByEmail(
     merchantId: string,
     email: string,

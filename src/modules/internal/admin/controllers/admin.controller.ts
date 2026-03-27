@@ -24,6 +24,7 @@ import { Public } from 'src/modules/internal/auth/public.decorator';
 import { ExportAisLogQueryDto } from '../dtos/export-ais-log-query.dto';
 import { AdminOnlyGuard } from '../guards/admin-only.guard';
 import { ExportAisLog } from '../handlers/export-ais-log.handler';
+import { ExportDatabase } from '../handlers/export-database.handler';
 import { MintTHBToMerchant } from '../handlers/mintTHBToMerchant.handler';
 
 /**
@@ -53,6 +54,7 @@ export class AdminController {
   constructor(
     private readonly mintTHBToMerchantHandler: MintTHBToMerchant,
     private readonly exportAisLogHandler: ExportAisLog,
+    private readonly exportDatabaseHandler: ExportDatabase,
   ) {}
 
   /**
@@ -149,6 +151,47 @@ export class AdminController {
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fileName}"`,
+    );
+
+    return new StreamableFile(fileBuffer);
+  }
+
+  @Get('export-database')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Export full database as JSON',
+    description:
+      'ส่งออกข้อมูลทุกตารางใน database เป็นไฟล์ JSON รวมข้อมูล sensitive ทั้งหมดสำหรับงาน backup/audit ภายใน',
+  })
+  @ApiProduces('application/json')
+  @ApiResponse({
+    status: 200,
+    description: 'ส่งออกไฟล์ database สำเร็จ',
+    schema: {
+      type: 'string',
+      format: 'binary',
+    },
+    headers: {
+      'Content-Disposition': {
+        description: 'ชื่อไฟล์ที่ดาวน์โหลด',
+        schema: {
+          type: 'string',
+          example:
+            'attachment; filename="database-export-2026-03-27T10-00-00-000Z.json"',
+        },
+      },
+    },
+  })
+  async exportDatabase(
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const { fileBuffer, fileName } = await this.exportDatabaseHandler.execute();
+
+    response.setHeader('Content-Type', 'application/json');
     response.setHeader(
       'Content-Disposition',
       `attachment; filename="${fileName}"`,

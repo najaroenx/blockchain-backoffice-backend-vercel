@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AdminController } from './controllers/admin.controller';
 import { ExportAisLog } from './handlers/export-ais-log.handler';
+import { ExportDatabase } from './handlers/export-database.handler';
 import { AdminOnlyGuard } from './guards/admin-only.guard';
 import { MintTHBToMerchant } from './handlers/mintTHBToMerchant.handler';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
@@ -11,6 +12,7 @@ import { PrismaService } from 'prisma/prisma.service';
   providers: [
     MintTHBToMerchant,
     ExportAisLog,
+    ExportDatabase,
     AdminOnlyGuard,
     BlockchainService,
     PrismaService,

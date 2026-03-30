@@ -60,6 +60,21 @@ describe('TransactionController', () => {
     expect(result).toEqual([]);
   });
 
+  it('getAllTransactions delegates to getTransactionsByMerchantId', async () => {
+    getTransactionsByMerchantId.execute.mockResolvedValue({
+      transactions: [{ id: 'tx1' }],
+      counts: 1,
+    } as any);
+
+    const result = await controller.getAllTransactions('m1');
+
+    expect(getTransactionsByMerchantId.execute).toHaveBeenCalledWith('m1');
+    expect(result).toEqual({
+      transactions: [{ id: 'tx1' }],
+      counts: 1,
+    });
+  });
+
   it('getPointTransactionsCustomer delegates to handler', async () => {
     getPointTransactionsByCustomerPhone.execute.mockResolvedValue([
       { id: 'tx1' },

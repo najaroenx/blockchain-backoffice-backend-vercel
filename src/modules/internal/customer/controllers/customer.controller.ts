@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   HttpCode,
   Param,
@@ -23,9 +22,9 @@ import {
   RegisterCustomerDto,
 } from '../dtos';
 import { GetCustomersByMerchantId } from '../handlers/getCustomersByMerchantId.handler';
+import { GetAllCustomersByMerchantWithWallet } from '../handlers/getAllCustomersByMerchantWithWallet.handler';
 import { GetCustomerById } from '../handlers/getCustomerById.handler';
 import { GetCustomerPhone } from '../handlers/getCustomerByPhone.handler';
-import { GetCustomerPoints } from '../handlers/getCustomerPoints.handler';
 import { CreateCustomer } from '../handlers/createCustomer.handler';
 import { GetCustomerListDev } from '../handlers/getCustomerListDev.handler';
 import { PageOptionsDto } from 'src/common/dtos';
@@ -36,13 +35,13 @@ import {
   // RegistrationResponse,
 } from '../handlers/registerCustomer.dev.handler';
 import { Public } from 'src/modules/internal/auth/public.decorator';
-import { ClearCustomerByPhone } from '../handlers/clearCustomerByPhone.handler';
 
 @ApiTags('Customer')
 @Controller('/:merchantId/customer')
 export class CustomerController {
   constructor(
     private readonly getCustomersByMerchantIdHandler: GetCustomersByMerchantId,
+    private readonly getAllCustomersByMerchantWithWalletHandler: GetAllCustomersByMerchantWithWallet,
     private readonly getCustomerDetialByIdHandler: GetCustomerById,
     private readonly createCustomerHandler: CreateCustomer,
     private readonly GetCustomerByPhone: GetCustomerPhone,
@@ -74,6 +73,14 @@ export class CustomerController {
     );
   }
 
+  @Get('/all')
+  @HttpCode(200)
+  async getAllCustomersByMerchantWithWallet(
+    @Param('merchantId') merchantId: string,
+  ) {
+    return this.getAllCustomersByMerchantWithWalletHandler.execute(merchantId);
+  }
+
   @Get('/:customerId')
   @HttpCode(200)
   async getCustomerById(
@@ -100,7 +107,7 @@ export class CustomerController {
     if (errors.length > 0) {
       const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException(
-        errors.map((err) => Object.values(err.constraints || {})).flat(),
+        errors.flatMap((err) => Object.values(err.constraints || {})),
       );
     }
 

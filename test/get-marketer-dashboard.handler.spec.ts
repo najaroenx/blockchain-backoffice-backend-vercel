@@ -23,6 +23,7 @@ describe('GetMarketerDashboardHandler', () => {
   beforeEach(() => {
     prisma = {
       merchant: { findUnique: jest.fn(), findMany: jest.fn() },
+      merchantRefStore: { findMany: jest.fn() },
       point: { findMany: jest.fn() },
       voucher: { findMany: jest.fn() },
       transaction: { findMany: jest.fn() },
@@ -137,13 +138,29 @@ describe('GetMarketerDashboardHandler', () => {
         { voucherCode: { voucherId: 'v1' } },
       ]);
       prisma.voucher.findMany.mockResolvedValue([
-        { id: 'v1', name: 'V1' },
-        { id: 'v2', name: 'V2' },
+        { id: 'v1', name: 'V1', merchantRef: 'ref-1' },
+        { id: 'v2', name: 'V2', merchantRef: null },
+      ]);
+      prisma.merchantRefStore.findMany.mockResolvedValue([
+        { merchantRef: 'ref-1', name: 'Store 1' },
       ]);
 
       const result = await handler.getCouponDropdown('m1');
 
-      expect(result.coupons).toHaveLength(2);
+      expect(result.coupons).toEqual([
+        {
+          id: 'v1',
+          name: 'V1',
+          merchantRef: 'ref-1',
+          merchantRefName: 'Store 1',
+        },
+        {
+          id: 'v2',
+          name: 'V2',
+          merchantRef: null,
+          merchantRefName: null,
+        },
+      ]);
     });
 
     it('should return empty when no purchases', async () => {

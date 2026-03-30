@@ -2,6 +2,7 @@ jest.mock('prisma/prisma.service', () => ({ PrismaService: jest.fn() }));
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { CustomerController } from 'src/modules/internal/customer/controllers/customer.controller';
+import { GetAllCustomersByMerchantWithWallet } from 'src/modules/internal/customer/handlers/getAllCustomersByMerchantWithWallet.handler';
 import { GetCustomersByMerchantId } from 'src/modules/internal/customer/handlers/getCustomersByMerchantId.handler';
 import { GetCustomerById } from 'src/modules/internal/customer/handlers/getCustomerById.handler';
 import { GetCustomerPhone } from 'src/modules/internal/customer/handlers/getCustomerByPhone.handler';
@@ -15,6 +16,7 @@ import { RegisterCustomerDev } from 'src/modules/internal/customer/handlers/regi
 describe('CustomerController', () => {
   let controller: CustomerController;
   let getCustomersByMerchantId: jest.Mocked<GetCustomersByMerchantId>;
+  let getAllCustomersByMerchantWithWallet: jest.Mocked<GetAllCustomersByMerchantWithWallet>;
   let getCustomerById: jest.Mocked<GetCustomerById>;
   let getCustomerByPhone: jest.Mocked<GetCustomerPhone>;
   let createCustomer: jest.Mocked<CreateCustomer>;
@@ -25,6 +27,7 @@ describe('CustomerController', () => {
 
   beforeEach(async () => {
     getCustomersByMerchantId = { execute: jest.fn() } as any;
+    getAllCustomersByMerchantWithWallet = { execute: jest.fn() } as any;
     getCustomerById = { execute: jest.fn() } as any;
     getCustomerByPhone = { execute: jest.fn() } as any;
     createCustomer = { execute: jest.fn() } as any;
@@ -39,6 +42,10 @@ describe('CustomerController', () => {
         {
           provide: GetCustomersByMerchantId,
           useValue: getCustomersByMerchantId,
+        },
+        {
+          provide: GetAllCustomersByMerchantWithWallet,
+          useValue: getAllCustomersByMerchantWithWallet,
         },
         { provide: GetCustomerById, useValue: getCustomerById },
         { provide: GetCustomerPhone, useValue: getCustomerByPhone },
@@ -74,6 +81,23 @@ describe('CustomerController', () => {
       pageOpts,
     );
     expect(result).toEqual({ data: [] });
+  });
+
+  it('getAllCustomersByMerchantWithWallet delegates to handler', async () => {
+    getAllCustomersByMerchantWithWallet.execute.mockResolvedValue({
+      customers: [{ id: 'c1', wallet: { id: 'w1' } }],
+      counts: 1,
+    } as any);
+
+    const result = await controller.getAllCustomersByMerchantWithWallet('m1');
+
+    expect(getAllCustomersByMerchantWithWallet.execute).toHaveBeenCalledWith(
+      'm1',
+    );
+    expect(result).toEqual({
+      customers: [{ id: 'c1', wallet: { id: 'w1' } }],
+      counts: 1,
+    });
   });
 
   it('getCustomerById delegates to handler', async () => {

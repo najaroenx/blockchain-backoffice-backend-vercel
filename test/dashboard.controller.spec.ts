@@ -73,11 +73,27 @@ describe('DashboardController', () => {
 
   it('getMarketerCouponDropdown', async () => {
     marketerHandler.getCouponDropdown.mockResolvedValue({
-      coupons: [{ id: 'c1', name: 'C1' }],
+      coupons: [
+        {
+          id: 'c1',
+          name: 'C1',
+          merchantRef: 'ref-1',
+          merchantRefName: 'Store 1',
+        },
+      ],
     } as any);
     const result = await controller.getMarketerCouponDropdown('m1');
     expect(marketerHandler.getCouponDropdown).toHaveBeenCalledWith('m1');
-    expect(result).toEqual({ coupons: [{ id: 'c1', name: 'C1' }] });
+    expect(result).toEqual({
+      coupons: [
+        {
+          id: 'c1',
+          name: 'C1',
+          merchantRef: 'ref-1',
+          merchantRefName: 'Store 1',
+        },
+      ],
+    });
   });
 
   it('getSellerCouponDropdown', async () => {

@@ -1,0 +1,664 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin APIs",
+    "version": "1.0.0",
+    "description": "Public Admin API collection for Apidog import"
+  },
+  "servers": [
+    {
+      "url": "https://your-api-domain.com",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Admin",
+      "description": "Admin endpoints"
+    }
+  ],
+  "paths": {
+    "/admin/mint-thb-to-merchant": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Mint THB to merchant",
+        "description": "Development endpoint for minting THB tokens to a merchant wallet.",
+        "operationId": "mintTHBToMerchant",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MintTHBToMerchantRequest"
+              },
+              "examples": {
+                "default": {
+                  "value": {
+                    "merchantId": "merchant_001",
+                    "amount": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Minted THB successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MintTHBToMerchantResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/export-ais-log": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Export AIS transfer log",
+        "description": "Exports AIS transfer logs in Excel format by date range.",
+        "operationId": "exportAisLog",
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-03-01"
+            },
+            "description": "Start date in YYYY-MM-DD"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-03-09"
+            },
+            "description": "End date in YYYY-MM-DD"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "AIS transfer log exported successfully",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string",
+                  "example": "attachment; filename=\"ais-transfer-log-2026-03-01-to-2026-03-09.xlsx\""
+                }
+              }
+            },
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid date range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AIS transfer log table unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/export-database": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Export full database as JSON",
+        "description": "Exports all database tables as a downloadable JSON file including sensitive fields.",
+        "operationId": "exportDatabase",
+        "responses": {
+          "200": {
+            "description": "Database export generated successfully",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string",
+                  "example": "attachment; filename=\"database-export-2026-03-27T10-00-00-000Z.json\""
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseExportResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/export-database-sql": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Export full database as SQL",
+        "description": "Exports all database tables as a PostgreSQL SQL file.",
+        "operationId": "exportDatabaseSql",
+        "responses": {
+          "200": {
+            "description": "SQL export generated successfully",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string",
+                  "example": "attachment; filename=\"database-export-2026-03-27T10-00-00-000Z.sql\""
+                }
+              }
+            },
+            "content": {
+              "application/sql": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/points": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List all Point records",
+        "description": "Returns all records from the Point table.",
+        "operationId": "listAllPoints",
+        "responses": {
+          "200": {
+            "description": "List all points successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAllPointsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/points/{pointId}/contract-address": {
+      "put": {
+        "tags": ["Admin"],
+        "summary": "Update Point contractAddress",
+        "description": "Updates contractAddress of a Point record by pointId.",
+        "operationId": "updatePointContractAddress",
+        "parameters": [
+          {
+            "name": "pointId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "point_001"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePointContractAddressRequest"
+              },
+              "examples": {
+                "default": {
+                  "value": {
+                    "contractAddress": "0x1234abcd5678ef901234abcd5678ef901234abcd"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Point contractAddress updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatePointContractAddressResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contractAddress format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Point not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/customer-point/reset-balances": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Reset all CustomerPoint balances",
+        "description": "Updates every record in CustomerPoint so balances becomes 0.",
+        "operationId": "resetCustomerPointBalances",
+        "responses": {
+          "200": {
+            "description": "CustomerPoint balances reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetCustomerPointBalancesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/vouchers/reset-token-ids": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Reset all Voucher tokenId values",
+        "description": "Updates every Voucher.tokenId so values start at 10000 and increase by 1 in createdAt ascending then id ascending order.",
+        "operationId": "resetVoucherTokenIds",
+        "responses": {
+          "200": {
+            "description": "Voucher tokenId values reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetVoucherTokenIdsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MintTHBToMerchantRequest": {
+        "type": "object",
+        "properties": {
+          "merchantId": {
+            "type": "string",
+            "example": "merchant_001"
+          },
+          "amount": {
+            "type": "number",
+            "example": 1000
+          }
+        },
+        "required": ["merchantId", "amount"]
+      },
+      "MintTHBToMerchantResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": {
+            "type": "string",
+            "example": "[PHASE 1] Successfully minted 1000 THB to merchant"
+          },
+          "warning": {
+            "type": "string",
+            "example": "This is a Phase 1 development feature. In production, use payment gateway."
+          },
+          "merchant": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "example": "merchant_001" },
+              "name": { "type": "string", "example": "Demo Merchant" },
+              "walletAddress": {
+                "type": "string",
+                "example": "0xabc123def4567890abc123def4567890abc123de"
+              }
+            }
+          },
+          "mint": {
+            "type": "object",
+            "properties": {
+              "amount": { "type": "number", "example": 1000 },
+              "amountWei": {
+                "type": "string",
+                "example": "1000000000000000000000"
+              },
+              "newBalance": { "type": "string", "example": "5000.0" },
+              "newBalanceWei": {
+                "type": "string",
+                "example": "5000000000000000000000"
+              }
+            }
+          },
+          "blockchain": {
+            "type": "object",
+            "properties": {
+              "transactionHash": {
+                "type": "string",
+                "example": "0x9cafe123"
+              },
+              "blockNumber": { "type": "integer", "example": 123456 }
+            }
+          },
+          "nextSteps": {
+            "type": "object",
+            "properties": {
+              "phase1": {
+                "type": "string",
+                "example": "Merchant can now purchase vouchers from sellers using THB"
+              },
+              "phase2_todo": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "DatabaseExportResponse": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-03-27T10:00:00.000Z"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "PointItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "point_001" },
+          "name": { "type": "string", "example": "Gold Point" },
+          "symbol": { "type": "string", "example": "GLD" },
+          "contractAddress": {
+            "type": "string",
+            "example": "0x1234abcd5678ef901234abcd5678ef901234abcd"
+          },
+          "initialSupply": { "type": "integer", "example": 1000000 },
+          "decimal": { "type": "integer", "example": 18 },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "epochDuration": { "type": "integer", "example": 259200 },
+          "imageUrl": { "type": "string", "nullable": true },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "merchantId": { "type": "string", "nullable": true }
+        }
+      },
+      "ListAllPointsResponse": {
+        "type": "object",
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PointItem"
+            }
+          },
+          "counts": {
+            "type": "integer",
+            "example": 12
+          }
+        },
+        "required": ["points", "counts"]
+      },
+      "UpdatePointContractAddressRequest": {
+        "type": "object",
+        "properties": {
+          "contractAddress": {
+            "type": "string",
+            "example": "0x1234abcd5678ef901234abcd5678ef901234abcd"
+          }
+        },
+        "required": ["contractAddress"]
+      },
+      "UpdatePointContractAddressResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": {
+            "type": "string",
+            "example": "Point contractAddress updated successfully"
+          },
+          "point": {
+            "$ref": "#/components/schemas/PointItem"
+          }
+        },
+        "required": ["success", "message", "point"]
+      },
+      "ResetCustomerPointBalancesResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": {
+            "type": "string",
+            "example": "All customerPoint balances have been reset to 0"
+          },
+          "updatedCount": { "type": "integer", "example": 128 }
+        },
+        "required": ["success", "message", "updatedCount"]
+      },
+      "ResetVoucherTokenIdsResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": {
+            "type": "string",
+            "example": "All voucher tokenId values have been reset successfully"
+          },
+          "updatedCount": { "type": "integer", "example": 25 },
+          "startTokenId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10000"
+          },
+          "endTokenId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10024"
+          }
+        },
+        "required": ["success", "message", "updatedCount", "startTokenId", "endTokenId"]
+      },
+      "BadRequestResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer", "example": 400 },
+          "message": {
+            "oneOf": [
+              { "type": "string", "example": "Invalid contractAddress format" },
+              {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            ]
+          },
+          "error": { "type": "string", "example": "Bad Request" }
+        },
+        "required": ["statusCode", "message", "error"]
+      },
+      "NotFoundResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer", "example": 404 },
+          "message": { "type": "string", "example": "404003: Point not found" },
+          "error": { "type": "string", "example": "Not Found" }
+        },
+        "required": ["statusCode", "message", "error"]
+      },
+      "InternalServerErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer", "example": 500 },
+          "message": { "type": "string", "example": "Internal server error" },
+          "error": { "type": "string", "example": "Internal Server Error" }
+        },
+        "required": ["statusCode", "message", "error"]
+      },
+      "ServiceUnavailableResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer", "example": 503 },
+          "message": {
+            "type": "string",
+            "example": "AIS transfer log table is not available in the current database. Apply migration 20260225000000_add_ais_transfer_log."
+          },
+          "error": { "type": "string", "example": "Service Unavailable" }
+        },
+        "required": ["statusCode", "message", "error"]
+      }
+    }
+  }
+}

@@ -173,6 +173,8 @@ export interface MerchantRefDashboardResponse {
 export interface CouponDropdownItem {
   id: string;
   name: string;
+  merchantRef?: string | null;
+  merchantRefName?: string | null;
 }
 
 export interface CouponDropdownResponse {

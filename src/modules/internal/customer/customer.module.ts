@@ -4,8 +4,8 @@ import { CustomerRepository } from './customer.repository';
 import { TokenModule } from 'src/providers/token/token.module';
 import { CustomerDBService } from './services/customer-db.service';
 import { GetCustomersByMerchantId } from './handlers/getCustomersByMerchantId.handler';
+import { GetAllCustomersByMerchantWithWallet } from './handlers/getAllCustomersByMerchantWithWallet.handler';
 import { GetCustomerById } from './handlers/getCustomerById.handler';
-// import { GetCustomerByEmail } from './handlers/getCustomerByEmail.handler';
 import { UpdateCustomer } from './handlers/updateCustomer.handler';
 import { CreateCustomer } from './handlers/createCustomer.handler';
 import { BlockchainModule } from 'src/providers/blockchain/blockchain.module';
@@ -32,6 +32,7 @@ import { ClearCustomerByPhone } from './handlers/clearCustomerByPhone.handler';
     CustomerRepository,
     CustomerDBService,
     GetCustomersByMerchantId,
+    GetAllCustomersByMerchantWithWallet,
     GetCustomerById,
     // GetCustomerByEmail,
     UpdateCustomer,
@@ -50,6 +51,7 @@ import { ClearCustomerByPhone } from './handlers/clearCustomerByPhone.handler';
     UpdateCustomer,
     CreateCustomer,
     CustomerDBService,
+    GetAllCustomersByMerchantWithWallet,
     // RegisterCustomerDev,
     GetCustomerPoints,
     ClearCustomerByPhone,

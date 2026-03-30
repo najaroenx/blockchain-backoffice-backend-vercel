@@ -514,15 +514,17 @@ export class GetSellerDashboardHandler {
       // No marketer filter: return all coupons created by this seller
       const vouchers = await this.prisma.voucher.findMany({
         where: { sellerMerchantId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, merchantRef: true },
         orderBy: { name: 'asc' },
       });
+
+      const coupons = await this.attachMerchantRefNames(vouchers);
 
       this.logger.log(
         `[SUCCESS] Found ${vouchers.length} coupons for seller dropdown (all)`,
       );
 
-      return { coupons: vouchers };
+      return { coupons };
     }
 
     // With marketer filter: find coupons created by this seller that the marketer bought
@@ -564,15 +566,53 @@ export class GetSellerDashboardHandler {
 
     const vouchers = await this.prisma.voucher.findMany({
       where: { id: { in: purchasedVoucherIds } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, merchantRef: true },
       orderBy: { name: 'asc' },
     });
+
+    const coupons = await this.attachMerchantRefNames(vouchers);
 
     this.logger.log(
       `[SUCCESS] Found ${vouchers.length} seller coupons for marketer ${marketerMerchantId} dropdown`,
     );
 
-    return { coupons: vouchers };
+    return { coupons };
+  }
+
+  private async attachMerchantRefNames(
+    vouchers: Array<{ id: string; name: string; merchantRef: string | null }>,
+  ): Promise<CouponDropdownResponse['coupons']> {
+    const merchantRefs = [
+      ...new Set(vouchers.map((v) => v.merchantRef).filter(Boolean)),
+    ];
+
+    if (merchantRefs.length === 0) {
+      return vouchers.map((voucher) => ({
+        ...voucher,
+        merchantRefName: null,
+      }));
+    }
+
+    const merchantRefStores = await this.prisma.merchantRefStore.findMany({
+      where: {
+        merchantRef: { in: merchantRefs },
+      },
+      select: {
+        merchantRef: true,
+        name: true,
+      },
+    });
+
+    const merchantRefNameMap = new Map(
+      merchantRefStores.map((store) => [store.merchantRef, store.name]),
+    );
+
+    return vouchers.map((voucher) => ({
+      ...voucher,
+      merchantRefName: voucher.merchantRef
+        ? (merchantRefNameMap.get(voucher.merchantRef) ?? null)
+        : null,
+    }));
   }
 
   /**

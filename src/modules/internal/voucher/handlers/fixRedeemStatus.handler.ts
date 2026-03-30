@@ -16,7 +16,8 @@ export class FixRedeemStatusHandler {
       where: { id: merchantId },
       select: { id: true, name: true },
     });
-    if (!merchant) throw new NotFoundException(`Merchant ${merchantId} not found`);
+    if (!merchant)
+      throw new NotFoundException(`Merchant ${merchantId} not found`);
 
     const vouchers = await this.prisma.voucher.findMany({
       where: { OR: [{ merchantId }, { sellerMerchantId: merchantId }] },
@@ -35,9 +36,7 @@ export class FixRedeemStatusHandler {
 
     const customerIds = [
       ...new Set(
-        soldCodes
-          .map((c) => c.usedBy || c.currentOwnerId)
-          .filter(Boolean),
+        soldCodes.map((c) => c.usedBy || c.currentOwnerId).filter(Boolean),
       ),
     ] as string[];
 

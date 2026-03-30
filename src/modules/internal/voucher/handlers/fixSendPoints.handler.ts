@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { CreateTransactionB2C } from 'src/modules/internal/transaction/handlers/createTransactionB2C.handler';
 
 interface SendPointCustomer {
   phone: string;
@@ -9,11 +9,11 @@ interface SendPointCustomer {
 @Injectable()
 export class FixSendPointsHandler {
   private logger = new Logger(FixSendPointsHandler.name);
-  private apiBase: string;
 
-  constructor(private configService: ConfigService) {
-    this.apiBase =
-      this.configService.get<string>('API_BASE_URL') || 'http://localhost:4000';
+  constructor(private readonly createTransactionB2C: CreateTransactionB2C) {}
+
+  private isRetryableNonceError(errorMessage: string): boolean {
+    return errorMessage.toLowerCase().includes('nonce');
   }
 
   /**
@@ -49,7 +49,7 @@ export class FixSendPointsHandler {
       };
     }
 
-    // Execute mode — call internal API for each customer
+    // Execute mode — call transaction handler directly to avoid internal HTTP requests
     const results: {
       phone: string;
       amount: number;
@@ -69,34 +69,25 @@ export class FixSendPointsHandler {
       // Retry up to 3 times for nonce errors
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const url = `${this.apiBase}/${merchantId}/transaction/${pointId}`;
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              amount: c.amount,
-              phone: c.phone,
-              transactionTypeId: 'TRANSFER',
-            }),
+          await this.createTransactionB2C.execute(merchantId, pointId, {
+            amount: c.amount,
+            phone: c.phone,
+            transactionTypeId: 'TRANSFER',
           });
 
-          if (res.ok) {
-            success = true;
-            break;
-          }
+          success = true;
+          break;
+        } catch (err: unknown) {
+          lastError =
+            err instanceof Error ? err.message : 'Unknown error occurred';
 
-          const body = await res.text();
-          lastError = `HTTP ${res.status}: ${body}`;
-
-          if (body.includes('nonce') && attempt < 3) {
+          if (this.isRetryableNonceError(lastError) && attempt < 3) {
             const delay = attempt * 5000;
             this.logger.warn(`Nonce error, retrying in ${delay / 1000}s...`);
             await new Promise((r) => setTimeout(r, delay));
             continue;
           }
-          break;
-        } catch (err: any) {
-          lastError = err.message;
+
           break;
         }
       }

@@ -42,6 +42,7 @@ import { PrismaModule } from 'prisma/prisma.module';
     GetWalletBalance,
   ],
   exports: [
+    CreateTransactionB2C,
     GetTransactionsByMerchantId,
     GetAllTransactionsByCustomerPhone,
     GetPointTransactionsByCustomerPhone,

@@ -39,6 +39,7 @@ import { FixSendPointsHandler } from './handlers/fixSendPoints.handler';
 import { FixDeletePurchaseTxHandler } from './handlers/fixDeletePurchaseTx.handler';
 import { FixDeleteRedeemTxHandler } from './handlers/fixDeleteRedeemTx.handler';
 import { FixWalletOnchainHandler } from './handlers/fixWalletOnchain.handler';
+import { TransactionModule } from '../transaction/transaction.module';
 @Module({
   imports: [
     PrismaModule,
@@ -46,6 +47,7 @@ import { FixWalletOnchainHandler } from './handlers/fixWalletOnchain.handler';
     TokenModule,
     SharedModule,
     AisTransferModule,
+    TransactionModule,
   ],
   controllers: [VoucherController, FixController],
   providers: [

@@ -1,0 +1,128 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin Reset Voucher Token IDs API",
+    "version": "1.0.0",
+    "description": "Public API for resetting all Voucher tokenId values to a sequential running range starting from 10000"
+  },
+  "servers": [
+    {
+      "url": "https://your-api-domain.com",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/admin/vouchers/reset-token-ids": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Reset all Voucher tokenId values",
+        "description": "Updates every record in the Voucher table so tokenId starts at 10000 and increases by 1 for each voucher. Processing order is createdAt ascending, then id ascending. This endpoint is public.",
+        "operationId": "resetVoucherTokenIds",
+        "responses": {
+          "200": {
+            "description": "Voucher tokenId values reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetVoucherTokenIdsResponse"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Voucher tokenIds reset",
+                    "value": {
+                      "success": true,
+                      "message": "All voucher tokenId values have been reset successfully",
+                      "updatedCount": 3,
+                      "startTokenId": "10000",
+                      "endTokenId": "10002"
+                    }
+                  },
+                  "empty": {
+                    "summary": "No vouchers found",
+                    "value": {
+                      "success": true,
+                      "message": "All voucher tokenId values have been reset successfully",
+                      "updatedCount": 0,
+                      "startTokenId": null,
+                      "endTokenId": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error while resetting voucher tokenId values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
+                "examples": {
+                  "serverError": {
+                    "summary": "Internal server error",
+                    "value": {
+                      "statusCode": 500,
+                      "message": "Internal server error",
+                      "error": "Internal Server Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ResetVoucherTokenIdsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "All voucher tokenId values have been reset successfully"
+          },
+          "updatedCount": {
+            "type": "integer",
+            "example": 25
+          },
+          "startTokenId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10000"
+          },
+          "endTokenId": {
+            "type": "string",
+            "nullable": true,
+            "example": "10024"
+          }
+        },
+        "required": ["success", "message", "updatedCount", "startTokenId", "endTokenId"]
+      },
+      "InternalServerErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "example": 500
+          },
+          "message": {
+            "type": "string",
+            "example": "Internal server error"
+          },
+          "error": {
+            "type": "string",
+            "example": "Internal Server Error"
+          }
+        },
+        "required": ["statusCode", "message", "error"]
+      }
+    }
+  }
+}

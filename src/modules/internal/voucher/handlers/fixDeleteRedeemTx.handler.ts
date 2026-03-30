@@ -16,7 +16,8 @@ export class FixDeleteRedeemTxHandler {
       where: { id: merchantId },
       select: { id: true, name: true },
     });
-    if (!merchant) throw new NotFoundException(`Merchant ${merchantId} not found`);
+    if (!merchant)
+      throw new NotFoundException(`Merchant ${merchantId} not found`);
 
     const vouchers = await this.prisma.voucher.findMany({
       where: { OR: [{ merchantId }, { sellerMerchantId: merchantId }] },
@@ -39,9 +40,16 @@ export class FixDeleteRedeemTxHandler {
         transactionTypeId: 'REDEEM',
       },
       select: {
-        id: true, transactionTypeId: true, type: true, amount: true,
-        senderId: true, receiverId: true, senderType: true, receiverType: true,
-        voucherCodeId: true, createdAt: true,
+        id: true,
+        transactionTypeId: true,
+        type: true,
+        amount: true,
+        senderId: true,
+        receiverId: true,
+        senderType: true,
+        receiverType: true,
+        voucherCodeId: true,
+        createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -54,7 +62,9 @@ export class FixDeleteRedeemTxHandler {
         where: { id: { in: txIds } },
       });
       deletedCount = result.count;
-      this.logger.log(`Deleted ${deletedCount} redeem transactions for merchant ${merchantId}`);
+      this.logger.log(
+        `Deleted ${deletedCount} redeem transactions for merchant ${merchantId}`,
+      );
     }
 
     return {

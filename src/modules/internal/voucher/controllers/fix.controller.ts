@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Public } from 'src/modules/internal/auth/public.decorator';
 import { FixVoucherGroupCollision } from '../handlers/fixVoucherGroupCollision.handler';
@@ -73,7 +81,12 @@ export class FixController {
   @HttpCode(200)
   async sendPoints(
     @Query('dryRun') dryRun?: string,
-    @Body() body?: { merchantId: string; pointId: string; customers: { phone: string; amount: number }[] },
+    @Body()
+    body?: {
+      merchantId: string;
+      pointId: string;
+      customers: { phone: string; amount: number }[];
+    },
   ) {
     return this.fixSendPoints.execute(
       body.merchantId,

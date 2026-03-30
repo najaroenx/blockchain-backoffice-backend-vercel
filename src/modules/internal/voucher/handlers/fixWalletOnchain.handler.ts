@@ -22,7 +22,8 @@ export class FixWalletOnchainHandler {
       where: { id: merchantId },
       select: { id: true, name: true },
     });
-    if (!merchant) throw new NotFoundException(`Merchant ${merchantId} not found`);
+    if (!merchant)
+      throw new NotFoundException(`Merchant ${merchantId} not found`);
 
     // Find points for this merchant
     const points = await this.prisma.point.findMany({
@@ -82,7 +83,9 @@ export class FixWalletOnchainHandler {
         });
         onChainBalance = Math.floor(parseFloat(result.balance));
       } catch (err: any) {
-        this.logger.warn(`Error reading balance for ${walletAddress}: ${err.message}`);
+        this.logger.warn(
+          `Error reading balance for ${walletAddress}: ${err.message}`,
+        );
         continue;
       }
 

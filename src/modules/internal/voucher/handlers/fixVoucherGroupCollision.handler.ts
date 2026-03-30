@@ -64,9 +64,7 @@ export class FixVoucherGroupCollision {
         `Active listings on current contract: [${[...activeListingIds].join(', ')}]`,
       );
     } catch (error) {
-      this.logger.error(
-        `Failed to fetch active listings: ${error.message}`,
-      );
+      this.logger.error(`Failed to fetch active listings: ${error.message}`);
       activeListingIds = new Set();
     }
 
@@ -257,10 +255,7 @@ export class FixVoucherGroupCollision {
       });
     }
 
-    const totalCleared = fixResults.reduce(
-      (sum, r) => sum + r.clearedCodes,
-      0,
-    );
+    const totalCleared = fixResults.reduce((sum, r) => sum + r.clearedCodes, 0);
 
     return {
       dryRun,

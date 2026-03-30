@@ -21,9 +21,7 @@ export class FixWhitelistHandler {
 
     const addresses = [
       ...new Set(
-        wallets
-          .map((w) => w.walletAddress)
-          .filter((a): a is string => !!a),
+        wallets.map((w) => w.walletAddress).filter((a): a is string => !!a),
       ),
     ];
 
@@ -54,9 +52,7 @@ export class FixWhitelistHandler {
 
     const addresses = [
       ...new Set(
-        wallets
-          .map((w) => w.walletAddress)
-          .filter((a): a is string => !!a),
+        wallets.map((w) => w.walletAddress).filter((a): a is string => !!a),
       ),
     ];
 

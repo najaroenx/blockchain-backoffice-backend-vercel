@@ -3,7 +3,11 @@ import { AdminController } from 'src/modules/internal/admin/controllers/admin.co
 import { ExportAisLog } from 'src/modules/internal/admin/handlers/export-ais-log.handler';
 import { ExportDatabase } from 'src/modules/internal/admin/handlers/export-database.handler';
 import { ExportDatabaseSql } from 'src/modules/internal/admin/handlers/export-database-sql.handler';
+import { ListAllPoints } from 'src/modules/internal/admin/handlers/list-all-points.handler';
 import { MintTHBToMerchant } from 'src/modules/internal/admin/handlers/mintTHBToMerchant.handler';
+import { ResetCustomerPointBalances } from 'src/modules/internal/admin/handlers/reset-customer-point-balances.handler';
+import { ResetVoucherTokenIds } from 'src/modules/internal/admin/handlers/reset-voucher-token-ids.handler';
+import { UpdatePointContractAddress } from 'src/modules/internal/admin/handlers/update-point-contract-address.handler';
 
 describe('AdminController', () => {
   let controller: AdminController;
@@ -11,18 +15,30 @@ describe('AdminController', () => {
   let exportAisLogHandler: jest.Mocked<ExportAisLog>;
   let exportDatabaseHandler: jest.Mocked<ExportDatabase>;
   let exportDatabaseSqlHandler: jest.Mocked<ExportDatabaseSql>;
+  let listAllPointsHandler: jest.Mocked<ListAllPoints>;
+  let resetCustomerPointBalancesHandler: jest.Mocked<ResetCustomerPointBalances>;
+  let resetVoucherTokenIdsHandler: jest.Mocked<ResetVoucherTokenIds>;
+  let updatePointContractAddressHandler: jest.Mocked<UpdatePointContractAddress>;
 
   beforeEach(() => {
     mintHandler = { execute: jest.fn() } as any;
     exportAisLogHandler = { execute: jest.fn() } as any;
     exportDatabaseHandler = { execute: jest.fn() } as any;
     exportDatabaseSqlHandler = { execute: jest.fn() } as any;
+    listAllPointsHandler = { execute: jest.fn() } as any;
+    resetCustomerPointBalancesHandler = { execute: jest.fn() } as any;
+    resetVoucherTokenIdsHandler = { execute: jest.fn() } as any;
+    updatePointContractAddressHandler = { execute: jest.fn() } as any;
 
     controller = new AdminController(
       mintHandler,
       exportAisLogHandler,
       exportDatabaseHandler,
       exportDatabaseSqlHandler,
+      listAllPointsHandler,
+      resetCustomerPointBalancesHandler,
+      resetVoucherTokenIdsHandler,
+      updatePointContractAddressHandler,
     );
   });
 
@@ -115,5 +131,87 @@ describe('AdminController', () => {
       'attachment; filename="database-export-2026-03-27T10-00-00-000Z.sql"',
     );
     expect(result).toBeInstanceOf(StreamableFile);
+  });
+
+  it('listAllPoints delegates to handler', async () => {
+    listAllPointsHandler.execute.mockResolvedValue({
+      points: [{ id: 'p1' }],
+      counts: 1,
+    } as any);
+
+    const result = await controller.listAllPoints();
+
+    expect(listAllPointsHandler.execute).toHaveBeenCalledWith();
+    expect(result).toEqual({
+      points: [{ id: 'p1' }],
+      counts: 1,
+    });
+  });
+
+  it('resetCustomerPointBalances delegates to handler', async () => {
+    resetCustomerPointBalancesHandler.execute.mockResolvedValue({
+      success: true,
+      message: 'All customerPoint balances have been reset to 0',
+      updatedCount: 5,
+    });
+
+    const result = await controller.resetCustomerPointBalances();
+
+    expect(resetCustomerPointBalancesHandler.execute).toHaveBeenCalledWith();
+    expect(result).toEqual({
+      success: true,
+      message: 'All customerPoint balances have been reset to 0',
+      updatedCount: 5,
+    });
+  });
+
+  it('updatePointContractAddress delegates to handler', async () => {
+    updatePointContractAddressHandler.execute.mockResolvedValue({
+      success: true,
+      message: 'Point contractAddress updated successfully',
+      point: {
+        id: 'point-1',
+        contractAddress: '0x1234',
+      },
+    } as any);
+
+    const result = await controller.updatePointContractAddress(
+      'point-1',
+      '0x1234',
+    );
+
+    expect(updatePointContractAddressHandler.execute).toHaveBeenCalledWith(
+      'point-1',
+      '0x1234',
+    );
+    expect(result).toEqual({
+      success: true,
+      message: 'Point contractAddress updated successfully',
+      point: {
+        id: 'point-1',
+        contractAddress: '0x1234',
+      },
+    });
+  });
+
+  it('resetVoucherTokenIds delegates to handler', async () => {
+    resetVoucherTokenIdsHandler.execute.mockResolvedValue({
+      success: true,
+      message: 'All voucher tokenId values have been reset successfully',
+      updatedCount: 3,
+      startTokenId: '10000',
+      endTokenId: '10002',
+    });
+
+    const result = await controller.resetVoucherTokenIds();
+
+    expect(resetVoucherTokenIdsHandler.execute).toHaveBeenCalledWith();
+    expect(result).toEqual({
+      success: true,
+      message: 'All voucher tokenId values have been reset successfully',
+      updatedCount: 3,
+      startTokenId: '10000',
+      endTokenId: '10002',
+    });
   });
 });

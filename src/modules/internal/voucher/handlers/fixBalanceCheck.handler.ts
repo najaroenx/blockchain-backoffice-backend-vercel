@@ -16,7 +16,8 @@ export class FixBalanceCheckHandler {
       where: { id: merchantId },
       select: { id: true, name: true },
     });
-    if (!merchant) throw new NotFoundException(`Merchant ${merchantId} not found`);
+    if (!merchant)
+      throw new NotFoundException(`Merchant ${merchantId} not found`);
 
     const vouchers = await this.prisma.voucher.findMany({
       where: { OR: [{ merchantId }, { sellerMerchantId: merchantId }] },
@@ -34,17 +35,24 @@ export class FixBalanceCheckHandler {
     });
 
     if (soldCodes.length === 0) {
-      return { merchant: { id: merchant.id, name: merchant.name }, customers: [], totalSold: 0 };
+      return {
+        merchant: { id: merchant.id, name: merchant.name },
+        customers: [],
+        totalSold: 0,
+      };
     }
 
     // Aggregate pointsCost per customer+pointId
-    const spendMap = new Map<string, {
-      customerId: string;
-      pointId: string;
-      totalSpent: number;
-      codes: typeof soldCodes;
-      isBug: boolean;
-    }>();
+    const spendMap = new Map<
+      string,
+      {
+        customerId: string;
+        pointId: string;
+        totalSpent: number;
+        codes: typeof soldCodes;
+        isBug: boolean;
+      }
+    >();
 
     for (const code of soldCodes) {
       const customerId = code.currentOwnerId || code.usedBy;
@@ -54,7 +62,11 @@ export class FixBalanceCheckHandler {
       const isBug = code.currentOwnerType !== 'CUSTOMER';
       const key = `${customerId}:${pointId}`;
       const entry = spendMap.get(key) || {
-        customerId, pointId, totalSpent: 0, codes: [] as typeof soldCodes, isBug,
+        customerId,
+        pointId,
+        totalSpent: 0,
+        codes: [] as typeof soldCodes,
+        isBug,
       };
       if (isBug) entry.isBug = true;
       entry.totalSpent += code.pointsCost;
@@ -62,7 +74,9 @@ export class FixBalanceCheckHandler {
       spendMap.set(key, entry);
     }
 
-    const customerIds = [...new Set([...spendMap.values()].map((e) => e.customerId))];
+    const customerIds = [
+      ...new Set([...spendMap.values()].map((e) => e.customerId)),
+    ];
     const pointIds = [...new Set([...spendMap.values()].map((e) => e.pointId))];
 
     const [customers, points] = await Promise.all([
@@ -92,10 +106,14 @@ export class FixBalanceCheckHandler {
         ],
       },
       select: {
-        amount: true, pointId: true,
-        senderId: true, senderType: true,
-        receiverId: true, receiverType: true,
-        voucherCodeId: true, transactionTypeId: true,
+        amount: true,
+        pointId: true,
+        senderId: true,
+        senderType: true,
+        receiverId: true,
+        receiverType: true,
+        voucherCodeId: true,
+        transactionTypeId: true,
       },
     });
 
@@ -113,28 +131,35 @@ export class FixBalanceCheckHandler {
         const key = `${tx.receiverId}:${tx.pointId}`;
         txBalanceAll.set(key, (txBalanceAll.get(key) || 0) + tx.amount);
         if (!isPurchaseTx) {
-          txBalanceExcPurchase.set(key, (txBalanceExcPurchase.get(key) || 0) + tx.amount);
+          txBalanceExcPurchase.set(
+            key,
+            (txBalanceExcPurchase.get(key) || 0) + tx.amount,
+          );
         }
       }
       if (tx.senderType === 'CUSTOMER' && tx.senderId && tx.pointId) {
         const key = `${tx.senderId}:${tx.pointId}`;
         txBalanceAll.set(key, (txBalanceAll.get(key) || 0) - tx.amount);
         if (!isPurchaseTx) {
-          txBalanceExcPurchase.set(key, (txBalanceExcPurchase.get(key) || 0) - tx.amount);
+          txBalanceExcPurchase.set(
+            key,
+            (txBalanceExcPurchase.get(key) || 0) - tx.amount,
+          );
         }
       }
     }
 
     // Merchant ref store names
-    const merchantRefs = [...new Set(
-      soldCodes.map((c) => c.voucher?.merchantRef).filter(Boolean),
-    )] as string[];
-    const refStores = merchantRefs.length > 0
-      ? await this.prisma.merchantRefStore.findMany({
-          where: { merchantRef: { in: merchantRefs } },
-          select: { merchantRef: true, name: true },
-        })
-      : [];
+    const merchantRefs = [
+      ...new Set(soldCodes.map((c) => c.voucher?.merchantRef).filter(Boolean)),
+    ] as string[];
+    const refStores =
+      merchantRefs.length > 0
+        ? await this.prisma.merchantRefStore.findMany({
+            where: { merchantRef: { in: merchantRefs } },
+            select: { merchantRef: true, name: true },
+          })
+        : [];
     const refStoreMap = new Map(refStores.map((s) => [s.merchantRef, s.name]));
 
     // Build result rows
@@ -145,12 +170,14 @@ export class FixBalanceCheckHandler {
       const after = txBalanceAll.get(key) || 0;
       const expectedAfter = before - entry.totalSpent;
 
-      const merchantRefSet = [...new Set(
-        entry.codes.map((c) => c.voucher?.merchantRef).filter(Boolean),
-      )] as string[];
-      const storeName = merchantRefSet
-        .map((ref) => refStoreMap.get(ref) || ref)
-        .join(', ') || '-';
+      const merchantRefSet = [
+        ...new Set(
+          entry.codes.map((c) => c.voucher?.merchantRef).filter(Boolean),
+        ),
+      ] as string[];
+      const storeName =
+        merchantRefSet.map((ref) => refStoreMap.get(ref) || ref).join(', ') ||
+        '-';
 
       const nameCount = new Map<string, number>();
       for (const c of entry.codes) {
@@ -158,7 +185,7 @@ export class FixBalanceCheckHandler {
         nameCount.set(vName, (nameCount.get(vName) || 0) + 1);
       }
       const couponNames = [...nameCount.entries()]
-        .map(([n, cnt]) => cnt > 1 ? `${n} x${cnt}` : n)
+        .map(([n, cnt]) => (cnt > 1 ? `${n} x${cnt}` : n))
         .join(', ');
 
       return {

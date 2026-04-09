@@ -115,6 +115,12 @@ export class GetMarketplaceListingsEndUser {
         merchantId,
       );
 
+      // Sort: newest listed first
+      validListings.sort(
+        (a, b) =>
+          new Date(b.listedAt).getTime() - new Date(a.listedAt).getTime(),
+      );
+
       this.logger.log(
         `[GetMarketplaceListingsEndUser] Found ${validListings.length} valid listings`,
       );

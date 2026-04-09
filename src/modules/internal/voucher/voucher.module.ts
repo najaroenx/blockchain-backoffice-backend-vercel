@@ -30,15 +30,6 @@ import { GetMarketplaceListingsEndUser } from './handlers/getMarketplaceListting
 import { GetCouponById } from './handlers/getCouponById.handler';
 import { GetVoucherByLatestCode } from './handlers/getVoucherByLatestCode.handler';
 import { GetMarketplaceListingsByMerchantRef } from './handlers/getMarketplaceListingsByMerchantRef.handler';
-import { FixController } from './controllers/fix.controller';
-import { FixVoucherGroupCollision } from './handlers/fixVoucherGroupCollision.handler';
-import { FixWhitelistHandler } from './handlers/fixWhitelist.handler';
-import { FixRedeemStatusHandler } from './handlers/fixRedeemStatus.handler';
-import { FixBalanceCheckHandler } from './handlers/fixBalanceCheck.handler';
-import { FixSendPointsHandler } from './handlers/fixSendPoints.handler';
-import { FixDeletePurchaseTxHandler } from './handlers/fixDeletePurchaseTx.handler';
-import { FixDeleteRedeemTxHandler } from './handlers/fixDeleteRedeemTx.handler';
-import { FixWalletOnchainHandler } from './handlers/fixWalletOnchain.handler';
 import { TransactionModule } from '../transaction/transaction.module';
 @Module({
   imports: [
@@ -49,7 +40,7 @@ import { TransactionModule } from '../transaction/transaction.module';
     AisTransferModule,
     TransactionModule,
   ],
-  controllers: [VoucherController, FixController],
+  controllers: [VoucherController],
   providers: [
     VoucherDBService,
     VoucherRepository,
@@ -76,14 +67,6 @@ import { TransactionModule } from '../transaction/transaction.module';
     GetCouponById,
     GetVoucherByLatestCode,
     GetMarketplaceListingsByMerchantRef,
-    FixVoucherGroupCollision,
-    FixWhitelistHandler,
-    FixRedeemStatusHandler,
-    FixBalanceCheckHandler,
-    FixSendPointsHandler,
-    FixDeletePurchaseTxHandler,
-    FixDeleteRedeemTxHandler,
-    FixWalletOnchainHandler,
   ],
   exports: [
     VoucherDBService,

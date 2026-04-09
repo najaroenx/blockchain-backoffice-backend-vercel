@@ -32,6 +32,9 @@ module.exports = {
   // ✅ เก็บผลไว้ในโฟลเดอร์ coverage
   coverageDirectory: './coverage',
 
+  // ✅ SonarQube ต้องการ lcov format
+  coverageReporters: ['text', 'lcov', 'clover', 'json-summary'],
+
   // ✅ ให้ Jest รู้ว่าใช้ ts-jest
   preset: 'ts-jest',
 };

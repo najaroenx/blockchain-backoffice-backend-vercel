@@ -214,7 +214,9 @@ export class BlockchainService {
     expiryMonths,
     ownerAddress,
   }: createPoint) {
-    this.logger.log('[BlockchainService] ========================================');
+    this.logger.log(
+      '[BlockchainService] ========================================',
+    );
     this.logger.log(
       '[BlockchainService] Creating new point token on blockchain...',
     );
@@ -275,7 +277,10 @@ export class BlockchainService {
     }
 
     this.logger.log('[BlockchainService] CALCULATED VALUES:');
-    this.logger.log('[BlockchainService] - Current timestamp:', currentTimestamp);
+    this.logger.log(
+      '[BlockchainService] - Current timestamp:',
+      currentTimestamp,
+    );
     this.logger.log(
       '[BlockchainService] - Effective start date:',
       effectiveStartDate,
@@ -462,7 +467,11 @@ export class BlockchainService {
       effectiveStartDate + Math.floor(expiryMonths * secondsPerMonth);
 
     this.logger.log('[BlockchainService] Using predefined duration');
-    this.logger.log('[BlockchainService] Expiry months:', expiryMonths, 'months');
+    this.logger.log(
+      '[BlockchainService] Expiry months:',
+      expiryMonths,
+      'months',
+    );
     if (startDate) {
       this.logger.log('[BlockchainService] Start date:', startDate);
     }
@@ -522,7 +531,11 @@ export class BlockchainService {
         '[BlockchainService] Amount in Wei format:',
         amountWeiFormat.toString(),
       );
-      this.logger.log('[BlockchainService] Amount to transfer:', amount, 'points');
+      this.logger.log(
+        '[BlockchainService] Amount to transfer:',
+        amount,
+        'points',
+      );
 
       // Validate balance
       if (balance < amountWeiFormat) {
@@ -537,7 +550,9 @@ export class BlockchainService {
         );
       }
 
-      this.logger.log('[BlockchainService] Calling contract transfer method...');
+      this.logger.log(
+        '[BlockchainService] Calling contract transfer method...',
+      );
       const tx = await contractWithSigner['transfer'](to, amountWeiFormat);
       this.logger.log('[BlockchainService] Transaction hash:', tx.hash);
 
@@ -670,7 +685,10 @@ export class BlockchainService {
         balanceWei: balance.toString(),
       };
     } catch (error) {
-      this.logger.error('[BlockchainService] Get balance failed:', error.message);
+      this.logger.error(
+        '[BlockchainService] Get balance failed:',
+        error.message,
+      );
       this.handleBlockchainError(error, 'getBalance', 'Failed to get balance');
     }
   }
@@ -866,7 +884,9 @@ export class BlockchainService {
         status: receipt.status,
       };
     } catch (error) {
-      this.logger.error(`[Blockchain] Failed to redeem coupon: ${error.message}`);
+      this.logger.error(
+        `[Blockchain] Failed to redeem coupon: ${error.message}`,
+      );
       this.handleBlockchainError(
         error,
         'redeemVoucher',
@@ -977,7 +997,9 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      this.logger.error(`[Blockchain] Failed to mint voucher: ${error.message}`);
+      this.logger.error(
+        `[Blockchain] Failed to mint voucher: ${error.message}`,
+      );
       this.handleBlockchainError(
         error,
         'mintVoucher',
@@ -1283,7 +1305,9 @@ export class BlockchainService {
         return this.listingsCache.data;
       }
 
-      this.logger.log('[Blockchain] Fetching all active listings (cache miss)...');
+      this.logger.log(
+        '[Blockchain] Fetching all active listings (cache miss)...',
+      );
 
       const marketplaceContract = this.getMarketplaceContract(this.provider);
 
@@ -1318,7 +1342,9 @@ export class BlockchainService {
 
       return listings;
     } catch (error) {
-      this.logger.error(`[Blockchain] Failed to get listings: ${error.message}`);
+      this.logger.error(
+        `[Blockchain] Failed to get listings: ${error.message}`,
+      );
       this.handleBlockchainError(
         error,
         'getAllActiveMarketplaceListings',
@@ -1338,7 +1364,9 @@ export class BlockchainService {
     sellerPrivateKey: string,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      this.logger.log(`[Blockchain] Delisting coupon for listing ${listingId}...`);
+      this.logger.log(
+        `[Blockchain] Delisting coupon for listing ${listingId}...`,
+      );
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');
@@ -1364,7 +1392,9 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      this.logger.error(`[Blockchain] Failed to delist coupon: ${error.message}`);
+      this.logger.error(
+        `[Blockchain] Failed to delist coupon: ${error.message}`,
+      );
       this.handleBlockchainError(
         error,
         'delistCoupon',
@@ -1396,7 +1426,9 @@ export class BlockchainService {
         balanceWei: balance.toString(),
       };
     } catch (error) {
-      this.logger.error(`[Blockchain] Failed to get THB balance: ${error.message}`);
+      this.logger.error(
+        `[Blockchain] Failed to get THB balance: ${error.message}`,
+      );
       this.handleBlockchainError(
         error,
         'getUserTHBBalance',
@@ -1937,7 +1969,9 @@ export class BlockchainService {
       return;
     }
 
-    this.logger.log('[Blockchain] Approving marketplace for coupon transfer...');
+    this.logger.log(
+      '[Blockchain] Approving marketplace for coupon transfer...',
+    );
     const approveTx = await couponContract.setApprovalForAll(
       this.marketplaceAddress,
       true,
@@ -2206,7 +2240,10 @@ export class BlockchainService {
       );
       this.logger.log('[Blockchain] - Payment token:', paymentTokenAddress);
       this.logger.log('[Blockchain] - Approve target:', approveTarget);
-      this.logger.log('[Blockchain] - Amount to approve:', totalPrice.toString());
+      this.logger.log(
+        '[Blockchain] - Amount to approve:',
+        totalPrice.toString(),
+      );
 
       const approveTx = await paymentTokenContract.approve(
         approveTarget,
@@ -2224,7 +2261,10 @@ export class BlockchainService {
         buyerAddress,
         approveTarget,
       );
-      this.logger.log('[Blockchain] - Current allowance:', allowance.toString());
+      this.logger.log(
+        '[Blockchain] - Current allowance:',
+        allowance.toString(),
+      );
       this.logger.log('[Blockchain] - Required amount:', totalPrice.toString());
 
       if (allowance < totalPrice) {
@@ -2279,7 +2319,9 @@ export class BlockchainService {
     address: string,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      this.logger.log(`[Blockchain] Adding ${address} to marketplace whitelist...`);
+      this.logger.log(
+        `[Blockchain] Adding ${address} to marketplace whitelist...`,
+      );
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');
@@ -2324,7 +2366,9 @@ export class BlockchainService {
    */
   async isWhitelisted(address: string): Promise<boolean> {
     try {
-      this.logger.log(`[Blockchain] Checking whitelist status for ${address}...`);
+      this.logger.log(
+        `[Blockchain] Checking whitelist status for ${address}...`,
+      );
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');

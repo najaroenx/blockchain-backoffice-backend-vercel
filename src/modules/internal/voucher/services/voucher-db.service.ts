@@ -404,7 +404,9 @@ export class VoucherDBService {
       }
     }
 
-    this.logger.log(`[getVouchersByMerchant] Final result count: ${result.length}`);
+    this.logger.log(
+      `[getVouchersByMerchant] Final result count: ${result.length}`,
+    );
     return result;
   }
 

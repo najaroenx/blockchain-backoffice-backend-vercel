@@ -87,7 +87,7 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.18",
-    "@nestjs/schematics": "^11.0.2",
+    "@nestjs/schematics": "^11.0.10",
     "@nestjs/testing": "^11.1.8",
     "@types/crypto-js": "^4.2.2",
     "@types/express": "^5.0.1",

@@ -50,7 +50,7 @@ export class GetCustomerPhone {
               error: 'NEW_OTP_GENERATED',
               data: {
                 url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}`,
-                callbackUrl: 'http://localhost:4001/auth/verify',
+                callbackUrl: `${this.configService.get('CALLBACK_URL')}/auth/verify`,
                 merchantId: merchantId,
               },
             });
@@ -62,7 +62,7 @@ export class GetCustomerPhone {
             error: 'NEW_OTP_GENERATED',
             data: {
               url: `${this.configService.get('FRONT_URL')}/otp?requestid=${findRequest.uid}&merchantId=${merchantId}`,
-              callbackUrl: 'http://localhost:4001/auth/verify',
+              callbackUrl: `${this.configService.get('CALLBACK_URL')}/auth/verify`,
               merchantId: merchantId,
             },
           });
@@ -81,7 +81,7 @@ export class GetCustomerPhone {
           message: `Customer with phone ${phone} not found`,
           data: {
             url: `${this.configService.get('FRONT_URL')}/otp?requestid=${uuid}&merchantId=${merchantId}`,
-            callbackUrl: 'http://localhost:4001/auth/verify',
+            callbackUrl: `${this.configService.get('CALLBACK_URL')}/auth/verify`,
             merchantId: merchantId,
           },
         });

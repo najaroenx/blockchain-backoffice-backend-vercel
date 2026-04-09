@@ -1,10 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { nanoid } from 'nanoid';
 import { sign, SignOptions, VerifyOptions, verify } from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import * as CryptoJS from 'crypto-js';
 @Injectable()
 export class TokenService {
+  private readonly logger = new Logger(TokenService.name);
   private jwtSecret: string;
 
   constructor(private configService: ConfigService) {
@@ -55,7 +56,7 @@ export class TokenService {
       // TODO : add jwt secret
       return verify(token, this.jwtSecret, { ...options, subject }) as any as T;
     } catch (error) {
-      console.error('Error verifying token:', error);
+      this.logger.error('Error verifying token:', error);
       throw new UnauthorizedException('Invalid token');
     }
   }

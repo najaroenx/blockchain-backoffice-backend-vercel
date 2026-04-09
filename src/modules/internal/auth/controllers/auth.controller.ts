@@ -10,12 +10,16 @@ import {
 import { AuthService } from '../services/auth.service';
 import { LoginDto, RegisterDto } from '../dtos';
 import { Public } from '../public.decorator';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 @Public()
 export class AuthController {
   private logger = new Logger(AuthController.name);
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private configService: ConfigService,
+  ) {}
 
   @Post('login')
   @HttpCode(200)
@@ -26,10 +30,12 @@ export class AuthController {
   @Get('toverify')
   @HttpCode(200)
   async toverify(@Param('merchantId') merchantId: string) {
+    const frontUrl = this.configService.get('FRONT_URL');
+    const callbackUrl = this.configService.get('CALLBACK_URL');
     return {
       message: `This merchant ${merchantId} is to verify`,
-      url: 'http://localhost:3000/otp?kid=dsadasdasdasd&cb=profile',
-      callbackUrl: 'http://localhost:4001/auth/verify',
+      url: `${frontUrl}/otp?kid=dsadasdasdasd&cb=profile`,
+      callbackUrl: `${callbackUrl}/auth/verify`,
     };
   }
 

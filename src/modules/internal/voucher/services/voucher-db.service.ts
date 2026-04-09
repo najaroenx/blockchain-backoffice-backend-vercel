@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Voucher, Prisma } from '@prisma/client';
 import { VoucherRepository } from '../voucher.repository';
 import { PrismaService } from 'prisma/prisma.service';
@@ -21,6 +21,8 @@ export interface DeleteVoucherResponse {
 
 @Injectable()
 export class VoucherDBService {
+  private readonly logger = new Logger(VoucherDBService.name);
+
   constructor(
     private readonly repository: VoucherRepository,
     private readonly prisma: PrismaService,
@@ -68,13 +70,13 @@ export class VoucherDBService {
   }
 
   async getVouchersByMerchant(merchantId: string): Promise<any[]> {
-    console.log(
+    this.logger.log(
       `[getVouchersByMerchant] Querying vouchers for merchantId: ${merchantId}`,
     );
 
     const vouchers = await this.fetchMergedVouchers(merchantId);
 
-    console.log(
+    this.logger.log(
       `[getVouchersByMerchant] Found ${vouchers.length} vouchers for merchant ${merchantId}`,
     );
 
@@ -218,12 +220,12 @@ export class VoucherDBService {
         parseInt(voucher.tokenId),
       );
       const count = parseInt(balanceResult.balance);
-      console.log(
+      this.logger.log(
         `[getVouchersByMerchant] Voucher ${voucher.id} (${voucher.name}): No codes in DB, blockchain balance = ${count}`,
       );
       return count;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[getVouchersByMerchant] Failed to get blockchain balance for voucher ${voucher.id}:`,
         error.message,
       );
@@ -373,7 +375,7 @@ export class VoucherDBService {
 
   /** Build final result array from the grouped map */
   private buildResultFromGroupMap(groupedMap: Map<string, any>) {
-    console.log(
+    this.logger.log(
       `[getVouchersByMerchant] Processing groupedMap with ${groupedMap.size} groups`,
     );
 
@@ -402,7 +404,7 @@ export class VoucherDBService {
       }
     }
 
-    console.log(`[getVouchersByMerchant] Final result count: ${result.length}`);
+    this.logger.log(`[getVouchersByMerchant] Final result count: ${result.length}`);
     return result;
   }
 

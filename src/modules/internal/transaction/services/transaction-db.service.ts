@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { TransactionRepository } from '../transaction.repository';
 import {
   GetTransactionsByCustomerId,
@@ -9,6 +9,8 @@ import { startOfDay, endOfDay } from 'date-fns';
 
 @Injectable()
 export class TransactionDBService {
+  private readonly logger = new Logger(TransactionDBService.name);
+
   constructor(private readonly repository: TransactionRepository) {}
 
   async getTransactionsByCustomerId(
@@ -219,7 +221,7 @@ export class TransactionDBService {
     status?: string,
     couponIds?: string[],
   ): Promise<any[]> {
-    console.log(
+    this.logger.log(
       'merchantRef',
       merchantRef,
       'status',

@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Logger,
   Param,
   Post,
   Delete,
@@ -41,6 +42,8 @@ import { GetVoucherByListingId } from '../handlers/getVoucherByListingId.handler
 @ApiTags('Voucher')
 @Controller('coupon')
 export class VoucherController {
+  private readonly logger = new Logger(VoucherController.name);
+
   constructor(
     private readonly voucherService: VoucherDBService,
     private readonly getMarketplaceListings: GetMarketplaceListings,
@@ -254,7 +257,7 @@ export class VoucherController {
     @Param('voucherId') voucherId: string,
     @Body() data: ActivateVoucherDto,
   ) {
-    console.log('start');
+    this.logger.log('start activateVoucher');
     return this.voucherService.activateVoucher(voucherId, data);
   }
 

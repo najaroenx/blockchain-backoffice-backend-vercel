@@ -35,7 +35,7 @@ export class RegisterCustomerDev {
   async execute(merchantId: string, callbackUri?: string): Promise<any> {
     try {
       const merchant = await this.merchantDBService.getMerchantById(merchantId);
-      console.log(merchant);
+      this.logger.log(merchant);
 
       if (!merchant) {
         throw new BadRequestException({

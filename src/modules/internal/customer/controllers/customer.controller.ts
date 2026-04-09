@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Logger,
   Param,
   Post,
   Put,
@@ -39,6 +40,8 @@ import { Public } from 'src/modules/internal/auth/public.decorator';
 @ApiTags('Customer')
 @Controller('/:merchantId/customer')
 export class CustomerController {
+  private readonly logger = new Logger(CustomerController.name);
+
   constructor(
     private readonly getCustomersByMerchantIdHandler: GetCustomersByMerchantId,
     private readonly getAllCustomersByMerchantWithWalletHandler: GetAllCustomersByMerchantWithWallet,
@@ -156,7 +159,7 @@ export class CustomerController {
     @Param('merchantId') merchantId: string,
     @Query('callbackUri') callbackUri: string,
   ) {
-    console.log(
+    this.logger.log(
       `Getting customer by phone for merchant ${merchantId} and phone ${phone} and callbackUri ${callbackUri}`,
     );
     return this.getCustomerPhoneDevForResp.execute(

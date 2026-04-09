@@ -5,9 +5,11 @@ import helmet from 'helmet';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ResponseInterceptor } from './common/response.interceptor';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const configService = app.get(ConfigService);
   const config = new DocumentBuilder()
     .setTitle('DLT Loyalty API')
     .setDescription('The cats API')
@@ -20,7 +22,13 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ResponseInterceptor());
 
   app.use(helmet());
-  app.enableCors();
+
+  const allowedOrigins = configService.get<string>('CORS_ORIGINS');
+  app.enableCors({
+    origin: allowedOrigins ? allowedOrigins.split(',') : [],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  });
   await app.listen(4000);
 }
 bootstrap();

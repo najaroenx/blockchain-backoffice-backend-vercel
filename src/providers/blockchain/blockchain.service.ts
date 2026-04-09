@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { createPoint } from './types';
@@ -42,6 +43,7 @@ interface MarketplaceListingView {
 
 @Injectable()
 export class BlockchainService {
+  private readonly logger = new Logger(BlockchainService.name);
   private pointFactoryAddress: string;
 
   private privateKey: string;
@@ -116,7 +118,7 @@ export class BlockchainService {
       msg.includes('missing response');
 
     if (isNetworkDown) {
-      console.error(
+      this.logger.error(
         `[BlockchainService] [${context}] Blockchain unavailable: ${error.message}`,
       );
       throw new ServiceUnavailableException(
@@ -212,20 +214,20 @@ export class BlockchainService {
     expiryMonths,
     ownerAddress,
   }: createPoint) {
-    console.log('[BlockchainService] ========================================');
-    console.log(
+    this.logger.log('[BlockchainService] ========================================');
+    this.logger.log(
       '[BlockchainService] Creating new point token on blockchain...',
     );
-    console.log('[BlockchainService] INPUT PARAMETERS:');
-    console.log('[BlockchainService] - name:', name);
-    console.log('[BlockchainService] - symbol:', symbol);
-    console.log('[BlockchainService] - initialSupply:', initialSupply);
-    console.log('[BlockchainService] - decimal:', decimal);
-    console.log('[BlockchainService] - startDate:', startDate);
-    console.log('[BlockchainService] - endDate:', endDate);
-    console.log('[BlockchainService] - expiryMonths:', expiryMonths);
-    console.log('[BlockchainService] - ownerAddress:', ownerAddress);
-    console.log(
+    this.logger.log('[BlockchainService] INPUT PARAMETERS:');
+    this.logger.log('[BlockchainService] - name:', name);
+    this.logger.log('[BlockchainService] - symbol:', symbol);
+    this.logger.log('[BlockchainService] - initialSupply:', initialSupply);
+    this.logger.log('[BlockchainService] - decimal:', decimal);
+    this.logger.log('[BlockchainService] - startDate:', startDate);
+    this.logger.log('[BlockchainService] - endDate:', endDate);
+    this.logger.log('[BlockchainService] - expiryMonths:', expiryMonths);
+    this.logger.log('[BlockchainService] - ownerAddress:', ownerAddress);
+    this.logger.log(
       '[BlockchainService] Factory address:',
       this.pointFactoryAddress,
     );
@@ -272,31 +274,31 @@ export class BlockchainService {
       );
     }
 
-    console.log('[BlockchainService] CALCULATED VALUES:');
-    console.log('[BlockchainService] - Current timestamp:', currentTimestamp);
-    console.log(
+    this.logger.log('[BlockchainService] CALCULATED VALUES:');
+    this.logger.log('[BlockchainService] - Current timestamp:', currentTimestamp);
+    this.logger.log(
       '[BlockchainService] - Effective start date:',
       effectiveStartDate,
     );
-    console.log(
+    this.logger.log(
       '[BlockchainService] - Final expiry timestamp:',
       finalExpiryTimestamp,
     );
-    console.log(
+    this.logger.log(
       '[BlockchainService] - Remaining time:',
       remainingTime,
       'seconds (~',
       Math.floor(daysRemaining),
       'days)',
     );
-    console.log(
+    this.logger.log(
       '[BlockchainService] - Epoch duration:',
       epochDuration,
       'seconds (~',
       Math.floor(epochDuration / 3600),
       'hours)',
     );
-    console.log('[BlockchainService] - Window size:', windowSize, 'epochs');
+    this.logger.log('[BlockchainService] - Window size:', windowSize, 'epochs');
 
     const initialSupplyWeiFormat = ethers.parseEther(initialSupply.toString());
 
@@ -304,18 +306,18 @@ export class BlockchainService {
     const epochDurationBigInt = BigInt(epochDuration);
     const windowSizeBigInt = BigInt(windowSize);
 
-    console.log('[BlockchainService] CONTRACT CALL PARAMETERS:');
-    console.log('[BlockchainService] - name:', name);
-    console.log('[BlockchainService] - symbol:', symbol);
-    console.log(
+    this.logger.log('[BlockchainService] CONTRACT CALL PARAMETERS:');
+    this.logger.log('[BlockchainService] - name:', name);
+    this.logger.log('[BlockchainService] - symbol:', symbol);
+    this.logger.log(
       '[BlockchainService] - epochDuration (BigInt):',
       epochDurationBigInt.toString(),
     );
-    console.log(
+    this.logger.log(
       '[BlockchainService] - windowSize (BigInt):',
       windowSizeBigInt.toString(),
     );
-    console.log(
+    this.logger.log(
       '[BlockchainService] - initialSupply (Wei):',
       initialSupplyWeiFormat.toString(),
     );
@@ -331,13 +333,13 @@ export class BlockchainService {
     );
 
     const pointAddress = result[0];
-    console.log(
+    this.logger.log(
       '[BlockchainService] New point token address preview:',
       pointAddress,
     );
 
     // Deploy the point contract with initial supply
-    console.log(
+    this.logger.log(
       '[BlockchainService] Deploying point token contract with initial supply...',
     );
     const tx = await contractWithSigner['deployPointToken'](
@@ -354,11 +356,11 @@ export class BlockchainService {
 
     await tx.wait();
 
-    console.log(
+    this.logger.log(
       '[BlockchainService] Point token deployed successfully at:',
       pointAddress,
     );
-    console.log(
+    this.logger.log(
       '[BlockchainService] Initial supply',
       initialSupply,
       'automatically minted to:',
@@ -436,11 +438,11 @@ export class BlockchainService {
     if (endDate <= currentTimestamp) {
       throw new Error('endDate must be in the future');
     }
-    console.log('[BlockchainService] Using custom date range');
+    this.logger.log('[BlockchainService] Using custom date range');
     if (startDate) {
-      console.log('[BlockchainService] Start date:', startDate);
+      this.logger.log('[BlockchainService] Start date:', startDate);
     }
-    console.log('[BlockchainService] End date:', endDate);
+    this.logger.log('[BlockchainService] End date:', endDate);
     return endDate;
   }
 
@@ -459,12 +461,12 @@ export class BlockchainService {
     const result =
       effectiveStartDate + Math.floor(expiryMonths * secondsPerMonth);
 
-    console.log('[BlockchainService] Using predefined duration');
-    console.log('[BlockchainService] Expiry months:', expiryMonths, 'months');
+    this.logger.log('[BlockchainService] Using predefined duration');
+    this.logger.log('[BlockchainService] Expiry months:', expiryMonths, 'months');
     if (startDate) {
-      console.log('[BlockchainService] Start date:', startDate);
+      this.logger.log('[BlockchainService] Start date:', startDate);
     }
-    console.log('[BlockchainService] Calculated end date:', result);
+    this.logger.log('[BlockchainService] Calculated end date:', result);
     return result;
   }
 
@@ -485,17 +487,17 @@ export class BlockchainService {
   }: transaction & { senderPrivateKey?: string }): Promise<{ txId: string }> {
     try {
       const privateKeyToUse = senderPrivateKey || this.privateKey;
-      console.log('[BlockchainService] Starting transaction');
-      console.log(
+      this.logger.log('[BlockchainService] Starting transaction');
+      this.logger.log(
         '[BlockchainService] Using private key type:',
         senderPrivateKey ? 'merchant' : 'admin',
       );
-      console.log('[BlockchainService] Point address:', pointAddress);
-      console.log('[BlockchainService] Recipient address:', to);
-      console.log('[BlockchainService] Amount:', amount);
+      this.logger.log('[BlockchainService] Point address:', pointAddress);
+      this.logger.log('[BlockchainService] Recipient address:', to);
+      this.logger.log('[BlockchainService] Amount:', amount);
 
       const signer = new Wallet(privateKeyToUse, this.provider);
-      console.log('[BlockchainService] Signer address:', signer.address);
+      this.logger.log('[BlockchainService] Signer address:', signer.address);
 
       const contract = new Contract(
         pointAddress,
@@ -504,10 +506,10 @@ export class BlockchainService {
       );
 
       // Check sender balance before transfer
-      console.log('[BlockchainService] Checking sender balance...');
+      this.logger.log('[BlockchainService] Checking sender balance...');
       const balance = await contract['balanceOf'](signer.address);
       const balanceFormatted = ethers.formatEther(balance);
-      console.log(
+      this.logger.log(
         '[BlockchainService] Sender balance:',
         balanceFormatted,
         'points',
@@ -516,15 +518,15 @@ export class BlockchainService {
       const contractWithSigner = contract.connect(signer) as any;
 
       const amountWeiFormat = ethers.parseEther(amount.toString());
-      console.log(
+      this.logger.log(
         '[BlockchainService] Amount in Wei format:',
         amountWeiFormat.toString(),
       );
-      console.log('[BlockchainService] Amount to transfer:', amount, 'points');
+      this.logger.log('[BlockchainService] Amount to transfer:', amount, 'points');
 
       // Validate balance
       if (balance < amountWeiFormat) {
-        console.error(
+        this.logger.error(
           '[BlockchainService] Insufficient balance! Required:',
           amount,
           'Available:',
@@ -535,34 +537,34 @@ export class BlockchainService {
         );
       }
 
-      console.log('[BlockchainService] Calling contract transfer method...');
+      this.logger.log('[BlockchainService] Calling contract transfer method...');
       const tx = await contractWithSigner['transfer'](to, amountWeiFormat);
-      console.log('[BlockchainService] Transaction hash:', tx.hash);
+      this.logger.log('[BlockchainService] Transaction hash:', tx.hash);
 
-      console.log(
+      this.logger.log(
         '[BlockchainService] Waiting for transaction confirmation...',
       );
       await tx.wait();
-      console.log('[BlockchainService] Transaction confirmed');
+      this.logger.log('[BlockchainService] Transaction confirmed');
 
       return {
         txId: tx.hash,
       };
     } catch (error) {
-      console.error('[BlockchainService] Transaction failed:');
-      console.error('[BlockchainService] Error message:', error.message);
-      console.error('[BlockchainService] Error code:', error.code);
-      console.error('[BlockchainService] Error reason:', error.reason);
-      console.error('[BlockchainService] Error info:', error.info);
-      console.error('[BlockchainService] Error data:', error.data);
-      console.error('[BlockchainService] Error stack:', error.stack);
-      console.error(
+      this.logger.error('[BlockchainService] Transaction failed:');
+      this.logger.error('[BlockchainService] Error message:', error.message);
+      this.logger.error('[BlockchainService] Error code:', error.code);
+      this.logger.error('[BlockchainService] Error reason:', error.reason);
+      this.logger.error('[BlockchainService] Error info:', error.info);
+      this.logger.error('[BlockchainService] Error data:', error.data);
+      this.logger.error('[BlockchainService] Error stack:', error.stack);
+      this.logger.error(
         '[BlockchainService] Error shortMessage:',
         error.shortMessage,
       );
-      console.error('[BlockchainService] Point address:', pointAddress);
-      console.error('[BlockchainService] Recipient:', to);
-      console.error('[BlockchainService] Amount:', amount);
+      this.logger.error('[BlockchainService] Point address:', pointAddress);
+      this.logger.error('[BlockchainService] Recipient:', to);
+      this.logger.error('[BlockchainService] Amount:', amount);
 
       // Re-throw with more specific error message if available
       if (error.reason) {
@@ -668,7 +670,7 @@ export class BlockchainService {
         balanceWei: balance.toString(),
       };
     } catch (error) {
-      console.error('[BlockchainService] Get balance failed:', error.message);
+      this.logger.error('[BlockchainService] Get balance failed:', error.message);
       this.handleBlockchainError(error, 'getBalance', 'Failed to get balance');
     }
   }
@@ -720,10 +722,10 @@ export class BlockchainService {
     amount: number = 1,
     treasuryAddress?: string,
   ) {
-    console.error(
+    this.logger.error(
       `[Blockchain] DEPRECATED: buyVoucherFromMarketplace called. This method requires proper listingId setup.`,
     );
-    console.error(
+    this.logger.error(
       `TokenId: ${tokenId}, Buyer: ${buyerAddress}, Price: ${priceInPoints}, Amount: ${amount}`,
     );
 
@@ -742,7 +744,7 @@ export class BlockchainService {
    */
   async getVoucherBalance(tokenId: string, address: string): Promise<number> {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Getting voucher balance for tokenId: ${tokenId}, address: ${address}`,
       );
 
@@ -759,7 +761,7 @@ export class BlockchainService {
       const balance = await contract.balanceOf(address, tokenId);
       const balanceNumber = Number(balance);
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Balance: ${balanceNumber} for tokenId ${tokenId}`,
       );
 
@@ -780,11 +782,11 @@ export class BlockchainService {
       const nftContract = new Contract(voucherNFTAddress, erc1155ABI, this.provider);
       const balance = await nftContract.balanceOf(address, tokenId);
 
-      console.log(`[Blockchain] Balance of tokenId ${tokenId} for ${address}: ${balance.toString()}`);
+      this.logger.log(`[Blockchain] Balance of tokenId ${tokenId} for ${address}: ${balance.toString()}`);
       return Number(balance);
       */
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to get voucher balance: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -809,7 +811,7 @@ export class BlockchainService {
       const balance = await this.getVoucherBalance(tokenId, address);
       return balance > 0;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Ownership verification failed: ${error.message}`,
       );
       return false;
@@ -830,7 +832,7 @@ export class BlockchainService {
     ownerPrivateKey?: string,
   ) {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Redeeming coupon typeId: ${typeId}, amount: ${amount}, owner: ${ownerAddress}`,
       );
 
@@ -854,7 +856,7 @@ export class BlockchainService {
       });
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Coupon redeemed successfully. Tx: ${receipt.hash}`,
       );
 
@@ -864,7 +866,7 @@ export class BlockchainService {
         status: receipt.status,
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to redeem coupon: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to redeem coupon: ${error.message}`);
       this.handleBlockchainError(
         error,
         'redeemVoucher',
@@ -906,7 +908,7 @@ export class BlockchainService {
         isRedeemed,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to get voucher data: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -925,7 +927,7 @@ export class BlockchainService {
    */
   async mintVoucher(toAddress: string, redeemCode: string) {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Minting voucher to: ${toAddress}, code: ${redeemCode}`,
       );
 
@@ -965,7 +967,7 @@ export class BlockchainService {
         tokenId = parsedLog?.args?.tokenId?.toString();
       }
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Voucher minted successfully. TokenId: ${tokenId}, Tx: ${receipt.hash}`,
       );
 
@@ -975,7 +977,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to mint voucher: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to mint voucher: ${error.message}`);
       this.handleBlockchainError(
         error,
         'mintVoucher',
@@ -992,7 +994,7 @@ export class BlockchainService {
    */
   async batchMintVouchers(toAddress: string, redeemCodes: string[]) {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Batch minting ${redeemCodes.length} vouchers to: ${toAddress}`,
       );
 
@@ -1015,7 +1017,7 @@ export class BlockchainService {
       const tx = await contract.batchMint(toAddress, redeemCodes);
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Batch mint completed. Tx: ${receipt.hash}, Minted: ${redeemCodes.length} vouchers`,
       );
 
@@ -1025,7 +1027,7 @@ export class BlockchainService {
         count: redeemCodes.length,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to batch mint vouchers: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -1049,7 +1051,7 @@ export class BlockchainService {
     expireDate: number,
   ): Promise<{ typeId: string; hash: string; blockNumber: number }> {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Creating coupon type: ${name}, start: ${startDate}, expire: ${expireDate}`,
       );
 
@@ -1087,7 +1089,7 @@ export class BlockchainService {
       const parsedLog = contract.interface.parseLog(event);
       typeId = parsedLog?.args?.typeId?.toString();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Coupon type created successfully. TypeId: ${typeId}, Tx: ${receipt.hash}`,
       );
 
@@ -1097,7 +1099,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to create coupon type: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -1121,7 +1123,7 @@ export class BlockchainService {
     amount: number,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Minting coupon - to: ${toAddress}, typeId: ${typeId}, amount: ${amount}`,
       );
 
@@ -1141,7 +1143,7 @@ export class BlockchainService {
       });
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Coupon minted successfully. Tx: ${receipt.hash}`,
       );
 
@@ -1150,7 +1152,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to mint coupon: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to mint coupon: ${error.message}`);
       this.handleBlockchainError(
         error,
         'mintCoupon',
@@ -1172,7 +1174,7 @@ export class BlockchainService {
     amounts: number[],
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Batch minting coupons - recipients: ${recipients.length}, typeIds: ${typeIds.length}, amounts: ${amounts.length}`,
       );
 
@@ -1201,7 +1203,7 @@ export class BlockchainService {
       });
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Batch mint successful. Tx: ${receipt.hash}, Minted ${recipients.length} coupons`,
       );
 
@@ -1210,7 +1212,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to batch mint coupons: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -1230,7 +1232,7 @@ export class BlockchainService {
     listingId: string,
   ): Promise<MarketplaceListingView> {
     try {
-      console.log('[Blockchain] Fetching listing:', listingId);
+      this.logger.log('[Blockchain] Fetching listing:', listingId);
 
       const listing = await this.readMarketplaceListing(listingId);
 
@@ -1240,7 +1242,7 @@ export class BlockchainService {
         throw error;
       }
 
-      console.error(`[Blockchain] Failed to get listing: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to get listing: ${error.message}`);
       this.handleBlockchainError(
         error,
         'getMarketplaceListing',
@@ -1255,7 +1257,7 @@ export class BlockchainService {
    */
   invalidateListingsCache() {
     if (this.listingsCache) {
-      console.log('[Blockchain] Listings cache invalidated');
+      this.logger.log('[Blockchain] Listings cache invalidated');
     }
     this.listingsCache = null;
   }
@@ -1273,7 +1275,7 @@ export class BlockchainService {
         this.listingsCache &&
         Date.now() - this.listingsCache.timestamp < this.LISTINGS_CACHE_TTL_MS
       ) {
-        console.log(
+        this.logger.log(
           '[Blockchain] Returning cached listings (%d items, age: %ds)',
           this.listingsCache.data.length,
           Math.round((Date.now() - this.listingsCache.timestamp) / 1000),
@@ -1281,7 +1283,7 @@ export class BlockchainService {
         return this.listingsCache.data;
       }
 
-      console.log('[Blockchain] Fetching all active listings (cache miss)...');
+      this.logger.log('[Blockchain] Fetching all active listings (cache miss)...');
 
       const marketplaceContract = this.getMarketplaceContract(this.provider);
 
@@ -1291,7 +1293,7 @@ export class BlockchainService {
         marketplaceContract.getAllActiveListings(),
       ]);
 
-      console.log(
+      this.logger.log(
         '[Blockchain] getActiveListings() returned:',
         listingIds.length,
         'IDs',
@@ -1309,14 +1311,14 @@ export class BlockchainService {
         };
       });
 
-      console.log('[Blockchain] Found', listings.length, 'active listings');
+      this.logger.log('[Blockchain] Found', listings.length, 'active listings');
 
       // Update cache
       this.listingsCache = { data: listings, timestamp: Date.now() };
 
       return listings;
     } catch (error) {
-      console.error(`[Blockchain] Failed to get listings: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to get listings: ${error.message}`);
       this.handleBlockchainError(
         error,
         'getAllActiveMarketplaceListings',
@@ -1336,7 +1338,7 @@ export class BlockchainService {
     sellerPrivateKey: string,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log(`[Blockchain] Delisting coupon for listing ${listingId}...`);
+      this.logger.log(`[Blockchain] Delisting coupon for listing ${listingId}...`);
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');
@@ -1350,7 +1352,7 @@ export class BlockchainService {
       });
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Coupon delisted. ListingId: ${listingId}, Tx: ${receipt.hash}`,
       );
 
@@ -1362,7 +1364,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to delist coupon: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to delist coupon: ${error.message}`);
       this.handleBlockchainError(
         error,
         'delistCoupon',
@@ -1378,7 +1380,7 @@ export class BlockchainService {
    */
   async getUserTHBBalance(userAddress: string) {
     try {
-      console.log('[Blockchain] Checking THB balance for:', userAddress);
+      this.logger.log('[Blockchain] Checking THB balance for:', userAddress);
 
       const thbContract = new Contract(
         this.thbAddress,
@@ -1394,7 +1396,7 @@ export class BlockchainService {
         balanceWei: balance.toString(),
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to get THB balance: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to get THB balance: ${error.message}`);
       this.handleBlockchainError(
         error,
         'getUserTHBBalance',
@@ -1411,7 +1413,7 @@ export class BlockchainService {
     amountWei: bigint,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log('[Blockchain] Minting THB...');
+      this.logger.log('[Blockchain] Minting THB...');
       if (!this.thbAddress) {
         throw new Error('THB_ADDRESS not configured');
       }
@@ -1424,7 +1426,7 @@ export class BlockchainService {
       });
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] THB minted. To: ${toAddress}, Amount: ${amountWei.toString()}, Tx: ${receipt.hash}`,
       );
 
@@ -1433,7 +1435,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to mint THB: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to mint THB: ${error.message}`);
       this.handleBlockchainError(
         error,
         'mintTHB',
@@ -1451,7 +1453,7 @@ export class BlockchainService {
     ownerPrivateKey?: string,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Approving THB for ${spenderAddress}. Amount: ${amountWei.toString()}`,
       );
       if (!this.thbAddress) {
@@ -1469,14 +1471,14 @@ export class BlockchainService {
       });
       const receipt = await tx.wait();
 
-      console.log(`[Blockchain] THB approval tx: ${receipt.hash}`);
+      this.logger.log(`[Blockchain] THB approval tx: ${receipt.hash}`);
 
       return {
         hash: receipt.hash,
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to approve THB: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to approve THB: ${error.message}`);
       this.handleBlockchainError(
         error,
         'approveTHB',
@@ -1490,7 +1492,7 @@ export class BlockchainService {
       throw new Error('VAULT_ADDRESS not configured');
     }
 
-    console.log(
+    this.logger.log(
       `[Blockchain] Using vault contract at ${this.vaultAddress} with ${signerOrProvider ? 'signer/provider' : 'default provider'}`,
     );
 
@@ -1518,7 +1520,7 @@ export class BlockchainService {
     sellerAddress: string;
   }> {
     try {
-      console.log('[Blockchain] Locking funds in vault...');
+      this.logger.log('[Blockchain] Locking funds in vault...');
       if (!tokenId) {
         throw new Error('tokenId is required to lock funds');
       }
@@ -1559,7 +1561,7 @@ export class BlockchainService {
       );
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Funds locked. Tx: ${receipt.hash}, Amount: ${totalAmountWei.toString()}`,
       );
 
@@ -1571,7 +1573,7 @@ export class BlockchainService {
         sellerAddress,
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to lock funds: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to lock funds: ${error.message}`);
       this.handleBlockchainError(
         error,
         'lockFundsForCouponType',
@@ -1586,7 +1588,7 @@ export class BlockchainService {
   async hasActiveVaultEscrow(tokenId: string): Promise<boolean> {
     try {
       if (!this.vaultAddress) {
-        console.warn(
+        this.logger.warn(
           '[Blockchain] VAULT_ADDRESS not configured. Skipping vault escrow check.',
         );
         return false;
@@ -1596,7 +1598,7 @@ export class BlockchainService {
       const result = await vaultContract.hasActiveEscrow(tokenId);
       return Boolean(result);
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to check vault escrow: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -1615,7 +1617,7 @@ export class BlockchainService {
     couponsToRedeem: number,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Releasing vault funds - tokenId: ${tokenId}, coupons: ${couponsToRedeem}`,
       );
 
@@ -1628,7 +1630,7 @@ export class BlockchainService {
       );
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Vault funds released. Tx: ${receipt.hash}, Coupons: ${couponsToRedeem}`,
       );
 
@@ -1637,7 +1639,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to release vault funds: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -1657,7 +1659,7 @@ export class BlockchainService {
     buyerPrivateKey?: string,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Locking escrow via marketplace purchase. Listing: ${listingId}, Amount: ${amount}`,
       );
 
@@ -1707,7 +1709,7 @@ export class BlockchainService {
       const balance = await thbContract.balanceOf(signer.address);
       if (balance < totalPrice) {
         const shortfall = totalPrice - balance;
-        console.log(
+        this.logger.log(
           `[Blockchain] Minting THB to cover shortfall: ${shortfall.toString()}`,
         );
         await this.mintTHB(signer.address, shortfall);
@@ -1722,7 +1724,7 @@ export class BlockchainService {
       });
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Escrow locked via marketplace purchase. Tx: ${receipt.hash}`,
       );
 
@@ -1731,7 +1733,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to lock escrow via marketplace: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -1750,9 +1752,9 @@ export class BlockchainService {
    */
   async getUserCouponBalance(userAddress: string, typeId: number) {
     try {
-      console.log('[Blockchain] Checking coupon balance...');
-      console.log('[Blockchain] - Address:', userAddress);
-      console.log('[Blockchain] - Type ID:', typeId);
+      this.logger.log('[Blockchain] Checking coupon balance...');
+      this.logger.log('[Blockchain] - Address:', userAddress);
+      this.logger.log('[Blockchain] - Type ID:', typeId);
 
       const couponContract = new Contract(
         this.couponAddress,
@@ -1768,7 +1770,7 @@ export class BlockchainService {
         balance: balance.toString(),
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to get coupon balance: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -1791,9 +1793,9 @@ export class BlockchainService {
     typeIds: number[],
   ): Promise<Map<string, number>> {
     try {
-      console.log('[Blockchain] Checking coupon balances in batch...');
-      console.log('[Blockchain] - Address:', userAddress);
-      console.log('[Blockchain] - Type IDs count:', typeIds.length);
+      this.logger.log('[Blockchain] Checking coupon balances in batch...');
+      this.logger.log('[Blockchain] - Address:', userAddress);
+      this.logger.log('[Blockchain] - Type IDs count:', typeIds.length);
 
       const couponContract = new Contract(
         this.couponAddress,
@@ -1815,7 +1817,7 @@ export class BlockchainService {
 
       return result;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to get coupon balances in batch: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -1845,11 +1847,11 @@ export class BlockchainService {
     try {
       const paymentToken = paymentTokenAddress || this.thbAddress;
 
-      console.log('[Blockchain] Listing coupon on marketplace...');
-      console.log('[Blockchain] - TypeId:', typeId);
-      console.log('[Blockchain] - Amount:', amount);
-      console.log('[Blockchain] - Price per unit:', pricePerUnit);
-      console.log('[Blockchain] - Payment token:', paymentToken);
+      this.logger.log('[Blockchain] Listing coupon on marketplace...');
+      this.logger.log('[Blockchain] - TypeId:', typeId);
+      this.logger.log('[Blockchain] - Amount:', amount);
+      this.logger.log('[Blockchain] - Price per unit:', pricePerUnit);
+      this.logger.log('[Blockchain] - Payment token:', paymentToken);
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');
@@ -1871,7 +1873,7 @@ export class BlockchainService {
 
       const pricePerUnitWei = ethers.parseEther(pricePerUnit);
 
-      console.log('[Blockchain] Creating listing on marketplace...');
+      this.logger.log('[Blockchain] Creating listing on marketplace...');
       const tx = await marketplaceContract.listCoupon(
         typeId,
         amount,
@@ -1882,8 +1884,8 @@ export class BlockchainService {
 
       const receipt = await tx.wait();
 
-      console.log(`[Blockchain] Transaction status: ${receipt.status}`);
-      console.log(`[Blockchain] Total logs: ${receipt.logs.length}`);
+      this.logger.log(`[Blockchain] Transaction status: ${receipt.status}`);
+      this.logger.log(`[Blockchain] Total logs: ${receipt.logs.length}`);
 
       // Parse CouponListed event with multiple fallback methods
       const listingId = await this.extractListingIdFromReceipt(
@@ -1891,9 +1893,9 @@ export class BlockchainService {
         marketplaceContract,
       );
 
-      console.log('[Blockchain] Listing created successfully');
-      console.log('[Blockchain] - Listing ID:', listingId);
-      console.log('[Blockchain] - Tx Hash:', receipt.hash);
+      this.logger.log('[Blockchain] Listing created successfully');
+      this.logger.log('[Blockchain] - Listing ID:', listingId);
+      this.logger.log('[Blockchain] - Tx Hash:', receipt.hash);
 
       // Invalidate listings cache after new listing
       this.invalidateListingsCache();
@@ -1904,7 +1906,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to list coupon: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to list coupon: ${error.message}`);
       this.handleBlockchainError(
         error,
         'listCoupon',
@@ -1921,28 +1923,28 @@ export class BlockchainService {
       signer,
     );
 
-    console.log('[Blockchain] Checking current approval status...');
+    this.logger.log('[Blockchain] Checking current approval status...');
     const sellerAddress = signer.address;
     const isCurrentlyApproved = await couponContract.isApprovedForAll(
       sellerAddress,
       this.marketplaceAddress,
     );
-    console.log('[Blockchain] - Seller address:', sellerAddress);
-    console.log('[Blockchain] - Currently approved:', isCurrentlyApproved);
+    this.logger.log('[Blockchain] - Seller address:', sellerAddress);
+    this.logger.log('[Blockchain] - Currently approved:', isCurrentlyApproved);
 
     if (isCurrentlyApproved) {
-      console.log('[Blockchain] Marketplace already approved ✓');
+      this.logger.log('[Blockchain] Marketplace already approved ✓');
       return;
     }
 
-    console.log('[Blockchain] Approving marketplace for coupon transfer...');
+    this.logger.log('[Blockchain] Approving marketplace for coupon transfer...');
     const approveTx = await couponContract.setApprovalForAll(
       this.marketplaceAddress,
       true,
       { gasLimit: 15000000 },
     );
     const approveReceipt = await approveTx.wait();
-    console.log('[Blockchain] - Approval tx:', approveReceipt.hash);
+    this.logger.log('[Blockchain] - Approval tx:', approveReceipt.hash);
   }
 
   /** Extract listingId from receipt using multiple fallback strategies */
@@ -1956,8 +1958,8 @@ export class BlockchainService {
       (await this.extractListingIdFromActiveListings(marketplaceContract));
 
     if (!listingId || listingId === '0') {
-      console.error('[Blockchain] ERROR: Unable to determine listing ID!');
-      console.error(
+      this.logger.error('[Blockchain] ERROR: Unable to determine listing ID!');
+      this.logger.error(
         '[Blockchain] Receipt logs:',
         JSON.stringify(
           receipt.logs.map((log: any) => ({
@@ -1989,14 +1991,14 @@ export class BlockchainService {
           log.topics[0] === COUPON_LISTED_SIGNATURE
         ) {
           const id = BigInt(log.topics[1]).toString();
-          console.log(
+          this.logger.log(
             `[Blockchain] Found CouponListed event via direct topic extraction. ListingId: ${id}`,
           );
           return id;
         }
       }
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Error extracting listingId from topics: ${error.message}`,
       );
     }
@@ -2017,7 +2019,7 @@ export class BlockchainService {
           });
           if (parsedLog?.name === 'CouponListed') {
             const id = parsedLog.args.listingId?.toString();
-            console.log(
+            this.logger.log(
               `[Blockchain] Found CouponListed event via parseLog. ListingId: ${id}`,
             );
             return id;
@@ -2027,7 +2029,7 @@ export class BlockchainService {
         }
       }
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Error parsing logs with interface: ${error.message}`,
       );
     }
@@ -2038,20 +2040,20 @@ export class BlockchainService {
   private async extractListingIdFromActiveListings(
     marketplaceContract: any,
   ): Promise<string | null> {
-    console.log(
+    this.logger.log(
       '[Blockchain] Event parsing failed. Fetching latest listing ID from getActiveListings()...',
     );
     try {
       const activeListings = await marketplaceContract.getActiveListings();
       if (activeListings.length > 0) {
         const id = activeListings[activeListings.length - 1].toString();
-        console.log(
+        this.logger.log(
           `[Blockchain] Retrieved latest listing ID from getActiveListings: ${id}`,
         );
         return id;
       }
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to get active listings: ${error.message}`,
       );
     }
@@ -2073,10 +2075,10 @@ export class BlockchainService {
     treasuryAddress?: string,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log('[Blockchain] Buying coupon from marketplace...');
-      console.log('[Blockchain] - Listing ID:', listingId);
-      console.log('[Blockchain] - Amount:', amount);
-      console.log('[Blockchain] - Treasury:', treasuryAddress || 'N/A');
+      this.logger.log('[Blockchain] Buying coupon from marketplace...');
+      this.logger.log('[Blockchain] - Listing ID:', listingId);
+      this.logger.log('[Blockchain] - Amount:', amount);
+      this.logger.log('[Blockchain] - Treasury:', treasuryAddress || 'N/A');
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');
@@ -2091,7 +2093,7 @@ export class BlockchainService {
       // 1. Get listing details
       const marketplaceContract = this.getMarketplaceContract(signer);
 
-      console.log('[Blockchain] Fetching listing details...');
+      this.logger.log('[Blockchain] Fetching listing details...');
       const listing = await this.readMarketplaceListing(listingId, signer);
 
       if (!listing.active) {
@@ -2099,19 +2101,19 @@ export class BlockchainService {
       }
 
       // Check listing quantity
-      console.log('[Blockchain] Listing details:');
-      console.log('[Blockchain] - Type ID:', listing.typeId.toString());
-      console.log('[Blockchain] - Seller:', listing.seller);
-      console.log(
+      this.logger.log('[Blockchain] Listing details:');
+      this.logger.log('[Blockchain] - Type ID:', listing.typeId.toString());
+      this.logger.log('[Blockchain] - Seller:', listing.seller);
+      this.logger.log(
         '[Blockchain] - Price per unit:',
         ethers.formatEther(listing.pricePerUnit),
       );
-      console.log(
+      this.logger.log(
         '[Blockchain] - Amount available:',
         listing.amount.toString(),
       );
-      console.log('[Blockchain] - Amount requesting:', amount);
-      console.log('[Blockchain] - Active:', listing.active);
+      this.logger.log('[Blockchain] - Amount requesting:', amount);
+      this.logger.log('[Blockchain] - Active:', listing.active);
 
       if (Number(listing.amount) < amount) {
         throw new Error(
@@ -2122,12 +2124,12 @@ export class BlockchainService {
       const totalPrice = listing.pricePerUnit * BigInt(amount);
       const paymentTokenAddress = listing.paymentToken;
 
-      console.log(
+      this.logger.log(
         '[Blockchain] Total price:',
         ethers.formatEther(totalPrice),
         'tokens',
       );
-      console.log('[Blockchain] Payment token:', paymentTokenAddress);
+      this.logger.log('[Blockchain] Payment token:', paymentTokenAddress);
 
       // 2. Check payment token balance (dynamic: THB or Point)
       const paymentTokenContract = new Contract(
@@ -2144,12 +2146,12 @@ export class BlockchainService {
         );
       }
 
-      console.log('[Blockchain] Balance check passed');
+      this.logger.log('[Blockchain] Balance check passed');
 
       // 2.5. Check buyer whitelist status
-      console.log('[Blockchain] Checking buyer whitelist status...');
+      this.logger.log('[Blockchain] Checking buyer whitelist status...');
       const isWhitelisted = await marketplaceContract.whitelist(buyerAddress);
-      console.log('[Blockchain] - Buyer whitelisted:', isWhitelisted);
+      this.logger.log('[Blockchain] - Buyer whitelisted:', isWhitelisted);
 
       if (!isWhitelisted) {
         throw new Error(
@@ -2158,16 +2160,16 @@ export class BlockchainService {
       }
 
       // 2.6. Check listing seller
-      console.log('[Blockchain] Checking listing seller...');
-      console.log('[Blockchain] - Listing seller:', listing.seller);
-      console.log('[Blockchain] - Buyer address:', buyerAddress);
+      this.logger.log('[Blockchain] Checking listing seller...');
+      this.logger.log('[Blockchain] - Listing seller:', listing.seller);
+      this.logger.log('[Blockchain] - Buyer address:', buyerAddress);
 
       if (listing.seller.toLowerCase() === buyerAddress.toLowerCase()) {
         throw new Error('Buyer cannot purchase their own listing');
       }
 
       // 2.7. Check marketplace's NFT balance (NFTs are held in escrow by marketplace)
-      console.log('[Blockchain] Checking marketplace NFT balance...');
+      this.logger.log('[Blockchain] Checking marketplace NFT balance...');
       const couponContract = new Contract(
         this.couponAddress,
         CouponArtifact.abi,
@@ -2178,11 +2180,11 @@ export class BlockchainService {
         this.marketplaceAddress,
         listing.typeId,
       );
-      console.log(
+      this.logger.log(
         '[Blockchain] - Marketplace NFT balance:',
         marketplaceBalance.toString(),
       );
-      console.log('[Blockchain] - Amount requesting:', amount);
+      this.logger.log('[Blockchain] - Amount requesting:', amount);
 
       if (marketplaceBalance < amount) {
         throw new Error(
@@ -2199,12 +2201,12 @@ export class BlockchainService {
         : this.marketplaceAddress;
       const approveTargetName = isTHBPayment ? 'vault' : 'marketplace';
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Approving payment token for ${approveTargetName}...`,
       );
-      console.log('[Blockchain] - Payment token:', paymentTokenAddress);
-      console.log('[Blockchain] - Approve target:', approveTarget);
-      console.log('[Blockchain] - Amount to approve:', totalPrice.toString());
+      this.logger.log('[Blockchain] - Payment token:', paymentTokenAddress);
+      this.logger.log('[Blockchain] - Approve target:', approveTarget);
+      this.logger.log('[Blockchain] - Amount to approve:', totalPrice.toString());
 
       const approveTx = await paymentTokenContract.approve(
         approveTarget,
@@ -2214,16 +2216,16 @@ export class BlockchainService {
         },
       );
       const approveReceipt = await approveTx.wait();
-      console.log('[Blockchain] - Approve tx:', approveReceipt.hash);
+      this.logger.log('[Blockchain] - Approve tx:', approveReceipt.hash);
 
       // 3.5. Verify allowance
-      console.log('[Blockchain] Verifying allowance...');
+      this.logger.log('[Blockchain] Verifying allowance...');
       const allowance = await paymentTokenContract.allowance(
         buyerAddress,
         approveTarget,
       );
-      console.log('[Blockchain] - Current allowance:', allowance.toString());
-      console.log('[Blockchain] - Required amount:', totalPrice.toString());
+      this.logger.log('[Blockchain] - Current allowance:', allowance.toString());
+      this.logger.log('[Blockchain] - Required amount:', totalPrice.toString());
 
       if (allowance < totalPrice) {
         throw new Error(
@@ -2232,14 +2234,14 @@ export class BlockchainService {
       }
 
       // 4. Buy coupon
-      console.log('[Blockchain] Executing buy transaction...');
-      console.log(
+      this.logger.log('[Blockchain] Executing buy transaction...');
+      this.logger.log(
         '[Blockchain] - Marketplace contract:',
         this.marketplaceAddress,
       );
-      console.log('[Blockchain] - Listing ID:', listingId);
-      console.log('[Blockchain] - Amount:', amount);
-      console.log('[Blockchain] - Buyer:', buyerAddress);
+      this.logger.log('[Blockchain] - Listing ID:', listingId);
+      this.logger.log('[Blockchain] - Amount:', amount);
+      this.logger.log('[Blockchain] - Buyer:', buyerAddress);
 
       const tx = await marketplaceContract.buyCoupon(listingId, amount, {
         gasLimit: 15000000,
@@ -2247,9 +2249,9 @@ export class BlockchainService {
 
       const receipt = await tx.wait();
 
-      console.log('[Blockchain] Coupon purchased successfully');
-      console.log('[Blockchain] - Tx Hash:', receipt.hash);
-      console.log('[Blockchain] - Block:', receipt.blockNumber);
+      this.logger.log('[Blockchain] Coupon purchased successfully');
+      this.logger.log('[Blockchain] - Tx Hash:', receipt.hash);
+      this.logger.log('[Blockchain] - Block:', receipt.blockNumber);
 
       // Invalidate listings cache after purchase
       this.invalidateListingsCache();
@@ -2259,7 +2261,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(`[Blockchain] Failed to buy coupon: ${error.message}`);
+      this.logger.error(`[Blockchain] Failed to buy coupon: ${error.message}`);
       this.handleBlockchainError(
         error,
         'buyCoupon',
@@ -2277,7 +2279,7 @@ export class BlockchainService {
     address: string,
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log(`[Blockchain] Adding ${address} to marketplace whitelist...`);
+      this.logger.log(`[Blockchain] Adding ${address} to marketplace whitelist...`);
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');
@@ -2295,7 +2297,7 @@ export class BlockchainService {
       });
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Address ${address} whitelisted. Tx: ${receipt.hash}`,
       );
 
@@ -2304,7 +2306,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to whitelist address: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -2322,7 +2324,7 @@ export class BlockchainService {
    */
   async isWhitelisted(address: string): Promise<boolean> {
     try {
-      console.log(`[Blockchain] Checking whitelist status for ${address}...`);
+      this.logger.log(`[Blockchain] Checking whitelist status for ${address}...`);
 
       if (!this.marketplaceAddress) {
         throw new Error('MARKETPLACE_ADDRESS not configured');
@@ -2336,13 +2338,13 @@ export class BlockchainService {
 
       const isWhitelisted = await marketplaceContract.whitelist(address);
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Address ${address} whitelist status: ${isWhitelisted}`,
       );
 
       return isWhitelisted;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to check whitelist status: ${error.message}`,
       );
       this.handleBlockchainError(
@@ -2362,7 +2364,7 @@ export class BlockchainService {
     addresses: string[],
   ): Promise<{ hash: string; blockNumber: number }> {
     try {
-      console.log(
+      this.logger.log(
         `[Blockchain] Batch adding ${addresses.length} addresses to marketplace whitelist...`,
       );
 
@@ -2382,7 +2384,7 @@ export class BlockchainService {
       });
       const receipt = await tx.wait();
 
-      console.log(
+      this.logger.log(
         `[Blockchain] Batch whitelisted ${addresses.length} addresses. Tx: ${receipt.hash}`,
       );
 
@@ -2391,7 +2393,7 @@ export class BlockchainService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `[Blockchain] Failed to batch whitelist addresses: ${error.message}`,
       );
       this.handleBlockchainError(

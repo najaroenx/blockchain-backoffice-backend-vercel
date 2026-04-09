@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { TokenService } from 'src/providers/token/token.service';
 import { Request } from 'express';
 import { LOGIN_ACCESS_TOKEN } from 'src/providers/token/token.constants';
@@ -13,6 +13,8 @@ class AuthStrategyName extends Strategy {
 
 @Injectable()
 export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
+  private readonly logger = new Logger(AuthStrategy.name);
+
   constructor(
     private tokenService: TokenService,
     private getApiKey: GetApiKey,
@@ -43,7 +45,9 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
           type: 'api-key',
           id: apiKeyDetails.id,
         });
-      } catch {}
+      } catch (error) {
+        this.logger.debug(`API key auth failed for key: ${error?.message}`);
+      }
     }
 
     let bearerToken = request.query['token'] ?? request.headers.authorization;
@@ -62,7 +66,7 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
       ) as AccessTokenClaims;
       return this.success(payload);
     } catch (err: any) {
-      console.error('Invalid token', err.toString());
+      this.logger.warn(`Invalid token: ${err.message}`);
       return this.fail('Invalid token', 400);
     }
   }

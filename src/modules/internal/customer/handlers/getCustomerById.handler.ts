@@ -103,7 +103,7 @@ export class GetCustomerById {
       accountAddress: walletAddress,
     });
 
-    console.log(balances);
+    this.logger.log(balances);
 
     return balances;
   }

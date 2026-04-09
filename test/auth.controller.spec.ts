@@ -3,6 +3,7 @@ jest.mock('prisma/prisma.service', () => ({ PrismaService: jest.fn() }));
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from 'src/modules/internal/auth/controllers/auth.controller';
 import { AuthService } from 'src/modules/internal/auth/services/auth.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -17,7 +18,21 @@ describe('AuthController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: authService }],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              const config = {
+                FRONT_URL: 'http://localhost:3000',
+                CALLBACK_URL: 'http://localhost:4001',
+              };
+              return config[key] ?? '';
+            }),
+          },
+        },
+      ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);

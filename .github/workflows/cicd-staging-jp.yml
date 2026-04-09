@@ -22,7 +22,7 @@ jobs:
       helm-repo: corp-ais/blockchain-helm-chart-backoffice-backend
       helm-repo-ref: staging
       helm-values-file: values.yaml
-      unit-test-node-version: 20
+      unit-test-node-version: 24
       node-yarn-install: true
       ignored-unit-test: true
       sonarqube-url: https://sast.matador.ais.co.th/

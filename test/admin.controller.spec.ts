@@ -8,6 +8,8 @@ import { MintTHBToMerchant } from 'src/modules/internal/admin/handlers/mintTHBTo
 import { ResetCustomerPointBalances } from 'src/modules/internal/admin/handlers/reset-customer-point-balances.handler';
 import { ResetVoucherTokenIds } from 'src/modules/internal/admin/handlers/reset-voucher-token-ids.handler';
 import { UpdatePointContractAddress } from 'src/modules/internal/admin/handlers/update-point-contract-address.handler';
+import { DeleteVoucherCascade } from 'src/modules/internal/admin/handlers/delete-voucher-cascade.handler';
+import { describe } from 'node:test';
 
 describe('AdminController', () => {
   let controller: AdminController;
@@ -19,6 +21,7 @@ describe('AdminController', () => {
   let resetCustomerPointBalancesHandler: jest.Mocked<ResetCustomerPointBalances>;
   let resetVoucherTokenIdsHandler: jest.Mocked<ResetVoucherTokenIds>;
   let updatePointContractAddressHandler: jest.Mocked<UpdatePointContractAddress>;
+  let deleteVoucherCascadeHandler: jest.Mocked<DeleteVoucherCascade>;
 
   beforeEach(() => {
     mintHandler = { execute: jest.fn() } as any;
@@ -29,6 +32,7 @@ describe('AdminController', () => {
     resetCustomerPointBalancesHandler = { execute: jest.fn() } as any;
     resetVoucherTokenIdsHandler = { execute: jest.fn() } as any;
     updatePointContractAddressHandler = { execute: jest.fn() } as any;
+    deleteVoucherCascadeHandler = { execute: jest.fn() } as any;
 
     controller = new AdminController(
       mintHandler,
@@ -36,6 +40,7 @@ describe('AdminController', () => {
       exportDatabaseHandler,
       exportDatabaseSqlHandler,
       listAllPointsHandler,
+      deleteVoucherCascadeHandler,
       resetCustomerPointBalancesHandler,
       resetVoucherTokenIdsHandler,
       updatePointContractAddressHandler,

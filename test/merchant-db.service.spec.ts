@@ -26,6 +26,7 @@ describe('MerchantDBService', () => {
     imageUrl: 'https://test.com/image.png',
     points: 0,
     voucherIds: [],
+    status: true,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

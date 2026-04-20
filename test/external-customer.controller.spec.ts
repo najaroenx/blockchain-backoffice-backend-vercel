@@ -3,17 +3,20 @@ jest.mock('prisma/prisma.service', () => ({ PrismaService: jest.fn() }));
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExternalCustomerController } from 'src/modules/external/controllers/external-customer.controller';
 import { GetCustomerPhone } from 'src/modules/internal/customer/handlers/getCustomerByPhone.handler';
+import { GetCustomerPhoneDevForResp } from 'src/modules/internal/customer/handlers/getCustomerPhoneDevForResp.handler';
 import { GetCustomerPoints } from 'src/modules/internal/customer/handlers/getCustomerPoints.handler';
 import { ClearCustomerByPhone } from 'src/modules/internal/customer/handlers/clearCustomerByPhone.handler';
 
 describe('ExternalCustomerController', () => {
   let controller: ExternalCustomerController;
   let getCustomerByPhone: jest.Mocked<GetCustomerPhone>;
+  let getCustomerPhoneDevForResp: jest.Mocked<GetCustomerPhoneDevForResp>;
   let getCustomerPoints: jest.Mocked<GetCustomerPoints>;
   let clearCustomerByPhone: jest.Mocked<ClearCustomerByPhone>;
 
   beforeEach(async () => {
     getCustomerByPhone = { executeDetailed: jest.fn() } as any;
+    getCustomerPhoneDevForResp = { executeDetailed: jest.fn() } as any;
     getCustomerPoints = { execute: jest.fn() } as any;
     clearCustomerByPhone = { execute: jest.fn() } as any;
 
@@ -21,6 +24,10 @@ describe('ExternalCustomerController', () => {
       controllers: [ExternalCustomerController],
       providers: [
         { provide: GetCustomerPhone, useValue: getCustomerByPhone },
+        {
+          provide: GetCustomerPhoneDevForResp,
+          useValue: getCustomerPhoneDevForResp,
+        },
         { provide: GetCustomerPoints, useValue: getCustomerPoints },
         { provide: ClearCustomerByPhone, useValue: clearCustomerByPhone },
       ],
@@ -39,9 +46,13 @@ describe('ExternalCustomerController', () => {
   });
 
   it('getCustomerByPhoneDetailed delegates to executeDetailed', async () => {
-    getCustomerByPhone.executeDetailed.mockResolvedValue({ id: 'c1' } as any);
+    getCustomerPhoneDevForResp.executeDetailed.mockResolvedValue({
+      id: 'c1',
+    } as any);
     const result = await controller.getCustomerByPhoneDetailed('081');
-    expect(getCustomerByPhone.executeDetailed).toHaveBeenCalledWith('081');
+    expect(getCustomerPhoneDevForResp.executeDetailed).toHaveBeenCalledWith(
+      '081',
+    );
     expect(result).toEqual({ id: 'c1' });
   });
 

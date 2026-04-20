@@ -8,7 +8,7 @@ import { GetVoucherByListingResponseDto } from 'src/modules/internal/voucher/dto
 
 describe('GetVoucherByListingResponseDto', () => {
   it('should instantiate with all properties', () => {
-    const dto = new GetVoucherByListingResponseDto();
+    const dto = {} as GetVoucherByListingResponseDto;
     dto.id = 'vc-001';
     dto.code = 'CODE-001';
     dto.voucherId = 'v-001';
@@ -66,7 +66,7 @@ describe('GetVoucherByListingResponseDto', () => {
   });
 
   it('should work with minimal properties', () => {
-    const dto = new GetVoucherByListingResponseDto();
+    const dto = {} as GetVoucherByListingResponseDto;
     dto.id = 'vc-002';
     dto.code = 'CODE-002';
     dto.voucherId = 'v-002';

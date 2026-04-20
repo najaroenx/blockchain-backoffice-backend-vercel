@@ -6,6 +6,7 @@ import { TokenService } from '../src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MerchantRefEnrichmentService } from '../src/modules/shared/services/merchant-ref-enrichment.service';
+import { AisTransferService } from '../src/providers/ais-transfer/ais-transfer.service';
 import {
   MockDataFactory,
   createMockPrismaClient,
@@ -60,6 +61,13 @@ describe('RedeemVoucher', () => {
           useValue: {
             enrich: jest.fn().mockResolvedValue(null),
             enrichBatch: jest.fn().mockResolvedValue(new Map()),
+          },
+        },
+        {
+          provide: AisTransferService,
+          useValue: {
+            transferIn: jest.fn().mockResolvedValue({ success: true }),
+            transferReverse: jest.fn().mockResolvedValue({ success: true }),
           },
         },
       ],

@@ -204,7 +204,7 @@ describe('OTPService', () => {
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body).toEqual({
-        sender: 'mechant',
+        sender: 'myAvatar',
         text: `รหัส OTP คือ ${otp} จะหมดอายุใน 5 นาที และจะใช้ได้ 1 ครั้งเท่านั้น`,
         destinations: [
           {

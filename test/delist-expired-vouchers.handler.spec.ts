@@ -20,6 +20,7 @@ describe('DelistExpiredVouchers', () => {
 
   beforeEach(() => {
     prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([{ enumlabel: 'expired' }]),
       voucherCode: {
         findMany: jest.fn(),
         updateMany: jest.fn(),

@@ -179,7 +179,7 @@ describe('CreateTransactionB2C', () => {
       });
 
       blockchainService.transaction.mockResolvedValue({
-        txId: '0xTRANSFER_TX_HASH',
+        txId: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
       });
 
       transactionDBService.createTransaction.mockResolvedValue(mockTransaction);
@@ -249,7 +249,7 @@ describe('CreateTransactionB2C', () => {
       createCustomer.execute.mockResolvedValue(mockNewCustomer);
 
       blockchainService.transaction.mockResolvedValue({
-        txId: '0xTRANSFER_TX_HASH',
+        txId: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
       });
 
       transactionDBService.createTransaction.mockResolvedValue(mockTransaction);
@@ -318,7 +318,7 @@ describe('CreateTransactionB2C', () => {
       });
 
       blockchainService.transaction.mockResolvedValue({
-        txId: '0xTRANSFER_TX_HASH',
+        txId: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
       });
 
       transactionDBService.createTransaction.mockResolvedValue(mockTransaction);

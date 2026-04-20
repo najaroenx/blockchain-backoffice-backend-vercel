@@ -12,6 +12,7 @@ import { GetSellerListingsHandler } from '../src/modules/internal/voucher/handle
 import { GetListingBatchDetailHandler } from '../src/modules/internal/voucher/handlers/getListingBatchDetail.handler';
 import { GetMarketplaceListingsEndUser } from '../src/modules/internal/voucher/handlers/getMarketplaceListtingEnduser.handler';
 import { GetCouponById } from '../src/modules/internal/voucher/handlers/getCouponById.handler';
+import { GetVoucherByListingId } from '../src/modules/internal/voucher/handlers/getVoucherByListingId.handler';
 
 describe('VoucherController', () => {
   let controller: VoucherController;
@@ -69,6 +70,10 @@ describe('VoucherController', () => {
     execute: jest.fn(),
   };
 
+  const mockGetVoucherByListingId = {
+    execute: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [VoucherController],
@@ -116,6 +121,10 @@ describe('VoucherController', () => {
         {
           provide: GetCouponById,
           useValue: mockGetCouponByIdHandler,
+        },
+        {
+          provide: GetVoucherByListingId,
+          useValue: mockGetVoucherByListingId,
         },
       ],
     }).compile();
@@ -205,6 +214,7 @@ describe('VoucherController', () => {
       expect(result.id).toBe(voucherId);
       expect(mockVoucherDBService.getVoucherById).toHaveBeenCalledWith(
         voucherId,
+        undefined,
       );
     });
   });

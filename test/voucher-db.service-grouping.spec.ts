@@ -367,7 +367,10 @@ describe('VoucherDBService - Grouping Logic', () => {
 
       const result = await service.getVoucherById(voucherId);
 
-      expect(getVoucherByIdHandler.execute).toHaveBeenCalledWith(voucherId);
+      expect(getVoucherByIdHandler.execute).toHaveBeenCalledWith(
+        voucherId,
+        undefined,
+      );
 
       expect(result).toMatchObject({
         id: voucherId,

@@ -190,7 +190,10 @@ describe('VoucherDBService', () => {
 
       expect(result).toBeDefined();
       expect(result.id).toBe(voucherId);
-      expect(mockGetVoucherById.execute).toHaveBeenCalledWith(voucherId);
+      expect(mockGetVoucherById.execute).toHaveBeenCalledWith(
+        voucherId,
+        undefined,
+      );
     });
   });
 

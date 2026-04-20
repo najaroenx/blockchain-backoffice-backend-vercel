@@ -9,28 +9,28 @@ describe('ExportDatabaseSql', () => {
   let prisma: any;
 
   beforeEach(() => {
-    const findMany = jest.fn().mockResolvedValue([]);
+    const empty = () => jest.fn().mockResolvedValue([]);
 
     prisma = {
-      transactionType: { findMany },
-      wallet: { findMany },
-      user: { findMany },
-      merchant: { findMany },
-      customer: { findMany },
-      point: { findMany },
-      merchantRefStore: { findMany },
-      apiKey: { findMany },
-      userMerchant: { findMany },
-      customerMerChant: { findMany },
-      voucher: { findMany },
-      listingBatch: { findMany },
-      voucherCode: { findMany },
-      transaction: { findMany },
-      customerPoint: { findMany },
-      session: { findMany },
-      treasury: { findMany },
-      tempLinkCreateUser: { findMany },
-      aisTransferLog: { findMany },
+      transactionType: { findMany: empty() },
+      wallet: { findMany: empty() },
+      user: { findMany: empty() },
+      merchant: { findMany: empty() },
+      customer: { findMany: empty() },
+      point: { findMany: empty() },
+      merchantRefStore: { findMany: empty() },
+      apiKey: { findMany: empty() },
+      userMerchant: { findMany: empty() },
+      customerMerChant: { findMany: empty() },
+      voucher: { findMany: empty() },
+      listingBatch: { findMany: empty() },
+      voucherCode: { findMany: empty() },
+      transaction: { findMany: empty() },
+      customerPoint: { findMany: empty() },
+      session: { findMany: empty() },
+      treasury: { findMany: empty() },
+      tempLinkCreateUser: { findMany: empty() },
+      aisTransferLog: { findMany: empty() },
     };
 
     handler = new ExportDatabaseSql(prisma);

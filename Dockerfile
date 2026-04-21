@@ -47,7 +47,9 @@ FROM node:24-alpine
 RUN apk add --no-cache openssl libc6-compat \
     && apk upgrade --no-cache zlib
 
-RUN npm install -g npm@11.12.0 --no-audit --no-fund
+RUN npm install -g npm@11.12.0 --no-audit --no-fund \
+    && cd /usr/local/lib/node_modules/npm \
+    && npm install picomatch@4.0.4 --no-audit --no-fund
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S merchant-backoffice -u 1001

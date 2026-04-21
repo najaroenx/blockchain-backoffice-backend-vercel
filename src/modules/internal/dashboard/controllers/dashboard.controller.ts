@@ -4,7 +4,7 @@ import {
   HttpCode,
   Param,
   Query,
-  UseInterceptors,
+  // UseInterceptors,
 } from '@nestjs/common';
 import { DashboardService } from '../handlers/dashboard.handler';
 import { GetMarketerDashboardHandler } from '../handlers/get-marketer-dashboard.handler';
@@ -119,6 +119,6 @@ export class DashboardController {
       query.couponIds,
     );
   }
-
+  // TODO:
   // GET /dashboard/merchantref/:merchantRef/coupons moved to ExternalModule
 }

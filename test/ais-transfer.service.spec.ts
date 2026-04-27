@@ -63,6 +63,12 @@ describe('AisTransferService', () => {
     });
 
     expect(result.success).toBe(true);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://ais.example.com/nlp-px/legacy-api/v1/points/transfer-in',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
     expect(mockPrisma.aisTransferLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -140,5 +146,52 @@ describe('AisTransferService', () => {
         msisdn: '0899999999',
       }),
     ).rejects.toThrow(ServiceUnavailableException);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://ais.example.com/nlp-px/legacy-api/v1/points/transfer-in/reverse',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+  });
+
+  it('does not duplicate AIS points path when base URL already includes it', async () => {
+    (mockConfigService.get as jest.Mock).mockImplementation((key: string) => {
+      const config = {
+        AIS_TRANSFER_BASE_URL:
+          'https://ais.example.com/nlp-px/legacy-api/v1/points/',
+        AIS_TRANSFER_USERNAME: 'user',
+        AIS_TRANSFER_PASSWORD: 'pass',
+        AIS_TRANSFER_REFERENCE_CODE: 'ref-code',
+      };
+
+      return config[key];
+    });
+
+    service = new AisTransferService(
+      mockAdmdService,
+      mockConfigService,
+      mockPrisma,
+    );
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: jest.fn().mockResolvedValue({ status: '20000', message: 'done' }),
+    });
+
+    await service.transferIn({
+      transactionID: 'txn-5',
+      msisdn: '0899999999',
+      points: 50,
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://ais.example.com/nlp-px/legacy-api/v1/points/transfer-in',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
   });
 });

@@ -15,6 +15,12 @@ import {
 } from './types';
 import { randomUUID } from 'crypto';
 
+const AIS_TRANSFER_POINTS_PATH = '/nlp-px/legacy-api/v1/points';
+const AIS_TRANSFER_ENDPOINTS = {
+  transferIn: '/transfer-in',
+  transferReverse: '/transfer-in/reverse',
+} as const;
+
 @Injectable()
 export class AisTransferService {
   private logger = new Logger(AisTransferService.name);
@@ -28,7 +34,9 @@ export class AisTransferService {
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
-    this.baseUrl = this.configService.get<string>('AIS_TRANSFER_BASE_URL');
+    this.baseUrl = this.buildAisBaseUrl(
+      this.configService.get<string>('AIS_TRANSFER_BASE_URL') ?? '',
+    );
     this.username = this.configService.get<string>('AIS_TRANSFER_USERNAME');
     this.password = this.configService.get<string>('AIS_TRANSFER_PASSWORD');
     this.referenceCode = this.configService.get<string>(
@@ -38,7 +46,7 @@ export class AisTransferService {
 
   /**
    * Transfer AIS points into a customer's account.
-   * POST {baseUrl}/transfer-in
+   * POST {domain}/nlp-px/legacy-api/v1/points/transfer-in
    */
   async transferIn(params: AisTransferInParams): Promise<AisTransferResponse> {
     const {
@@ -67,7 +75,7 @@ export class AisTransferService {
 
     try {
       const accessToken = await this.admdService.getAccessToken();
-      const url = `${this.baseUrl}/transfer-in`;
+      const url = this.buildAisUrl(AIS_TRANSFER_ENDPOINTS.transferIn);
 
       this.logger.log(`[TRANSFER-IN] Calling AIS API: ${url}`);
 
@@ -139,31 +147,34 @@ export class AisTransferService {
         data: responseData,
       };
     } catch (error) {
-      this.logger.error(`[TRANSFER-IN] Error: ${error.message}`, error.stack);
+      const errorMessage = this.getErrorMessage(error);
+      const errorStack = this.getErrorStack(error);
+
+      this.logger.error(`[TRANSFER-IN] Error: ${errorMessage}`, errorStack);
 
       // Log network/unexpected errors
       await this.logTransfer({
         transactionID,
         action: 'TRANSFER_IN',
-        url: `${this.baseUrl}/transfer-in`,
+        url: this.buildAisUrl(AIS_TRANSFER_ENDPOINTS.transferIn),
         requestBody: body,
         responseBody: null,
         httpStatus: null,
         success: false,
-        errorMessage: error.message,
+        errorMessage,
         msisdn,
         points,
       });
 
       throw new ServiceUnavailableException(
-        `AIS transfer-in failed: ${error.message}`,
+        `AIS transfer-in failed: ${errorMessage}`,
       );
     }
   }
 
   /**
    * Reverse a previous transfer-in.
-   * POST {baseUrl}/transfer-in/reverse
+   * POST {domain}/nlp-px/legacy-api/v1/points/transfer-in/reverse
    */
   async transferReverse(
     params: AisTransferReverseParams,
@@ -190,7 +201,7 @@ export class AisTransferService {
 
     try {
       const accessToken = await this.admdService.getAccessToken();
-      const url = `${this.baseUrl}/transfer-in/reverse`;
+      const url = this.buildAisUrl(AIS_TRANSFER_ENDPOINTS.transferReverse);
 
       this.logger.log(`[TRANSFER-REVERSE] Calling AIS API: ${url}`);
 
@@ -264,33 +275,73 @@ export class AisTransferService {
         data: responseData,
       };
     } catch (error) {
+      const errorMessage = this.getErrorMessage(error);
+      const errorStack = this.getErrorStack(error);
+
       this.logger.error(
-        `[TRANSFER-REVERSE] Error: ${error.message}`,
-        error.stack,
+        `[TRANSFER-REVERSE] Error: ${errorMessage}`,
+        errorStack,
       );
 
       // Log network/unexpected errors
       await this.logTransfer({
         transactionID,
         action: 'TRANSFER_REVERSE',
-        url: `${this.baseUrl}/transfer-in/reverse`,
+        url: this.buildAisUrl(AIS_TRANSFER_ENDPOINTS.transferReverse),
         requestBody: body,
         responseBody: null,
         httpStatus: null,
         success: false,
-        errorMessage: error.message,
+        errorMessage,
         msisdn,
         points: null,
       });
 
       throw new ServiceUnavailableException(
-        `AIS transfer reverse failed: ${error.message}`,
+        `AIS transfer reverse failed: ${errorMessage}`,
       );
     }
   }
 
   private isAisSuccess(responseData: unknown): boolean {
     return this.getAisStatus(responseData) === '20000';
+  }
+
+  private buildAisBaseUrl(baseUrl: string): string {
+    const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+
+    if (normalizedBaseUrl.endsWith(AIS_TRANSFER_POINTS_PATH)) {
+      return normalizedBaseUrl;
+    }
+
+    return this.joinUrl(normalizedBaseUrl, AIS_TRANSFER_POINTS_PATH);
+  }
+
+  private buildAisUrl(endpointPath: string): string {
+    return this.joinUrl(this.baseUrl, endpointPath);
+  }
+
+  private joinUrl(baseUrl: string, path: string): string {
+    const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+    const normalizedPath = path.replace(/^\/+/, '');
+
+    return `${normalizedBaseUrl}/${normalizedPath}`;
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return String(error);
+  }
+
+  private getErrorStack(error: unknown): string | undefined {
+    if (error instanceof Error) {
+      return error.stack;
+    }
+
+    return undefined;
   }
 
   private getAisStatus(responseData: unknown): string | null {
@@ -389,10 +440,13 @@ export class AisTransferService {
         `[LOG] AIS transfer logged: action=${params.action}, txn=${params.transactionID}`,
       );
     } catch (logError) {
+      const errorMessage = this.getErrorMessage(logError);
+      const errorStack = this.getErrorStack(logError);
+
       // Never let log failure break the main flow
       this.logger.error(
-        `[LOG] Failed to log AIS transfer: ${logError.message}`,
-        logError.stack,
+        `[LOG] Failed to log AIS transfer: ${errorMessage}`,
+        errorStack,
       );
     }
   }

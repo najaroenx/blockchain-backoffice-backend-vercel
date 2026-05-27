@@ -1,4 +1,4 @@
-import { TransferVoucherToCustomerHandler } from "./handlers/transferVoucherToCustomer.handler";
+import { TransferVoucherToCustomerHandler } from './handlers/transferVoucherToCustomer.handler';
 
 import { Module } from '@nestjs/common';
 import { VoucherRepository } from './voucher.repository';

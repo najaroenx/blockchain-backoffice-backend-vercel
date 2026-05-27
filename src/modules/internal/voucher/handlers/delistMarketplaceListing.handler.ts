@@ -22,7 +22,9 @@ export class DelistMarketplaceListingHandler {
   ) {}
 
   async execute(listingId: string, merchantId: string) {
-    this.logger.log(`[DelistMarketplaceListing] Merchant ${merchantId} requesting to delist ${listingId}`);
+    this.logger.log(
+      `[DelistMarketplaceListing] Merchant ${merchantId} requesting to delist ${listingId}`,
+    );
 
     // 1. Verify listing exists via VoucherCode
     const voucherCodes = await this.prisma.voucherCode.findMany({
@@ -31,7 +33,9 @@ export class DelistMarketplaceListingHandler {
     });
 
     if (voucherCodes.length === 0) {
-      this.logger.warn(`[DelistMarketplaceListing] Listing ${listingId} not found in database.`);
+      this.logger.warn(
+        `[DelistMarketplaceListing] Listing ${listingId} not found in database.`,
+      );
       // Still try to see if it's a seller batch
     }
 
@@ -44,12 +48,14 @@ export class DelistMarketplaceListingHandler {
           ? firstCode.currentOwnerId
           : firstCode.voucher?.merchantId;
     } else {
-      // It might be an empty listing, check if merchant exists, we'll just try to delist anyway using their wallet 
-      ownerId = merchantId; 
+      // It might be an empty listing, check if merchant exists, we'll just try to delist anyway using their wallet
+      ownerId = merchantId;
     }
 
     if (ownerId && ownerId !== merchantId) {
-      throw new BadRequestException(`Merchant ${merchantId} is not the owner of listing ${listingId}.`);
+      throw new BadRequestException(
+        `Merchant ${merchantId} is not the owner of listing ${listingId}.`,
+      );
     }
 
     // 2. Get merchant's private key
@@ -59,7 +65,9 @@ export class DelistMarketplaceListingHandler {
     });
 
     if (!merchant?.wallet?.seedPhrase) {
-      throw new BadRequestException(`Merchant wallet not found for merchant ${merchantId}`);
+      throw new BadRequestException(
+        `Merchant wallet not found for merchant ${merchantId}`,
+      );
     }
 
     const salt = this.configService.get<string>('SALT');
@@ -69,7 +77,9 @@ export class DelistMarketplaceListingHandler {
     );
 
     if (!decryptedSeedPhrase) {
-      throw new BadRequestException(`Failed to decrypt merchant wallet for ${merchantId}`);
+      throw new BadRequestException(
+        `Failed to decrypt merchant wallet for ${merchantId}`,
+      );
     }
 
     const signer = getSignerFromSeedPhrase(
@@ -78,31 +88,39 @@ export class DelistMarketplaceListingHandler {
     );
 
     // 3. Unlist on blockchain
-    this.logger.log(`[DelistMarketplaceListing] Calling blockchain delistCoupon for listing ${listingId}`);
+    this.logger.log(
+      `[DelistMarketplaceListing] Calling blockchain delistCoupon for listing ${listingId}`,
+    );
     try {
       await this.blockchainService.delistCoupon(listingId, signer.privateKey);
     } catch (error) {
-      this.logger.error(`[DelistMarketplaceListing] Blockchain delist failed: ${error.message}`);
-      throw new BadRequestException(`Failed to delist coupon on blockchain: ${error.message}`);
+      this.logger.error(
+        `[DelistMarketplaceListing] Blockchain delist failed: ${error.message}`,
+      );
+      throw new BadRequestException(
+        `Failed to delist coupon on blockchain: ${error.message}`,
+      );
     }
 
     // 4. Update Database
     if (voucherCodes.length > 0) {
       await this.prisma.voucherCode.updateMany({
         where: { voucherGroupId: listingId },
-        data: { 
+        data: {
           voucherGroupId: null,
         },
       });
     }
 
-    this.logger.log(`[DelistMarketplaceListing] ✅ Successfully delisted ${listingId}`);
+    this.logger.log(
+      `[DelistMarketplaceListing] ✅ Successfully delisted ${listingId}`,
+    );
 
     return {
       success: true,
       message: `Listing ${listingId} successfully delisted`,
       listingId,
-      unlistedCount: voucherCodes.length
+      unlistedCount: voucherCodes.length,
     };
   }
 }

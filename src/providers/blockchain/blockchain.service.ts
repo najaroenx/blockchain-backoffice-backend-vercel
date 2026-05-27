@@ -2459,7 +2459,10 @@ export class BlockchainService {
       this.logger.log(
         `[Blockchain] Transferring ${amount} of Coupon Type ID ${typeId} from ${fromAddress} to ${toAddress}`,
       );
-      const signer = new (require('ethers').Wallet)(fromPrivateKey, this.provider);
+      const signer = new (require('ethers').Wallet)(
+        fromPrivateKey,
+        this.provider,
+      );
       const couponContract = new (require('ethers').Contract)(
         this.couponAddress,
         CouponArtifact.abi,
@@ -2470,7 +2473,7 @@ export class BlockchainService {
         toAddress,
         typeId,
         amount,
-        "0x",
+        '0x',
         { gasLimit: 15000000 },
       );
       this.logger.log(`[Blockchain] Waiting for Tx confirmation: ${tx.hash}`);
@@ -2482,5 +2485,4 @@ export class BlockchainService {
       throw new Error(`Failed to transfer coupon: ${error.message}`);
     }
   }
-
 }

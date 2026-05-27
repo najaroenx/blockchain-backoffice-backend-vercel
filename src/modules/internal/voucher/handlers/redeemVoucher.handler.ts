@@ -223,8 +223,13 @@ export class RedeemVoucher {
 
   private assertCodeActivated(voucherCode: any) {
     // If the code is already owned by a CUSTOMER (e.g. transferred directly by Marketer), it is active for them
-    if (!voucherCode.voucherGroupId && voucherCode.currentOwnerType !== 'CUSTOMER') {
-      this.logger.error(`[ERROR] Code not yet activated (no voucherGroupId and not owned by customer)`);
+    if (
+      !voucherCode.voucherGroupId &&
+      voucherCode.currentOwnerType !== 'CUSTOMER'
+    ) {
+      this.logger.error(
+        `[ERROR] Code not yet activated (no voucherGroupId and not owned by customer)`,
+      );
       throw new BadRequestException(`Voucher code has not been activated yet`);
     }
   }

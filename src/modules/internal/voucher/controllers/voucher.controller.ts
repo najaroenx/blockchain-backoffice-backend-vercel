@@ -61,7 +61,7 @@ export class VoucherController {
     private readonly getCouponByIdHandler: GetCouponById,
     private readonly getVoucherByListingId: GetVoucherByListingId,
     private readonly transferVoucherToCustomerHandler: TransferVoucherToCustomerHandler,
-    private readonly delistMarketplaceListingHandler: DelistMarketplaceListingHandler
+    private readonly delistMarketplaceListingHandler: DelistMarketplaceListingHandler,
   ) {}
 
   @Get('/')
@@ -462,7 +462,13 @@ export class VoucherController {
   @Public()
   @ApiOperation({ summary: 'Transfer voucher directly to customer' })
   async transferVoucher(
-    @Body() dto: { merchantId: string; customerPhone: string; voucherId: string; quantity?: number }
+    @Body()
+    dto: {
+      merchantId: string;
+      customerPhone: string;
+      voucherId: string;
+      quantity?: number;
+    },
   ) {
     return this.transferVoucherToCustomerHandler.execute(dto);
   }
@@ -471,9 +477,11 @@ export class VoucherController {
   @ApiOperation({ summary: 'Delist a coupon from marketplace' })
   async delistCoupon(
     @Param('listingId') listingId: string,
-    @Body() dto: { merchantId: string }
+    @Body() dto: { merchantId: string },
   ) {
-    return this.delistMarketplaceListingHandler.execute(listingId, dto.merchantId);
+    return this.delistMarketplaceListingHandler.execute(
+      listingId,
+      dto.merchantId,
+    );
   }
-
 }

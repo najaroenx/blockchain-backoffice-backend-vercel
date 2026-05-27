@@ -1,8 +1,17 @@
-import { Injectable, Logger, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { randomUUID } from 'crypto';
-import { TransactionTypeId, AssetType } from 'src/constants/transaction-types.enum';
+import {
+  TransactionTypeId,
+  AssetType,
+} from 'src/constants/transaction-types.enum';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
@@ -35,7 +44,9 @@ export class TransferVoucherToCustomerHandler {
       });
 
       if (!merchant || !merchant.wallet || !merchant.wallet.seedPhrase) {
-        throw new NotFoundException('Merchant or Merchant Wallet seed phrase not found');
+        throw new NotFoundException(
+          'Merchant or Merchant Wallet seed phrase not found',
+        );
       }
 
       // 2. Get Customer Info
@@ -50,7 +61,8 @@ export class TransferVoucherToCustomerHandler {
 
       // 3. Find available VoucherCode for this Merchant
       // The merchant must own the code (currentOwnerId = merchantId)
-      const availableCodes = await this.prisma.$queryRawUnsafe<any[]>(`
+      const availableCodes = await this.prisma.$queryRawUnsafe<any[]>(
+        `
         SELECT * FROM "VoucherCode"
         WHERE "voucherId" = $1
           AND "currentOwnerId" = $2
@@ -58,13 +70,19 @@ export class TransferVoucherToCustomerHandler {
           AND "isUsed" = false
         LIMIT $3
         FOR UPDATE SKIP LOCKED
-      `, voucherId, merchantId, quantity);
+      `,
+        voucherId,
+        merchantId,
+        quantity,
+      );
 
       if (!availableCodes || availableCodes.length < quantity) {
-        throw new BadRequestException(`Not enough available voucher stock. Requested ${quantity}, found ${availableCodes?.length || 0}`);
+        throw new BadRequestException(
+          `Not enough available voucher stock. Requested ${quantity}, found ${availableCodes?.length || 0}`,
+        );
       }
 
-      const voucherCodeIds = availableCodes.map(c => c.id);
+      const voucherCodeIds = availableCodes.map((c) => c.id);
 
       // 4. Get Voucher Meta (for typeId)
       const voucher = await this.prisma.voucher.findUnique({
@@ -76,7 +94,7 @@ export class TransferVoucherToCustomerHandler {
       }
 
       const typeId = parseInt(voucher.tokenId, 10);
-      
+
       // Decrypt merchant key
       const salt = this.configService.get<string>('SALT');
       const decryptedSeedPhrase = this.tokenService.decryptKey(
@@ -93,8 +111,10 @@ export class TransferVoucherToCustomerHandler {
       const merchantPrivateKey = merchantSigner.privateKey;
 
       // 5. Transfer via Blockchain
-      this.logger.log(`Transferring Voucher typeId ${typeId} (qty: ${quantity}) from ${merchant.wallet.walletAddress} to customer ${customer.wallet.walletAddress}`);
-      
+      this.logger.log(
+        `Transferring Voucher typeId ${typeId} (qty: ${quantity}) from ${merchant.wallet.walletAddress} to customer ${customer.wallet.walletAddress}`,
+      );
+
       const txHash = await this.blockchainService.transferCoupon(
         typeId,
         quantity,
@@ -104,8 +124,14 @@ export class TransferVoucherToCustomerHandler {
       );
 
       const txHashBuffer = Buffer.from(txHash.replace(/^0x/, ''), 'hex');
-      const senderAddressBuffer = Buffer.from(merchant.wallet.walletAddress.replace(/^0x/, ''), 'hex');
-      const receiverAddressBuffer = Buffer.from(customer.wallet.walletAddress.replace(/^0x/, ''), 'hex');
+      const senderAddressBuffer = Buffer.from(
+        merchant.wallet.walletAddress.replace(/^0x/, ''),
+        'hex',
+      );
+      const receiverAddressBuffer = Buffer.from(
+        customer.wallet.walletAddress.replace(/^0x/, ''),
+        'hex',
+      );
 
       // 6. Update DB State (assign owner & record transaction)
       const result = await this.prisma.$transaction(async (tx) => {
@@ -119,7 +145,7 @@ export class TransferVoucherToCustomerHandler {
 
         // We can create a transaction record for each code or just one. The existing logic created one per code in similar flows.
         const transactions = await Promise.all(
-          voucherCodeIds.map((codeId) => 
+          voucherCodeIds.map((codeId) =>
             tx.transaction.create({
               data: {
                 txHash: txHashBuffer,
@@ -136,8 +162,8 @@ export class TransferVoucherToCustomerHandler {
                 type: AssetType.VOUCHER,
                 transactionRefId: randomUUID(),
               },
-            })
-          )
+            }),
+          ),
         );
 
         return transactions;
@@ -148,11 +174,17 @@ export class TransferVoucherToCustomerHandler {
         transactionHash: txHash,
         transferredQuantity: quantity,
         voucherCodeIds: voucherCodeIds,
-        transactionIds: result.map(tx => tx.id)
+        transactionIds: result.map((tx) => tx.id),
       };
     } catch (error) {
-      this.logger.error(`Error transferring voucher: ${error.message}`, error.stack);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      this.logger.error(
+        `Error transferring voucher: ${error.message}`,
+        error.stack,
+      );
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new InternalServerErrorException('Failed to transfer voucher');

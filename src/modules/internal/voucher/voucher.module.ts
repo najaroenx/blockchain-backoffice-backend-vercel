@@ -1,3 +1,5 @@
+import { TransferVoucherToCustomerHandler } from "./handlers/transferVoucherToCustomer.handler";
+
 import { Module } from '@nestjs/common';
 import { VoucherRepository } from './voucher.repository';
 import { VoucherDBService } from './services/voucher-db.service';
@@ -30,6 +32,7 @@ import { GetMarketplaceListingsEndUser } from './handlers/getMarketplaceListting
 import { GetCouponById } from './handlers/getCouponById.handler';
 import { GetVoucherByLatestCode } from './handlers/getVoucherByLatestCode.handler';
 import { GetMarketplaceListingsByMerchantRef } from './handlers/getMarketplaceListingsByMerchantRef.handler';
+import { DelistMarketplaceListingHandler } from './handlers/delistMarketplaceListing.handler';
 import { TransactionModule } from '../transaction/transaction.module';
 @Module({
   imports: [
@@ -42,6 +45,8 @@ import { TransactionModule } from '../transaction/transaction.module';
   ],
   controllers: [VoucherController],
   providers: [
+    DelistMarketplaceListingHandler,
+    TransferVoucherToCustomerHandler,
     VoucherDBService,
     VoucherRepository,
     CreateVoucherWithCodes,

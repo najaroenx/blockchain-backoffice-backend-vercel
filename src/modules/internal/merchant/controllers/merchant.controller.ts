@@ -41,9 +41,9 @@ export class MerchantController {
 
   @Get('/')
   @HttpCode(200)
-  async getMerchants(@Req() request: Request) {
-    const userId = (request as any).user.id as string;
-    return this.getMerchantsHandler.execute(userId);
+  @Public()
+  async getMerchants() {
+    return this.getMerchantsHandler.getListMerchants();
   }
 
   @Get('/all')

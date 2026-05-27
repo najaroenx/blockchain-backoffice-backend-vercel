@@ -2447,4 +2447,40 @@ export class BlockchainService {
       );
     }
   }
+
+  async transferCoupon(
+    typeId: number,
+    amount: number,
+    fromAddress: string,
+    toAddress: string,
+    fromPrivateKey: string,
+  ): Promise<string> {
+    try {
+      this.logger.log(
+        `[Blockchain] Transferring ${amount} of Coupon Type ID ${typeId} from ${fromAddress} to ${toAddress}`,
+      );
+      const signer = new (require('ethers').Wallet)(fromPrivateKey, this.provider);
+      const couponContract = new (require('ethers').Contract)(
+        this.couponAddress,
+        CouponArtifact.abi,
+        signer,
+      );
+      const tx = await couponContract.safeTransferFrom(
+        fromAddress,
+        toAddress,
+        typeId,
+        amount,
+        "0x",
+        { gasLimit: 15000000 },
+      );
+      this.logger.log(`[Blockchain] Waiting for Tx confirmation: ${tx.hash}`);
+      await tx.wait();
+      this.logger.log(`[Blockchain] Transfer complete! TxHash: ${tx.hash}`);
+      return tx.hash;
+    } catch (error) {
+      this.logger.error(`[Blockchain] transferCoupon failed: ${error.message}`);
+      throw new Error(`Failed to transfer coupon: ${error.message}`);
+    }
+  }
+
 }

@@ -1,3 +1,4 @@
+import { TransferVoucherToCustomerHandler } from '../handlers/transferVoucherToCustomer.handler';
 import {
   Body,
   Controller,
@@ -10,7 +11,7 @@ import {
   Patch,
   Query,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { VoucherDBService } from '../services/voucher-db.service';
 import {
   CreateVoucherByDevDto,
@@ -38,6 +39,7 @@ import { VoucherValueType } from '@prisma/client';
 import { GetMarketplaceListingsEndUser } from '../handlers/getMarketplaceListtingEnduser.handler';
 import { GetCouponById } from '../handlers/getCouponById.handler';
 import { GetVoucherByListingId } from '../handlers/getVoucherByListingId.handler';
+import { DelistMarketplaceListingHandler } from '../handlers/delistMarketplaceListing.handler';
 
 @ApiTags('Voucher')
 @Controller('coupon')
@@ -58,6 +60,8 @@ export class VoucherController {
     private readonly getMarketplaceListingsEndUser: GetMarketplaceListingsEndUser,
     private readonly getCouponByIdHandler: GetCouponById,
     private readonly getVoucherByListingId: GetVoucherByListingId,
+    private readonly transferVoucherToCustomerHandler: TransferVoucherToCustomerHandler,
+    private readonly delistMarketplaceListingHandler: DelistMarketplaceListingHandler
   ) {}
 
   @Get('/')
@@ -453,4 +457,23 @@ export class VoucherController {
   }
 
   // GET /coupon/my-coupons/:phone moved to ExternalModule
+
+  @Post('transfer')
+  @Public()
+  @ApiOperation({ summary: 'Transfer voucher directly to customer' })
+  async transferVoucher(
+    @Body() dto: { merchantId: string; customerPhone: string; voucherId: string; quantity?: number }
+  ) {
+    return this.transferVoucherToCustomerHandler.execute(dto);
+  }
+
+  @Post('marketplace/delist/:listingId')
+  @ApiOperation({ summary: 'Delist a coupon from marketplace' })
+  async delistCoupon(
+    @Param('listingId') listingId: string,
+    @Body() dto: { merchantId: string }
+  ) {
+    return this.delistMarketplaceListingHandler.execute(listingId, dto.merchantId);
+  }
+
 }

@@ -8,6 +8,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { ConfigService } from '@nestjs/config';
 import { TokenService } from 'src/providers/token/token.service';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
 @Injectable()
 export class SellerListOnMarketplace {
@@ -153,9 +154,7 @@ export class SellerListOnMarketplace {
       );
 
       // Derive private key from seed phrase for signing
-      const { getSignerFromSeedPhrase } = await import(
-        'src/libs/derive-wallet'
-      );
+
       const salt = this.configService.get<string>('SALT');
       const decryptedSeedPhrase = this.tokenService.decryptKey(
         salt,

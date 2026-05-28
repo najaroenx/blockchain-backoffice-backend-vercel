@@ -146,7 +146,13 @@ export class MerchantDBService {
         skip,
         take: limit,
         include: {
-          wallet: true,
+          wallet: {
+            select: {
+              id: true,
+              walletAddress: true,
+              type: true,
+            }
+          },
           point: {
             select: {
               id: true,

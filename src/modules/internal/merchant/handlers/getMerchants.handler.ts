@@ -40,8 +40,20 @@ export class GetMerchants {
 
   async getListMerchants(): Promise<any> {
     try {
-      const merchants = await this.db.getAllMerchants({});
-      return merchants;
+      const result = await this.db.getAllMerchants({});
+      const formattedMerchants = result.merchants.map((merchant: any) => {
+        const { wallet, tel, ...merchantData } = merchant;
+        return {
+          ...merchantData,
+          walletAddress: wallet?.walletAddress || '',
+          phoneNumber: tel,
+        };
+      });
+      return {
+        ...result,
+        merchants: formattedMerchants,
+        counts: formattedMerchants.length,
+      };
     } catch (error) {
       this.logger.error(
         `Error message : ${error.message}, \n Error detail : ${error}`,

@@ -5,6 +5,9 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "overrides": {
+    "uuid": ">=11.1.1"
+  },
   "resolutions": {
     "effect": ">=3.20.0",
     "qs": ">=6.14.2",
@@ -34,7 +37,8 @@
     "brace-expansion": ">=5.0.5",
     "diff": ">=4.0.4",
     "smol-toml": ">=1.6.1",
-    "picomatch": ">=4.0.4"
+    "picomatch": ">=4.0.4",
+    "uuid": ">=11.1.1"
   },
   "scripts": {
     "build": "nest build",

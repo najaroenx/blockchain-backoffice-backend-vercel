@@ -151,7 +151,7 @@ export class MerchantDBService {
               id: true,
               walletAddress: true,
               type: true,
-            }
+            },
           },
           point: {
             select: {

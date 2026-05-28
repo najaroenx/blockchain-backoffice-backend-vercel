@@ -10,6 +10,7 @@ jobs:
       contents: write
       actions: read
       security-events: write
+      packages: write
     uses: corp-ais/next-actions-reusable-workflows/.github/workflows/cicd.yml@v2
     with:
       runs-on-group: next-myais2

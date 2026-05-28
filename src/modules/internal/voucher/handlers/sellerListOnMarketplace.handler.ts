@@ -278,9 +278,10 @@ export class SellerListOnMarketplace {
         },
       };
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[FATAL ERROR] Failed to list voucher on marketplace: ${error.message}`,
-        error.stack,
+        `[FATAL ERROR] Failed to list voucher on marketplace: ${err.message}`,
+        err.stack,
       );
       throw error;
     }

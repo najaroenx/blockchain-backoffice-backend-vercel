@@ -334,6 +334,19 @@ export class GetMarketerDashboardHandler {
       totalVal += value;
       totalCount += 1;
 
+      if (code.currentOwnerType === 'CUSTOMER') {
+        soldVal += value;
+        soldCount += 1;
+        if (code.isUsed) {
+          redeemedVal += value;
+          redeemedCount += 1;
+        } else {
+          unredeemedVal += value;
+          unredeemedCount += 1;
+        }
+        continue;
+      }
+
       if (code.pointId === null) {
         unsoldVal += value;
         unsoldCount += 1;
@@ -342,14 +355,6 @@ export class GetMarketerDashboardHandler {
 
       soldVal += value;
       soldCount += 1;
-
-      if (code.isUsed) {
-        redeemedVal += value;
-        redeemedCount += 1;
-      } else if (code.currentOwnerType === 'CUSTOMER') {
-        unredeemedVal += value;
-        unredeemedCount += 1;
-      }
     }
 
     return {

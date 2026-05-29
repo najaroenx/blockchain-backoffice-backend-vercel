@@ -197,6 +197,7 @@ export class VoucherDBService {
             voucherId: voucher.id,
             pointId: null,
             voucherGroupId: null,
+            currentOwnerType: 'MERCHANT',
           },
         });
 

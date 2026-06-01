@@ -5,6 +5,9 @@ import { TransferVoucherToCustomerHandler } from '../../voucher/handlers/transfe
 @Injectable()
 export class ExecuteRewardsCsvHandler {
   private readonly logger = new Logger(ExecuteRewardsCsvHandler.name);
+  private static readonly MAX_CSV_FILE_BYTES = 2 * 1024 * 1024; // 2 MB
+  private static readonly MAX_CSV_LINES = 10000;
+  private static readonly MAX_CSV_LINE_LENGTH = 10000;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -12,29 +15,36 @@ export class ExecuteRewardsCsvHandler {
   ) {}
 
   private parseCsvContent(fileContent: string) {
-    const lines = fileContent.split('\n').filter((l) => l.trim().length > 0);
+    const lines = fileContent
+      .split('\n')
+      .filter((l) => l.trim().length > 0)
+      .slice(0, ExecuteRewardsCsvHandler.MAX_CSV_LINES);
     const parsedRows = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const text = lines[i];
-      const result = [];
-      let current = '';
-      let inQuotes = false;
-
-      for (let j = 0; j < text.length; j++) {
-        const char = text[j];
-        if (char === '"' && text[j + 1] === '"') {
-          current += '"';
-          j++;
-        } else if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          result.push(current);
-          current = '';
-        } else {
-          current += char;
+        const text = lines[i];
+        if (text.length > ExecuteRewardsCsvHandler.MAX_CSV_LINE_LENGTH) {
+          throw new BadRequestException('CSV line is too long');
         }
-      }
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let j = 0; j < text.length; j++) {
+            const char = text[j];
+            if (char === '"' && text[j + 1] === '"') {
+                current += '"';
+                j++;
+            } else if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current);
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+      
       result.push(current.trim());
       parsedRows.push(result);
     }
@@ -43,8 +53,12 @@ export class ExecuteRewardsCsvHandler {
   }
 
   async execute(file: any) {
-    if (!file) {
+    if (!file || !file.buffer) {
       throw new BadRequestException('CSV file is required');
+    }
+
+    if (file.buffer.length > ExecuteRewardsCsvHandler.MAX_CSV_FILE_BYTES) {
+      throw new BadRequestException('CSV file is too large');
     }
 
     try {

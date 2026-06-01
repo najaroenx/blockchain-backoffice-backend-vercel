@@ -4,48 +4,62 @@ import { PrismaService } from 'prisma/prisma.service';
 @Injectable()
 export class DryRunRewardsCsvHandler {
   private readonly logger = new Logger(DryRunRewardsCsvHandler.name);
+  private static readonly MAX_CSV_BYTES = 5 * 1024 * 1024; // 5MB
+  private static readonly MAX_CSV_LINES = 100_000;
+  private static readonly MAX_LINE_LENGTH = 10_000;
 
   constructor(private readonly prisma: PrismaService) {}
 
   // แกะข้อมูล CSV ทีละบรรทัด (รองรับมีลูกน้ำซ้อนในเครื่องหมายคำพูด)
   private parseCsvContent(fileContent: string) {
     const lines = fileContent.split('\n').filter((l) => l.trim().length > 0);
+    if (lines.length > DryRunRewardsCsvHandler.MAX_CSV_LINES) {
+      throw new BadRequestException('CSV has too many lines');
+    }
+
     const parsedRows = [];
 
     // ข้าม Header ไป 1 แถว (เริ่ม i = 1)
     for (let i = 1; i < lines.length; i++) {
-      const text = lines[i];
-      const result = [];
-      let current = '';
-      let inQuotes = false;
-
-      for (let j = 0; j < text.length; j++) {
-        const char = text[j];
-        if (char === '"' && text[j + 1] === '"') {
-          current += '"';
-          j++;
-        } else if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          result.push(current);
-          current = '';
-        } else {
-          current += char;
+        const text = lines[i];
+        if (text.length > DryRunRewardsCsvHandler.MAX_LINE_LENGTH) {
+          throw new BadRequestException(`CSV line ${i + 1} is too long`);
         }
-      }
-      result.push(current.trim());
-      parsedRows.push(result);
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let j = 0; j < text.length; j++) {
+            const char = text[j];
+            if (char === '"' && text[j + 1] === '"') {
+                current += '"';
+                j++;
+            } else if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current);
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        result.push(current.trim());
+        parsedRows.push(result);
     }
 
     return parsedRows;
   }
 
   async execute(file: any) {
-    if (!file) {
+    if (!file || !file.buffer) {
       throw new BadRequestException('CSV file is required');
     }
 
     try {
+      if (file.buffer.length > DryRunRewardsCsvHandler.MAX_CSV_BYTES) {
+        throw new BadRequestException('CSV file is too large');
+      }
+
       // แปลง Buffer ให้กลายเป็น String เพื่อรัน Logic อ่านทีละบรรทัด
       const fileContent = file.buffer.toString('utf-8');
       const rows = this.parseCsvContent(fileContent);

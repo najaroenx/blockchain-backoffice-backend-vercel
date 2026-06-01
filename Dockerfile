@@ -26,8 +26,7 @@ RUN npx prisma generate
 RUN yarn run build
 
 # Compile standalone TS scripts to JS for runtime execution
-RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
-RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/fix-wrong-airdrop.ts --outDir dist/scripts
+RUN npx tsc -p tsconfig.scripts.json
 
 # Stage 3: Install production dependencies only
 FROM node:24-alpine AS prod-deps

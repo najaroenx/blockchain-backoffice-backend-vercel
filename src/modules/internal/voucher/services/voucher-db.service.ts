@@ -996,4 +996,96 @@ export class VoucherDBService {
       merchantRef,
     );
   }
+
+  async getMarketerInventory(merchantId: string, status?: string): Promise<any[]> {
+    this.logger.log(`[getMarketerInventory] Custom query for marketerId: ${merchantId}`);
+    
+    // Find all codes this marketer has historically purchased
+    const marketerCodes = await this.prisma.voucherCode.findMany({
+      where: {
+        OR: [
+          { currentOwnerId: merchantId, currentOwnerType: 'MERCHANT' },
+          { 
+             currentOwnerType: 'CUSTOMER',
+             transactions: {
+               some: { senderId: merchantId, receiverType: 'CUSTOMER' }
+             }
+          }
+        ]
+      },
+      include: {
+        voucher: { include: { merchant: { include: { wallet: true } } } },
+      }
+    });
+
+    const groupedMap = new Map<string, any>();
+
+    for (const code of marketerCodes) {
+      const vId = code.voucherId;
+      const baseDataObj = code.voucher || {};
+      
+      // Need to separate voucherCodes object reference safely
+      let cleanBase: any = { ...baseDataObj };
+      if (cleanBase.voucherCodes) {
+         delete cleanBase.voucherCodes;
+      }
+      cleanBase.merchantRef = cleanBase.merchantRef || null;
+
+      const isOwnedByMarketer = (code.currentOwnerType === 'MERCHANT' && code.currentOwnerId === merchantId);
+
+      if (code.pointId === null) {
+        // Upcoming
+        const key = `upcoming|${vId}`;
+        if (!groupedMap.has(key)) {
+          groupedMap.set(key, {
+             baseData: cleanBase,
+             status: 'upcoming',
+             totalIssued: 0,
+             availableCount: 0,
+             totalRedeemed: 0,
+             voucherIds: []
+          });
+        }
+        const g = groupedMap.get(key);
+        g.totalIssued++;
+        if (isOwnedByMarketer) g.availableCount++;
+        else g.totalRedeemed++; // Count transferred to CUSTOMER as redeemed for Marketer's total math
+        if (!g.voucherIds.includes(vId)) g.voucherIds.push(vId);
+      } else {
+        // Active
+        const gId = code.voucherGroupId || 'legacy';
+        const key = `active|${vId}|${gId}`;
+        if (!groupedMap.has(key)) {
+          groupedMap.set(key, {
+             baseData: cleanBase,
+             status: 'active',
+             totalIssued: 0,
+             availableCount: 0,
+             totalRedeemed: 0,
+             voucherIds: []
+          });
+        }
+        const g = groupedMap.get(key);
+        g.totalIssued++;
+        if (isOwnedByMarketer && !code.isUsed) g.availableCount++;
+        else g.totalRedeemed++; // Redeemed or transferred counts against available
+        if (!g.voucherIds.includes(vId)) g.voucherIds.push(vId);
+      }
+    }
+
+    const result = Array.from(groupedMap.values()).map(g => ({
+       ...g.baseData,
+       status: g.status,
+       totalIssued: g.totalIssued,
+       availableCount: g.availableCount,
+       totalRedeemed: g.totalRedeemed,
+       voucherIds: g.voucherIds,
+    }));
+    
+    // Sort array identically to original flow (upcoming vs active logic defaults)
+    if (status) {
+       return result.filter(r => r.status === status);
+    }
+    return result;
+  }
 }

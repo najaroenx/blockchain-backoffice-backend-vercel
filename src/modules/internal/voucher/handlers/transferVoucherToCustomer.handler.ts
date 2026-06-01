@@ -140,6 +140,7 @@ export class TransferVoucherToCustomerHandler {
           data: {
             currentOwnerId: customer.id,
             currentOwnerType: 'CUSTOMER',
+            voucherGroupId: null,
           },
         });
 

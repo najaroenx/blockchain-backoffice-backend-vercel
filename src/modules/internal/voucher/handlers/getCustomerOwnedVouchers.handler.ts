@@ -640,10 +640,10 @@ export class GetCustomerOwnedVouchers {
         codeStatus = 'used';
       }
 
-      const nullGroupKey = code?.id || code?.code || voucher.id;
+      // Group by voucher.id if voucherGroupId is null
       const key = groupId
         ? `${groupId}|${codeStatus}`
-        : `ungrouped:${nullGroupKey}|${codeStatus}`;
+        : `ungrouped:${voucher.id}|${codeStatus}`;
 
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {

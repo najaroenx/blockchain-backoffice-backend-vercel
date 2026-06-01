@@ -11,7 +11,11 @@ import {
   Query,
   Res,
   StreamableFile,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiOperation,
   ApiProduces,
@@ -31,6 +35,8 @@ import { MintTHBToMerchant } from '../handlers/mintTHBToMerchant.handler';
 import { ResetCustomerPointBalances } from '../handlers/reset-customer-point-balances.handler';
 import { ResetVoucherTokenIds } from '../handlers/reset-voucher-token-ids.handler';
 import { UpdatePointContractAddress } from '../handlers/update-point-contract-address.handler';
+import { DryRunRewardsCsvHandler } from '../handlers/dry-run-rewards-csv.handler';
+import { ExecuteRewardsCsvHandler } from '../handlers/execute-rewards-csv.handler';
 
 /**
  * ⚠️ PHASE 1 SOLUTION - DEVELOPMENT/TESTING ONLY
@@ -67,7 +73,37 @@ export class AdminController {
     private readonly resetCustomerPointBalancesHandler: ResetCustomerPointBalances,
     private readonly resetVoucherTokenIdsHandler: ResetVoucherTokenIds,
     private readonly updatePointContractAddressHandler: UpdatePointContractAddress,
+    private readonly dryRunRewardsCsvHandler: DryRunRewardsCsvHandler,
+    private readonly executeRewardsCsvHandler: ExecuteRewardsCsvHandler,
   ) {}
+
+  @Post('rewards/execute-csv')
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Upload and execute reward transfer from CSV',
+    description: 'รันแจกรางวัล (โอน Voucher จริง) ตามไฟล์ CSV',
+  })
+  async executeRewardsCsv(@UploadedFile() file: any) {
+    if (!file) {
+      throw new BadRequestException('Please provide a CSV file under the "file" property.');
+    }
+    return this.executeRewardsCsvHandler.execute(file);
+  }
+
+  @Post('rewards/dry-run-csv')
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Upload and dry-run reward transfer from CSV',
+    description: 'รันตรวจสอบการจับคู่ลูกค้าและร้านค้าเพื่อหาว่าใครได้รับคูปองโค้ดใดบ้าง (ไม่โอนจริง)',
+  })
+  async dryRunRewardsCsv(@UploadedFile() file: any) {
+    if (!file) {
+      throw new BadRequestException('Please provide a CSV file under the "file" property.');
+    }
+    return this.dryRunRewardsCsvHandler.execute(file);
+  }
 
   /**
    * PHASE 1: Mint THB tokens to merchant wallet

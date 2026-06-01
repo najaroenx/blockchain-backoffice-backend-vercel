@@ -10,10 +10,14 @@ import { MintTHBToMerchant } from './handlers/mintTHBToMerchant.handler';
 import { ResetCustomerPointBalances } from './handlers/reset-customer-point-balances.handler';
 import { ResetVoucherTokenIds } from './handlers/reset-voucher-token-ids.handler';
 import { UpdatePointContractAddress } from './handlers/update-point-contract-address.handler';
+import { DryRunRewardsCsvHandler } from './handlers/dry-run-rewards-csv.handler';
+import { ExecuteRewardsCsvHandler } from './handlers/execute-rewards-csv.handler';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
+import { VoucherModule } from '../voucher/voucher.module';
 
 @Module({
+  imports: [VoucherModule],
   controllers: [AdminController],
   providers: [
     MintTHBToMerchant,
@@ -25,6 +29,8 @@ import { PrismaService } from 'prisma/prisma.service';
     ResetCustomerPointBalances,
     ResetVoucherTokenIds,
     UpdatePointContractAddress,
+    DryRunRewardsCsvHandler,
+    ExecuteRewardsCsvHandler,
     AdminOnlyGuard,
     BlockchainService,
     PrismaService,

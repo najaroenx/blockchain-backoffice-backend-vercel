@@ -74,6 +74,7 @@ import { TransactionModule } from '../transaction/transaction.module';
     GetMarketplaceListingsByMerchantRef,
   ],
   exports: [
+    TransferVoucherToCustomerHandler,
     VoucherDBService,
     GetCouponById,
     GetVoucherByLatestCode,

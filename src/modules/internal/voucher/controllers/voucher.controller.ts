@@ -130,6 +130,20 @@ export class VoucherController {
   }
 
   /**
+   * Get marketer inventory with optional status filter
+   * GET /coupon/marketer/:merchantId/inventory?status=upcoming
+   */
+  @Get('/marketer/:merchantId/inventory')
+  @Public()
+  @HttpCode(200)
+  async getMarketerInventory(
+    @Param('merchantId') merchantId: string,
+    @Query('status') status?: string,
+  ) {
+    return this.voucherService.getMarketerInventory(merchantId, status);
+  }
+
+  /**
    * Get seller vouchers (vouchers not yet purchased by merchants)
    * GET /coupon/seller/vouchers
    * Optional query param: merchantId for filtering by seller

@@ -86,7 +86,9 @@ export class AdminController {
   })
   async executeRewardsCsv(@UploadedFile() file: any) {
     if (!file) {
-      throw new BadRequestException('Please provide a CSV file under the "file" property.');
+      throw new BadRequestException(
+        'Please provide a CSV file under the "file" property.',
+      );
     }
     return this.executeRewardsCsvHandler.execute(file);
   }
@@ -96,11 +98,14 @@ export class AdminController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Upload and dry-run reward transfer from CSV',
-    description: 'รันตรวจสอบการจับคู่ลูกค้าและร้านค้าเพื่อหาว่าใครได้รับคูปองโค้ดใดบ้าง (ไม่โอนจริง)',
+    description:
+      'รันตรวจสอบการจับคู่ลูกค้าและร้านค้าเพื่อหาว่าใครได้รับคูปองโค้ดใดบ้าง (ไม่โอนจริง)',
   })
   async dryRunRewardsCsv(@UploadedFile() file: any) {
     if (!file) {
-      throw new BadRequestException('Please provide a CSV file under the "file" property.');
+      throw new BadRequestException(
+        'Please provide a CSV file under the "file" property.',
+      );
     }
     return this.dryRunRewardsCsvHandler.execute(file);
   }

@@ -11,32 +11,32 @@ export class DryRunRewardsCsvHandler {
   private parseCsvContent(fileContent: string) {
     const lines = fileContent.split('\n').filter((l) => l.trim().length > 0);
     const parsedRows = [];
-    
+
     // ข้าม Header ไป 1 แถว (เริ่ม i = 1)
     for (let i = 1; i < lines.length; i++) {
-        const text = lines[i];
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let j = 0; j < text.length; j++) {
-            const char = text[j];
-            if (char === '"' && text[j + 1] === '"') {
-                current += '"';
-                j++;
-            } else if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                result.push(current);
-                current = '';
-            } else {
-                current += char;
-            }
+      const text = lines[i];
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let j = 0; j < text.length; j++) {
+        const char = text[j];
+        if (char === '"' && text[j + 1] === '"') {
+          current += '"';
+          j++;
+        } else if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
         }
-        result.push(current.trim());
-        parsedRows.push(result);
+      }
+      result.push(current.trim());
+      parsedRows.push(result);
     }
-    
+
     return parsedRows;
   }
 
@@ -82,7 +82,7 @@ export class DryRunRewardsCsvHandler {
         const availableCode = await this.prisma.voucherCode.findFirst({
           where: {
             voucher: {
-              merchantRef: merchantRef
+              merchantRef: merchantRef,
             },
             currentOwnerType: 'MERCHANT',
             isUsed: false,
@@ -91,7 +91,12 @@ export class DryRunRewardsCsvHandler {
         });
 
         if (!availableCode || !availableCode.voucher) {
-          notFoundMerchants.push({ sequenceNo, merchantRef, voucherId_in_csv: voucherId, reason: 'NO_QUOTA_OR_MERCHANT_NOT_FOUND' });
+          notFoundMerchants.push({
+            sequenceNo,
+            merchantRef,
+            voucherId_in_csv: voucherId,
+            reason: 'NO_QUOTA_OR_MERCHANT_NOT_FOUND',
+          });
           continue;
         }
 
@@ -105,27 +110,30 @@ export class DryRunRewardsCsvHandler {
           reqVoucherDesc: voucherNameCSV,
           availableCode: availableCode.code,
           availableCodeId: availableCode.id,
-          status: 'READY'
+          status: 'READY',
         });
       }
 
       // รีเทิร์นผลลัพธ์เป็น JSON สำหรับ UI / Postman ดูผลการเทียบข้อมูลแบบ Dry Run
       return {
         summary: {
-           totalRecordsProcessed: rows.length,
-           readyToDistribute: toDistribute.length,
-           notFoundCustomers: notFoundCustomers.length,
-           notFoundMerchants: notFoundMerchants.length
+          totalRecordsProcessed: rows.length,
+          readyToDistribute: toDistribute.length,
+          notFoundCustomers: notFoundCustomers.length,
+          notFoundMerchants: notFoundMerchants.length,
         },
         payload: {
           toDistribute,
           notFoundCustomers,
-          notFoundMerchants
-        }
+          notFoundMerchants,
+        },
       };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      this.logger.error(`Error processing CSV dry-run: ${(error as any).message}`, (error as any).stack);
+      this.logger.error(
+        `Error processing CSV dry-run: ${(error as any).message}`,
+        (error as any).stack,
+      );
       throw new BadRequestException('Failed to process CSV file');
     }
   }

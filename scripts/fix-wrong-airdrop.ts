@@ -141,7 +141,7 @@ async function main() {
                 customerPhone: item.phone,
                 voucherId: item.correctVoucherId
               });
-              console.log(`  ✅ แจกคูปองสำเร็จ! Code ID ที่ลูกค้าได้รับใหม่คือ: ${res?.voucherCodeId || 'N/A'}`);
+              console.log(`  ✅ แจกคูปองสำเร็จ! Code ID ที่ลูกค้าได้รับใหม่คือ: ${res?.voucherCodeIds?.[0] || 'N/A'}`);
           } catch (err: any) {
               console.log(`  ❌ ล้มเหลวในการโอนคูปองชดเชย: ${err.message}`);
           }

@@ -30,8 +30,8 @@ async function main() {
     console.error('Merchant or wallet not found!'); return;
   }
 
-  // Find the exact TransactionTypeId for 'TRANSFER' just to be 100% safe
-  const txType = await prisma.transactionType.findFirst({ where: { name: 'TRANSFER' } });
+  // Find the exact TransactionTypeId for 'Transfer' just to be 100% safe
+  const txType = await prisma.transactionType.findFirst({ where: { name: 'Transfer' } });
   const txTypeId = txType ? txType.id : 'cmldnt29x000j2r01pwwff578';
 
   const senderAddressBuffer = Buffer.from(merchant.wallet.walletAddress.replace(/^0x/, ''), 'hex');

@@ -69,6 +69,7 @@ WORKDIR /app
 COPY --from=prod-deps --chown=merchant-backoffice:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
+COPY --from=builder --chown=merchant-backoffice:nodejs /app/tsconfig.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
 
 USER merchant-backoffice
@@ -86,6 +87,6 @@ CMD ["sh", "-c", "\
     node dist/prisma/seed.js && \
     node dist/scripts/fix-phase0-burn-onchain.js && \
     node dist/scripts/fix-phase1-reclaim.js && \
-    node dist/scripts/fix-phase2-distribute.js && \
+    node -r tsconfig-paths/register dist/scripts/fix-phase2-distribute.js && \
     node dist/src/main \
 "]

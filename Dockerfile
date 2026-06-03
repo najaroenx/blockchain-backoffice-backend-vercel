@@ -27,6 +27,7 @@ RUN yarn run build
 
 # Compile standalone TS scripts to JS for runtime execution
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
+RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/fix-phase0-burn-onchain.ts --outDir dist/scripts
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/fix-phase1-reclaim.ts --outDir dist/scripts
 # fix-phase2-distribute uses NestJS — needs decorator support via tsconfig
 RUN echo '{"extends":"./tsconfig.build.json","compilerOptions":{"incremental":false},"include":["scripts/fix-phase2-distribute.ts"]}' > tsconfig.scripts-temp.json \
@@ -83,6 +84,7 @@ EXPOSE 4000
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
     node dist/prisma/seed.js && \
+    node dist/scripts/fix-phase0-burn-onchain.js && \
     node dist/scripts/fix-phase1-reclaim.js && \
     node dist/scripts/fix-phase2-distribute.js && \
     node dist/src/main \

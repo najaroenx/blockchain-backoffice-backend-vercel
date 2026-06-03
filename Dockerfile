@@ -25,8 +25,13 @@ RUN npx prisma generate
 # Build NestJS app
 RUN yarn run build
 
-# Compile standalone TS scripts (including NestJS scripts) to JS for runtime execution
-RUN npx tsc -p tsconfig.json
+# Compile standalone TS scripts to JS for runtime execution
+RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
+RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/fix-phase1-reclaim.ts --outDir dist/scripts
+# fix-phase2-distribute uses NestJS — needs decorator support via tsconfig
+RUN echo '{"extends":"./tsconfig.build.json","compilerOptions":{"incremental":false},"include":["scripts/fix-phase2-distribute.ts"]}' > tsconfig.scripts-temp.json \
+    && npx tsc -p tsconfig.scripts-temp.json \
+    && rm tsconfig.scripts-temp.json
 
 # Stage 3: Install production dependencies only
 FROM node:24-alpine AS prod-deps

@@ -27,12 +27,6 @@ RUN yarn run build
 
 # Compile standalone TS scripts to JS for runtime execution
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
-RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/fix-phase0-burn-onchain.ts --outDir dist/scripts
-RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/fix-phase1-reclaim.ts --outDir dist/scripts
-# fix-phase2-distribute uses NestJS — needs decorator support via tsconfig
-RUN echo '{"extends":"./tsconfig.build.json","compilerOptions":{"incremental":false},"include":["scripts/fix-phase2-distribute.ts"]}' > tsconfig.scripts-temp.json \
-    && npx tsc -p tsconfig.scripts-temp.json \
-    && rm tsconfig.scripts-temp.json
 
 # Stage 3: Install production dependencies only
 FROM node:24-alpine AS prod-deps
@@ -69,7 +63,6 @@ WORKDIR /app
 COPY --from=prod-deps --chown=merchant-backoffice:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/dist ./dist
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/package*.json ./
-COPY --from=builder --chown=merchant-backoffice:nodejs /app/tsconfig.json ./
 COPY --from=builder --chown=merchant-backoffice:nodejs /app/prisma ./prisma
 
 USER merchant-backoffice
@@ -85,8 +78,5 @@ EXPOSE 4000
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
     node dist/prisma/seed.js && \
-    node dist/scripts/fix-phase0-burn-onchain.js && \
-    node dist/scripts/fix-phase1-reclaim.js && \
-    node -r tsconfig-paths/register dist/scripts/fix-phase2-distribute.js && \
     node dist/src/main \
 "]

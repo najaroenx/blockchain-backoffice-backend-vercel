@@ -120,6 +120,6 @@ Contract Interface
 
     function updateListingPrice(uint256 listingId, uint256 newPricePerUnit) external;
 
-    function cancelListing(uint256 listingId) external;
+    function delistCoupon(uint256 listingId) external;
 ```
  

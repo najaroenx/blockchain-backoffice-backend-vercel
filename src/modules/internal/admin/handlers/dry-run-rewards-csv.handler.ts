@@ -21,30 +21,30 @@ export class DryRunRewardsCsvHandler {
 
     // ข้าม Header ไป 1 แถว (เริ่ม i = 1)
     for (let i = 1; i < lines.length; i++) {
-        const text = lines[i];
-        if (text.length > DryRunRewardsCsvHandler.MAX_LINE_LENGTH) {
-          throw new BadRequestException(`CSV line ${i + 1} is too long`);
+      const text = lines[i];
+      if (text.length > DryRunRewardsCsvHandler.MAX_LINE_LENGTH) {
+        throw new BadRequestException(`CSV line ${i + 1} is too long`);
+      }
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let j = 0; j < text.length; j++) {
+        const char = text[j];
+        if (char === '"' && text[j + 1] === '"') {
+          current += '"';
+          j++;
+        } else if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
         }
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let j = 0; j < text.length; j++) {
-            const char = text[j];
-            if (char === '"' && text[j + 1] === '"') {
-                current += '"';
-                j++;
-            } else if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                result.push(current);
-                current = '';
-            } else {
-                current += char;
-            }
-        }
-        result.push(current.trim());
-        parsedRows.push(result);
+      }
+      result.push(current.trim());
+      parsedRows.push(result);
     }
 
     return parsedRows;

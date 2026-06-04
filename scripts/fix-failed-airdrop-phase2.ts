@@ -163,28 +163,37 @@ async function main() {
   }
 
   // ── Cleanup: คืน VoucherCode tokenId 32 ที่ผิดกลับ merchant ──
-  // Customer 0819259399 ได้รับ tokenId 32 โดยผิดพลาด และถูก burn on-chain ไปแล้ว
-  // DB record ยังชี้ว่า customer เป็นเจ้าของ — block นี้แก้ไข
-  console.log(divider);
-  console.log('🔧 CLEANUP  tel=0819259399 | returning wrongly-airdropped tokenId 32 VoucherCode to merchant...');
-  const wrongCustomer = await prisma.customer.findUnique({ where: { tel: '0819259399' } });
-  if (wrongCustomer) {
+  // Original airdrop มิ้น tokenId 32 (ผิด) ให้ลูกค้าด้านล่างนี้ทุกคน
+  // แต่ละคนยังมี tokenId 32 VoucherCode ใน DB — block นี้คืนกลับ merchant
+  const WRONG_TOKEN_CLEANUPS = [
+    { tel: '0819259399', wrongTokenId: '32' },
+    { tel: '0628358181', wrongTokenId: '32' },
+  ];
+
+  for (const cleanup of WRONG_TOKEN_CLEANUPS) {
+    console.log(divider);
+    console.log(`🔧 CLEANUP  tel=${cleanup.tel} | returning wrongly-airdropped tokenId ${cleanup.wrongTokenId} VoucherCode to merchant...`);
+    const cleanupCustomer = await prisma.customer.findUnique({ where: { tel: cleanup.tel } });
+    if (!cleanupCustomer) {
+      console.log(`⏭️  CLEANUP SKIP — customer ${cleanup.tel} not found`);
+      continue;
+    }
     const wrongCode = await prisma.voucherCode.findFirst({
       where: {
-        currentOwnerId: wrongCustomer.id,
+        currentOwnerId: cleanupCustomer.id,
         currentOwnerType: 'CUSTOMER',
-        voucher: { tokenId: '32' },
+        voucher: { tokenId: cleanup.wrongTokenId },
       },
       include: { voucher: { select: { merchantId: true } } },
     });
     if (!wrongCode) {
-      console.log('⏭️  CLEANUP SKIP — tokenId 32 VoucherCode already not owned by customer 0819259399');
+      console.log(`⏭️  CLEANUP SKIP — tokenId ${cleanup.wrongTokenId} VoucherCode already not owned by customer ${cleanup.tel}`);
     } else {
       await prisma.voucherCode.update({
         where: { id: wrongCode.id },
         data: { currentOwnerId: wrongCode.voucher.merchantId, currentOwnerType: 'MERCHANT' },
       });
-      console.log(`✅ CLEANUP DONE — VoucherCode ${wrongCode.id} (tokenId 32) returned to merchant ${wrongCode.voucher.merchantId}`);
+      console.log(`✅ CLEANUP DONE — VoucherCode ${wrongCode.id} (tokenId ${cleanup.wrongTokenId}) returned to merchant ${wrongCode.voucher.merchantId}`);
     }
   }
 

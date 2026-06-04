@@ -162,28 +162,35 @@ async function main() {
     }
   }
 
-  // ── Cleanup: คืน VoucherCode tokenId 32 ที่ผิดกลับ merchant ──
-  // Original airdrop มิ้น tokenId 32 (ผิด) ให้ลูกค้าด้านล่างนี้ทุกคน
-  // แต่ละคนยังมี tokenId 32 VoucherCode ใน DB — block นี้คืนกลับ merchant
+  // ── Cleanup: คืน VoucherCode ที่ผิดกลับ merchant ──
+  // ยืนยันจาก staging API response ว่าแต่ละราย wrongTokenId ดังนี้:
+  //   0819259399: tokenId 32 (original bad airdrop)
+  //   0628358181: tokenId 32 (original bad airdrop)
+  //   0909855171: tokenId 32 (safe skip), tokenId 30 (กล่องข้าวน้อย), tokenId 36 (realcoffee 30฿ — มี 3 codes)
+  //   0899612224: tokenId 32 (safe skip), tokenId 36 (realcoffee 30฿)
+  //   0944952886: tokenId 32 (safe skip), tokenId 36 (realcoffee 30฿)
+  // ใช้ findMany เพื่อ clean ทุก code ของ tokenId นั้น (ไม่ใช่แค่ findFirst)
   const WRONG_TOKEN_CLEANUPS = [
     { tel: '0819259399', wrongTokenId: '32' },
     { tel: '0628358181', wrongTokenId: '32' },
-    // 3 รายนี้ได้รับ tokenId 35 (realcoffee) จาก Phase 1 แต่ในสถาพ staging อาจยังมี tokenId 32 เก่าค้างอยู่
-    // cleanup block จะ skip อัตโนมัติถ้าไม่พบ tokenId 32
-    { tel: '0909855171', wrongTokenId: '32' },
-    { tel: '0899612224', wrongTokenId: '32' },
-    { tel: '0944952886', wrongTokenId: '32' },
+    { tel: '0909855171', wrongTokenId: '32' }, // safe skip ถ้าไม่พบ
+    { tel: '0909855171', wrongTokenId: '30' }, // กล่องข้าวน้อย — ยืนยันจาก staging
+    { tel: '0899612224', wrongTokenId: '32' }, // safe skip ถ้าไม่พบ
+    { tel: '0899612224', wrongTokenId: '36' }, // realcoffee 30฿ — ยืนยันจาก staging
+    { tel: '0944952886', wrongTokenId: '32' }, // safe skip ถ้าไม่พบ
+    { tel: '0944952886', wrongTokenId: '36' }, // realcoffee 30฿ — ยืนยันจาก staging
   ];
 
   for (const cleanup of WRONG_TOKEN_CLEANUPS) {
     console.log(divider);
-    console.log(`🔧 CLEANUP  tel=${cleanup.tel} | returning wrongly-airdropped tokenId ${cleanup.wrongTokenId} VoucherCode to merchant...`);
+    console.log(`🔧 CLEANUP  tel=${cleanup.tel} | returning wrongly-airdropped tokenId ${cleanup.wrongTokenId} VoucherCode(s) to merchant...`);
     const cleanupCustomer = await prisma.customer.findUnique({ where: { tel: cleanup.tel } });
     if (!cleanupCustomer) {
       console.log(`⏭️  CLEANUP SKIP — customer ${cleanup.tel} not found`);
       continue;
     }
-    const wrongCode = await prisma.voucherCode.findFirst({
+    // findMany — customer อาจมีหลาย codes ของ tokenId เดียวกัน (เช่น 0909855171 มี 3 codes tokenId 36)
+    const wrongCodes = await prisma.voucherCode.findMany({
       where: {
         currentOwnerId: cleanupCustomer.id,
         currentOwnerType: 'CUSTOMER',
@@ -191,14 +198,16 @@ async function main() {
       },
       include: { voucher: { select: { merchantId: true } } },
     });
-    if (!wrongCode) {
+    if (wrongCodes.length === 0) {
       console.log(`⏭️  CLEANUP SKIP — tokenId ${cleanup.wrongTokenId} VoucherCode already not owned by customer ${cleanup.tel}`);
     } else {
-      await prisma.voucherCode.update({
-        where: { id: wrongCode.id },
-        data: { currentOwnerId: wrongCode.voucher.merchantId, currentOwnerType: 'MERCHANT' },
-      });
-      console.log(`✅ CLEANUP DONE — VoucherCode ${wrongCode.id} (tokenId ${cleanup.wrongTokenId}) returned to merchant ${wrongCode.voucher.merchantId}`);
+      for (const wrongCode of wrongCodes) {
+        await prisma.voucherCode.update({
+          where: { id: wrongCode.id },
+          data: { currentOwnerId: wrongCode.voucher.merchantId, currentOwnerType: 'MERCHANT' },
+        });
+        console.log(`✅ CLEANUP DONE — VoucherCode ${wrongCode.id} (tokenId ${cleanup.wrongTokenId}) returned to merchant ${wrongCode.voucher.merchantId}`);
+      }
     }
   }
 

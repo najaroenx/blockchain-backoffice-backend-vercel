@@ -27,7 +27,6 @@ RUN yarn run build
 
 # Compile standalone TS scripts to JS for runtime execution
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
-RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/fix-failed-airdrop-phase2.ts --outDir dist/scripts
 
 # Stage 3: Install production dependencies only
 FROM node:24-alpine AS prod-deps
@@ -79,6 +78,5 @@ EXPOSE 4000
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
     node dist/prisma/seed.js && \
-    node dist/scripts/fix-failed-airdrop-phase2.js && \
     node dist/src/main \
 "]

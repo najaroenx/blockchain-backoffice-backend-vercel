@@ -162,6 +162,32 @@ async function main() {
     }
   }
 
+  // ── Cleanup: คืน VoucherCode tokenId 32 ที่ผิดกลับ merchant ──
+  // Customer 0819259399 ได้รับ tokenId 32 โดยผิดพลาด และถูก burn on-chain ไปแล้ว
+  // DB record ยังชี้ว่า customer เป็นเจ้าของ — block นี้แก้ไข
+  console.log(divider);
+  console.log('🔧 CLEANUP  tel=0819259399 | returning wrongly-airdropped tokenId 32 VoucherCode to merchant...');
+  const wrongCustomer = await prisma.customer.findUnique({ where: { tel: '0819259399' } });
+  if (wrongCustomer) {
+    const wrongCode = await prisma.voucherCode.findFirst({
+      where: {
+        currentOwnerId: wrongCustomer.id,
+        currentOwnerType: 'CUSTOMER',
+        voucher: { tokenId: '32' },
+      },
+      include: { voucher: { select: { merchantId: true } } },
+    });
+    if (!wrongCode) {
+      console.log('⏭️  CLEANUP SKIP — tokenId 32 VoucherCode already not owned by customer 0819259399');
+    } else {
+      await prisma.voucherCode.update({
+        where: { id: wrongCode.id },
+        data: { currentOwnerId: wrongCode.voucher.merchantId, currentOwnerType: 'MERCHANT' },
+      });
+      console.log(`✅ CLEANUP DONE — VoucherCode ${wrongCode.id} (tokenId 32) returned to merchant ${wrongCode.voucher.merchantId}`);
+    }
+  }
+
   const equalsDivider = '='.repeat(70);
   console.log(`\n${equalsDivider}`);
   console.log(`SUMMARY  ✅ FIXED: ${fixedCount}  ⏭️  SKIPPED: ${skippedCount}  ❌ ERROR: ${errorCount}`);

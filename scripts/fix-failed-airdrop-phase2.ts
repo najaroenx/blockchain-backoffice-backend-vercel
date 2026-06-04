@@ -168,6 +168,11 @@ async function main() {
   const WRONG_TOKEN_CLEANUPS = [
     { tel: '0819259399', wrongTokenId: '32' },
     { tel: '0628358181', wrongTokenId: '32' },
+    // 3 รายนี้ได้รับ tokenId 35 (realcoffee) จาก Phase 1 แต่ในสถาพ staging อาจยังมี tokenId 32 เก่าค้างอยู่
+    // cleanup block จะ skip อัตโนมัติถ้าไม่พบ tokenId 32
+    { tel: '0909855171', wrongTokenId: '32' },
+    { tel: '0899612224', wrongTokenId: '32' },
+    { tel: '0944952886', wrongTokenId: '32' },
   ];
 
   for (const cleanup of WRONG_TOKEN_CLEANUPS) {

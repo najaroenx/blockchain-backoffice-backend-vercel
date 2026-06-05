@@ -1,11 +1,9 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 async function main() {
   console.log("=== Start Phantom Hash Deletion ===");
-  const app = await NestFactory.createApplicationContext(AppModule);
-  const prisma = app.get(PrismaService);
   
   const hash = "1cbde11923290b229a030f1257373d56794ef68f614c93c0620841bc03c996dc";
   const hashBuffer = Buffer.from(hash, 'hex');
@@ -29,7 +27,7 @@ async function main() {
   } catch (error) {
     console.error("Error during deletion:", error);
   } finally {
-    await app.close();
+    await prisma.$disconnect();
   }
 }
 

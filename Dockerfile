@@ -29,7 +29,6 @@ RUN yarn run build
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
 
 # Compile one-off admin scripts
-RUN npx tsc --target ES2021 --module commonjs --experimentalDecorators --emitDecoratorMetadata --skipLibCheck --esModuleInterop --resolveJsonModule --baseUrl ./ --outDir dist/scripts scripts/relist-batches-on-marketplace.ts
 
 # Stage 3: Install production dependencies only
 FROM node:24-alpine AS prod-deps
@@ -81,6 +80,5 @@ EXPOSE 4000
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
     node dist/prisma/seed.js && \
-    node dist/scripts/relist-batches-on-marketplace.js && \
     node dist/src/main \
 "]

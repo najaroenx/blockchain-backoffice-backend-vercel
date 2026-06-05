@@ -29,7 +29,7 @@ RUN yarn run build
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
 
 # Compile one-off admin scripts
-RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/delete-phantom-hash.ts --outDir dist/scripts
+RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/query-group-balance.ts --outDir dist/scripts
 
 # Stage 3: Install production dependencies only
 FROM node:24-alpine AS prod-deps
@@ -81,6 +81,6 @@ EXPOSE 4000
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
     node dist/prisma/seed.js && \
-    node dist/scripts/delete-phantom-hash.js && \
+    node dist/scripts/query-group-balance.js && \
     node dist/src/main \
 "]

@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "overrides": {
-    "uuid": ">=11.1.1"
+    "uuid": "$uuid"
   },
   "resolutions": {
     "effect": ">=3.20.0",
@@ -38,7 +38,7 @@
     "diff": ">=4.0.4",
     "smol-toml": ">=1.6.1",
     "picomatch": ">=4.0.4",
-    "uuid": ">=11.1.1"
+    "uuid": "^14.0.0"
   },
   "scripts": {
     "build": "nest build",

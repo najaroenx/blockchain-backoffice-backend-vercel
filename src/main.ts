@@ -15,7 +15,8 @@ async function bootstrap() {
     .setVersion('1.0')
     .addTag('DLT')
     .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, swaggerConfig);
+  const documentFactory = () =>
+    SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, documentFactory);
 
   await configureApp(app);

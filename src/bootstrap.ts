@@ -12,9 +12,7 @@ import { ResponseInterceptor } from './common/response.interceptor';
  * Security: CORS restricts origins to the CORS_ORIGINS allow-list;
  * wildcard with credentials is explicitly forbidden.
  */
-export async function configureApp(
-  app: NestExpressApplication,
-): Promise<void> {
+export async function configureApp(app: NestExpressApplication): Promise<void> {
   const configService = app.get(ConfigService);
 
   const originsRaw = configService.get<string>('CORS_ORIGINS') ?? '';

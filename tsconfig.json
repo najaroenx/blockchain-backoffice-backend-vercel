@@ -18,7 +18,7 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "resolveJsonModule": true,
-    "types": ["jest", "node"],
+    "types": ["jest", "node", "supertest"],
     "ignoreDeprecations": "5.0"
   }
 }

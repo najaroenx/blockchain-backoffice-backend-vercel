@@ -3,7 +3,14 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "setupFiles": ["<rootDir>/setup-e2e.ts"],
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/../src/$1",
+    "^test/(.*)$": "<rootDir>/$1",
+    "^prisma/(.*)$": "<rootDir>/../prisma/$1"
+  },
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
+    "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/../tsconfig.spec.json" }]
+  },
+  "transformIgnorePatterns": ["node_modules/(?!(uuid|nanoid|@babel/highlight)/)"]
 }

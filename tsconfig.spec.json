@@ -3,8 +3,9 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2021",
+    "allowJs": true,
     "outDir": "./dist/out-tsc",
-    "types": ["jest", "node"],
+    "types": ["jest", "node", "supertest"],
     "sourceMap": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,

@@ -11,7 +11,8 @@ module.exports = {
       },
     ],
   },
-  transformIgnorePatterns: ['node_modules/(?!(nanoid|@babel/highlight)/)'],
+  // uuid >=14 is ESM-only (forced via resolutions) — jest must transform it to CJS
+  transformIgnorePatterns: ['node_modules/(?!(uuid|nanoid|@babel/highlight)/)'],
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
     '^test/(.*)$': '<rootDir>/test/$1',

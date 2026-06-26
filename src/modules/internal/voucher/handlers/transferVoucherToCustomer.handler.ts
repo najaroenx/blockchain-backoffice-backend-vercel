@@ -154,6 +154,7 @@ export class TransferVoucherToCustomerHandler {
                 senderAddress: senderAddressBuffer,
                 receiverAddress: receiverAddressBuffer,
                 merchantId: merchant.id,
+                merchantRef: voucher.merchantRef || null,
                 voucherCodeId: codeId,
                 senderId: merchant.id,
                 receiverId: customer.id,
@@ -176,6 +177,10 @@ export class TransferVoucherToCustomerHandler {
         transferredQuantity: quantity,
         voucherCodeIds: voucherCodeIds,
         transactionIds: result.map((tx) => tx.id),
+        // Design Doc compatibility
+        voucherCodeId: voucherCodeIds[0],
+        code: availableCodes[0]?.code,
+        transactionId: result[0]?.id,
       };
     } catch (error) {
       this.logger.error(

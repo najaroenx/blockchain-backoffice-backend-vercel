@@ -16,8 +16,9 @@ export class ExecuteRewardsCsvHandler {
 
   private parseCsvContent(fileContent: string) {
     const lines = fileContent
-      .split('\n')
-      .filter((l) => l.trim().length > 0)
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
       .slice(0, ExecuteRewardsCsvHandler.MAX_CSV_LINES);
     const parsedRows = [];
 

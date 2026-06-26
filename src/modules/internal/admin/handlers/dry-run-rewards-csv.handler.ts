@@ -10,9 +10,12 @@ export class DryRunRewardsCsvHandler {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  // แกะข้อมูล CSV ทีละบรรทัด (รองรับมีลูกน้ำซ้อนในเครื่องหมายคำพูด)
+  // แกะข้อมูล CSV ทีละบรรทัด (รองรับมีลูกน้ำซ้อนในเครื่องหมายคำพูด และรองรับ Windows CRLF)
   private parseCsvContent(fileContent: string) {
-    const lines = fileContent.split('\n').filter((l) => l.trim().length > 0);
+    const lines = fileContent
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
     if (lines.length > DryRunRewardsCsvHandler.MAX_CSV_LINES) {
       throw new BadRequestException('CSV has too many lines');
     }

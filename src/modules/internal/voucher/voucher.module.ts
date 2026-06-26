@@ -1,4 +1,8 @@
 import { TransferVoucherToCustomerHandler } from './handlers/transferVoucherToCustomer.handler';
+import { BatchTransferVoucherToCustomerHandler } from './handlers/batchTransferVoucherToCustomer.handler';
+import { PreviewBatchTransferCsvHandler } from './handlers/previewBatchTransferCsv.handler';
+import { ExecuteBatchTransferCsvHandler } from './handlers/executeBatchTransferCsv.handler';
+import { GetMarketerTransferHistoryHandler } from './handlers/getMarketerTransferHistory.handler';
 
 import { Module } from '@nestjs/common';
 import { VoucherRepository } from './voucher.repository';
@@ -45,8 +49,12 @@ import { TransactionModule } from '../transaction/transaction.module';
   ],
   controllers: [VoucherController],
   providers: [
+    PreviewBatchTransferCsvHandler,
+    ExecuteBatchTransferCsvHandler,
+    GetMarketerTransferHistoryHandler,
     DelistMarketplaceListingHandler,
     TransferVoucherToCustomerHandler,
+    BatchTransferVoucherToCustomerHandler,
     VoucherDBService,
     VoucherRepository,
     CreateVoucherWithCodes,
@@ -74,7 +82,11 @@ import { TransactionModule } from '../transaction/transaction.module';
     GetMarketplaceListingsByMerchantRef,
   ],
   exports: [
+    PreviewBatchTransferCsvHandler,
+    ExecuteBatchTransferCsvHandler,
+    GetMarketerTransferHistoryHandler,
     TransferVoucherToCustomerHandler,
+    BatchTransferVoucherToCustomerHandler,
     VoucherDBService,
     GetCouponById,
     GetVoucherByLatestCode,

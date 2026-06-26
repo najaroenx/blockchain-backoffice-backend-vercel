@@ -1,4 +1,8 @@
 import { TransferVoucherToCustomerHandler } from '../handlers/transferVoucherToCustomer.handler';
+import { BatchTransferVoucherToCustomerHandler } from '../handlers/batchTransferVoucherToCustomer.handler';
+import { PreviewBatchTransferCsvHandler } from '../handlers/previewBatchTransferCsv.handler';
+import { ExecuteBatchTransferCsvHandler } from '../handlers/executeBatchTransferCsv.handler';
+import { GetMarketerTransferHistoryHandler } from '../handlers/getMarketerTransferHistory.handler';
 import {
   Body,
   Controller,
@@ -10,7 +14,10 @@ import {
   Delete,
   Patch,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { VoucherDBService } from '../services/voucher-db.service';
 import {
@@ -18,7 +25,9 @@ import {
   CreateVoucherDto,
   UpdateVoucherCodesPointCostDto,
   UpdateAllVoucherCodesPointCostDto,
+  TransferVoucherToCustomerDto,
 } from '../dtos';
+import { BatchTransferVoucherDto } from '../dtos/batch-transfer-voucher.dto';
 import { ActivateVoucherDto } from '../dtos/activate-voucher.dto';
 import { BuyCouponFromMarketplaceDto } from '../dtos/buy-coupon-marketplace.dto';
 import { MerchantBuyCouponFromSellerDto } from '../dtos/merchant-buy-coupon.dto';
@@ -61,6 +70,10 @@ export class VoucherController {
     private readonly getCouponByIdHandler: GetCouponById,
     private readonly getVoucherByListingId: GetVoucherByListingId,
     private readonly transferVoucherToCustomerHandler: TransferVoucherToCustomerHandler,
+    private readonly batchTransferVoucherToCustomerHandler: BatchTransferVoucherToCustomerHandler,
+    private readonly previewBatchTransferCsvHandler: PreviewBatchTransferCsvHandler,
+    private readonly executeBatchTransferCsvHandler: ExecuteBatchTransferCsvHandler,
+    private readonly getMarketerTransferHistoryHandler: GetMarketerTransferHistoryHandler,
     private readonly delistMarketplaceListingHandler: DelistMarketplaceListingHandler,
   ) {}
 
@@ -74,6 +87,24 @@ export class VoucherController {
   @HttpCode(200)
   async getActiveVouchers() {
     return this.voucherService.getActiveVouchers();
+  }
+
+  @Get('transfer/batch/history')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Get batch transfer upload history for a merchant' })
+  async getBatchTransferHistory(
+    @Query('merchantId') merchantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    return this.getMarketerTransferHistoryHandler.execute(
+      merchantId,
+      pageNum,
+      limitNum,
+    );
   }
 
   /**
@@ -477,14 +508,57 @@ export class VoucherController {
   @ApiOperation({ summary: 'Transfer voucher directly to customer' })
   async transferVoucher(
     @Body()
-    dto: {
-      merchantId: string;
-      customerPhone: string;
-      voucherId: string;
-      quantity?: number;
-    },
+    dto: TransferVoucherToCustomerDto,
   ) {
     return this.transferVoucherToCustomerHandler.execute(dto);
+  }
+
+  @Post('transfer/batch')
+  @Public()
+  @ApiOperation({
+    summary: 'Transfer multiple vouchers directly to multiple customers',
+  })
+  async transferVouchersBatch(
+    @Body()
+    dto: BatchTransferVoucherDto,
+  ) {
+    return this.batchTransferVoucherToCustomerHandler.execute(dto);
+  }
+
+  @Post('transfer/batch/preview-csv')
+  @Public()
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Upload and preview coupon direct transfers from CSV',
+    description:
+      'พาร์สและตรวจสอบข้อมูลความสอดคล้อง/ความต้องการของลูกค้าและคลังสินค้า เพื่อแสดง Preview และข้อผิดพลาดระดับ Row',
+  })
+  async previewVouchersBatchCsv(
+    @Query('merchantId') queryMerchantId: string,
+    @Body('merchantId') bodyMerchantId: string,
+    @UploadedFile() file: any,
+  ) {
+    const merchantId = queryMerchantId || bodyMerchantId;
+    return this.previewBatchTransferCsvHandler.execute(merchantId, file);
+  }
+
+  @Post('transfer/batch/execute-csv')
+  @Public()
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Upload and execute coupon direct transfers from CSV',
+    description:
+      'พาร์สและดำเนินการโอน NFT คูปองลงบล็อกเชนพร้อมสลับสิทธิ์ข้อมูลในระบบจริง และบันทึกประวัติลงตาราง BatchTransferLog',
+  })
+  async executeVouchersBatchCsv(
+    @Query('merchantId') queryMerchantId: string,
+    @Body('merchantId') bodyMerchantId: string,
+    @UploadedFile() file: any,
+  ) {
+    const merchantId = queryMerchantId || bodyMerchantId;
+    return this.executeBatchTransferCsvHandler.execute(merchantId, file);
   }
 
   @Post('marketplace/delist/:listingId')

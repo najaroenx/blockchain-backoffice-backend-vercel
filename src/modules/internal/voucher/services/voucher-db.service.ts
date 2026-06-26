@@ -1036,6 +1036,14 @@ export class VoucherDBService {
       }
       cleanBase.merchantRef = cleanBase.merchantRef || null;
 
+      // Explicitly surface discount details
+      cleanBase.discountValue = (baseDataObj as any).value;
+      cleanBase.discountType = (baseDataObj as any).valueType;
+
+      // Explicitly surface purchase cost details per code
+      cleanBase.pointsCost = code.pointsCost;
+      cleanBase.thbPrice = code.thbPrice;
+
       const isOwnedByMarketer =
         code.currentOwnerType === 'MERCHANT' &&
         code.currentOwnerId === merchantId;

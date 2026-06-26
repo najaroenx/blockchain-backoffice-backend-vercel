@@ -102,6 +102,7 @@ model Merchant {
   status           Boolean            @default(false)
   walletId         String?            @unique
   wallet           Wallet?            @relation(fields: [walletId], references: [id])
+  batchTransferLogs BatchTransferLog[]
 }
 
 model ApiKey {
@@ -383,5 +384,23 @@ model AisTransferLog {
   @@index([transactionID])
   @@index([msisdn])
   @@index([action])
+  @@index([createdAt])
+}
+
+model BatchTransferLog {
+  id              String   @id @default(cuid())
+  merchantId      String
+  merchant        Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  fileName        String   // เพื่อเก็บชื่อไฟล์หลัก เช่น "rewards_list_june.csv"
+  totalRecords    Int      // จำนวนรายการทั้งหมดในไฟล์ เช่น 100
+  successfulCount Int      // จำนวนโอนสำเร็จ เช่น 98
+  failedCount     Int      // จำนวนโอนล้มเหลว เช่น 2
+  status          String   // "SUCCESS" | "FAILED" | "PARTIAL_FAILED"
+  details         Json?    // เก็บข้อมูลประวัติย้อนหลังเรียงแถวสำเร็จ/ล้มเหลว (JSON Array) เพื่อความสะดวกในการโหลดข้อมูลขึ้น UI ในคิวรี่เดียว
+  technicalLogs   String?  // เก็บ Stack Trace / RPC Error Message แบบ JSON String
+  createdAt       DateTime @default(now()) @map(name: "created_at")
+  updatedAt       DateTime @updatedAt @map(name: "updated_at")
+
+  @@index([merchantId])
   @@index([createdAt])
 }

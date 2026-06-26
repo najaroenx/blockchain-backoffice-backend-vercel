@@ -107,6 +107,58 @@ export class VoucherController {
     );
   }
 
+  @Get('transfer/batch/template-en')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Download English CSV Template for batch transfer' })
+  async downloadTemplateEn() {
+    return {
+      success: true,
+      headers: ['Sequence Number', 'Phone Number', 'Voucher ID', 'Quantity'],
+      exampleRow: [
+        1,
+        '0809760286',
+        'COUPON-95ed24b5-116f-46b7-9072-4b3287acce98',
+        1,
+      ],
+      csvTemplateUrl: '/coupon/transfer/batch/static-template/en',
+    };
+  }
+
+  @Get('transfer/batch/template-th')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Download Thai CSV Template for batch transfer' })
+  async downloadTemplateTh() {
+    return {
+      success: true,
+      headers: ['เลขอ้างอิง', 'เบอร์โทรศัพท์ลูกค้า', 'รหัสคูปอง', 'จำนวน'],
+      exampleRow: [
+        1,
+        '0809760286',
+        'COUPON-95ed24b5-116f-46b7-9072-4b3287acce98',
+        1,
+      ],
+      csvTemplateUrl: '/coupon/transfer/batch/static-template/th',
+    };
+  }
+
+  @Get('transfer/batch/static-template/en')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Static direct download of English CSV template' })
+  async staticTemplateEn() {
+    return 'Sequence Number,Phone Number,Voucher ID,Quantity\n1,0809760286,COUPON-95ed24b5-116f-46b7-9072-4b3287acce98,1\n2,0812345678,COUPON-95ed24b5-116f-46b7-9072-4b3287acce98,2\n3,0855554444,COUPON-6a7b8c9d-1111-2222-3333-444455556666,5\n';
+  }
+
+  @Get('transfer/batch/static-template/th')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Static direct download of Thai CSV template' })
+  async staticTemplateTh() {
+    return 'เลขอ้างอิง,เบอร์โทรศัพท์ลูกค้า,รหัสคูปอง,จำนวน\n1,0809760286,COUPON-95ed24b5-116f-46b7-9072-4b3287acce98,1\n2,0812345678,COUPON-95ed24b5-116f-46b7-9072-4b3287acce98,2\n3,0855554444,COUPON-6a7b8c9d-1111-2222-3333-444455556666,5\n';
+  }
+
   /**
    * Get VoucherValueType enum values
    * GET /coupon/value-types

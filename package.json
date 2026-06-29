@@ -68,7 +68,7 @@
     "@nestjs/core": "^11.1.18",
     "@nestjs/passport": "^11.0.3",
     "@nestjs/platform-express": "^11.1.6",
-    "@nestjs/schedule": "^6.1.0",
+    "@nestjs/schedule": "^6.1.3",
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.19.0",

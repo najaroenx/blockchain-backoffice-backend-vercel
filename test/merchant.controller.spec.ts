@@ -48,12 +48,12 @@ describe('MerchantController', () => {
     controller = module.get<MerchantController>(MerchantController);
   });
 
-  it('getMerchants delegates to handler with userId from request', async () => {
-    const req = { user: { id: 'u1' } } as any;
-    getMerchantsHandler.execute.mockResolvedValue([{ id: 'm1' }]);
-    const result = await controller.getMerchants(req);
-    expect(getMerchantsHandler.execute).toHaveBeenCalledWith('u1');
-    expect(result).toEqual([{ id: 'm1' }]);
+  it('getMerchants delegates to handler.getListMerchants', async () => {
+    const mockResponse = { merchants: [{ id: 'm1' }], counts: 1 };
+    (getMerchantsHandler as any).getListMerchants = jest.fn().mockResolvedValue(mockResponse);
+    const result = await controller.getMerchants();
+    expect((getMerchantsHandler as any).getListMerchants).toHaveBeenCalled();
+    expect(result).toEqual(mockResponse);
   });
 
   it('getAllMerchants delegates to merchantDBService', async () => {

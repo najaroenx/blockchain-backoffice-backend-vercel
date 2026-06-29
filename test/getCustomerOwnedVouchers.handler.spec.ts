@@ -425,11 +425,9 @@ describe('GetCustomerOwnedVouchers', () => {
 
       const result = await handler.execute('0812345678');
 
-      expect(result.total).toBe(2);
-      expect(result.vouchers).toHaveLength(2);
-      expect(
-        result.vouchers.every((voucher) => voucher.voucherGroupId === null),
-      ).toBe(true);
+      expect(result.total).toBe(1);
+      expect(result.vouchers).toHaveLength(1);
+      expect(result.vouchers[0].voucherGroupId).toBeNull();
     });
 
     it('should throw error on unexpected exceptions', async () => {

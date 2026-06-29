@@ -13,10 +13,10 @@ import {
 import { CreateOTP } from './handlers/createOTP.handler';
 import { VerifyOTP } from './handlers/verifyOTP.handler';
 import { ReSendOTP } from './handlers/reSendOTP.handler';
-import { OTPModule } from 'src/providers/otp/otp.module';
+import { OtpModule } from '../otp/otp.module';
 
 @Module({
-  imports: [PrismaModule, OTPModule],
+  imports: [PrismaModule, OtpModule],
   controllers: [TempLinkController],
   providers: [
     TempLinkRepository,

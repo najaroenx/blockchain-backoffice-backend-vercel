@@ -6,15 +6,15 @@
   "private": true,
   "license": "UNLICENSED",
   "overrides": {
-    "uuid": ">=11.1.1"
+    "uuid": "$uuid"
   },
   "resolutions": {
     "effect": ">=3.20.0",
     "qs": ">=6.14.2",
     "tar": ">=7.5.11",
-    "multer": ">=2.1.1",
+    "multer": ">=2.2.0",
     "elliptic": ">=6.6.1",
-    "form-data": ">=4.0.4",
+    "form-data": ">=4.0.6",
     "ws": ">=8.17.1",
     "validator": ">=13.15.22",
     "jws": ">=3.2.3",
@@ -38,7 +38,7 @@
     "diff": ">=4.0.4",
     "smol-toml": ">=1.6.1",
     "picomatch": ">=4.0.4",
-    "uuid": ">=11.1.1"
+    "uuid": "^14.0.0"
   },
   "scripts": {
     "build": "nest build",
@@ -70,6 +70,7 @@
     "@nestjs/platform-express": "^11.1.6",
     "@nestjs/schedule": "^6.1.0",
     "@nestjs/swagger": "^7.4.2",
+    "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.19.0",
     "@types/bcrypt": "^5.0.2",
     "bcrypt": "^5.1.1",
@@ -80,7 +81,7 @@
     "ethers": "^6.15.0",
     "exceljs": "^4.4.0",
     "helmet": "^7.1.0",
-    "joi": "^17.13.3",
+    "joi": "^17.13.4",
     "jsonwebtoken": "^9.0.2",
     "nanoid": "3",
     "passport": "^0.7.0",
@@ -100,6 +101,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^22.10.5",
     "@types/passport-strategy": "^0.2.38",
+    "@types/supertest": "^7.2.0",
     "@typescript-eslint/eslint-plugin": "^8.26.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.42.0",
@@ -110,6 +112,7 @@
     "knip": "^5.83.1",
     "prettier": "^3.0.0",
     "prisma": "^6.19.0",
+    "supertest": "^7.2.2",
     "ts-jest": "^29.4.5",
     "ts-loader": "^9.4.3",
     "ts-node": "^10.9.1",

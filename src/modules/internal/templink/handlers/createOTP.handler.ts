@@ -4,42 +4,43 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { TempLinkDBService } from '../service/templink-db.service';
-import { OTPService } from 'src/providers/otp/otp.service';
+import { OtpService } from 'src/modules/internal/otp/otp.service';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 
 @Injectable()
 export class CreateOTP {
-  private logger = new Logger(CreateOTP.name);
+  private readonly logger = new Logger(CreateOTP.name);
 
   constructor(
-    private tempLinkDBService: TempLinkDBService,
-    private otpService: OTPService,
+    private readonly tempLinkDBService: TempLinkDBService,
+    private readonly otpService: OtpService,
   ) {}
 
   async execute(uid?: string, phoneNumber?: string) {
     try {
-      //   Get temp link by uid
       const tempLink = await this.tempLinkDBService.getTempLinkByUid(uid);
-      this.logger.log(
-        `Executing CreateOTP handler for uid: ${JSON.stringify(tempLink)}`,
-      );
       if (!tempLink) {
         throw new Error(`Temp link with uid ${uid} not found`);
       }
-      // Check if expired
       if (tempLink.expire < new Date()) {
         throw new Error(`URL has expired!`);
       }
       this.logger.log(`Creating OTP for temp link with uid: ${uid}`);
-      tempLink.phoneNumber = phoneNumber;
-      await this.tempLinkDBService.updateTempLink(uid, tempLink);
-      // Send OTP to phone number
-      await this.otpService.sendOTP(phoneNumber, tempLink.otp);
+
+      const otp = this.otpService.generateOtp(6);
+      const hashedOtp = this.otpService.hashOtp(otp);
+
+      await this.tempLinkDBService.updateTempLink(uid, {
+        phoneNumber,
+        otp: hashedOtp,
+      });
+      await this.otpService.sendOtp(phoneNumber, otp);
 
       return {
         success: true,
         message: 'OTP sent successfully',
         phoneNumber: tempLink.phoneNumber,
+        otp: otp, // For testing purposes, return the OTP in the response
       };
     } catch (error) {
       this.logger.error(`Error creating OTP: ${error.message}`, error.stack);

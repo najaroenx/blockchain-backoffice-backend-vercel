@@ -1,6 +1,6 @@
 # System Architecture - Blockchain Voucher Marketplace
 
-## Overview
+## Overview.
 
 This is a three-tier blockchain-based voucher marketplace system that enables:
 - **Sellers** to create and list vouchers for sale to merchants (paid in THB)

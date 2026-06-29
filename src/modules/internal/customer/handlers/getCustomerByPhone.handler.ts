@@ -5,22 +5,22 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
 import { GetCustomerByEmailResponseType } from '../types';
 import { TempLinkDBService } from 'src/modules/internal/templink/service/templink-db.service';
-import { OTPService } from 'src/providers/otp/otp.service';
+import { OtpService } from 'src/modules/internal/otp/otp.service';
 
 @Injectable()
 export class GetCustomerPhone {
-  private logger = new Logger(GetCustomerPhone.name);
+  private readonly logger = new Logger(GetCustomerPhone.name);
 
   constructor(
-    private db: CustomerDBService,
-    private tempLinkDBService: TempLinkDBService,
-    private configService: ConfigService,
-    private otpService: OTPService,
+    private readonly db: CustomerDBService,
+    private readonly tempLinkDBService: TempLinkDBService,
+    private readonly configService: ConfigService,
+    private readonly otpService: OtpService,
   ) {}
 
   async execute(
@@ -29,8 +29,8 @@ export class GetCustomerPhone {
   ): Promise<GetCustomerByEmailResponseType> {
     try {
       const customer = await this.db.getCustomersByPhone(merchantId, phone);
-      const otp = this.otpService.generateOTP(6);
-      this.logger.log(`Generated OTP ${otp} for phone ${phone}`);
+      const otp = this.otpService.generateOtp(6);
+      const hashedOtp = this.otpService.hashOtp(otp);
       if (!customer) {
         const findRequest =
           await this.tempLinkDBService.getTempLinkByPhoneNumber(phone);
@@ -41,8 +41,8 @@ export class GetCustomerPhone {
             const uuid = randomUUID();
             await this.tempLinkDBService.updateTempLink(findRequest.uid, {
               uid: uuid,
-              expire: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
-              otp: otp,
+              expire: new Date(Date.now() + 5 * 60 * 1000),
+              otp: hashedOtp,
             });
             throw new NotFoundException({
               statusCode: 404,
@@ -73,8 +73,8 @@ export class GetCustomerPhone {
           merchantId,
           phoneNumber: phone,
           uid: uuid,
-          otp: otp,
-          expire: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
+          otp: hashedOtp,
+          expire: new Date(Date.now() + 5 * 60 * 1000),
         });
         throw new NotFoundException({
           statusCode: 404,

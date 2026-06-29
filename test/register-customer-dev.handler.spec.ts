@@ -10,7 +10,7 @@ import {
 import { RegisterCustomerDev } from 'src/modules/internal/customer/handlers/registerCustomer.dev.handler';
 import { CustomerDBService } from 'src/modules/internal/customer/services/customer-db.service';
 import { ConfigService } from '@nestjs/config';
-import { OTPService } from 'src/providers/otp/otp.service';
+import { OtpService } from 'src/modules/internal/otp/otp.service';
 import { TempLinkDBService } from 'src/modules/internal/templink/service/templink-db.service';
 import { MerchantDBService } from 'src/modules/internal/merchant/services/merchant-db.service';
 
@@ -25,14 +25,14 @@ describe('RegisterCustomerDev', () => {
   beforeEach(() => {
     db = {};
     configService = { get: jest.fn() };
-    otpService = { generateOTP: jest.fn() };
+    otpService = { generateOtp: jest.fn() };
     tempLinkDBService = { createTempLink: jest.fn() };
     merchantDBService = { getMerchantById: jest.fn() };
 
     handler = new RegisterCustomerDev(
       db as unknown as CustomerDBService,
       configService as unknown as ConfigService,
-      otpService as unknown as OTPService,
+      otpService as unknown as OtpService,
       tempLinkDBService as unknown as TempLinkDBService,
       merchantDBService as unknown as MerchantDBService,
     );
@@ -51,7 +51,7 @@ describe('RegisterCustomerDev', () => {
       id: 'm1',
       name: 'Merchant',
     });
-    otpService.generateOTP.mockReturnValue('123456');
+    otpService.generateOtp.mockReturnValue('123456');
     tempLinkDBService.createTempLink.mockResolvedValue({});
     configService.get.mockReturnValue('https://front.example.com');
 
@@ -66,7 +66,7 @@ describe('RegisterCustomerDev', () => {
 
   it('should use empty string for callback when not provided', async () => {
     merchantDBService.getMerchantById.mockResolvedValue({ id: 'm1' });
-    otpService.generateOTP.mockReturnValue('654321');
+    otpService.generateOtp.mockReturnValue('654321');
     tempLinkDBService.createTempLink.mockResolvedValue({});
     configService.get.mockReturnValue('https://front.example.com');
 
@@ -77,7 +77,7 @@ describe('RegisterCustomerDev', () => {
 
   it('should throw NotFoundException when ConflictException occurs (customer exists)', async () => {
     merchantDBService.getMerchantById.mockResolvedValue({ id: 'm1' });
-    otpService.generateOTP.mockReturnValue('123456');
+    otpService.generateOtp.mockReturnValue('123456');
     tempLinkDBService.createTempLink.mockRejectedValue({
       status: 409,
       message: 'conflict',
@@ -88,7 +88,7 @@ describe('RegisterCustomerDev', () => {
 
   it('should throw InternalServerErrorException on generic error', async () => {
     merchantDBService.getMerchantById.mockResolvedValue({ id: 'm1' });
-    otpService.generateOTP.mockReturnValue('123456');
+    otpService.generateOtp.mockReturnValue('123456');
     tempLinkDBService.createTempLink.mockRejectedValue(new Error('DB error'));
 
     await expect(handler.execute('m1')).rejects.toThrow(

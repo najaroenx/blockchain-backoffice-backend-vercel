@@ -8,9 +8,9 @@ import {
 } from '@nestjs/common';
 import { CustomerDBService } from '../services/customer-db.service';
 import { ConfigService } from '@nestjs/config';
-import { OTPService } from 'src/providers/otp/otp.service';
+import { OtpService } from 'src/modules/internal/otp/otp.service';
 import { TempLinkDBService } from 'src/modules/internal/templink/service/templink-db.service';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { MerchantDBService } from 'src/modules/internal/merchant/services/merchant-db.service';
 
 export interface RegistrationResponse {
@@ -27,7 +27,7 @@ export class RegisterCustomerDev {
   constructor(
     private readonly db: CustomerDBService,
     private readonly configService: ConfigService,
-    private readonly otpService: OTPService,
+    private readonly otpService: OtpService,
     private readonly tempLinkDBService: TempLinkDBService,
     private readonly merchantDBService: MerchantDBService,
   ) {}
@@ -71,7 +71,7 @@ export class RegisterCustomerDev {
   private generateAndLogOTP(phone: string): string {
     this.logger.log('[RegisterCustomerDev:L80] Generating OTP');
 
-    const otp = this.otpService.generateOTP(6);
+    const otp = this.otpService.generateOtp(6);
 
     this.logger.log(
       `[RegisterCustomerDev:L84] Generated OTP for phone ${phone}`,

@@ -2,10 +2,14 @@ jest.mock('prisma/prisma.service', () => ({
   PrismaService: jest.fn(),
 }));
 jest.mock('src/libs/derive-wallet', () => ({
-  getSignerFromSeedPhrase: jest.fn().mockReturnValue({ privateKey: '0xMerchantKey' }),
+  getSignerFromSeedPhrase: jest
+    .fn()
+    .mockReturnValue({ privateKey: '0xMerchantKey' }),
 }));
 jest.mock('src/libs/convertBufferToAddress', () => ({
-  convertBufferToAddress: jest.fn((buf) => '0x' + Buffer.from(buf || []).toString('hex')),
+  convertBufferToAddress: jest.fn(
+    (buf) => '0x' + Buffer.from(buf || []).toString('hex'),
+  ),
 }));
 
 import {
@@ -86,7 +90,10 @@ describe('TransferVoucherToCustomerHandler', () => {
     });
 
     it('should throw NotFoundException when merchant has no wallet', async () => {
-      prisma.merchant.findUnique.mockResolvedValue({ id: 'merchant-1', wallet: null });
+      prisma.merchant.findUnique.mockResolvedValue({
+        id: 'merchant-1',
+        wallet: null,
+      });
 
       await expect(handler.execute(dto)).rejects.toThrow(NotFoundException);
     });
@@ -182,7 +189,11 @@ describe('TransferVoucherToCustomerHandler', () => {
     });
 
     it('should use default quantity of 1 when not provided', async () => {
-      const dtoNoQty = { merchantId: 'merchant-1', customerPhone: '0812345678', voucherId: 'voucher-1' };
+      const dtoNoQty = {
+        merchantId: 'merchant-1',
+        customerPhone: '0812345678',
+        voucherId: 'voucher-1',
+      };
       prisma.$queryRawUnsafe.mockResolvedValue([{ id: 'code-1', code: 'X' }]);
       prisma.transaction.create.mockResolvedValueOnce({ id: 'tx-1' });
 
@@ -215,7 +226,9 @@ describe('TransferVoucherToCustomerHandler', () => {
     });
 
     it('should re-throw NotFoundException from inner calls', async () => {
-      prisma.merchant.findUnique.mockRejectedValue(new NotFoundException('not found'));
+      prisma.merchant.findUnique.mockRejectedValue(
+        new NotFoundException('not found'),
+      );
 
       await expect(handler.execute(dto)).rejects.toThrow(NotFoundException);
     });

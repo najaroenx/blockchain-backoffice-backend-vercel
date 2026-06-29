@@ -2,7 +2,9 @@ jest.mock('prisma/prisma.service', () => ({
   PrismaService: jest.fn(),
 }));
 jest.mock('src/libs/derive-wallet', () => ({
-  getSignerFromSeedPhrase: jest.fn().mockReturnValue({ privateKey: '0xMerchantKey' }),
+  getSignerFromSeedPhrase: jest
+    .fn()
+    .mockReturnValue({ privateKey: '0xMerchantKey' }),
 }));
 
 import { BadRequestException } from '@nestjs/common';

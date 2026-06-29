@@ -96,7 +96,10 @@ describe('OtpService (modules/internal/otp)', () => {
 
       const result = await service.sendOtp(phone, otp);
 
-      expect(result).toEqual({ success: true, message: 'OTP sent successfully' });
+      expect(result).toEqual({
+        success: true,
+        message: 'OTP sent successfully',
+      });
       expect(global.fetch).toHaveBeenCalledWith(
         'https://sms.example.com/send',
         expect.objectContaining({ method: 'POST' }),
@@ -112,9 +115,8 @@ describe('OtpService (modules/internal/otp)', () => {
       await service.sendOtp(phone, otp);
 
       const headers = (global.fetch as jest.Mock).mock.calls[0][1].headers;
-      const expectedCredentials = Buffer.from('smsuser:smspass').toString(
-        'base64',
-      );
+      const expectedCredentials =
+        Buffer.from('smsuser:smspass').toString('base64');
       expect(headers.Authorization).toBe(`Basic ${expectedCredentials}`);
     });
 

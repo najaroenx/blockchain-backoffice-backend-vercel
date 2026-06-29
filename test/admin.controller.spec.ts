@@ -9,6 +9,8 @@ import { ResetCustomerPointBalances } from 'src/modules/internal/admin/handlers/
 import { ResetVoucherTokenIds } from 'src/modules/internal/admin/handlers/reset-voucher-token-ids.handler';
 import { UpdatePointContractAddress } from 'src/modules/internal/admin/handlers/update-point-contract-address.handler';
 import { DeleteVoucherCascade } from 'src/modules/internal/admin/handlers/delete-voucher-cascade.handler';
+import { DryRunRewardsCsvHandler } from 'src/modules/internal/admin/handlers/dry-run-rewards-csv.handler';
+import { ExecuteRewardsCsvHandler } from 'src/modules/internal/admin/handlers/execute-rewards-csv.handler';
 import { describe } from 'node:test';
 
 describe('AdminController', () => {
@@ -22,6 +24,8 @@ describe('AdminController', () => {
   let resetVoucherTokenIdsHandler: jest.Mocked<ResetVoucherTokenIds>;
   let updatePointContractAddressHandler: jest.Mocked<UpdatePointContractAddress>;
   let deleteVoucherCascadeHandler: jest.Mocked<DeleteVoucherCascade>;
+  let dryRunRewardsCsvHandler: jest.Mocked<DryRunRewardsCsvHandler>;
+  let executeRewardsCsvHandler: jest.Mocked<ExecuteRewardsCsvHandler>;
 
   beforeEach(() => {
     mintHandler = { execute: jest.fn() } as any;
@@ -33,6 +37,8 @@ describe('AdminController', () => {
     resetVoucherTokenIdsHandler = { execute: jest.fn() } as any;
     updatePointContractAddressHandler = { execute: jest.fn() } as any;
     deleteVoucherCascadeHandler = { execute: jest.fn() } as any;
+    dryRunRewardsCsvHandler = { execute: jest.fn() } as any;
+    executeRewardsCsvHandler = { execute: jest.fn() } as any;
 
     controller = new AdminController(
       mintHandler,
@@ -44,6 +50,8 @@ describe('AdminController', () => {
       resetCustomerPointBalancesHandler,
       resetVoucherTokenIdsHandler,
       updatePointContractAddressHandler,
+      dryRunRewardsCsvHandler,
+      executeRewardsCsvHandler,
     );
   });
 

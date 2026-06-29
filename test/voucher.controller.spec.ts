@@ -13,6 +13,12 @@ import { GetListingBatchDetailHandler } from '../src/modules/internal/voucher/ha
 import { GetMarketplaceListingsEndUser } from '../src/modules/internal/voucher/handlers/getMarketplaceListtingEnduser.handler';
 import { GetCouponById } from '../src/modules/internal/voucher/handlers/getCouponById.handler';
 import { GetVoucherByListingId } from '../src/modules/internal/voucher/handlers/getVoucherByListingId.handler';
+import { TransferVoucherToCustomerHandler } from '../src/modules/internal/voucher/handlers/transferVoucherToCustomer.handler';
+import { BatchTransferVoucherToCustomerHandler } from '../src/modules/internal/voucher/handlers/batchTransferVoucherToCustomer.handler';
+import { PreviewBatchTransferCsvHandler } from '../src/modules/internal/voucher/handlers/previewBatchTransferCsv.handler';
+import { ExecuteBatchTransferCsvHandler } from '../src/modules/internal/voucher/handlers/executeBatchTransferCsv.handler';
+import { GetMarketerTransferHistoryHandler } from '../src/modules/internal/voucher/handlers/getMarketerTransferHistory.handler';
+import { DelistMarketplaceListingHandler } from '../src/modules/internal/voucher/handlers/delistMarketplaceListing.handler';
 
 describe('VoucherController', () => {
   let controller: VoucherController;
@@ -74,6 +80,30 @@ describe('VoucherController', () => {
     execute: jest.fn(),
   };
 
+  const mockTransferVoucherToCustomerHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockBatchTransferVoucherToCustomerHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockPreviewBatchTransferCsvHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockExecuteBatchTransferCsvHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockGetMarketerTransferHistoryHandler = {
+    execute: jest.fn(),
+  };
+
+  const mockDelistMarketplaceListingHandler = {
+    execute: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [VoucherController],
@@ -125,6 +155,30 @@ describe('VoucherController', () => {
         {
           provide: GetVoucherByListingId,
           useValue: mockGetVoucherByListingId,
+        },
+        {
+          provide: TransferVoucherToCustomerHandler,
+          useValue: mockTransferVoucherToCustomerHandler,
+        },
+        {
+          provide: BatchTransferVoucherToCustomerHandler,
+          useValue: mockBatchTransferVoucherToCustomerHandler,
+        },
+        {
+          provide: PreviewBatchTransferCsvHandler,
+          useValue: mockPreviewBatchTransferCsvHandler,
+        },
+        {
+          provide: ExecuteBatchTransferCsvHandler,
+          useValue: mockExecuteBatchTransferCsvHandler,
+        },
+        {
+          provide: GetMarketerTransferHistoryHandler,
+          useValue: mockGetMarketerTransferHistoryHandler,
+        },
+        {
+          provide: DelistMarketplaceListingHandler,
+          useValue: mockDelistMarketplaceListingHandler,
         },
       ],
     }).compile();

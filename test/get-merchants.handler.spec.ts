@@ -75,13 +75,22 @@ describe('GetMerchants', () => {
 
   describe('getListMerchants', () => {
     it('should return all merchants', async () => {
-      const mockMerchants = [{ id: 'm-1' }, { id: 'm-2' }];
-      dbService.getAllMerchants.mockResolvedValue(mockMerchants as any);
+      const mockDbResult = {
+        merchants: [
+          { id: 'm-1', wallet: { walletAddress: '0x1' }, tel: '081' },
+          { id: 'm-2', wallet: null, tel: '082' },
+        ],
+      };
+      dbService.getAllMerchants.mockResolvedValue(mockDbResult as any);
 
       const result = await handler.getListMerchants();
 
       expect(dbService.getAllMerchants).toHaveBeenCalledWith({});
-      expect(result).toEqual(mockMerchants);
+      expect(result.merchants).toHaveLength(2);
+      expect(result.merchants[0].walletAddress).toBe('0x1');
+      expect(result.merchants[0].phoneNumber).toBe('081');
+      expect(result.merchants[1].walletAddress).toBe('');
+      expect(result.counts).toBe(2);
     });
 
     it('should throw InternalServerErrorException on error', async () => {

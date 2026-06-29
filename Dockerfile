@@ -1,7 +1,8 @@
 # Stage 1: Install all dependencies for build
 FROM node:24-alpine AS deps
 
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat \
+    && npm install -g yarn@1.22.22 --force
 
 WORKDIR /app
 
@@ -12,7 +13,8 @@ RUN yarn install --frozen-lockfile --production=false
 # Stage 2: Build the NestJS app
 FROM node:24-alpine AS builder
 
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat \
+    && npm install -g yarn@1.22.22 --force
 
 WORKDIR /app
 
@@ -33,7 +35,8 @@ RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop p
 # Stage 3: Install production dependencies only
 FROM node:24-alpine AS prod-deps
 
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat \
+    && npm install -g yarn@1.22.22 --force
 
 WORKDIR /app
 

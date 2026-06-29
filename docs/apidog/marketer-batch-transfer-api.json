@@ -1,0 +1,574 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Marketer Coupon Batch Transfer API",
+    "version": "1.0.0",
+    "description": "API endpoints for Marketer/Merchant to perform batch transfer of coupon vouchers to multiple customers using CSV file upload, preview, and tracking transfer history."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development"
+    }
+  ],
+  "paths": {
+    "/coupon/transfer/batch/preview-csv": {
+      "post": {
+        "tags": ["Voucher Batch Transfer"],
+        "summary": "Preview and check coupon batch transfers from CSV",
+        "description": "Parses and validates the uploaded CSV file. Validates customer phone registration, active wallet existence, voucher existence, blockchain tokenId configuration, and checks total stock availability to display cumulative row-level preview and error logs. Does not perform on-chain transfers.",
+        "operationId": "previewVouchersBatchCsv",
+        "parameters": [
+          {
+            "name": "merchantId",
+            "in": "query",
+            "required": true,
+            "description": "The unique ID of the merchant initiating the transfer",
+            "schema": {
+              "type": "string",
+              "example": "cmmxc3v760003ze01xotjyeot"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV file (Columns: phone, couponId/voucherId, qty/amount/quantity)"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "CSV file successfully parsed and validated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvPreviewResponseDto"
+                },
+                "examples": {
+                  "validationSuccess": {
+                    "summary": "Completely Valid CSV File",
+                    "value": {
+                      "isValidAll": true,
+                      "summary": {
+                        "totalRowsProcessed": 2,
+                        "validRowsCount": 2,
+                        "invalidRowsCount": 0,
+                        "totalQuantity": 3
+                      },
+                      "details": [
+                        {
+                          "line": 2,
+                          "customerPhone": "0809760286",
+                          "voucherId": "COUPON-95ed24b5-116f-46b7-9072-4b3287acce98",
+                          "quantity": 1,
+                          "isValid": true,
+                          "errors": []
+                        },
+                        {
+                          "line": 3,
+                          "customerPhone": "0812345678",
+                          "voucherId": "COUPON-95ed24b5-116f-46b7-9072-4b3287acce98",
+                          "quantity": 2,
+                          "isValid": true,
+                          "errors": []
+                        }
+                      ]
+                    }
+                  },
+                  "validationFailed": {
+                    "summary": "Validation Failed Rows Found",
+                    "value": {
+                      "isValidAll": false,
+                      "summary": {
+                        "totalRowsProcessed": 3,
+                        "validRowsCount": 1,
+                        "invalidRowsCount": 2,
+                        "totalQuantity": 13
+                      },
+                      "details": [
+                        {
+                          "line": 2,
+                          "customerPhone": "0809760286",
+                          "voucherId": "COUPON-95ed24b5-116f-46b7-9072-4b3287acce98",
+                          "quantity": 1,
+                          "isValid": true,
+                          "errors": []
+                        },
+                        {
+                          "line": 3,
+                          "customerPhone": "0899999999",
+                          "voucherId": "COUPON-95ed24b5-116f-46b7-9072-4b3287acce98",
+                          "quantity": 2,
+                          "isValid": false,
+                          "errors": [
+                            "Customer phone number '0899999999' is unregistered"
+                          ]
+                        },
+                        {
+                          "line": 4,
+                          "customerPhone": "0809760286",
+                          "voucherId": "COUPON-95ed24b5-116f-46b7-9072-4b3287acce98",
+                          "quantity": 10,
+                          "isValid": false,
+                          "errors": [
+                            "Insufficient voucher code stock! Line requested 10 (cumulative: 11), but merchant only holds 5 codes"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Input, Missing Merchant ID or bad CSV format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingFile": {
+                    "value": {
+                      "statusCode": 400,
+                      "message": "CSV file is required",
+                      "error": "Bad Request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "merchantNotFound": {
+                    "value": {
+                      "statusCode": 404,
+                      "message": "Merchant with ID cmmxc3v760003ze01xotjyeot not found",
+                      "error": "Not Found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coupon/transfer/batch/execute-csv": {
+      "post": {
+        "tags": ["Voucher Batch Transfer"],
+        "summary": "Upload and execute coupon batch transfers from CSV",
+        "description": "Parses and sequentially executes on-chain voucher transfers from the CSV file. Each row triggers a blockchain smart contract transfer of ERC-1155 coupon NFTs, updates current code ownership, records a detailed Transaction entry, and creates a BatchTransferLog database history record with status summaries.",
+        "operationId": "executeVouchersBatchCsv",
+        "parameters": [
+          {
+            "name": "merchantId",
+            "in": "query",
+            "required": true,
+            "description": "The unique ID of the merchant initiating the transfer",
+            "schema": {
+              "type": "string",
+              "example": "cmmxc3v760003ze01xotjyeot"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV file (Columns: phone, couponId/voucherId, qty/amount/quantity)"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Batch transfer execution process finished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchTransferExecutionResponseDto"
+                },
+                "examples": {
+                  "executionComplete": {
+                    "summary": "Finished Batch execution",
+                    "value": {
+                      "message": "Batch transfer process finished",
+                      "totalProcessed": 2,
+                      "successful": 1,
+                      "failed": 1,
+                      "batchJobId": "ec1c4e7e-07c8-47fb-ba8d-19446dce1cfa",
+                      "results": [
+                        {
+                          "seqNo": 1,
+                          "phone": "0809760286",
+                          "couponId": "COUPON-95ed24b5-116f-46b7-9072-4b3287acce98",
+                          "quantity": 1,
+                          "status": "SUCCESS",
+                          "transactionHash": "0xf5b511c63b82aec76bb51b51ec7a14953fe15eae7cd3e937953c...",
+                          "voucherCodeId": "cmnd3cvkw001v2s01mua16s69"
+                        },
+                        {
+                          "seqNo": 2,
+                          "phone": "0899999999",
+                          "couponId": "COUPON-bbfe2514-998f-4aa7-c011-1249bcf281cc",
+                          "quantity": 2,
+                          "status": "FAILED",
+                          "error": "Customer phone number '0899999999' is unregistered"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Safety limits violated or bad CSV formatting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "limitExceeded": {
+                    "value": {
+                      "statusCode": 400,
+                      "message": "Batch transfer via CSV has a strict limit of 50 transfers per file to prevent timeout. Please split your file.",
+                      "error": "Bad Request"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coupon/transfer/batch/history": {
+      "get": {
+        "tags": ["Voucher Batch Transfer"],
+        "summary": "Get batch transfer history for a merchant",
+        "description": "Retrieves the historical log list of batch transfer jobs initiated by the merchant, featuring originally uploaded file names, statuses, transfer success/fail ratios, date timestamps, and the detailed breakdown per CSV line.",
+        "operationId": "getBatchTransferHistory",
+        "parameters": [
+          {
+            "name": "merchantId",
+            "in": "query",
+            "required": true,
+            "description": "The unique ID of the merchant",
+            "schema": {
+              "type": "string",
+              "example": "cmmxc3v760003ze01xotjyeot"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Page number (defaults to 1)",
+            "schema": {
+              "type": "string",
+              "example": "1"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Log records shown per page (defaults to 10)",
+            "schema": {
+              "type": "string",
+              "example": "10"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved historical log pages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchTransferHistoryResponseDto"
+                },
+                "examples": {
+                  "historySummary": {
+                    "value": {
+                      "summary": {
+                        "page": 1,
+                        "limit": 10,
+                        "totalRecords": 1
+                      },
+                      "history": [
+                        {
+                          "batchJobId": "ec1c4e7e-07c8-47fb-ba8d-19446dce1cfa",
+                          "fileName": "AIS_Campaign_Special_June_2026.csv",
+                          "status": "PARTIAL_FAILED",
+                          "totalRecords": 2,
+                          "successfulCount": 1,
+                          "failedCount": 1,
+                          "createdAt": "2026-06-26T10:30:15.000Z",
+                          "details": [
+                            {
+                              "seqNo": 1,
+                              "phone": "0809760286",
+                              "couponId": "COUPON-95ed24b5-116f-46b7-9072-4b3287acce98",
+                              "quantity": 1,
+                              "status": "SUCCESS",
+                              "transactionHash": "0xf5b511c63b82aec76bb51b51ec7a14953fe15eae7cd3e937953c...",
+                              "voucherCodeId": "cmnd3cvkw001v2s01mua16s69"
+                            },
+                            {
+                              "seqNo": 2,
+                              "phone": "0899999999",
+                              "couponId": "COUPON-bbfe2514-998f-4aa7-c011-1249bcf281cc",
+                              "quantity": 2,
+                              "status": "FAILED",
+                              "error": "Customer phone number '0899999999' is unregistered"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coupon/transfer/batch/template-en": {
+      "get": {
+        "tags": ["Voucher Batch Transfer Templates"],
+        "summary": "Download English CSV Template Specs",
+        "description": "Returns standard English header structures, direct mock rows, and download endpoints for the merchant team.",
+        "operationId": "downloadTemplateEn",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved specification data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "headers": { "type": "array", "items": { "type": "string" } },
+                    "exampleRow": { "type": "array", "items": { "type": "string" } },
+                    "csvTemplateUrl": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coupon/transfer/batch/template-th": {
+      "get": {
+        "tags": ["Voucher Batch Transfer Templates"],
+        "summary": "Download Thai CSV Template Specs",
+        "description": "Returns standard Thai header structures, direct mock rows, and download endpoints for the merchant team.",
+        "operationId": "downloadTemplateTh",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved specification data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "headers": { "type": "array", "items": { "type": "string" } },
+                    "exampleRow": { "type": "array", "items": { "type": "string" } },
+                    "csvTemplateUrl": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coupon/transfer/batch/static-template/en": {
+      "get": {
+        "tags": ["Voucher Batch Transfer Templates"],
+        "summary": "Download static English template file (CSV)",
+        "description": "Returns a pure CSV stream formatted in English for direct client-side spreadsheet population.",
+        "operationId": "staticTemplateEn",
+        "responses": {
+          "200": {
+            "description": "Successful stream download",
+            "content": {
+              "text/csv": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coupon/transfer/batch/static-template/th": {
+      "get": {
+        "tags": ["Voucher Batch Transfer Templates"],
+        "summary": "Download static Thai template file (CSV)",
+        "description": "Returns a pure CSV stream formatted in Thai for direct client-side spreadsheet population.",
+        "operationId": "staticTemplateTh",
+        "responses": {
+          "200": {
+            "description": "Successful stream download",
+            "content": {
+              "text/csv": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CsvPreviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "isValidAll": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "totalRowsProcessed": { "type": "integer" },
+              "validRowsCount": { "type": "integer" },
+              "invalidRowsCount": { "type": "integer" },
+              "totalQuantity": { "type": "integer" }
+            }
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CsvPreviewRowResult"
+            }
+          }
+        }
+      },
+      "CsvPreviewRowResult": {
+        "type": "object",
+        "properties": {
+          "seqNo": { "type": "integer" },
+          "customerPhone": { "type": "string" },
+          "voucherId": { "type": "string" },
+          "quantity": { "type": "integer" },
+          "isValid": { "type": "boolean" },
+          "errors": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "BatchTransferExecutionResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" },
+          "totalProcessed": { "type": "integer" },
+          "successful": { "type": "integer" },
+          "failed": { "type": "integer" },
+          "batchJobId": { "type": "string", "format": "uuid" },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchTransferTaskResult"
+            }
+          }
+        }
+      },
+      "BatchTransferTaskResult": {
+        "type": "object",
+        "properties": {
+          "seqNo": { "type": "integer" },
+          "phone": { "type": "string" },
+          "couponId": { "type": "string" },
+          "quantity": { "type": "integer" },
+          "status": { "type": "string", "enum": ["SUCCESS", "FAILED"] },
+          "transactionHash": { "type": "string", "nullable": true },
+          "voucherCodeId": { "type": "string", "nullable": true },
+          "error": { "type": "string", "nullable": true }
+        }
+      },
+      "BatchTransferHistoryResponseDto": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "object",
+            "properties": {
+              "page": { "type": "integer" },
+              "limit": { "type": "integer" },
+              "totalRecords": { "type": "integer" }
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchTransferHistoryItem"
+            }
+          }
+        }
+      },
+      "BatchTransferHistoryItem": {
+        "type": "object",
+        "properties": {
+          "batchJobId": { "type": "string", "format": "uuid" },
+          "fileName": { "type": "string" },
+          "status": { "type": "string", "enum": ["SUCCESS", "FAILED", "PARTIAL_FAILED"] },
+          "totalRecords": { "type": "integer" },
+          "successfulCount": { "type": "integer" },
+          "failedCount": { "type": "integer" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchTransferTaskResult"
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer" },
+          "message": { "type": "string" },
+          "error": { "type": "string" }
+        }
+      }
+    }
+  }
+}

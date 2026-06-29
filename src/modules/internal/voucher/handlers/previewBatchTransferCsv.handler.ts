@@ -16,7 +16,7 @@ export interface UploadedCsvFile {
 }
 
 export interface CsvPreviewRowResult {
-  line: number;
+  seqNo: number;
   customerPhone: string;
   voucherId: string;
   quantity: number;
@@ -269,7 +269,9 @@ export class PreviewBatchTransferCsvHandler {
     let validRowsCount = 0;
     let invalidRowsCount = 0;
 
-    for (const row of dataRows) {
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+      const seqNo = i + 1;
       const errors: string[] = [];
 
       // A. Validations for customers
@@ -320,7 +322,7 @@ export class PreviewBatchTransferCsvHandler {
         }
       }
 
-      const rowIsValid = errors.length === 0;
+            const rowIsValid = errors.length === 0;
       if (rowIsValid) {
         validRowsCount++;
       } else {
@@ -329,7 +331,7 @@ export class PreviewBatchTransferCsvHandler {
       }
 
       details.push({
-        line: row.lineNum,
+        seqNo,
         customerPhone: row.customerPhone,
         voucherId: row.voucherId,
         quantity: isNaN(row.quantity) ? 0 : row.quantity,

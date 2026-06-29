@@ -71,6 +71,7 @@ describe('PreviewBatchTransferCsvHandler', () => {
     expect(response.summary.validRowsCount).toBe(1);
     expect(response.summary.invalidRowsCount).toBe(0);
     expect(response.summary.totalQuantity).toBe(2);
+    expect(response.details[0].seqNo).toBe(1);
     expect(response.details[0].isValid).toBe(true);
     expect(response.details[0].errors).toHaveLength(0);
   });

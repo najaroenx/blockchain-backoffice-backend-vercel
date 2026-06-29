@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { TempLinkDBService } from '../service/templink-db.service';
-import { OTPService } from 'src/providers/otp/otp.service';
+import { OtpService } from 'src/modules/internal/otp/otp.service';
 
 @Injectable()
 export class ReSendOTP {
@@ -14,12 +14,12 @@ export class ReSendOTP {
 
   constructor(
     private readonly tempLinkDBService: TempLinkDBService,
-    private readonly otpService: OTPService,
+    private readonly otpService: OtpService,
   ) {}
 
   async execute(uid: string) {
     try {
-      this.logger.log(`[ReSendOTP:L22] Resending OTP for uid: ${uid}`);
+      this.logger.log(`Resending OTP for uid: ${uid}`);
 
       // Get temp link by uid
       const tempLink = await this.tempLinkDBService.getTempLinkByUid(uid);
@@ -50,43 +50,28 @@ export class ReSendOTP {
         });
       }
 
-      this.logger.log(
-        `[ReSendOTP:L55] Generating new OTP for phone: ${tempLink.phoneNumber}`,
-      );
-
-      // Generate new OTP
-      const newOtp = this.otpService.generateOTP(6);
-
-      // Update temp link with new OTP and extend expiry
+      const newOtp = this.otpService.generateOtp(6);
+      const hashedOtp = this.otpService.hashOtp(newOtp);
       const newExpiry = new Date(
         Date.now() + this.OTP_EXPIRY_MINUTES * 60 * 1000,
       );
 
       await this.tempLinkDBService.updateTempLink(uid, {
-        otp: newOtp,
+        otp: hashedOtp,
         expire: newExpiry,
       });
 
-      this.logger.log(`[ReSendOTP:L72] Updated temp link with new OTP`);
-
-      // Send OTP to phone number
-      await this.otpService.sendOTP(tempLink.phoneNumber, newOtp);
-
-      this.logger.log(
-        `[ReSendOTP:L78] OTP resent successfully to ${tempLink.phoneNumber}`,
-      );
+      await this.otpService.sendOtp(tempLink.phoneNumber, newOtp);
 
       return {
         success: true,
         message: 'OTP resent successfully',
         phoneNumber: tempLink.phoneNumber,
         expiresAt: newExpiry,
+        otp: newOtp, // For testing purposes, return the OTP in the response
       };
     } catch (error) {
-      this.logger.error(
-        `[ReSendOTP:L89] Error resending OTP: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Error resending OTP: ${error.message}`, error.stack);
 
       if (
         error instanceof NotFoundException ||

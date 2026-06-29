@@ -1,16 +1,18 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { PrismaModule } from 'prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { configSchema } from './configSchema';
 import { TokenModule } from './providers/token/token.module';
 import { AdmdModule } from './providers/admd/admd.module';
 import { CustomAuthGuard } from './modules/internal/auth/custom-auth.guard';
-import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { InternalModule } from './modules/internal/internal.module';
 import { ExternalModule } from './modules/external/external.module';
 import { SharedModule } from './modules/shared/shared.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -18,12 +20,13 @@ import { SharedModule } from './modules/shared/shared.module';
       validationSchema: configSchema,
     }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     PrismaModule,
     TokenModule,
-    AdmdModule, // ADMD OAuth provider (global)
+    AdmdModule,
     SharedModule,
-    InternalModule, // Internal-facing APIs for backoffice
-    ExternalModule, // External-facing APIs for integration
+    InternalModule,
+    ExternalModule,
   ],
   controllers: [],
   providers: [

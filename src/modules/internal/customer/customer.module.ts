@@ -13,7 +13,7 @@ import { GetCustomerPhone } from './handlers/getCustomerByPhone.handler';
 import { PrismaModule } from 'prisma/prisma.module';
 import { TempLinkModule } from '../templink/templink.module';
 import { GetCustomerListDev } from './handlers/getCustomerListDev.handler';
-import { OTPService } from 'src/providers/otp/otp.service';
+import { OtpModule } from '../otp/otp.module';
 import { GetCustomerPhoneDevForResp } from './handlers/getCustomerPhoneDevForResp.handler';
 import { RegisterCustomerDev } from './handlers/registerCustomer.dev.handler';
 import { GetCustomerPoints } from './handlers/getCustomerPoints.handler';
@@ -26,6 +26,7 @@ import { ClearCustomerByPhone } from './handlers/clearCustomerByPhone.handler';
     PrismaModule,
     TempLinkModule,
     MerchantModule,
+    OtpModule,
   ],
   controllers: [CustomerController],
   providers: [
@@ -39,7 +40,6 @@ import { ClearCustomerByPhone } from './handlers/clearCustomerByPhone.handler';
     CreateCustomer,
     GetCustomerPhone,
     GetCustomerListDev,
-    OTPService,
     GetCustomerPhoneDevForResp,
     RegisterCustomerDev,
     GetCustomerPoints,

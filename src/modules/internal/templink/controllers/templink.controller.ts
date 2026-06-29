@@ -34,6 +34,7 @@ import {
   SendOtpDto,
 } from '../dtos';
 import { Public } from 'src/modules/internal/auth/public.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('TempLink')
 @Controller('templink')
@@ -114,6 +115,7 @@ export class TempLinkController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('/send-otp')
   @HttpCode(201)
   @ApiOperation({
@@ -130,6 +132,7 @@ export class TempLinkController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('/verify-otp')
   @HttpCode(200)
   @ApiOperation({
@@ -152,6 +155,7 @@ export class TempLinkController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('/resend-otp')
   @HttpCode(200)
   @ApiOperation({

@@ -8,14 +8,14 @@ import {
 import { GetCustomerPhone } from 'src/modules/internal/customer/handlers/getCustomerByPhone.handler';
 import { CustomerDBService } from 'src/modules/internal/customer/services/customer-db.service';
 import { TempLinkDBService } from 'src/modules/internal/templink/service/templink-db.service';
-import { OTPService } from 'src/providers/otp/otp.service';
+import { OtpService } from 'src/modules/internal/otp/otp.service';
 
 describe('GetCustomerPhone', () => {
   let handler: GetCustomerPhone;
   let db: jest.Mocked<CustomerDBService>;
   let tempLinkDB: jest.Mocked<TempLinkDBService>;
   let configService: any;
-  let otpService: jest.Mocked<OTPService>;
+  let otpService: jest.Mocked<OtpService>;
 
   const mockCustomerWithWallet = {
     id: 'customer-1',
@@ -53,7 +53,8 @@ describe('GetCustomerPhone', () => {
       get: jest.fn().mockReturnValue('http://localhost:3000'),
     };
     otpService = {
-      generateOTP: jest.fn().mockReturnValue('123456'),
+      generateOtp: jest.fn().mockReturnValue('123456'),
+      hashOtp: jest.fn().mockReturnValue('hashed_123456'),
     } as any;
     handler = new GetCustomerPhone(db, tempLinkDB, configService, otpService);
     jest.clearAllMocks();

@@ -4,19 +4,19 @@ jest.mock('prisma/prisma.service', () => ({
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ReSendOTP } from 'src/modules/internal/templink/handlers/reSendOTP.handler';
 import { TempLinkDBService } from 'src/modules/internal/templink/service/templink-db.service';
-import { OTPService } from 'src/providers/otp/otp.service';
+import { OtpService } from 'src/modules/internal/otp/otp.service';
 
 describe('ReSendOTP', () => {
   let handler: ReSendOTP;
   let tempLinkDB: jest.Mocked<TempLinkDBService>;
-  let otpService: jest.Mocked<OTPService>;
+  let otpService: jest.Mocked<OtpService>;
 
   const mockTempLink = {
     id: 'tl-1',
     uid: 'uid-abc',
     phoneNumber: '0812345678',
     merchantId: 'merchant-1',
-    otp: '123456',
+    otp: 'hashed_otp',
     expire: new Date(Date.now() + 86400000),
   };
 
@@ -26,8 +26,11 @@ describe('ReSendOTP', () => {
       updateTempLink: jest.fn(),
     } as any;
     otpService = {
-      generateOTP: jest.fn().mockReturnValue('654321'),
-      sendOTP: jest.fn(),
+      generateOtp: jest.fn().mockReturnValue('654321'),
+      hashOtp: jest.fn().mockReturnValue('hashed_654321'),
+      sendOtp: jest
+        .fn()
+        .mockResolvedValue({ success: true, message: 'OTP sent successfully' }),
     } as any;
     handler = new ReSendOTP(tempLinkDB, otpService);
     jest.clearAllMocks();
@@ -36,19 +39,23 @@ describe('ReSendOTP', () => {
   it('should resend OTP successfully', async () => {
     tempLinkDB.getTempLinkByUid.mockResolvedValue(mockTempLink as any);
     tempLinkDB.updateTempLink.mockResolvedValue(mockTempLink as any);
-    otpService.sendOTP.mockResolvedValue(undefined);
+    otpService.sendOtp.mockResolvedValue({
+      success: true,
+      message: 'OTP sent successfully',
+    });
 
     const result = await handler.execute('uid-abc');
 
-    expect(otpService.generateOTP).toHaveBeenCalledWith(6);
+    expect(otpService.generateOtp).toHaveBeenCalledWith(6);
+    expect(otpService.hashOtp).toHaveBeenCalledWith('654321');
     expect(tempLinkDB.updateTempLink).toHaveBeenCalledWith(
       'uid-abc',
       expect.objectContaining({
-        otp: '654321',
+        otp: 'hashed_654321',
         expire: expect.any(Date),
       }),
     );
-    expect(otpService.sendOTP).toHaveBeenCalledWith('0812345678', '654321');
+    expect(otpService.sendOtp).toHaveBeenCalledWith('0812345678', '654321');
     expect(result.success).toBe(true);
     expect(result.message).toBe('OTP resent successfully');
   });
@@ -85,7 +92,7 @@ describe('ReSendOTP', () => {
   it('should throw BadRequestException on send failure', async () => {
     tempLinkDB.getTempLinkByUid.mockResolvedValue(mockTempLink as any);
     tempLinkDB.updateTempLink.mockResolvedValue(mockTempLink as any);
-    otpService.sendOTP.mockRejectedValue(new Error('SMS failed'));
+    otpService.sendOtp.mockRejectedValue(new Error('SMS failed'));
 
     await expect(handler.execute('uid-abc')).rejects.toThrow(
       BadRequestException,

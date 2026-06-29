@@ -45,7 +45,8 @@ describe('DeleteVoucherCascade', () => {
 
     expect(result).toEqual({
       success: true,
-      message: 'Transaction, voucherCode, and voucher data deleted successfully',
+      message:
+        'Transaction, voucherCode, and voucher data deleted successfully',
       ...mockTxResult,
     });
     expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
@@ -86,7 +87,9 @@ describe('DeleteVoucherCascade', () => {
   it('should throw InternalServerErrorException on error', async () => {
     mockPrisma.$transaction.mockRejectedValue(new Error('DB error'));
 
-    await expect(handler.execute()).rejects.toThrow(InternalServerErrorException);
+    await expect(handler.execute()).rejects.toThrow(
+      InternalServerErrorException,
+    );
   });
 
   it('should return zero counts when tables are empty', async () => {

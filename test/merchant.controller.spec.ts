@@ -50,7 +50,9 @@ describe('MerchantController', () => {
 
   it('getMerchants delegates to handler.getListMerchants', async () => {
     const mockResponse = { merchants: [{ id: 'm1' }], counts: 1 };
-    (getMerchantsHandler as any).getListMerchants = jest.fn().mockResolvedValue(mockResponse);
+    (getMerchantsHandler as any).getListMerchants = jest
+      .fn()
+      .mockResolvedValue(mockResponse);
     const result = await controller.getMerchants();
     expect((getMerchantsHandler as any).getListMerchants).toHaveBeenCalled();
     expect(result).toEqual(mockResponse);

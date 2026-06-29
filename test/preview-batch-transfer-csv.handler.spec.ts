@@ -244,4 +244,33 @@ describe('PreviewBatchTransferCsvHandler', () => {
       BadRequestException,
     );
   });
+
+  it('should ignore completely empty or blank template lines at the end of the CSV', async () => {
+    prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+    prisma.customer.findMany.mockResolvedValue([mockCustomer]);
+    prisma.voucher.findMany.mockResolvedValue([mockVoucher]);
+    prisma.voucherCode.groupBy.mockResolvedValue([
+      {
+        voucherId: 'voucher-1',
+        _count: { id: 5 },
+      },
+    ]);
+
+    const csvContent = 'phone,voucherId,qty\n0812345678,voucher-1,2\n,,\n';
+    const mockFile: UploadedCsvFile = {
+      fieldname: 'file',
+      originalname: 'transfer.csv',
+      encoding: '7bit',
+      mimetype: 'text/csv',
+      buffer: Buffer.from(csvContent, 'utf-8'),
+      size: csvContent.length,
+    };
+
+    const response = await handler.execute('merchant-1', mockFile);
+
+    expect(response.isValidAll).toBe(true);
+    expect(response.summary.totalRowsProcessed).toBe(1);
+    expect(response.details).toHaveLength(1);
+    expect(response.details[0].seqNo).toBe(1);
+  });
 });

@@ -28,7 +28,7 @@ RUN npx prisma generate
 RUN yarn run build
 
 # Compile standalone TS scripts to JS for runtime execution
-RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts prisma/create-batch-transfer-log-table.ts --outDir dist/prisma
+RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
 
 # Compile one-off admin scripts
 
@@ -82,7 +82,6 @@ EXPOSE 4000
 # PROD MODE (migrate + seed + start)
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
-    node dist/prisma/create-batch-transfer-log-table.js && \
     node dist/prisma/seed.js && \
     node dist/src/main \
 "]

@@ -1,4 +1,8 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt, createHash, timingSafeEqual } from 'crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
@@ -31,7 +35,10 @@ export class OtpService {
   compareOtp(storedHash: string, provided: string): boolean {
     const hashedProvided = this.hashOtp(provided);
     if (storedHash.length !== hashedProvided.length) return false;
-    return timingSafeEqual(Buffer.from(storedHash), Buffer.from(hashedProvided));
+    return timingSafeEqual(
+      Buffer.from(storedHash),
+      Buffer.from(hashedProvided),
+    );
   }
 
   async sendOtp(

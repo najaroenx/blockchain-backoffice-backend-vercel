@@ -39,7 +39,10 @@ describe('VerifyOTP', () => {
 
     const result = await handler.execute('0812345678', '123456');
 
-    expect(otpService.compareOtp).toHaveBeenCalledWith('hashed_123456', '123456');
+    expect(otpService.compareOtp).toHaveBeenCalledWith(
+      'hashed_123456',
+      '123456',
+    );
     expect(result.uid).toBe('uid-abc');
     expect(result.phoneNumber).toBe('0812345678');
     expect(result.merchantId).toBe('merchant-1');

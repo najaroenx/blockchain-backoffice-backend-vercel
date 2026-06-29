@@ -30,7 +30,9 @@ describe('CreateOTP', () => {
     otpService = {
       generateOtp: jest.fn().mockReturnValue('123456'),
       hashOtp: jest.fn().mockReturnValue('hashed_123456'),
-      sendOtp: jest.fn().mockResolvedValue({ success: true, message: 'OTP sent successfully' }),
+      sendOtp: jest
+        .fn()
+        .mockResolvedValue({ success: true, message: 'OTP sent successfully' }),
     } as any;
     handler = new CreateOTP(tempLinkDB, otpService);
     jest.clearAllMocks();
@@ -41,7 +43,10 @@ describe('CreateOTP', () => {
     otpService.hashOtp.mockReturnValue('hashed_123456');
     tempLinkDB.getTempLinkByUid.mockResolvedValue(mockTempLink as any);
     tempLinkDB.updateTempLink.mockResolvedValue(mockTempLink as any);
-    otpService.sendOtp.mockResolvedValue({ success: true, message: 'OTP sent successfully' });
+    otpService.sendOtp.mockResolvedValue({
+      success: true,
+      message: 'OTP sent successfully',
+    });
 
     const result = await handler.execute('uid-abc', '0899999999');
 

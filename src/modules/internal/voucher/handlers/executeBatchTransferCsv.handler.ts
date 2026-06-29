@@ -182,19 +182,22 @@ export class ExecuteBatchTransferCsvHandler {
     const { phoneIdx, voucherIdx, qtyIdx } =
       this.resolveColumnMapping(headerRow);
 
-    const dataRows = parsedLines.slice(1).map((item) => {
-      const customerPhone = item.columns[phoneIdx] || '';
-      const voucherId = item.columns[voucherIdx] || '';
-      const qtyStr = item.columns[qtyIdx] || '1';
-      const quantity = parseInt(qtyStr, 10);
+    const dataRows = parsedLines
+      .slice(1)
+      .map((item) => {
+        const customerPhone = (item.columns[phoneIdx] || '').trim();
+        const voucherId = (item.columns[voucherIdx] || '').trim();
+        const qtyStr = (item.columns[qtyIdx] || '1').trim();
+        const quantity = parseInt(qtyStr, 10);
 
-      return {
-        lineNum: item.lineNum,
-        customerPhone,
-        voucherId,
-        quantity,
-      };
-    });
+        return {
+          lineNum: item.lineNum,
+          customerPhone,
+          voucherId,
+          quantity,
+        };
+      })
+      .filter((row) => row.customerPhone !== '' || row.voucherId !== '');
 
     if (dataRows.length > ExecuteBatchTransferCsvHandler.SAFE_TRANSFER_LIMIT) {
       throw new BadRequestException(

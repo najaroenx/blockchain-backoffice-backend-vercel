@@ -201,19 +201,22 @@ export class PreviewBatchTransferCsvHandler {
       this.resolveColumnMapping(headerRow);
 
     // Map rows starting from index 1 (headers skipped)
-    const dataRows = parsedLines.slice(1).map((item) => {
-      const customerPhone = item.columns[phoneIdx] || '';
-      const voucherId = item.columns[voucherIdx] || '';
-      const qtyStr = item.columns[qtyIdx] || '1';
-      const quantity = parseInt(qtyStr, 10);
+    const dataRows = parsedLines
+      .slice(1)
+      .map((item) => {
+        const customerPhone = (item.columns[phoneIdx] || '').trim();
+        const voucherId = (item.columns[voucherIdx] || '').trim();
+        const qtyStr = (item.columns[qtyIdx] || '1').trim();
+        const quantity = parseInt(qtyStr, 10);
 
-      return {
-        lineNum: item.lineNum,
-        customerPhone,
-        voucherId,
-        quantity,
-      };
-    });
+        return {
+          lineNum: item.lineNum,
+          customerPhone,
+          voucherId,
+          quantity,
+        };
+      })
+      .filter((row) => row.customerPhone !== '' || row.voucherId !== '');
 
     // 1. Gather all phone numbers and fetch from DB in bulk
     const uniquePhones = [
@@ -322,7 +325,7 @@ export class PreviewBatchTransferCsvHandler {
         }
       }
 
-            const rowIsValid = errors.length === 0;
+      const rowIsValid = errors.length === 0;
       if (rowIsValid) {
         validRowsCount++;
       } else {

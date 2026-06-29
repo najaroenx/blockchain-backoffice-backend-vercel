@@ -44,6 +44,18 @@ export class BatchTransferVoucherToCustomerHandler {
   async execute(dto: BatchTransferVoucherDto) {
     const { merchantId, transfers } = dto;
     const batchJobId = randomUUID();
+
+    if (!Array.isArray(transfers)) {
+      throw new BadRequestException('transfers must be an array');
+    }
+
+    const MAX_BATCH_TRANSFERS = 1000;
+    if (transfers.length > MAX_BATCH_TRANSFERS) {
+      throw new BadRequestException(
+        `transfers exceeds maximum allowed size of ${MAX_BATCH_TRANSFERS}`,
+      );
+    }
+
     this.logger.log(
       `[BatchJob ${batchJobId}] Starting batch transfer process for merchant ${merchantId} with ${transfers.length} transfers`,
     );

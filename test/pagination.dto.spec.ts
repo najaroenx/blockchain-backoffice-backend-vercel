@@ -78,7 +78,9 @@ describe('Pagination and Filter DTOs', () => {
       });
 
       expect(validateSync(validDto)).toHaveLength(0);
-      expect(validateSync(invalidDto).some((error) => error.property === 'name')).toBe(true);
+      expect(
+        validateSync(invalidDto).some((error) => error.property === 'name'),
+      ).toBe(true);
     });
   });
 

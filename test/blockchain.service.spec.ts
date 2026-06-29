@@ -153,4 +153,274 @@ describe('BlockchainService (Simple)', () => {
       BadRequestException,
     );
   });
+
+  it('getBalance should return formatted balance', async () => {
+    const ethersModule = jest.requireMock('ethers');
+    ethersModule.Contract.mockImplementationOnce(() => ({
+      balanceOf: jest.fn().mockResolvedValue(BigInt(5000000000000000000)),
+    }));
+
+    const result = await service.getBalance({
+      walletAddress: '0xUser',
+      pointAddress: '0xPoint',
+    });
+
+    expect(result).toHaveProperty('balance');
+    expect(result).toHaveProperty('balanceWei');
+  });
+
+  it('getVoucherBalance should return numeric balance', async () => {
+    const ethersModule = jest.requireMock('ethers');
+    ethersModule.Contract.mockImplementationOnce(() => ({
+      balanceOf: jest.fn().mockResolvedValue(BigInt(3)),
+    }));
+
+    const configFull = {
+      get: jest.fn((key: string) => {
+        const map: Record<string, string> = {
+          POINT_FACTORY_ADDRESS: '0xFactory',
+          PRIVATE_KEY: '0xPrivate',
+          RPC_URL: 'http://localhost:8545',
+          MARKETPLACE_ADDRESS: '0xMarketplace',
+          COUPON_ADDRESS: '0xCoupon',
+          THB_ADDRESS: '0xTHB',
+          VAULT_ADDRESS: '0xVault',
+        };
+        return map[key];
+      }),
+    } as any;
+    const svc = new BlockchainService(configFull);
+    const result = await svc.getVoucherBalance('42', '0xUser');
+
+    expect(result).toBe(3);
+  });
+
+  it('verifyVoucherOwnership should return true when balance > 0', async () => {
+    const ethersModule = jest.requireMock('ethers');
+    ethersModule.Contract.mockImplementationOnce(() => ({
+      balanceOf: jest.fn().mockResolvedValue(BigInt(1)),
+    }));
+
+    const configFull = {
+      get: jest.fn((key: string) => {
+        const map: Record<string, string> = {
+          POINT_FACTORY_ADDRESS: '0xFactory',
+          PRIVATE_KEY: '0xPrivate',
+          RPC_URL: 'http://localhost:8545',
+          MARKETPLACE_ADDRESS: '0xMarketplace',
+          COUPON_ADDRESS: '0xCoupon',
+          THB_ADDRESS: '0xTHB',
+          VAULT_ADDRESS: '0xVault',
+        };
+        return map[key];
+      }),
+    } as any;
+    const svc = new BlockchainService(configFull);
+    const result = await svc.verifyVoucherOwnership('42', '0xUser');
+
+    expect(result).toBe(true);
+  });
+
+  it('verifyVoucherOwnership should return false when balance is 0', async () => {
+    const ethersModule = jest.requireMock('ethers');
+    ethersModule.Contract.mockImplementationOnce(() => ({
+      balanceOf: jest.fn().mockResolvedValue(BigInt(0)),
+    }));
+
+    const configFull = {
+      get: jest.fn((key: string) => {
+        const map: Record<string, string> = {
+          POINT_FACTORY_ADDRESS: '0xFactory',
+          PRIVATE_KEY: '0xPrivate',
+          RPC_URL: 'http://localhost:8545',
+          MARKETPLACE_ADDRESS: '0xMarketplace',
+          COUPON_ADDRESS: '0xCoupon',
+          THB_ADDRESS: '0xTHB',
+          VAULT_ADDRESS: '0xVault',
+        };
+        return map[key];
+      }),
+    } as any;
+    const svc = new BlockchainService(configFull);
+    const result = await svc.verifyVoucherOwnership('42', '0xUser');
+
+    expect(result).toBe(false);
+  });
+
+  it('verifyVoucherOwnership should return false on error', async () => {
+    // service has no COUPON_ADDRESS — getVoucherBalance throws before creating any Contract
+    // verifyVoucherOwnership must catch that and return false
+    const result = await service.verifyVoucherOwnership('42', '0xUser');
+
+    expect(result).toBe(false);
+  });
+
+  it('getUserTHBBalance should return balance info', async () => {
+    const ethersModule = jest.requireMock('ethers');
+    ethersModule.Contract.mockImplementationOnce(() => ({
+      balanceOf: jest.fn().mockResolvedValue(BigInt(100)),
+    }));
+
+    const configWithTHB = {
+      get: jest.fn((key: string) => {
+        const map: Record<string, string> = {
+          POINT_FACTORY_ADDRESS: '0xFactory',
+          PRIVATE_KEY: '0xPrivate',
+          RPC_URL: 'http://localhost:8545',
+          MARKETPLACE_ADDRESS: '0xMarketplace',
+          THB_ADDRESS: '0xTHB',
+          COUPON_ADDRESS: '0xCoupon',
+          VAULT_ADDRESS: '0xVault',
+        };
+        return map[key];
+      }),
+    } as any;
+    const svc = new BlockchainService(configWithTHB);
+
+    const result = await svc.getUserTHBBalance('0xUser');
+
+    expect(result).toHaveProperty('address', '0xUser');
+    expect(result).toHaveProperty('balance');
+    expect(result).toHaveProperty('balanceWei');
+  });
+
+  it('getUserCouponBalance should return coupon balance', async () => {
+    const ethersModule = jest.requireMock('ethers');
+    ethersModule.Contract.mockImplementationOnce(() => ({
+      balanceOf: jest.fn().mockResolvedValue(BigInt(5)),
+    }));
+
+    const configWithCoupon = {
+      get: jest.fn((key: string) => {
+        const map: Record<string, string> = {
+          POINT_FACTORY_ADDRESS: '0xFactory',
+          PRIVATE_KEY: '0xPrivate',
+          RPC_URL: 'http://localhost:8545',
+          MARKETPLACE_ADDRESS: '0xMarketplace',
+          COUPON_ADDRESS: '0xCoupon',
+          THB_ADDRESS: '0xTHB',
+          VAULT_ADDRESS: '0xVault',
+        };
+        return map[key];
+      }),
+    } as any;
+    const svc = new BlockchainService(configWithCoupon);
+
+    const result = await svc.getUserCouponBalance('0xUser', 1);
+
+    expect(result).toMatchObject({ address: '0xUser', typeId: '1' });
+  });
+
+  it('getUserCouponBalanceBatch should return map of typeId to balance', async () => {
+    const ethersModule = jest.requireMock('ethers');
+    const mockContract = {
+      balanceOf: jest.fn(),
+      balanceOfBatch: jest.fn().mockResolvedValue([BigInt(3), BigInt(7)]),
+    };
+    ethersModule.Contract.mockImplementationOnce(() => mockContract);
+
+    const configWithCoupon = {
+      get: jest.fn((key: string) => {
+        const map: Record<string, string> = {
+          POINT_FACTORY_ADDRESS: '0xFactory',
+          PRIVATE_KEY: '0xPrivate',
+          RPC_URL: 'http://localhost:8545',
+          MARKETPLACE_ADDRESS: '0xMarketplace',
+          COUPON_ADDRESS: '0xCoupon',
+          THB_ADDRESS: '0xTHB',
+          VAULT_ADDRESS: '0xVault',
+        };
+        return map[key];
+      }),
+    } as any;
+    const svc = new BlockchainService(configWithCoupon);
+
+    const result = await svc.getUserCouponBalanceBatch('0xUser', [1, 2]);
+
+    expect(result.get('1')).toBe(3);
+    expect(result.get('2')).toBe(7);
+  });
+
+  it('invalidateListingsCache should clear the cache', () => {
+    (service as any).listingsCache = {
+      data: [{ listingId: '1' }],
+      timestamp: Date.now(),
+    };
+    service.invalidateListingsCache();
+
+    expect((service as any).listingsCache).toBeNull();
+  });
+
+  it('invalidateListingsCache should not throw when cache is already null', () => {
+    (service as any).listingsCache = null;
+    expect(() => service.invalidateListingsCache()).not.toThrow();
+  });
+
+  it('getAllActiveMarketplaceListings should return cached data within TTL', async () => {
+    const cachedData = [{ listingId: '1', seller: '0xSeller' }];
+    (service as any).listingsCache = {
+      data: cachedData,
+      timestamp: Date.now(),
+    };
+
+    const result = await service.getAllActiveMarketplaceListings();
+
+    expect(result).toBe(cachedData);
+  });
+
+  it('buyVoucherFromMarketplace should throw InternalServerErrorException (deprecated)', async () => {
+    await expect(
+      service.buyVoucherFromMarketplace('tokenId', '0xBuyer', 100),
+    ).rejects.toThrow(InternalServerErrorException);
+  });
+
+  it('normalizeListingId should throw BadRequestException for negative number', async () => {
+    await expect(service.getMarketplaceListing(-1 as any)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('normalizeListingId should throw BadRequestException for empty string', async () => {
+    await expect(service.getMarketplaceListing('')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('transferCoupon should call safeTransferFrom and return tx hash', async () => {
+    const mockTxHash = '0xTransferHash';
+    const ethersModule = jest.requireMock('ethers');
+    ethersModule.Contract.mockImplementation(() => ({
+      safeTransferFrom: jest.fn().mockResolvedValue({
+        hash: mockTxHash,
+        wait: jest.fn().mockResolvedValue({}),
+      }),
+      connect: jest.fn().mockReturnThis(),
+    }));
+
+    const configFull = {
+      get: jest.fn((key: string) => {
+        const map: Record<string, string> = {
+          POINT_FACTORY_ADDRESS: '0xFactory',
+          PRIVATE_KEY: '0xPrivate',
+          RPC_URL: 'http://localhost:8545',
+          MARKETPLACE_ADDRESS: '0xMarketplace',
+          COUPON_ADDRESS: '0xCoupon',
+          THB_ADDRESS: '0xTHB',
+          VAULT_ADDRESS: '0xVault',
+        };
+        return map[key];
+      }),
+    } as any;
+    const svc = new BlockchainService(configFull);
+
+    const result = await svc.transferCoupon(
+      1,
+      2,
+      '0xFrom',
+      '0xTo',
+      '0xPrivateKey',
+    );
+
+    expect(result).toBe(mockTxHash);
+  });
 });

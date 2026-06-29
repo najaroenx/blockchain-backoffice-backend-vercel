@@ -32,7 +32,9 @@ describe('GetMarketerTransferHistoryHandler', () => {
   it('should throw NotFoundException when merchant not found', async () => {
     prisma.merchant.findUnique.mockResolvedValue(null);
 
-    await expect(handler.execute(merchantId)).rejects.toThrow(NotFoundException);
+    await expect(handler.execute(merchantId)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should return paginated transfer history', async () => {

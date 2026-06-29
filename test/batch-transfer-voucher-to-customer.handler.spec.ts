@@ -2,7 +2,9 @@ jest.mock('prisma/prisma.service', () => ({
   PrismaService: jest.fn(),
 }));
 jest.mock('src/libs/derive-wallet', () => ({
-  getSignerFromSeedPhrase: jest.fn().mockReturnValue({ privateKey: '0xMerchantKey' }),
+  getSignerFromSeedPhrase: jest
+    .fn()
+    .mockReturnValue({ privateKey: '0xMerchantKey' }),
 }));
 
 import {
@@ -102,7 +104,10 @@ describe('BatchTransferVoucherToCustomerHandler', () => {
     });
 
     it('should throw NotFoundException when merchant has no wallet', async () => {
-      prisma.merchant.findUnique.mockResolvedValue({ id: merchantId, wallet: null });
+      prisma.merchant.findUnique.mockResolvedValue({
+        id: merchantId,
+        wallet: null,
+      });
 
       await expect(
         handler.execute({ merchantId, transfers: validTransfers }),
@@ -197,7 +202,10 @@ describe('BatchTransferVoucherToCustomerHandler', () => {
     });
 
     it('should return batch result with success', async () => {
-      const result = await handler.execute({ merchantId, transfers: validTransfers });
+      const result = await handler.execute({
+        merchantId,
+        transfers: validTransfers,
+      });
 
       expect(result.successful).toBe(1);
       expect(result.failed).toBe(0);
@@ -207,7 +215,10 @@ describe('BatchTransferVoucherToCustomerHandler', () => {
     });
 
     it('should return batchJobId as UUID', async () => {
-      const result = await handler.execute({ merchantId, transfers: validTransfers });
+      const result = await handler.execute({
+        merchantId,
+        transfers: validTransfers,
+      });
 
       expect(result.batchJobId).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
@@ -219,7 +230,10 @@ describe('BatchTransferVoucherToCustomerHandler', () => {
         new Error('TX reverted'),
       );
 
-      const result = await handler.execute({ merchantId, transfers: validTransfers });
+      const result = await handler.execute({
+        merchantId,
+        transfers: validTransfers,
+      });
 
       expect(result.failed).toBe(1);
       expect(result.successful).toBe(0);
@@ -245,7 +259,9 @@ describe('BatchTransferVoucherToCustomerHandler', () => {
 
   describe('error handling', () => {
     it('should throw InternalServerErrorException on unexpected errors', async () => {
-      prisma.merchant.findUnique.mockRejectedValue(new Error('DB connection lost'));
+      prisma.merchant.findUnique.mockRejectedValue(
+        new Error('DB connection lost'),
+      );
 
       await expect(
         handler.execute({ merchantId, transfers: validTransfers }),

@@ -1089,7 +1089,7 @@ export class VoucherDBService {
     }
 
     const result = Array.from(groupedMap.values()).map((g) => ({
-      ...g.baseData,
+      voucher: g.baseData,
       status: g.status,
       totalIssued: g.totalIssued,
       availableCount: g.availableCount,

@@ -181,6 +181,7 @@ export class TransferVoucherToCustomerHandler {
         voucherCodeId: voucherCodeIds[0],
         code: availableCodes[0]?.code,
         transactionId: result[0]?.id,
+        voucher: voucher,
       };
     } catch (error) {
       this.logger.error(

@@ -583,7 +583,13 @@ describe('BlockchainService - calculateExpiryTimestamp', () => {
 
   it('throws when neither endDate nor expiryMonths provided', () => {
     expect(() =>
-      (svc as any).calculateExpiryTimestamp(now, now, undefined, undefined, undefined),
+      (svc as any).calculateExpiryTimestamp(
+        now,
+        now,
+        undefined,
+        undefined,
+        undefined,
+      ),
     ).toThrow('Either endDate or expiryMonths must be provided');
   });
 });
@@ -896,7 +902,7 @@ describe('BlockchainService - redeemVoucher', () => {
 
   it('throws InternalServerErrorException when no coupon address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, COUPON_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, COUPON_ADDRESS: '' })[k]),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.redeemVoucher('1', 1, '0xOwner')).rejects.toThrow(
@@ -955,12 +961,16 @@ describe('BlockchainService - getVoucherData', () => {
     const cfg = {
       get: jest.fn(
         (k: string) =>
-          ({ ...FULL_CONFIG, VOUCHER_CONTRACT_ADDRESS: '0xVoucher' }[k]),
+          ({ ...FULL_CONFIG, VOUCHER_CONTRACT_ADDRESS: '0xVoucher' })[k],
       ),
     } as any;
     const svc = new BlockchainService(cfg);
     const result = await svc.getVoucherData('42');
-    expect(result).toEqual({ tokenId: '42', redeemCode: 'CODE123', isRedeemed: false });
+    expect(result).toEqual({
+      tokenId: '42',
+      redeemCode: 'CODE123',
+      isRedeemed: false,
+    });
   });
 });
 
@@ -994,13 +1004,15 @@ describe('BlockchainService - mintVoucher', () => {
       logs: [{ address: '0xVoucher' }],
     };
     mockEthers.Contract.mockImplementationOnce(() => ({
-      mint: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      mint: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
       interface: mockInterface,
     }));
     const cfg = {
       get: jest.fn(
         (k: string) =>
-          ({ ...FULL_CONFIG, VOUCHER_CONTRACT_ADDRESS: '0xVoucher' }[k]),
+          ({ ...FULL_CONFIG, VOUCHER_CONTRACT_ADDRESS: '0xVoucher' })[k],
       ),
     } as any;
     const svc = new BlockchainService(cfg);
@@ -1018,13 +1030,15 @@ describe('BlockchainService - mintVoucher', () => {
       logs: [{}],
     };
     mockEthers.Contract.mockImplementationOnce(() => ({
-      mint: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      mint: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
       interface: mockInterface,
     }));
     const cfg = {
       get: jest.fn(
         (k: string) =>
-          ({ ...FULL_CONFIG, VOUCHER_CONTRACT_ADDRESS: '0xVoucher' }[k]),
+          ({ ...FULL_CONFIG, VOUCHER_CONTRACT_ADDRESS: '0xVoucher' })[k],
       ),
     } as any;
     const svc = new BlockchainService(cfg);
@@ -1053,12 +1067,14 @@ describe('BlockchainService - batchMintVouchers', () => {
   it('batch mints successfully', async () => {
     const receipt = { hash: '0xBatchHash', blockNumber: 7 };
     mockEthers.Contract.mockImplementationOnce(() => ({
-      batchMint: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      batchMint: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
     }));
     const cfg = {
       get: jest.fn(
         (k: string) =>
-          ({ ...FULL_CONFIG, VOUCHER_CONTRACT_ADDRESS: '0xVoucher' }[k]),
+          ({ ...FULL_CONFIG, VOUCHER_CONTRACT_ADDRESS: '0xVoucher' })[k],
       ),
     } as any;
     const svc = new BlockchainService(cfg);
@@ -1079,7 +1095,7 @@ describe('BlockchainService - createCouponType', () => {
 
   it('throws when no coupon address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, COUPON_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, COUPON_ADDRESS: '' })[k]),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.createCouponType('name', 1000, 2000)).rejects.toThrow(
@@ -1137,7 +1153,7 @@ describe('BlockchainService - mintCoupon', () => {
 
   it('throws when no coupon address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, COUPON_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, COUPON_ADDRESS: '' })[k]),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.mintCoupon('0xTo', '1', 5)).rejects.toThrow(
@@ -1148,7 +1164,9 @@ describe('BlockchainService - mintCoupon', () => {
   it('mints coupon successfully', async () => {
     const receipt = { hash: '0xMCHash', blockNumber: 12 };
     mockEthers.Contract.mockImplementationOnce(() => ({
-      mint: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      mint: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
     }));
     const svc = fullSvc();
     const result = await svc.mintCoupon('0xTo', '1', 5);
@@ -1175,7 +1193,7 @@ describe('BlockchainService - batchMintCoupons', () => {
 
   it('throws when no coupon address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, COUPON_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, COUPON_ADDRESS: '' })[k]),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.batchMintCoupons(['0xA'], ['1'], [1])).rejects.toThrow(
@@ -1191,7 +1209,11 @@ describe('BlockchainService - batchMintCoupons', () => {
         .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
     }));
     const svc = fullSvc();
-    const result = await svc.batchMintCoupons(['0xA', '0xB'], ['1', '2'], [1, 2]);
+    const result = await svc.batchMintCoupons(
+      ['0xA', '0xB'],
+      ['1', '2'],
+      [1, 2],
+    );
     expect(result).toMatchObject({ hash: '0xBMCHash' });
   });
 });
@@ -1245,7 +1267,10 @@ describe('BlockchainService - getAllActiveMarketplaceListings cache miss', () =>
 describe('BlockchainService - invalidateListingsCache with data', () => {
   it('logs and clears when cache exists', () => {
     const svc = fullSvc();
-    (svc as any).listingsCache = { data: [{ listingId: '1' }], timestamp: Date.now() };
+    (svc as any).listingsCache = {
+      data: [{ listingId: '1' }],
+      timestamp: Date.now(),
+    };
     svc.invalidateListingsCache();
     expect((svc as any).listingsCache).toBeNull();
   });
@@ -1263,7 +1288,9 @@ describe('BlockchainService - delistCoupon', () => {
 
   it('throws when no marketplace address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, MARKETPLACE_ADDRESS: '' }[k])),
+      get: jest.fn(
+        (k: string) => ({ ...FULL_CONFIG, MARKETPLACE_ADDRESS: '' })[k],
+      ),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.delistCoupon('1', '0xKey')).rejects.toThrow(
@@ -1298,7 +1325,7 @@ describe('BlockchainService - mintTHB', () => {
 
   it('throws when no THB address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, THB_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, THB_ADDRESS: '' })[k]),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.mintTHB('0xTo', BigInt(100))).rejects.toThrow(
@@ -1309,7 +1336,9 @@ describe('BlockchainService - mintTHB', () => {
   it('mints THB successfully', async () => {
     const receipt = { hash: '0xTHBHash', blockNumber: 15 };
     mockEthers.Contract.mockImplementationOnce(() => ({
-      mint: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      mint: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
     }));
     const svc = fullSvc();
     const result = await svc.mintTHB('0xTo', BigInt(100));
@@ -1329,7 +1358,7 @@ describe('BlockchainService - approveTHB', () => {
 
   it('throws when no THB address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, THB_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, THB_ADDRESS: '' })[k]),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.approveTHB('0xSpender', BigInt(100))).rejects.toThrow(
@@ -1340,7 +1369,9 @@ describe('BlockchainService - approveTHB', () => {
   it('approves with default (admin) private key', async () => {
     const receipt = { hash: '0xApprHash', blockNumber: 16 };
     mockEthers.Contract.mockImplementationOnce(() => ({
-      approve: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      approve: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
     }));
     const svc = fullSvc();
     const result = await svc.approveTHB('0xSpender', BigInt(100));
@@ -1350,7 +1381,9 @@ describe('BlockchainService - approveTHB', () => {
   it('approves with ownerPrivateKey', async () => {
     const receipt = { hash: '0xApprHash2', blockNumber: 17 };
     mockEthers.Contract.mockImplementationOnce(() => ({
-      approve: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      approve: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
     }));
     const svc = fullSvc();
     const result = await svc.approveTHB('0xSpender', BigInt(100), '0xOwnerKey');
@@ -1363,7 +1396,7 @@ describe('BlockchainService - approveTHB', () => {
 describe('BlockchainService - getVaultContract', () => {
   it('throws when no vault address configured', () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, VAULT_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, VAULT_ADDRESS: '' })[k]),
     } as any;
     const svc = new BlockchainService(cfg);
     expect(() => (svc as any).getVaultContract()).toThrow(
@@ -1377,10 +1410,13 @@ describe('BlockchainService - getVaultContract', () => {
 describe('BlockchainService - getMarketplaceContract', () => {
   it('throws when no marketplace address configured', () => {
     const cfg = {
-      get: jest.fn((k: string) => ({
-        ...FULL_CONFIG,
-        MARKETPLACE_ADDRESS: '',
-      }[k])),
+      get: jest.fn(
+        (k: string) =>
+          ({
+            ...FULL_CONFIG,
+            MARKETPLACE_ADDRESS: '',
+          })[k],
+      ),
     } as any;
     const svc = new BlockchainService(cfg);
     expect(() => (svc as any).getMarketplaceContract()).toThrow(
@@ -1401,7 +1437,7 @@ describe('BlockchainService - hasActiveVaultEscrow', () => {
 
   it('returns false when no vault address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, VAULT_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, VAULT_ADDRESS: '' })[k]),
     } as any;
     const svc = new BlockchainService(cfg);
     const result = await svc.hasActiveVaultEscrow('tokenId');
@@ -1459,7 +1495,9 @@ describe('BlockchainService - releaseVaultFundsPartial', () => {
 
   it('throws InternalServerErrorException on error', async () => {
     mockEthers.Contract.mockImplementationOnce(() => ({
-      releaseFundsPartial: jest.fn().mockRejectedValue(new Error('vault error')),
+      releaseFundsPartial: jest
+        .fn()
+        .mockRejectedValue(new Error('vault error')),
     }));
     const svc = fullSvc();
     await expect(svc.releaseVaultFundsPartial('tokenId', 1)).rejects.toThrow(
@@ -1503,7 +1541,7 @@ describe('BlockchainService - lockFundsForCouponType validation', () => {
 
   it('throws when no vault address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, VAULT_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, VAULT_ADDRESS: '' })[k]),
     } as any;
     const svc2 = new BlockchainService(cfg);
     await expect(
@@ -1524,10 +1562,13 @@ describe('BlockchainService - addToMarketplaceWhitelist', () => {
 
   it('throws when no marketplace address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({
-        ...FULL_CONFIG,
-        MARKETPLACE_ADDRESS: '',
-      }[k])),
+      get: jest.fn(
+        (k: string) =>
+          ({
+            ...FULL_CONFIG,
+            MARKETPLACE_ADDRESS: '',
+          })[k],
+      ),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.addToMarketplaceWhitelist('0xAddr')).rejects.toThrow(
@@ -1560,10 +1601,13 @@ describe('BlockchainService - batchAddToMarketplaceWhitelist', () => {
 
   it('throws when no marketplace address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({
-        ...FULL_CONFIG,
-        MARKETPLACE_ADDRESS: '',
-      }[k])),
+      get: jest.fn(
+        (k: string) =>
+          ({
+            ...FULL_CONFIG,
+            MARKETPLACE_ADDRESS: '',
+          })[k],
+      ),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(
@@ -1596,10 +1640,13 @@ describe('BlockchainService - isWhitelisted', () => {
 
   it('throws when no marketplace address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({
-        ...FULL_CONFIG,
-        MARKETPLACE_ADDRESS: '',
-      }[k])),
+      get: jest.fn(
+        (k: string) =>
+          ({
+            ...FULL_CONFIG,
+            MARKETPLACE_ADDRESS: '',
+          })[k],
+      ),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.isWhitelisted('0xAddr')).rejects.toThrow(
@@ -1679,9 +1726,9 @@ describe('BlockchainService - getUserCouponBalanceBatch error', () => {
       balanceOfBatch: jest.fn().mockRejectedValue(new Error('batch rpc fail')),
     }));
     const svc = fullSvc();
-    await expect(svc.getUserCouponBalanceBatch('0xUser', [1, 2])).rejects.toThrow(
-      InternalServerErrorException,
-    );
+    await expect(
+      svc.getUserCouponBalanceBatch('0xUser', [1, 2]),
+    ).rejects.toThrow(InternalServerErrorException);
   });
 });
 
@@ -1720,10 +1767,13 @@ describe('BlockchainService - listCoupon', () => {
 
   it('throws when no marketplace address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({
-        ...FULL_CONFIG,
-        MARKETPLACE_ADDRESS: '',
-      }[k])),
+      get: jest.fn(
+        (k: string) =>
+          ({
+            ...FULL_CONFIG,
+            MARKETPLACE_ADDRESS: '',
+          })[k],
+      ),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.listCoupon('1', 1, '1.0')).rejects.toThrow(
@@ -1741,7 +1791,10 @@ describe('BlockchainService - listCoupon', () => {
       logs: [
         {
           address: '0xMarketplace',
-          topics: [COUPON_LISTED_SIG, '0x' + BigInt(42).toString(16).padStart(64, '0')],
+          topics: [
+            COUPON_LISTED_SIG,
+            '0x' + BigInt(42).toString(16).padStart(64, '0'),
+          ],
           data: '0x',
         },
       ],
@@ -1753,13 +1806,15 @@ describe('BlockchainService - listCoupon', () => {
     };
     // Contract 2: marketplace contract for listCoupon
     const mockMarketplace = {
-      listCoupon: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      listCoupon: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
       interface: { parseLog: jest.fn().mockReturnValue(null) },
     };
 
-    mockEthers.Contract
-      .mockImplementationOnce(() => mockCouponApproval)
-      .mockImplementationOnce(() => mockMarketplace);
+    mockEthers.Contract.mockImplementationOnce(
+      () => mockCouponApproval,
+    ).mockImplementationOnce(() => mockMarketplace);
     mockEthers.ethers.parseEther.mockReturnValueOnce(BigInt(1));
 
     const svc = fullSvc();
@@ -1777,7 +1832,10 @@ describe('BlockchainService - listCoupon', () => {
       logs: [
         {
           address: '0xMarketplace',
-          topics: [COUPON_LISTED_SIG, '0x' + BigInt(55).toString(16).padStart(64, '0')],
+          topics: [
+            COUPON_LISTED_SIG,
+            '0x' + BigInt(55).toString(16).padStart(64, '0'),
+          ],
           data: '0x',
         },
       ],
@@ -1790,13 +1848,15 @@ describe('BlockchainService - listCoupon', () => {
       }),
     };
     const mockMarketplace = {
-      listCoupon: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      listCoupon: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
       interface: { parseLog: jest.fn().mockReturnValue(null) },
     };
 
-    mockEthers.Contract
-      .mockImplementationOnce(() => mockCouponApproval)
-      .mockImplementationOnce(() => mockMarketplace);
+    mockEthers.Contract.mockImplementationOnce(
+      () => mockCouponApproval,
+    ).mockImplementationOnce(() => mockMarketplace);
     mockEthers.ethers.parseEther.mockReturnValueOnce(BigInt(1));
 
     const svc = fullSvc();
@@ -1816,9 +1876,13 @@ describe('BlockchainService - listCoupon', () => {
       status: 1,
       logs: [{ address: '0xOther', topics: [], data: '0x' }],
     };
-    const mockCouponApproval = { isApprovedForAll: jest.fn().mockResolvedValue(true) };
+    const mockCouponApproval = {
+      isApprovedForAll: jest.fn().mockResolvedValue(true),
+    };
     const mockMarketplace = {
-      listCoupon: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      listCoupon: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
       interface: {
         parseLog: jest.fn().mockReturnValue({
           name: 'CouponListed',
@@ -1827,9 +1891,9 @@ describe('BlockchainService - listCoupon', () => {
       },
     };
 
-    mockEthers.Contract
-      .mockImplementationOnce(() => mockCouponApproval)
-      .mockImplementationOnce(() => mockMarketplace);
+    mockEthers.Contract.mockImplementationOnce(
+      () => mockCouponApproval,
+    ).mockImplementationOnce(() => mockMarketplace);
     mockEthers.ethers.parseEther.mockReturnValueOnce(BigInt(1));
 
     const svc = fullSvc();
@@ -1844,16 +1908,20 @@ describe('BlockchainService - listCoupon', () => {
       status: 1,
       logs: [],
     };
-    const mockCouponApproval = { isApprovedForAll: jest.fn().mockResolvedValue(true) };
+    const mockCouponApproval = {
+      isApprovedForAll: jest.fn().mockResolvedValue(true),
+    };
     const mockMarketplace = {
-      listCoupon: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      listCoupon: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
       interface: { parseLog: jest.fn().mockReturnValue(null) },
       getActiveListings: jest.fn().mockResolvedValue([BigInt(88)]),
     };
 
-    mockEthers.Contract
-      .mockImplementationOnce(() => mockCouponApproval)
-      .mockImplementationOnce(() => mockMarketplace);
+    mockEthers.Contract.mockImplementationOnce(
+      () => mockCouponApproval,
+    ).mockImplementationOnce(() => mockMarketplace);
     mockEthers.ethers.parseEther.mockReturnValueOnce(BigInt(1));
 
     const svc = fullSvc();
@@ -1862,17 +1930,26 @@ describe('BlockchainService - listCoupon', () => {
   });
 
   it('throws when all extraction methods fail', async () => {
-    const receipt = { hash: '0xListHash5', blockNumber: 25, status: 1, logs: [] };
-    const mockCouponApproval = { isApprovedForAll: jest.fn().mockResolvedValue(true) };
+    const receipt = {
+      hash: '0xListHash5',
+      blockNumber: 25,
+      status: 1,
+      logs: [],
+    };
+    const mockCouponApproval = {
+      isApprovedForAll: jest.fn().mockResolvedValue(true),
+    };
     const mockMarketplace = {
-      listCoupon: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
+      listCoupon: jest
+        .fn()
+        .mockResolvedValue({ wait: jest.fn().mockResolvedValue(receipt) }),
       interface: { parseLog: jest.fn().mockReturnValue(null) },
       getActiveListings: jest.fn().mockResolvedValue([]),
     };
 
-    mockEthers.Contract
-      .mockImplementationOnce(() => mockCouponApproval)
-      .mockImplementationOnce(() => mockMarketplace);
+    mockEthers.Contract.mockImplementationOnce(
+      () => mockCouponApproval,
+    ).mockImplementationOnce(() => mockMarketplace);
     mockEthers.ethers.parseEther.mockReturnValueOnce(BigInt(1));
 
     const svc = fullSvc();
@@ -1894,10 +1971,13 @@ describe('BlockchainService - buyCoupon error paths', () => {
 
   it('throws when no marketplace address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({
-        ...FULL_CONFIG,
-        MARKETPLACE_ADDRESS: '',
-      }[k])),
+      get: jest.fn(
+        (k: string) =>
+          ({
+            ...FULL_CONFIG,
+            MARKETPLACE_ADDRESS: '',
+          })[k],
+      ),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.buyCoupon('1', 1, '0xKey')).rejects.toThrow(
@@ -1907,7 +1987,7 @@ describe('BlockchainService - buyCoupon error paths', () => {
 
   it('throws when no vault address', async () => {
     const cfg = {
-      get: jest.fn((k: string) => ({ ...FULL_CONFIG, VAULT_ADDRESS: '' }[k])),
+      get: jest.fn((k: string) => ({ ...FULL_CONFIG, VAULT_ADDRESS: '' })[k]),
     } as any;
     const svc = new BlockchainService(cfg);
     await expect(svc.buyCoupon('1', 1, '0xKey')).rejects.toThrow(
@@ -1930,9 +2010,9 @@ describe('BlockchainService - buyCoupon error paths', () => {
         listedAt: BigInt(0),
       }),
     };
-    mockEthers.Contract
-      .mockImplementationOnce(() => mockMarketplace)
-      .mockImplementationOnce(() => mockListingContract);
+    mockEthers.Contract.mockImplementationOnce(
+      () => mockMarketplace,
+    ).mockImplementationOnce(() => mockListingContract);
 
     const svc = fullSvc();
     await expect(svc.buyCoupon('1', 1, '0xKey')).rejects.toThrow(
@@ -1959,8 +2039,7 @@ describe('BlockchainService - buyCoupon error paths', () => {
     };
     const mockCoupon = { balanceOf: jest.fn().mockResolvedValue(10) };
 
-    mockEthers.Contract
-      .mockImplementationOnce(() => mockMarketplace)
+    mockEthers.Contract.mockImplementationOnce(() => mockMarketplace)
       .mockImplementationOnce(() => mockListingContract)
       .mockImplementationOnce(() => mockPayment)
       .mockImplementationOnce(() => mockCoupon);

@@ -10,10 +10,8 @@ import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 import { randomUUID } from 'crypto';
-import {
-  TransactionTypeId,
-  AssetType,
-} from 'src/constants/transaction-types.enum';
+import { parseBatchTransferCsvRows } from '../utils/batch-transfer-csv.util';
+import { writeDirectVoucherTransferLedger } from '../utils/direct-voucher-transfer.util';
 
 export interface UploadedCsvFile {
   fieldname: string;
@@ -38,103 +36,6 @@ export class ExecuteBatchTransferCsvHandler {
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
   ) {}
-
-  private parseCsv(
-    content: string,
-  ): Array<{ lineNum: number; columns: string[] }> {
-    const lines = content.split(/\r?\n/).map((l) => l.trim());
-    if (lines.length > ExecuteBatchTransferCsvHandler.MAX_CSV_LINES) {
-      throw new BadRequestException('CSV file contains too many lines');
-    }
-
-    const parsedRows: Array<{ lineNum: number; columns: string[] }> = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const lineText = lines[i];
-      if (!lineText) {
-        continue; // Skip empty lines
-      }
-
-      if (lineText.length > ExecuteBatchTransferCsvHandler.MAX_LINE_LENGTH) {
-        throw new BadRequestException(
-          `CSV line ${i + 1} exceeds maximum length limit`,
-        );
-      }
-
-      const columns: string[] = [];
-      let currentBuffer = '';
-      let isInsideQuotes = false;
-
-      for (let j = 0; j < lineText.length; j++) {
-        const char = lineText[j];
-        if (char === '"' && lineText[j + 1] === '"') {
-          currentBuffer += '"';
-          j++; // Skip double quote
-        } else if (char === '"') {
-          isInsideQuotes = !isInsideQuotes;
-        } else if (char === ',' && !isInsideQuotes) {
-          columns.push(currentBuffer.trim());
-          currentBuffer = '';
-        } else {
-          currentBuffer += char;
-        }
-      }
-      columns.push(currentBuffer.trim());
-      parsedRows.push({ lineNum: i + 1, columns });
-    }
-
-    return parsedRows;
-  }
-
-  private resolveColumnMapping(headers: string[]): {
-    phoneIdx: number;
-    voucherIdx: number;
-    qtyIdx: number;
-  } {
-    const lowerHeaders = headers.map((h) => h.toLowerCase());
-
-    let phoneIdx = lowerHeaders.findIndex(
-      (h) =>
-        h.includes('phone') ||
-        h.includes('tel') ||
-        h.includes('โทร') ||
-        h.includes('เบอร์') ||
-        h.includes('contact'),
-    );
-    let voucherIdx = lowerHeaders.findIndex(
-      (h) =>
-        (h.includes('voucher') ||
-          h.includes('coupon') ||
-          h.includes('คูปอง')) &&
-        h.includes('id'),
-    );
-    if (voucherIdx === -1) {
-      voucherIdx = lowerHeaders.findIndex(
-        (h) =>
-          h === 'couponid' ||
-          h === 'voucherid' ||
-          h.includes('coupon') ||
-          h.includes('voucher') ||
-          h.includes('คูปอง'),
-      );
-    }
-    if (voucherIdx === -1) {
-      voucherIdx = lowerHeaders.findIndex((h) => h.includes('id'));
-    }
-    let qtyIdx = lowerHeaders.findIndex(
-      (h) =>
-        h.includes('qty') ||
-        h.includes('quantity') ||
-        h.includes('amount') ||
-        h.includes('จำนวน'),
-    );
-
-    if (phoneIdx === -1) phoneIdx = 0;
-    if (voucherIdx === -1) voucherIdx = 1;
-    if (qtyIdx === -1) qtyIdx = 2;
-
-    return { phoneIdx, voucherIdx, qtyIdx };
-  }
 
   async execute(merchantId: string, file: UploadedCsvFile) {
     if (!merchantId) {
@@ -170,34 +71,10 @@ export class ExecuteBatchTransferCsvHandler {
 
     // 2. Parse CSV
     const fileContent = file.buffer.toString('utf-8');
-    const parsedLines = this.parseCsv(fileContent);
-
-    if (parsedLines.length < 2) {
-      throw new BadRequestException(
-        'CSV file is empty or lacks data rows beyond the header',
-      );
-    }
-
-    const headerRow = parsedLines[0].columns;
-    const { phoneIdx, voucherIdx, qtyIdx } =
-      this.resolveColumnMapping(headerRow);
-
-    const dataRows = parsedLines
-      .slice(1)
-      .map((item) => {
-        const customerPhone = (item.columns[phoneIdx] || '').trim();
-        const voucherId = (item.columns[voucherIdx] || '').trim();
-        const qtyStr = (item.columns[qtyIdx] || '1').trim();
-        const quantity = parseInt(qtyStr, 10);
-
-        return {
-          lineNum: item.lineNum,
-          customerPhone,
-          voucherId,
-          quantity,
-        };
-      })
-      .filter((row) => row.customerPhone !== '' || row.voucherId !== '');
+    const dataRows = parseBatchTransferCsvRows(fileContent, {
+      maxLines: ExecuteBatchTransferCsvHandler.MAX_CSV_LINES,
+      maxLineLength: ExecuteBatchTransferCsvHandler.MAX_LINE_LENGTH,
+    });
 
     if (dataRows.length > ExecuteBatchTransferCsvHandler.SAFE_TRANSFER_LIMIT) {
       throw new BadRequestException(
@@ -402,50 +279,16 @@ export class ExecuteBatchTransferCsvHandler {
           merchantPrivateKey,
         );
 
-        const txHashBuffer = Buffer.from(txHash.replace(/^0x/, ''), 'hex');
-        const senderAddressBuffer = Buffer.from(
-          merchant.wallet.walletAddress.replace(/^0x/, ''),
-          'hex',
-        );
-        const receiverAddressBuffer = Buffer.from(
-          customer.wallet.walletAddress.replace(/^0x/, ''),
-          'hex',
-        );
-
         // Update ownership and save transaction records
         try {
-          await this.prisma.$transaction(async (tx) => {
-            await tx.voucherCode.updateMany({
-              where: { id: { in: voucherCodeIds } },
-              data: {
-                currentOwnerId: customer.id,
-                currentOwnerType: 'CUSTOMER',
-                voucherGroupId: null,
-              },
-            });
-
-            await Promise.all(
-              voucherCodeIds.map((codeId) =>
-                tx.transaction.create({
-                  data: {
-                    txHash: txHashBuffer,
-                    amount: 1,
-                    senderAddress: senderAddressBuffer,
-                    receiverAddress: receiverAddressBuffer,
-                    merchantId: merchant.id,
-                    merchantRef: voucher.merchantRef || null,
-                    voucherCodeId: codeId,
-                    senderId: merchant.id,
-                    receiverId: customer.id,
-                    senderType: 'MERCHANT',
-                    receiverType: 'CUSTOMER',
-                    transactionTypeId: TransactionTypeId.TRANSFER,
-                    type: AssetType.VOUCHER,
-                    transactionRefId: batchJobId,
-                  },
-                }),
-              ),
-            );
+          await writeDirectVoucherTransferLedger({
+            prisma: this.prisma,
+            voucherCodeIds,
+            merchant,
+            customer,
+            voucher,
+            txHash,
+            transactionRefId: batchJobId,
           });
 
           results.push({

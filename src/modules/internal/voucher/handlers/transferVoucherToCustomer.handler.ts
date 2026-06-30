@@ -7,15 +7,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
-import { randomUUID } from 'crypto';
-import {
-  TransactionTypeId,
-  AssetType,
-} from 'src/constants/transaction-types.enum';
-import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
+import { writeDirectVoucherTransferLedger } from '../utils/direct-voucher-transfer.util';
 
 @Injectable()
 export class TransferVoucherToCustomerHandler {
@@ -123,52 +118,14 @@ export class TransferVoucherToCustomerHandler {
         merchantPrivateKey,
       );
 
-      const txHashBuffer = Buffer.from(txHash.replace(/^0x/, ''), 'hex');
-      const senderAddressBuffer = Buffer.from(
-        merchant.wallet.walletAddress.replace(/^0x/, ''),
-        'hex',
-      );
-      const receiverAddressBuffer = Buffer.from(
-        customer.wallet.walletAddress.replace(/^0x/, ''),
-        'hex',
-      );
-
       // 6. Update DB State (assign owner & record transaction)
-      const result = await this.prisma.$transaction(async (tx) => {
-        await tx.voucherCode.updateMany({
-          where: { id: { in: voucherCodeIds } },
-          data: {
-            currentOwnerId: customer.id,
-            currentOwnerType: 'CUSTOMER',
-            voucherGroupId: null,
-          },
-        });
-
-        // We can create a transaction record for each code or just one. The existing logic created one per code in similar flows.
-        const transactions = await Promise.all(
-          voucherCodeIds.map((codeId) =>
-            tx.transaction.create({
-              data: {
-                txHash: txHashBuffer,
-                amount: 1, // 1 unit per voucher code row
-                senderAddress: senderAddressBuffer,
-                receiverAddress: receiverAddressBuffer,
-                merchantId: merchant.id,
-                merchantRef: voucher.merchantRef || null,
-                voucherCodeId: codeId,
-                senderId: merchant.id,
-                receiverId: customer.id,
-                senderType: 'MERCHANT',
-                receiverType: 'CUSTOMER',
-                transactionTypeId: TransactionTypeId.TRANSFER,
-                type: AssetType.VOUCHER,
-                transactionRefId: randomUUID(),
-              },
-            }),
-          ),
-        );
-
-        return transactions;
+      const result = await writeDirectVoucherTransferLedger({
+        prisma: this.prisma,
+        voucherCodeIds,
+        merchant,
+        customer,
+        voucher,
+        txHash,
       });
 
       return {

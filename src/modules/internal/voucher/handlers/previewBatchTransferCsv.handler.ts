@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
+import { parseBatchTransferCsvRows } from '../utils/batch-transfer-csv.util';
 
 export interface UploadedCsvFile {
   fieldname: string;
@@ -44,117 +45,6 @@ export class PreviewBatchTransferCsvHandler {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Parses CSV string contents and extracts rows.
-   * Leverages a highly robust RFC-compliant quote-aware scanner.
-   */
-  private parseCsv(
-    content: string,
-  ): Array<{ lineNum: number; columns: string[] }> {
-    const lines = content.split(/\r?\n/).map((l) => l.trim());
-    if (lines.length > PreviewBatchTransferCsvHandler.MAX_CSV_LINES) {
-      throw new BadRequestException('CSV file contains too many lines');
-    }
-
-    const parsedRows: Array<{ lineNum: number; columns: string[] }> = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const lineText = lines[i];
-      if (!lineText) {
-        continue; // Skip empty lines
-      }
-
-      if (lineText.length > PreviewBatchTransferCsvHandler.MAX_LINE_LENGTH) {
-        throw new BadRequestException(
-          `CSV line ${i + 1} exceeds maximum length limit`,
-        );
-      }
-
-      const columns: string[] = [];
-      let currentBuffer = '';
-      let isInsideQuotes = false;
-
-      for (let j = 0; j < lineText.length; j++) {
-        const char = lineText[j];
-        if (char === '"' && lineText[j + 1] === '"') {
-          currentBuffer += '"';
-          j++; // Skip double quote
-        } else if (char === '"') {
-          isInsideQuotes = !isInsideQuotes;
-        } else if (char === ',' && !isInsideQuotes) {
-          columns.push(currentBuffer.trim());
-          currentBuffer = '';
-        } else {
-          currentBuffer += char;
-        }
-      }
-      columns.push(currentBuffer.trim());
-      parsedRows.push({ lineNum: i + 1, columns });
-    }
-
-    return parsedRows;
-  }
-
-  /**
-   * Helper to identify columns dynamic mapping from header row
-   */
-  private resolveColumnMapping(headers: string[]): {
-    phoneIdx: number;
-    voucherIdx: number;
-    qtyIdx: number;
-  } {
-    const lowerHeaders = headers.map((h) => h.toLowerCase());
-
-    let phoneIdx = lowerHeaders.findIndex(
-      (h) =>
-        h.includes('phone') ||
-        h.includes('tel') ||
-        h.includes('โทร') ||
-        h.includes('เบอร์') ||
-        h.includes('contact'),
-    );
-    let voucherIdx = lowerHeaders.findIndex(
-      (h) =>
-        (h.includes('voucher') ||
-          h.includes('coupon') ||
-          h.includes('คูปอง')) &&
-        h.includes('id'),
-    );
-    if (voucherIdx === -1) {
-      voucherIdx = lowerHeaders.findIndex(
-        (h) =>
-          h === 'couponid' ||
-          h === 'voucherid' ||
-          h.includes('coupon') ||
-          h.includes('voucher') ||
-          h.includes('คูปอง'),
-      );
-    }
-    if (voucherIdx === -1) {
-      voucherIdx = lowerHeaders.findIndex((h) => h.includes('id'));
-    }
-    let qtyIdx = lowerHeaders.findIndex(
-      (h) =>
-        h.includes('qty') ||
-        h.includes('quantity') ||
-        h.includes('amount') ||
-        h.includes('จำนวน'),
-    );
-
-    // Dynamic defaults if auto-matching fails
-    if (phoneIdx === -1) {
-      phoneIdx = 0;
-    }
-    if (voucherIdx === -1) {
-      voucherIdx = 1;
-    }
-    if (qtyIdx === -1) {
-      qtyIdx = 2;
-    }
-
-    return { phoneIdx, voucherIdx, qtyIdx };
-  }
-
   async execute(
     merchantId: string,
     file: UploadedCsvFile,
@@ -188,35 +78,10 @@ export class PreviewBatchTransferCsvHandler {
     }
 
     const fileContent = file.buffer.toString('utf-8');
-    const parsedLines = this.parseCsv(fileContent);
-
-    if (parsedLines.length < 2) {
-      throw new BadRequestException(
-        'CSV file is empty or lacks data rows beyond the header',
-      );
-    }
-
-    const headerRow = parsedLines[0].columns;
-    const { phoneIdx, voucherIdx, qtyIdx } =
-      this.resolveColumnMapping(headerRow);
-
-    // Map rows starting from index 1 (headers skipped)
-    const dataRows = parsedLines
-      .slice(1)
-      .map((item) => {
-        const customerPhone = (item.columns[phoneIdx] || '').trim();
-        const voucherId = (item.columns[voucherIdx] || '').trim();
-        const qtyStr = (item.columns[qtyIdx] || '1').trim();
-        const quantity = parseInt(qtyStr, 10);
-
-        return {
-          lineNum: item.lineNum,
-          customerPhone,
-          voucherId,
-          quantity,
-        };
-      })
-      .filter((row) => row.customerPhone !== '' || row.voucherId !== '');
+    const dataRows = parseBatchTransferCsvRows(fileContent, {
+      maxLines: PreviewBatchTransferCsvHandler.MAX_CSV_LINES,
+      maxLineLength: PreviewBatchTransferCsvHandler.MAX_LINE_LENGTH,
+    });
 
     // 1. Gather all phone numbers and fetch from DB in bulk
     const uniquePhones = [

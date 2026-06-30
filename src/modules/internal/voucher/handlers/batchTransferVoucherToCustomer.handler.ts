@@ -10,9 +10,12 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { randomUUID } from 'crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
-import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 import { BatchTransferVoucherDto } from '../dtos/batch-transfer-voucher.dto';
-import { writeDirectVoucherTransferLedger } from '../utils/direct-voucher-transfer.util';
+import {
+  getMerchantPrivateKey,
+  lockAvailableMerchantVoucherCodes,
+  writeDirectVoucherTransferLedger,
+} from '../utils/direct-voucher-transfer.util';
 
 export interface BatchTransferTaskResult {
   customerPhone: string;
@@ -136,19 +139,13 @@ export class BatchTransferVoucherToCustomerHandler {
       // Lock and fetch available VoucherCodes for each needed voucherId using SKIP LOCKED
       const lockedVoucherCodesByVoucherId = new Map<string, any[]>();
       for (const [voucherId, requiredQty] of cumulativeQuantities.entries()) {
-        const availableCodes = await this.prisma.$queryRawUnsafe<any[]>(
-          `
-          SELECT * FROM "VoucherCode"
-          WHERE "voucherId" = $1
-            AND "currentOwnerId" = $2
-            AND "currentOwnerType" = 'MERCHANT'
-            AND "isUsed" = false
-          LIMIT $3
-          FOR UPDATE SKIP LOCKED
-        `,
-          voucherId,
-          merchantId,
-          requiredQty,
+        const availableCodes = await lockAvailableMerchantVoucherCodes(
+          this.prisma,
+          {
+            voucherId,
+            merchantId,
+            quantity: requiredQty,
+          },
         );
 
         if (!availableCodes || availableCodes.length < requiredQty) {
@@ -161,24 +158,11 @@ export class BatchTransferVoucherToCustomerHandler {
       }
 
       // 5. Decrypt Merchant Seed Phrase once
-      const salt = this.configService.get<string>('SALT');
-      if (!salt) {
-        throw new Error('SALT not found in config service');
-      }
-
-      const decryptedSeedPhrase = this.tokenService.decryptKey(
-        salt,
-        merchant.wallet.seedPhrase,
+      const merchantPrivateKey = getMerchantPrivateKey(
+        this.configService,
+        this.tokenService,
+        merchant,
       );
-      if (!decryptedSeedPhrase) {
-        throw new Error('Failed to decrypt merchant seed phrase');
-      }
-
-      const merchantSigner = getSignerFromSeedPhrase(
-        decryptedSeedPhrase,
-        merchant.wallet.derivationIndex,
-      );
-      const merchantPrivateKey = merchantSigner.privateKey;
 
       // Prepare code allocators
       const codeAllocators = new Map<string, number>(); // Keeps track of slice index for each voucherId

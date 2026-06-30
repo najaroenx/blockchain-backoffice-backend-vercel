@@ -1,15 +1,8 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ApiKeyDBService } from '../services/api-key-db.service';
-import {
-  API_KEY_NOT_FOUND,
-  INTERNAL_SERVER_ERROR,
-} from 'src/errors/error.constants';
+import { API_KEY_NOT_FOUND } from 'src/errors/error.constants';
 import { ApiKey } from '@prisma/client';
+import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.util';
 
 @Injectable()
 export class GetApiKey {
@@ -25,14 +18,7 @@ export class GetApiKey {
 
       return apiKeyDetail;
     } catch (error) {
-      this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
-      );
-      if (error instanceof NotFoundException) {
-        throw error;
-      } else {
-        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-      }
+      logAndRethrowOrInternalError(this.logger, error, [NotFoundException]);
     }
   }
 }

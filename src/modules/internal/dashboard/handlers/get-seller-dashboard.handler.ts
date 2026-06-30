@@ -12,11 +12,13 @@ import {
   SellerDashboardResponse,
   SellerOverallSummary,
   SellerMerchantBreakdown,
-  DateRangeInfo,
   CouponDropdownResponse,
   SellerMerchantsResponse,
 } from '../types/dashboard.types';
-import { startOfMonth, endOfDay, startOfDay, format } from 'date-fns';
+import {
+  attachMerchantRefNames,
+  parseDashboardDateRange,
+} from '../utils/dashboard-common.util';
 
 /**
  * Handler สำหรับดึงข้อมูล Seller Dashboard
@@ -77,7 +79,7 @@ export class GetSellerDashboardHandler {
         `[START] Getting seller dashboard for merchant: ${merchantId}`,
       );
 
-      const dateRange = this.parseDateRange(query);
+      const dateRange = parseDashboardDateRange(query);
 
       // =====================================================
       // Step 1: หา Seller Wallet จาก Merchant ID (1 DB call instead of 2)
@@ -226,21 +228,6 @@ export class GetSellerDashboardHandler {
 
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
-  }
-
-  private parseDateRange(query: DashboardQueryDto): DateRangeInfo {
-    const now = new Date();
-    const startDate = query.startDate
-      ? startOfDay(new Date(query.startDate))
-      : startOfMonth(now);
-    const endDate = query.endDate
-      ? endOfDay(new Date(query.endDate))
-      : endOfDay(now);
-
-    return {
-      startDate: format(startDate, 'yyyy-MM-dd'),
-      endDate: format(endDate, 'yyyy-MM-dd'),
-    };
   }
 
   private getEmptyResponse(): Omit<SellerDashboardResponse, 'dateRange'> {
@@ -518,7 +505,7 @@ export class GetSellerDashboardHandler {
         orderBy: { name: 'asc' },
       });
 
-      const coupons = await this.attachMerchantRefNames(vouchers);
+      const coupons = await attachMerchantRefNames(this.prisma, vouchers);
 
       this.logger.log(
         `[SUCCESS] Found ${vouchers.length} coupons for seller dropdown (all)`,
@@ -570,49 +557,13 @@ export class GetSellerDashboardHandler {
       orderBy: { name: 'asc' },
     });
 
-    const coupons = await this.attachMerchantRefNames(vouchers);
+    const coupons = await attachMerchantRefNames(this.prisma, vouchers);
 
     this.logger.log(
       `[SUCCESS] Found ${vouchers.length} seller coupons for marketer ${marketerMerchantId} dropdown`,
     );
 
     return { coupons };
-  }
-
-  private async attachMerchantRefNames(
-    vouchers: Array<{ id: string; name: string; merchantRef: string | null }>,
-  ): Promise<CouponDropdownResponse['coupons']> {
-    const merchantRefs = [
-      ...new Set(vouchers.map((v) => v.merchantRef).filter(Boolean)),
-    ];
-
-    if (merchantRefs.length === 0) {
-      return vouchers.map((voucher) => ({
-        ...voucher,
-        merchantRefName: null,
-      }));
-    }
-
-    const merchantRefStores = await this.prisma.merchantRefStore.findMany({
-      where: {
-        merchantRef: { in: merchantRefs },
-      },
-      select: {
-        merchantRef: true,
-        name: true,
-      },
-    });
-
-    const merchantRefNameMap = new Map(
-      merchantRefStores.map((store) => [store.merchantRef, store.name]),
-    );
-
-    return vouchers.map((voucher) => ({
-      ...voucher,
-      merchantRefName: voucher.merchantRef
-        ? (merchantRefNameMap.get(voucher.merchantRef) ?? null)
-        : null,
-    }));
   }
 
   /**

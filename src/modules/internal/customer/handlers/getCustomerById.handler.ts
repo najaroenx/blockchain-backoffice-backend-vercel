@@ -1,18 +1,11 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
-import {
-  CUSTOMER_NOT_FOUND,
-  INTERNAL_SERVER_ERROR,
-} from 'src/errors/error.constants';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { CUSTOMER_NOT_FOUND } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { GetCustomersIdResponseType } from '../types';
 import { Kiwari } from '@kiwarilabs/chidori-sdk';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
+import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.util';
 
 @Injectable()
 export class GetCustomerById {
@@ -79,14 +72,7 @@ export class GetCustomerById {
         customer: formattedCustomer,
       };
     } catch (error) {
-      this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
-      );
-      if (error instanceof NotFoundException) {
-        throw error;
-      } else {
-        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-      }
+      logAndRethrowOrInternalError(this.logger, error, [NotFoundException]);
     }
   }
 

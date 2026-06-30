@@ -9,8 +9,11 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
-import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
-import { writeDirectVoucherTransferLedger } from '../utils/direct-voucher-transfer.util';
+import {
+  getMerchantPrivateKey,
+  lockAvailableMerchantVoucherCodes,
+  writeDirectVoucherTransferLedger,
+} from '../utils/direct-voucher-transfer.util';
 
 @Injectable()
 export class TransferVoucherToCustomerHandler {
@@ -56,19 +59,13 @@ export class TransferVoucherToCustomerHandler {
 
       // 3. Find available VoucherCode for this Merchant
       // The merchant must own the code (currentOwnerId = merchantId)
-      const availableCodes = await this.prisma.$queryRawUnsafe<any[]>(
-        `
-        SELECT * FROM "VoucherCode"
-        WHERE "voucherId" = $1
-          AND "currentOwnerId" = $2
-          AND "currentOwnerType" = 'MERCHANT'
-          AND "isUsed" = false
-        LIMIT $3
-        FOR UPDATE SKIP LOCKED
-      `,
-        voucherId,
-        merchantId,
-        quantity,
+      const availableCodes = await lockAvailableMerchantVoucherCodes(
+        this.prisma,
+        {
+          voucherId,
+          merchantId,
+          quantity,
+        },
       );
 
       if (!availableCodes || availableCodes.length < quantity) {
@@ -91,19 +88,11 @@ export class TransferVoucherToCustomerHandler {
       const typeId = parseInt(voucher.tokenId, 10);
 
       // Decrypt merchant key
-      const salt = this.configService.get<string>('SALT');
-      const decryptedSeedPhrase = this.tokenService.decryptKey(
-        salt,
-        merchant.wallet.seedPhrase,
+      const merchantPrivateKey = getMerchantPrivateKey(
+        this.configService,
+        this.tokenService,
+        merchant,
       );
-      if (!decryptedSeedPhrase) {
-        throw new Error('Failed to decrypt merchant seed phrase');
-      }
-      const merchantSigner = getSignerFromSeedPhrase(
-        decryptedSeedPhrase,
-        merchant.wallet.derivationIndex,
-      );
-      const merchantPrivateKey = merchantSigner.privateKey;
 
       // 5. Transfer via Blockchain
       this.logger.log(

@@ -1,18 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
 import {
-  AvailableCountRow,
   CodeOwnerMerchantRow,
   ListingDetailRow,
   buildMarketplaceListings,
   emptyMarketplaceResponse,
-  fetchCodeOwnerMerchants,
+  fetchMarketplaceListingData,
   filterSellerListings,
-  mapAvailableCounts,
-  mapListingDetails,
   paginateMarketplaceListings,
 } from '../utils/marketplace-listing.util';
 
@@ -97,65 +93,16 @@ export class GetMarketplaceListings {
 
   /** Fetch all DB data needed for listings in batched SQL queries */
   private async fetchListingData(listingIds: string[]) {
-    const listingDetails = await this.prisma.$queryRaw<ListingDetailRow[]>`
-      SELECT DISTINCT ON (vc."voucherGroupId")
-        vc."voucherGroupId",
-        vc.id AS "codeId",
-        vc."currentOwnerId" AS "codeCurrentOwnerId",
-        vc."currentOwnerType" AS "codeCurrentOwnerType",
-        v.id AS "voucherId",
-        v.name AS "voucherName",
-        v.description AS "voucherDescription",
-        v."imageUrl" AS "voucherImageUrl",
-        v."valueType" AS "voucherValueType",
-        v.value AS "voucherValue",
-        v."startDate" AS "voucherStartDate",
-        v."endDate" AS "voucherEndDate",
-        v.status AS "voucherStatus",
-        v."merchantId" AS "voucherMerchantId",
-        v."sellerMerchantId" AS "voucherSellerMerchantId",
-        m.id AS "merchantId",
-        m.name AS "merchantName",
-        m."imageUrl" AS "merchantImageUrl",
-        w."walletAddress" AS "merchantWalletAddress",
-        p.id AS "pointId",
-        p.name AS "pointName",
-        p.symbol AS "pointSymbol",
-        p."contractAddress" AS "pointContractAddress",
-        p."imageUrl" AS "pointImageUrl"
-      FROM "VoucherCode" vc
-      JOIN "Voucher" v ON vc."voucherId" = v.id
-      LEFT JOIN "Merchant" m ON v."merchantId" = m.id
-      LEFT JOIN "Wallet" w ON m."walletId" = w.id
-      LEFT JOIN "Point" p ON vc."pointId" = p.id
-      WHERE vc."voucherGroupId" IN (${Prisma.join(listingIds)})
-        AND (vc."currentOwnerType" IS NULL OR vc."currentOwnerType" != 'CUSTOMER')
-      ORDER BY vc."voucherGroupId", vc.created_at ASC
-    `;
-
-    const availableCounts = await this.prisma.$queryRaw<AvailableCountRow[]>`
-      SELECT
-        vc."voucherGroupId",
-        COUNT(*)::bigint AS "availableCount"
-      FROM "VoucherCode" vc
-      WHERE vc."voucherGroupId" IN (${Prisma.join(listingIds)})
-        AND vc."isUsed" = false
-        AND (vc."currentOwnerType" IS NULL OR vc."currentOwnerType" != 'CUSTOMER')
-      GROUP BY vc."voucherGroupId"
-    `;
-
-    const detailMap = mapListingDetails(listingDetails);
-    const countMap = mapAvailableCounts(availableCounts);
-    const codeOwnerMerchantMap = await fetchCodeOwnerMerchants(
+    const listingData = await fetchMarketplaceListingData(
       this.prisma,
-      listingDetails,
+      listingIds,
     );
 
     this.logger.log(
-      `[GetMarketplaceListings] SQL returned ${listingDetails.length} listing details, ${availableCounts.length} count rows`,
+      `[GetMarketplaceListings] SQL returned ${listingData.listingDetailsCount} listing details, ${listingData.availableCountsCount} count rows`,
     );
 
-    return { detailMap, countMap, codeOwnerMerchantMap };
+    return listingData;
   }
 
   /** Build valid listings by mapping blockchain data to DB data with filtering */

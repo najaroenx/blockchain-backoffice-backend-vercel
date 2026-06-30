@@ -1,7 +1,6 @@
 import {
   ConflictException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
@@ -15,7 +14,6 @@ import { LOGIN_ACCESS_TOKEN } from 'src/providers/token/token.constants';
 import { TokenResponse } from '../interfaces/TokenResponse';
 import {
   EMAIL_USER_CONFLICT,
-  INTERNAL_SERVER_ERROR,
   INVALID_CREDENTIALS,
   NO_TOKEN_PROVIDED,
   USER_NOT_FOUND,
@@ -26,6 +24,7 @@ import { UserDBService } from 'src/modules/internal/user/services/user-db.servic
 import { PrismaService } from 'prisma/prisma.service';
 import { createWallet } from 'src/libs/createWallet';
 import { compare, hash } from 'bcrypt';
+import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.util';
 
 @Injectable()
 export class AuthService {
@@ -51,14 +50,7 @@ export class AuthService {
 
       return this.loginResponse(user);
     } catch (error) {
-      this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
-      );
-      if (error instanceof NotFoundException) {
-        throw error;
-      } else {
-        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-      }
+      logAndRethrowOrInternalError(this.logger, error, [NotFoundException]);
     }
   }
 
@@ -129,14 +121,7 @@ export class AuthService {
         email: result.email,
       };
     } catch (error) {
-      this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
-      );
-      if (error instanceof ConflictException) {
-        throw error;
-      } else {
-        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-      }
+      logAndRethrowOrInternalError(this.logger, error, [ConflictException]);
     }
   }
 
@@ -150,14 +135,7 @@ export class AuthService {
         refreshToken: token,
       };
     } catch (error) {
-      this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
-      );
-      if (error instanceof NotFoundException) {
-        throw error;
-      } else {
-        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-      }
+      logAndRethrowOrInternalError(this.logger, error, [NotFoundException]);
     }
   }
 

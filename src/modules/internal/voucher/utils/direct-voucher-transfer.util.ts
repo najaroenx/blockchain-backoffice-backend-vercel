@@ -1,16 +1,29 @@
 import { randomUUID } from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import {
   AssetType,
   TransactionTypeId,
 } from 'src/constants/transaction-types.enum';
+import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
+import { PrismaService } from 'prisma/prisma.service';
+import { TokenService } from 'src/providers/token/token.service';
 
 interface WalletLike {
   walletAddress: string;
 }
 
+interface SeedPhraseWalletLike extends WalletLike {
+  seedPhrase: string | null;
+  derivationIndex: number;
+}
+
 interface MerchantLike {
   id: string;
   wallet: WalletLike;
+}
+
+interface MerchantWithSeedPhraseLike {
+  wallet: SeedPhraseWalletLike;
 }
 
 interface CustomerLike {
@@ -32,12 +45,63 @@ export interface WriteDirectVoucherTransferLedgerParams {
   transactionRefId?: string;
 }
 
+export interface LockAvailableMerchantVoucherCodesParams {
+  voucherId: string;
+  merchantId: string;
+  quantity: number;
+}
+
 function hexAddressToBuffer(address: string): Buffer {
   return Buffer.from(address.replace(/^0x/, ''), 'hex');
 }
 
 function txHashToBuffer(txHash: string): Buffer {
   return Buffer.from(txHash.replace(/^0x/, ''), 'hex');
+}
+
+export async function lockAvailableMerchantVoucherCodes(
+  prisma: PrismaService,
+  { voucherId, merchantId, quantity }: LockAvailableMerchantVoucherCodesParams,
+): Promise<any[]> {
+  return prisma.$queryRawUnsafe<any[]>(
+    `
+    SELECT * FROM "VoucherCode"
+    WHERE "voucherId" = $1
+      AND "currentOwnerId" = $2
+      AND "currentOwnerType" = 'MERCHANT'
+      AND "isUsed" = false
+    LIMIT $3
+    FOR UPDATE SKIP LOCKED
+  `,
+    voucherId,
+    merchantId,
+    quantity,
+  );
+}
+
+export function getMerchantPrivateKey(
+  configService: ConfigService,
+  tokenService: TokenService,
+  merchant: MerchantWithSeedPhraseLike,
+): string {
+  const salt = configService.get<string>('SALT');
+  if (!salt) {
+    throw new Error('SALT not found in config service');
+  }
+
+  const decryptedSeedPhrase = tokenService.decryptKey(
+    salt,
+    merchant.wallet.seedPhrase,
+  );
+  if (!decryptedSeedPhrase) {
+    throw new Error('Failed to decrypt merchant seed phrase');
+  }
+
+  const merchantSigner = getSignerFromSeedPhrase(
+    decryptedSeedPhrase,
+    merchant.wallet.derivationIndex,
+  );
+  return merchantSigner.privateKey;
 }
 
 export async function writeDirectVoucherTransferLedger({

@@ -45,6 +45,11 @@ export interface CodeOwnerMerchantRow {
   merchantWalletAddress: string | null;
 }
 
+interface FetchMarketplaceListingDataOptions {
+  pointOnly?: boolean;
+  merchantRef?: string;
+}
+
 interface BuildMarketplaceListingsOptions {
   blockchainListings: any[];
   detailMap: Map<string, ListingDetailRow>;
@@ -117,6 +122,92 @@ export function mapAvailableCounts(rows: AvailableCountRow[]) {
     countMap.set(row.voucherGroupId, Number(row.availableCount));
   }
   return countMap;
+}
+
+export async function fetchMarketplaceListingData(
+  prisma: PrismaService,
+  listingIds: string[],
+  options: FetchMarketplaceListingDataOptions = {},
+) {
+  const listingDetails = await prisma.$queryRaw<ListingDetailRow[]>`
+    SELECT DISTINCT ON (vc."voucherGroupId")
+      vc."voucherGroupId",
+      vc.id AS "codeId",
+      vc."currentOwnerId" AS "codeCurrentOwnerId",
+      vc."currentOwnerType" AS "codeCurrentOwnerType",
+      v.id AS "voucherId",
+      v.name AS "voucherName",
+      v.description AS "voucherDescription",
+      v."imageUrl" AS "voucherImageUrl",
+      v."valueType" AS "voucherValueType",
+      v.value AS "voucherValue",
+      v."startDate" AS "voucherStartDate",
+      v."endDate" AS "voucherEndDate",
+      v.status AS "voucherStatus",
+      v."merchantId" AS "voucherMerchantId",
+      v."merchantRef" AS "voucherMerchantRef",
+      v."sellerMerchantId" AS "voucherSellerMerchantId",
+      m.id AS "merchantId",
+      m.name AS "merchantName",
+      m."imageUrl" AS "merchantImageUrl",
+      w."walletAddress" AS "merchantWalletAddress",
+      p.id AS "pointId",
+      p.name AS "pointName",
+      p.symbol AS "pointSymbol",
+      p."contractAddress" AS "pointContractAddress",
+      p."imageUrl" AS "pointImageUrl"
+    FROM "VoucherCode" vc
+    JOIN "Voucher" v ON vc."voucherId" = v.id
+    LEFT JOIN "Merchant" m ON v."merchantId" = m.id
+    LEFT JOIN "Wallet" w ON m."walletId" = w.id
+    LEFT JOIN "Point" p ON vc."pointId" = p.id
+    WHERE vc."voucherGroupId" IN (${Prisma.join(listingIds)})
+      ${
+        options.pointOnly
+          ? Prisma.sql`AND vc."pointId" IS NOT NULL`
+          : Prisma.empty
+      }
+      ${
+        options.merchantRef
+          ? Prisma.sql`AND v."merchantRef" = ${options.merchantRef}`
+          : Prisma.empty
+      }
+      AND (vc."currentOwnerType" IS NULL OR vc."currentOwnerType" != 'CUSTOMER')
+    ORDER BY vc."voucherGroupId", vc.created_at ASC
+  `;
+
+  const detailMap = mapListingDetails(listingDetails);
+  if (listingDetails.length === 0) {
+    return {
+      detailMap,
+      countMap: new Map<string, number>(),
+      codeOwnerMerchantMap: new Map<string, CodeOwnerMerchantRow>(),
+      listingDetailsCount: 0,
+      availableCountsCount: 0,
+    };
+  }
+
+  const filteredListingIds = listingDetails.map(
+    (detail) => detail.voucherGroupId,
+  );
+  const availableCounts = await prisma.$queryRaw<AvailableCountRow[]>`
+    SELECT
+      vc."voucherGroupId",
+      COUNT(*)::bigint AS "availableCount"
+    FROM "VoucherCode" vc
+    WHERE vc."voucherGroupId" IN (${Prisma.join(filteredListingIds)})
+      AND vc."isUsed" = false
+      AND (vc."currentOwnerType" IS NULL OR vc."currentOwnerType" != 'CUSTOMER')
+    GROUP BY vc."voucherGroupId"
+  `;
+
+  return {
+    detailMap,
+    countMap: mapAvailableCounts(availableCounts),
+    codeOwnerMerchantMap: await fetchCodeOwnerMerchants(prisma, listingDetails),
+    listingDetailsCount: listingDetails.length,
+    availableCountsCount: availableCounts.length,
+  };
 }
 
 export async function fetchCodeOwnerMerchants(

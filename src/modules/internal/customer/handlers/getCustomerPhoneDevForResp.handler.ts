@@ -7,6 +7,7 @@ import {
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
 import { GetCustomerByPhoneResponseTypeV1 } from '../types';
+import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.util';
 
 @Injectable()
 export class GetCustomerPhoneDevForResp {
@@ -54,14 +55,7 @@ export class GetCustomerPhoneDevForResp {
 
       return formattedCustomer;
     } catch (error) {
-      this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
-      );
-      if (error instanceof NotFoundException) {
-        throw error;
-      } else {
-        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-      }
+      logAndRethrowOrInternalError(this.logger, error, [NotFoundException]);
     }
   }
 

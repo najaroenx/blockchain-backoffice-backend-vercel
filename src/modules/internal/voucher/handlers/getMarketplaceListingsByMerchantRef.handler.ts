@@ -1,18 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { MerchantRefEnrichmentService } from 'src/modules/shared/services/merchant-ref-enrichment.service';
 import {
-  AvailableCountRow,
   CodeOwnerMerchantRow,
   ListingDetailRow,
   buildMarketplaceListings,
   emptyMarketplaceResponse,
-  fetchCodeOwnerMerchants,
-  mapAvailableCounts,
-  mapListingDetails,
+  fetchMarketplaceListingData,
   paginateMarketplaceListings,
 } from '../utils/marketplace-listing.util';
 
@@ -90,81 +86,17 @@ export class GetMarketplaceListingsByMerchantRef {
 
   /** Fetch all DB data for listings filtered by merchantRef */
   private async fetchListingData(listingIds: string[], merchantRef: string) {
-    const listingDetails = await this.prisma.$queryRaw<ListingDetailRow[]>`
-      SELECT DISTINCT ON (vc."voucherGroupId")
-        vc."voucherGroupId",
-        vc.id AS "codeId",
-        vc."currentOwnerId" AS "codeCurrentOwnerId",
-        vc."currentOwnerType" AS "codeCurrentOwnerType",
-        v.id AS "voucherId",
-        v.name AS "voucherName",
-        v.description AS "voucherDescription",
-        v."imageUrl" AS "voucherImageUrl",
-        v."valueType" AS "voucherValueType",
-        v.value AS "voucherValue",
-        v."startDate" AS "voucherStartDate",
-        v."endDate" AS "voucherEndDate",
-        v.status AS "voucherStatus",
-        v."merchantId" AS "voucherMerchantId",
-        v."merchantRef" AS "voucherMerchantRef",
-        v."sellerMerchantId" AS "voucherSellerMerchantId",
-        m.id AS "merchantId",
-        m.name AS "merchantName",
-        m."imageUrl" AS "merchantImageUrl",
-        w."walletAddress" AS "merchantWalletAddress",
-        p.id AS "pointId",
-        p.name AS "pointName",
-        p.symbol AS "pointSymbol",
-        p."contractAddress" AS "pointContractAddress",
-        p."imageUrl" AS "pointImageUrl"
-      FROM "VoucherCode" vc
-      JOIN "Voucher" v ON vc."voucherId" = v.id
-      LEFT JOIN "Merchant" m ON v."merchantId" = m.id
-      LEFT JOIN "Wallet" w ON m."walletId" = w.id
-      LEFT JOIN "Point" p ON vc."pointId" = p.id
-      WHERE vc."voucherGroupId" IN (${Prisma.join(listingIds)})
-        AND vc."pointId" IS NOT NULL
-        AND v."merchantRef" = ${merchantRef}
-        AND (vc."currentOwnerType" IS NULL OR vc."currentOwnerType" != 'CUSTOMER')
-      ORDER BY vc."voucherGroupId", vc.created_at ASC
-    `;
-
-    const detailMap = mapListingDetails(listingDetails);
-
-    if (listingDetails.length === 0) {
-      return {
-        detailMap,
-        countMap: new Map<string, number>(),
-        codeOwnerMerchantMap: new Map<string, CodeOwnerMerchantRow>(),
-      };
-    }
-
-    const filteredListingIds = listingDetails.map((d) => d.voucherGroupId);
-
-    const availableCounts = await this.prisma.$queryRaw<AvailableCountRow[]>`
-      SELECT
-        vc."voucherGroupId",
-        COUNT(*)::bigint AS "availableCount"
-      FROM "VoucherCode" vc
-      JOIN "Voucher" v ON vc."voucherId" = v.id
-      WHERE vc."voucherGroupId" IN (${Prisma.join(filteredListingIds)})
-        AND vc."isUsed" = false
-        AND v."merchantRef" = ${merchantRef}
-        AND (vc."currentOwnerType" IS NULL OR vc."currentOwnerType" != 'CUSTOMER')
-      GROUP BY vc."voucherGroupId"
-    `;
-
-    const countMap = mapAvailableCounts(availableCounts);
-    const codeOwnerMerchantMap = await fetchCodeOwnerMerchants(
+    const listingData = await fetchMarketplaceListingData(
       this.prisma,
-      listingDetails,
+      listingIds,
+      { pointOnly: true, merchantRef },
     );
 
     this.logger.log(
-      `[GetMarketplaceListingsByMerchantRef] SQL returned ${listingDetails.length} listing details for merchantRef=${merchantRef}`,
+      `[GetMarketplaceListingsByMerchantRef] SQL returned ${listingData.listingDetailsCount} listing details for merchantRef=${merchantRef}`,
     );
 
-    return { detailMap, countMap, codeOwnerMerchantMap };
+    return listingData;
   }
 
   /** Build valid listings by mapping blockchain data to DB data */

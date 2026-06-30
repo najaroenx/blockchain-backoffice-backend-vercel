@@ -8,10 +8,13 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
-import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 import { randomUUID } from 'crypto';
 import { parseBatchTransferCsvRows } from '../utils/batch-transfer-csv.util';
-import { writeDirectVoucherTransferLedger } from '../utils/direct-voucher-transfer.util';
+import {
+  getMerchantPrivateKey,
+  lockAvailableMerchantVoucherCodes,
+  writeDirectVoucherTransferLedger,
+} from '../utils/direct-voucher-transfer.util';
 
 export interface UploadedCsvFile {
   fieldname: string;
@@ -123,19 +126,13 @@ export class ExecuteBatchTransferCsvHandler {
     for (const [voucherId, requiredQty] of cumulativeQuantities.entries()) {
       if (!voucherId) continue;
 
-      const availableCodes = await this.prisma.$queryRawUnsafe<any[]>(
-        `
-        SELECT * FROM "VoucherCode"
-        WHERE "voucherId" = $1
-          AND "currentOwnerId" = $2
-          AND "currentOwnerType" = 'MERCHANT'
-          AND "isUsed" = false
-        LIMIT $3
-        FOR UPDATE SKIP LOCKED
-      `,
-        voucherId,
-        merchantId,
-        requiredQty,
+      const availableCodes = await lockAvailableMerchantVoucherCodes(
+        this.prisma,
+        {
+          voucherId,
+          merchantId,
+          quantity: requiredQty,
+        },
       );
 
       if (!availableCodes || availableCodes.length < requiredQty) {
@@ -148,23 +145,11 @@ export class ExecuteBatchTransferCsvHandler {
     }
 
     // 6. Decrypt Merchant Seed Phrase once
-    const salt = this.configService.get<string>('SALT');
-    if (!salt) {
-      throw new Error('SALT not found in config service');
-    }
-    const decryptedSeedPhrase = this.tokenService.decryptKey(
-      salt,
-      merchant.wallet.seedPhrase,
+    const merchantPrivateKey = getMerchantPrivateKey(
+      this.configService,
+      this.tokenService,
+      merchant,
     );
-    if (!decryptedSeedPhrase) {
-      throw new Error('Failed to decrypt merchant seed phrase');
-    }
-
-    const merchantSigner = getSignerFromSeedPhrase(
-      decryptedSeedPhrase,
-      merchant.wallet.derivationIndex,
-    );
-    const merchantPrivateKey = merchantSigner.privateKey;
 
     // Track allocated codes slices
     const codeAllocators = new Map<string, number>();

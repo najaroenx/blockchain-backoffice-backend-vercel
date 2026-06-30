@@ -1,15 +1,8 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  INTERNAL_SERVER_ERROR,
-  MERCHANT_NOT_FOUND,
-} from 'src/errors/error.constants';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { MERCHANT_NOT_FOUND } from 'src/errors/error.constants';
 import { MerchantDBService } from '../services/merchant-db.service';
 import { PrismaService } from 'prisma/prisma.service';
+import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.util';
 
 @Injectable()
 export class DeleteMerchant {
@@ -51,14 +44,7 @@ export class DeleteMerchant {
         merchant: result,
       };
     } catch (error) {
-      this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
-      );
-      if (error instanceof NotFoundException) {
-        throw error;
-      } else {
-        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-      }
+      logAndRethrowOrInternalError(this.logger, error, [NotFoundException]);
     }
   }
 }

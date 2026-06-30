@@ -1,18 +1,9 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TransactionDBService } from '../services/transaction-db.service';
-import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
-import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
-import {
-  GetTransactionsByCustomerIdResponseType,
-  VoucherCodeWithVoucher,
-  TransactionVoucherInfo,
-} from '../types';
+import { GetTransactionsByCustomerIdResponseType } from '../types';
 import { CustomerDBService } from 'src/modules/internal/customer/services/customer-db.service';
+import { formatTransactionDetail } from '../utils/transaction-response.util';
+import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.util';
 
 @Injectable()
 export class GetPointTransactionsByCustomerPhone {
@@ -65,112 +56,33 @@ export class GetPointTransactionsByCustomerPhone {
       const res = pointTransactions.map((transaction) => {
         const { merchant, point, voucherCode, ...rest } = transaction;
 
-        const formatParticipant = (
-          walletAddress: Uint8Array,
+        const participantDisplayName = (
           participantId: string | null,
           participantType: string | null,
-        ) => ({
-          id: participantId ?? merchant?.id ?? null,
-          walletAddress: convertBufferToAddress(walletAddress),
-          displayName:
-            participantType === 'CUSTOMER'
-              ? participantId === customer.id
-                ? phone
-                : null
-              : participantType === 'MERCHANT' || participantType === 'SELLER'
-                ? merchant?.name || null
-                : null,
-        });
+        ) =>
+          participantType === 'CUSTOMER'
+            ? participantId === customer.id
+              ? phone
+              : null
+            : participantType === 'MERCHANT' || participantType === 'SELLER'
+              ? merchant?.name || null
+              : null;
 
-        const formatPointInfo = (
-          point: any,
-          amount: number,
-          transactionTypeId: string,
-          assetType?: string,
-        ) => {
-          // New structure: check type field - if VOUCHER, no point info
-          if (assetType === 'VOUCHER') {
-            return null;
-          }
-
-          return {
-            id: point.id,
-            name: point.name,
-            symbol: point.symbol,
-            merchantId: point.merchantId || null,
-            imageUrl: point.imageUrl || null,
-            balance: amount.toString(),
-          };
-        };
-
-        // Determine direction from customer's perspective
-        const transactionDirection =
-          rest.senderId === customer.id ? 'SENT' : 'RECEIVED';
-
-        const formatVoucherInfo = (
-          voucherCode: VoucherCodeWithVoucher | null,
-        ): TransactionVoucherInfo | null => {
-          if (!voucherCode?.voucher) return null;
-
-          return {
-            id: voucherCode.voucher.id,
-            tokenId: voucherCode.voucher.tokenId || null,
-            name: voucherCode.voucher.name,
-            description: voucherCode.voucher.description || null,
-            valueType: voucherCode.voucher.valueType,
-            value: voucherCode.voucher.value,
-            currency:
-              voucherCode.voucher.currency || voucherCode.currency || null,
-            imageUrl: voucherCode.voucher.imageUrl || null,
-            startDate: voucherCode.voucher.startDate || null,
-            endDate: voucherCode.voucher.endDate || null,
-          };
-        };
-
-        return {
-          id: rest.id,
-          txHash: convertBufferToAddress(rest.txHash),
-          senderAddress: convertBufferToAddress(rest.senderAddress),
-          receiverAddress: convertBufferToAddress(rest.receiverAddress),
-          transactionTypeId: rest.transactionTypeId,
-          amount: rest.amount,
-          transactionDirection: transactionDirection as 'SENT' | 'RECEIVED',
+        return formatTransactionDetail(transaction, {
+          perspectiveId: customer.id,
+          fallbackParticipantId: merchant?.id,
           senderId: rest.senderId || (rest as any).merchantSenderId || null,
           receiverId:
             rest.receiverId || (rest as any).merchantReceiverId || null,
-          merchant: {
-            id: rest.merchantId,
-            name: merchant?.name || null,
-            imageUrl: merchant?.imageUrl || null,
-          },
-          point: formatPointInfo(
-            point,
-            rest.amount,
-            rest.transactionTypeId,
-            (rest as any).type,
-          ),
-          sender: formatParticipant(
-            rest.senderAddress,
+          senderDisplayName: participantDisplayName(
             rest.senderId,
             (rest as any).senderType || null,
           ),
-          receiver: formatParticipant(
-            rest.receiverAddress,
+          receiverDisplayName: participantDisplayName(
             rest.receiverId,
             (rest as any).receiverType || null,
           ),
-          voucher:
-            (rest as any).type === 'POINT'
-              ? null
-              : formatVoucherInfo(voucherCode as VoucherCodeWithVoucher),
-          eventId: rest.eventId || null,
-          transactionRefId: (rest as any).transactionRefId || null,
-          typeAsset: (rest as any).type || null,
-          senderType: (rest as any).senderType || null,
-          receiverType: (rest as any).receiverType || null,
-          createdAt: rest.createdAt,
-          updatedAt: rest.updatedAt,
-        };
+        });
       });
 
       return {
@@ -178,16 +90,7 @@ export class GetPointTransactionsByCustomerPhone {
         counts: res.length,
       };
     } catch (error) {
-      this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
-      );
-
-      // Re-throw NotFoundException to preserve 404 status
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-
-      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+      logAndRethrowOrInternalError(this.logger, error, [NotFoundException]);
     }
   }
 }

@@ -11,6 +11,7 @@ import { CustomerDBService } from '../services/customer-db.service';
 import { GetCustomerByEmailResponseType } from '../types';
 import { TempLinkDBService } from 'src/modules/internal/templink/service/templink-db.service';
 import { OtpService } from 'src/modules/internal/otp/otp.service';
+import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.util';
 
 @Injectable()
 export class GetCustomerPhone {
@@ -145,14 +146,7 @@ export class GetCustomerPhone {
         customer: formattedCustomer,
       };
     } catch (error) {
-      this.logger.error(
-        `Error message : ${error.message}, \n Error detail : ${error}`,
-      );
-      if (error instanceof NotFoundException) {
-        throw error;
-      } else {
-        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-      }
+      logAndRethrowOrInternalError(this.logger, error, [NotFoundException]);
     }
   }
 
@@ -198,82 +192,5 @@ export class GetCustomerPhone {
       }
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
-  }
-
-  private formatMerchantsWithPointsAndCoupons(customer: any) {
-    const merchantMap = new Map();
-
-    // Group by merchants
-    customer.customerMerChant?.forEach((cm: any) => {
-      if (cm.merchant) {
-        merchantMap.set(cm.merchantId, {
-          merchantId: cm.merchant.id,
-          name: cm.merchant.name,
-          description: cm.merchant.description || '',
-          points: [],
-          coupons: [],
-        });
-      }
-    });
-
-    // Add points to merchants
-    customer.customerPoints?.forEach((cp: any) => {
-      if (cp.point && cp.point.merchantId) {
-        const merchant = merchantMap.get(cp.point.merchantId);
-        if (merchant) {
-          merchant.points.push({
-            title: cp.point.name,
-            balance: cp.balances,
-            pointId: cp.point.id,
-          });
-        }
-      }
-    });
-
-    // Add coupons to merchants
-    // For vouchers without merchantId (purchased from seller), add to "Other" category
-    const orphanCoupons: any[] = [];
-
-    customer.ownedVouchers?.forEach((voucher: any) => {
-      const couponData = {
-        codeId: voucher.id,
-        code: voucher.code,
-        voucherId: voucher.voucherId,
-        name: voucher.voucher?.name || 'Unknown',
-        description: voucher.voucher?.description || '',
-        imageUrl: voucher.voucher?.imageUrl || '',
-        pointsCost: voucher.pointsCost,
-        currency: voucher.currency,
-        value: voucher.voucher?.value || 0,
-        valueType: voucher.voucher?.valueType || 'fixed',
-        isUsed: voucher.isUsed || false,
-      };
-
-      if (voucher.voucher && voucher.voucher.merchantId) {
-        const merchant = merchantMap.get(voucher.voucher.merchantId);
-        if (merchant) {
-          merchant.coupons.push(couponData);
-        } else {
-          // Merchant not in customer's merchant list, add to orphan
-          orphanCoupons.push(couponData);
-        }
-      } else {
-        // No merchantId (seller voucher), add to orphan
-        orphanCoupons.push(couponData);
-      }
-    });
-
-    // Add "Other" merchant if there are orphan coupons
-    if (orphanCoupons.length > 0) {
-      merchantMap.set('other', {
-        merchantId: null,
-        name: 'Marketplace Purchases',
-        description: 'Vouchers purchased from marketplace',
-        points: [],
-        coupons: orphanCoupons,
-      });
-    }
-
-    return Array.from(merchantMap.values());
   }
 }

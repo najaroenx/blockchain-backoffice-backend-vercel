@@ -8,7 +8,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { parseBatchTransferCsvRows } from '../utils/batch-transfer-csv.util';
 import {
   getMerchantPrivateKey,
@@ -45,7 +45,7 @@ export class ExecuteBatchTransferCsvHandler {
       throw new BadRequestException('Merchant ID is required');
     }
 
-    if (!file || !file.buffer) {
+    if (!file?.buffer) {
       throw new BadRequestException('CSV file is required');
     }
 
@@ -66,7 +66,7 @@ export class ExecuteBatchTransferCsvHandler {
       throw new NotFoundException(`Merchant with ID ${merchantId} not found`);
     }
 
-    if (!merchant.wallet || !merchant.wallet.seedPhrase) {
+      if (!merchant.wallet?.seedPhrase) {
       throw new BadRequestException(
         'Merchant wallet is not fully operational or lacks a seed phrase',
       );
@@ -202,7 +202,7 @@ export class ExecuteBatchTransferCsvHandler {
         continue;
       }
 
-      if (!customer.wallet || !customer.wallet.walletAddress) {
+      if (!customer.wallet?.walletAddress) {
         results.push({
           seqNo: i + 1,
           phone: customerPhone,

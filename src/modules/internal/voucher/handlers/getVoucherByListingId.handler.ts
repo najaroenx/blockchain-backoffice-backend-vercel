@@ -16,12 +16,12 @@ import {
 
 @Injectable()
 export class GetVoucherByListingId {
-  private logger = new Logger(GetVoucherByListingId.name);
+  private readonly logger = new Logger(GetVoucherByListingId.name);
 
   constructor(
-    private blockchainService: BlockchainService,
-    private prisma: PrismaService,
-    private merchantRefEnrichment: MerchantRefEnrichmentService,
+    private readonly blockchainService: BlockchainService,
+    private readonly prisma: PrismaService,
+    private readonly merchantRefEnrichment: MerchantRefEnrichmentService,
   ) {}
 
   async execute(listingId?: string): Promise<GetVoucherByListingResponseDto> {

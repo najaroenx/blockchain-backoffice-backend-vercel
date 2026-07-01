@@ -12,7 +12,7 @@ import { SessionDBService } from '../services/session-db.service';
 
 @Injectable()
 export class GetSessionByToken {
-  constructor(private db: SessionDBService) {}
+  constructor(private readonly db: SessionDBService) {}
 
   async execute(token: string): Promise<Session & { user: User }> {
     try {

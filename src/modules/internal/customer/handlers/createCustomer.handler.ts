@@ -14,14 +14,14 @@ import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class CreateCustomer {
-  private salt: string;
-  private logger = new Logger(CreateCustomer.name);
+  private readonly salt: string;
+  private readonly logger = new Logger(CreateCustomer.name);
 
   constructor(
-    private db: CustomerDBService,
-    private tokenService: TokenService,
-    private configService: ConfigService,
-    private prisma: PrismaService,
+    private readonly db: CustomerDBService,
+    private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {
     this.salt = this.configService.get<string>('SALT');
   }

@@ -15,10 +15,10 @@ import { ConfigService } from '@nestjs/config';
 @Controller('auth')
 @Public()
 export class AuthController {
-  private logger = new Logger(AuthController.name);
+  private readonly logger = new Logger(AuthController.name);
   constructor(
-    private authService: AuthService,
-    private configService: ConfigService,
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
   ) {}
 
   @Post('login')

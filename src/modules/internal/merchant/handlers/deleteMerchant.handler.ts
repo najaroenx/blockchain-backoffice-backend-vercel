@@ -6,11 +6,11 @@ import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.uti
 
 @Injectable()
 export class DeleteMerchant {
-  private logger = new Logger(DeleteMerchant.name);
+  private readonly logger = new Logger(DeleteMerchant.name);
 
   constructor(
-    private db: MerchantDBService,
-    private prisma: PrismaService,
+    private readonly db: MerchantDBService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async execute(id: string): Promise<any> {

@@ -76,7 +76,7 @@ export interface MerchantDashboardStatsResponse {
 
 @Injectable()
 export class GetMerchantDashboardStats {
-  private logger = new Logger(GetMerchantDashboardStats.name);
+  private readonly logger = new Logger(GetMerchantDashboardStats.name);
 
   constructor(private readonly prisma: PrismaService) {}
 

@@ -13,9 +13,9 @@ import { GetMerchantResponseType } from '../types';
 
 @Injectable()
 export class GetMerchant {
-  private logger = new Logger(GetMerchant.name);
+  private readonly logger = new Logger(GetMerchant.name);
 
-  constructor(private db: MerchantDBService) {}
+  constructor(private readonly db: MerchantDBService) {}
 
   async execute(id: string): Promise<GetMerchantResponseType> {
     try {

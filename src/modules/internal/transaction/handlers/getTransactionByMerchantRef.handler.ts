@@ -18,12 +18,12 @@ import { MerchantRefEnrichmentService } from 'src/modules/shared/services/mercha
 
 @Injectable()
 export class GetTransactionByMerchantRef {
-  private logger = new Logger(GetTransactionByMerchantRef.name);
+  private readonly logger = new Logger(GetTransactionByMerchantRef.name);
 
   constructor(
-    private db: TransactionDBService,
-    private prisma: PrismaService,
-    private merchantRefEnrichment: MerchantRefEnrichmentService,
+    private readonly db: TransactionDBService,
+    private readonly prisma: PrismaService,
+    private readonly merchantRefEnrichment: MerchantRefEnrichmentService,
   ) {}
 
   async execute(

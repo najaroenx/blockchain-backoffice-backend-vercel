@@ -10,7 +10,7 @@ import { GetVoucherById } from './getVoucherById.handler';
 
 @Injectable()
 export class GetVoucherByLatestCode {
-  private logger = new Logger(GetVoucherByLatestCode.name);
+  private readonly logger = new Logger(GetVoucherByLatestCode.name);
 
   constructor(
     private readonly prisma: PrismaService,

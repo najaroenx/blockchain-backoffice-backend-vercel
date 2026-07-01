@@ -12,13 +12,13 @@ import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
 @Injectable()
 export class DelistMarketplaceListingHandler {
-  private logger = new Logger(DelistMarketplaceListingHandler.name);
+  private readonly logger = new Logger(DelistMarketplaceListingHandler.name);
 
   constructor(
-    private prisma: PrismaService,
-    private blockchainService: BlockchainService,
-    private configService: ConfigService,
-    private tokenService: TokenService,
+    private readonly prisma: PrismaService,
+    private readonly blockchainService: BlockchainService,
+    private readonly configService: ConfigService,
+    private readonly tokenService: TokenService,
   ) {}
 
   async execute(listingId: string, merchantId: string) {

@@ -32,9 +32,9 @@ export interface ListingBatchDetail {
 
 @Injectable()
 export class GetListingBatchDetailHandler {
-  private logger = new Logger(GetListingBatchDetailHandler.name);
+  private readonly logger = new Logger(GetListingBatchDetailHandler.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async execute(batchId: string): Promise<ListingBatchDetail> {
     this.logger.log(`[START] Getting batch detail for ${batchId}`);

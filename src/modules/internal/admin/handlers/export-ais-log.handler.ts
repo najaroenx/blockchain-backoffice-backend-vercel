@@ -57,7 +57,7 @@ export class ExportAisLog {
       let maxLength = column.width ?? 10;
 
       column.eachCell({ includeEmpty: true }, (cell) => {
-        const cellLength = String(cell.value ?? '').length;
+        const cellLength = this.cellValueToDisplayString(cell.value).length;
         maxLength = Math.min(Math.max(maxLength, cellLength + 2), 100);
       });
 
@@ -71,6 +71,23 @@ export class ExportAisLog {
       fileBuffer: Buffer.from(workbookBuffer),
       fileName,
     };
+  }
+
+  // ExcelJS cell values can be rich text / formula / hyperlink objects, not just
+  // primitives — a bare String(value) on those yields "[object Object]".
+  private cellValueToDisplayString(value: ExcelJS.CellValue): string {
+    if (value === null || value === undefined) return '';
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === 'object') {
+      if ('richText' in value) {
+        return value.richText.map((run) => run.text).join('');
+      }
+      if ('result' in value) return String(value.result ?? '');
+      if ('text' in value) return String(value.text);
+      if ('error' in value) return String(value.error);
+      return '';
+    }
+    return String(value);
   }
 
   private async getLogs(startDate: Date, endDate: Date) {

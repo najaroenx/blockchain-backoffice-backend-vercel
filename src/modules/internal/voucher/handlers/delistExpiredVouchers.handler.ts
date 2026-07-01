@@ -11,13 +11,13 @@ type VoucherStatusEnumRow = {
 
 @Injectable()
 export class DelistExpiredVouchers {
-  private logger = new Logger(DelistExpiredVouchers.name);
+  private readonly logger = new Logger(DelistExpiredVouchers.name);
 
   constructor(
-    private prisma: PrismaService,
-    private blockchainService: BlockchainService,
-    private tokenService: TokenService,
-    private configService: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly blockchainService: BlockchainService,
+    private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
   ) {}
 
   async execute(): Promise<{

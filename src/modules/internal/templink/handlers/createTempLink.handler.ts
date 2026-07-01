@@ -4,14 +4,14 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { TempLinkDBService } from '../service/templink-db.service';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 
 @Injectable()
 export class CreateTempLink {
-  private logger = new Logger(CreateTempLink.name);
+  private readonly logger = new Logger(CreateTempLink.name);
 
-  constructor(private db: TempLinkDBService) {}
+  constructor(private readonly db: TempLinkDBService) {}
 
   async execute(phoneNumber: string, merchantId: string, expire: Date) {
     try {

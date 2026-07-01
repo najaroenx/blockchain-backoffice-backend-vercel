@@ -11,9 +11,9 @@ import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.uti
 
 @Injectable()
 export class GetCustomerPhoneDevForResp {
-  private logger = new Logger(GetCustomerPhoneDevForResp.name);
+  private readonly logger = new Logger(GetCustomerPhoneDevForResp.name);
 
-  constructor(private db: CustomerDBService) {}
+  constructor(private readonly db: CustomerDBService) {}
 
   async execute(
     merchantId: string,

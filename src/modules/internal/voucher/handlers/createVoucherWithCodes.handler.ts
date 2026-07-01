@@ -8,15 +8,15 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { CreateVoucherDto } from '../dtos/voucher.dto';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class CreateVoucherWithCodes {
-  private logger = new Logger(CreateVoucherWithCodes.name);
+  private readonly logger = new Logger(CreateVoucherWithCodes.name);
 
   constructor(
-    private prisma: PrismaService,
-    private blockchainService: BlockchainService,
+    private readonly prisma: PrismaService,
+    private readonly blockchainService: BlockchainService,
   ) {}
 
   /**

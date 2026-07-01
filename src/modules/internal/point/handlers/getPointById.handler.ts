@@ -14,9 +14,9 @@ import { GetPointByIdResponseType } from '../types';
 
 @Injectable()
 export class GetPointById {
-  private logger = new Logger(GetPointById.name);
+  private readonly logger = new Logger(GetPointById.name);
 
-  constructor(private db: PointDBService) {}
+  constructor(private readonly db: PointDBService) {}
 
   async execute(
     pointId: string,

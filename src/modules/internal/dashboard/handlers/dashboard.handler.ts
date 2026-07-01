@@ -10,7 +10,7 @@ import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 @Injectable()
 export class DashboardService {
-  private logger = new Logger(DashboardService.name);
+  private readonly logger = new Logger(DashboardService.name);
 
   constructor(
     private readonly prisma: PrismaService,

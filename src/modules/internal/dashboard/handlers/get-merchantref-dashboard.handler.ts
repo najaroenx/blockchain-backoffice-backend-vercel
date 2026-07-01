@@ -20,7 +20,7 @@ import {
 
 @Injectable()
 export class GetMerchantRefDashboardHandler {
-  private logger = new Logger(GetMerchantRefDashboardHandler.name);
+  private readonly logger = new Logger(GetMerchantRefDashboardHandler.name);
 
   constructor(private readonly prisma: PrismaService) {}
 

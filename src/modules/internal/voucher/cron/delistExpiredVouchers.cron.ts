@@ -4,9 +4,9 @@ import { DelistExpiredVouchers } from '../handlers/delistExpiredVouchers.handler
 
 @Injectable()
 export class DelistExpiredVouchersCron {
-  private logger = new Logger(DelistExpiredVouchersCron.name);
+  private readonly logger = new Logger(DelistExpiredVouchersCron.name);
 
-  constructor(private delistExpiredVouchers: DelistExpiredVouchers) {}
+  constructor(private readonly delistExpiredVouchers: DelistExpiredVouchers) {}
 
   // Run every 12 hours at minute 0 (00:00 and 12:00)
   @Cron('0 0 */12 * * *')

@@ -6,9 +6,9 @@ import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.uti
 
 @Injectable()
 export class DeleteApiKey {
-  private logger = new Logger(DeleteApiKey.name);
+  private readonly logger = new Logger(DeleteApiKey.name);
 
-  constructor(private db: ApiKeyDBService) {}
+  constructor(private readonly db: ApiKeyDBService) {}
 
   async execute(id: string, merchantId: string): Promise<ApiKey> {
     try {

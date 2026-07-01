@@ -41,7 +41,7 @@ export class TransferVoucherToCustomerHandler {
         include: { wallet: true },
       });
 
-      if (!merchant || !merchant.wallet || !merchant.wallet.seedPhrase) {
+      if (!merchant?.wallet?.seedPhrase) {
         throw new NotFoundException(
           'Merchant or Merchant Wallet seed phrase not found',
         );
@@ -53,7 +53,7 @@ export class TransferVoucherToCustomerHandler {
         include: { wallet: true },
       });
 
-      if (!customer || !customer.wallet) {
+      if (!customer?.wallet) {
         throw new NotFoundException('Customer or Customer Wallet not found');
       }
 
@@ -81,7 +81,7 @@ export class TransferVoucherToCustomerHandler {
         where: { id: voucherId },
       });
 
-      if (!voucher || !voucher.tokenId) {
+      if (!voucher?.tokenId) {
         throw new NotFoundException('Voucher or Token ID not found');
       }
 

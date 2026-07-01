@@ -10,7 +10,7 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { AssetType, ParticipantType } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 import {
@@ -20,13 +20,13 @@ import {
 
 @Injectable()
 export class BuyCouponFromMarketplace {
-  private logger = new Logger(BuyCouponFromMarketplace.name);
+  private readonly logger = new Logger(BuyCouponFromMarketplace.name);
 
   constructor(
-    private prisma: PrismaService,
-    private blockchainService: BlockchainService,
-    private tokenService: TokenService,
-    private configService: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly blockchainService: BlockchainService,
+    private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
   ) {}
 
   async execute(voucherGroupId: string, pointId: string, phone: string) {

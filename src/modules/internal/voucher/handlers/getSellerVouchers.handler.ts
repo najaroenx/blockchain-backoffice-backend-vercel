@@ -4,9 +4,9 @@ import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class GetSellerVouchers {
-  private logger = new Logger(GetSellerVouchers.name);
+  private readonly logger = new Logger(GetSellerVouchers.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Get seller vouchers

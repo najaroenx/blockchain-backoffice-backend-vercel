@@ -54,7 +54,7 @@ export class DryRunRewardsCsvHandler {
   }
 
   async execute(file: any) {
-    if (!file || !file.buffer) {
+    if (!file?.buffer) {
       throw new BadRequestException('CSV file is required');
     }
 
@@ -107,7 +107,7 @@ export class DryRunRewardsCsvHandler {
           include: { voucher: true },
         });
 
-        if (!availableCode || !availableCode.voucher) {
+        if (!availableCode?.voucher) {
           notFoundMerchants.push({
             sequenceNo,
             merchantRef,
@@ -148,8 +148,8 @@ export class DryRunRewardsCsvHandler {
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       this.logger.error(
-        `Error processing CSV dry-run: ${(error as any).message}`,
-        (error as any).stack,
+        `Error processing CSV dry-run: ${error.message}`,
+        error.stack,
       );
       throw new BadRequestException('Failed to process CSV file');
     }

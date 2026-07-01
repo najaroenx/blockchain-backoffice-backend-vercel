@@ -7,11 +7,11 @@ import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.uti
 
 @Injectable()
 export class GetPointTransactionsByCustomerPhone {
-  private logger = new Logger(GetPointTransactionsByCustomerPhone.name);
+  private readonly logger = new Logger(GetPointTransactionsByCustomerPhone.name);
 
   constructor(
-    private db: TransactionDBService,
-    private customerDb: CustomerDBService,
+    private readonly db: TransactionDBService,
+    private readonly customerDb: CustomerDBService,
   ) {}
 
   async execute(

@@ -13,11 +13,11 @@ import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class ClearCustomerByPhone {
-  private logger = new Logger(ClearCustomerByPhone.name);
+  private readonly logger = new Logger(ClearCustomerByPhone.name);
 
   constructor(
-    private db: CustomerDBService,
-    private prisma: PrismaService,
+    private readonly db: CustomerDBService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async execute(phone: string): Promise<any> {

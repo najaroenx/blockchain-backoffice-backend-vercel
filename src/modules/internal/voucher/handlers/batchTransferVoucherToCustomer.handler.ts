@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { BatchTransferVoucherDto } from '../dtos/batch-transfer-voucher.dto';
@@ -67,7 +67,7 @@ export class BatchTransferVoucherToCustomerHandler {
         include: { wallet: true },
       });
 
-      if (!merchant || !merchant.wallet || !merchant.wallet.seedPhrase) {
+      if (!merchant?.wallet?.seedPhrase) {
         throw new NotFoundException(
           'Merchant or Merchant Wallet seed phrase not found',
         );

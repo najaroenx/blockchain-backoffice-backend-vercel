@@ -40,7 +40,7 @@ import {
  */
 @Injectable()
 export class GetSellerDashboardHandler {
-  private logger = new Logger(GetSellerDashboardHandler.name);
+  private readonly logger = new Logger(GetSellerDashboardHandler.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -334,13 +334,7 @@ export class GetSellerDashboardHandler {
         // ยังไม่ list on marketplace (VoucherCode สร้างแล้วแต่ยังไม่ list)
         unsold++;
         unsoldValue += price;
-      } else if (!hasOwner) {
-        // Listed on marketplace แต่ยังไม่มีคนซื้อ (available on marketplace)
-        sold++;
-        soldValue += price;
-        unreserved++;
-        unreservedValue += price;
-      } else {
+      } else if (hasOwner) {
         // มีคนซื้อแล้ว (Marketer หรือ Customer)
         sold++;
         soldValue += price;
@@ -360,6 +354,12 @@ export class GetSellerDashboardHandler {
             redeemedValue += price;
           }
         }
+      } else {
+        // Listed on marketplace แต่ยังไม่มีคนซื้อ (available on marketplace)
+        sold++;
+        soldValue += price;
+        unreserved++;
+        unreservedValue += price;
       }
     }
 

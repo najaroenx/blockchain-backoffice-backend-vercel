@@ -12,9 +12,9 @@ import { ethers } from 'ethers';
  */
 @Injectable()
 export class AddToWhitelist {
-  private logger = new Logger(AddToWhitelist.name);
+  private readonly logger = new Logger(AddToWhitelist.name);
 
-  constructor(private blockchainService: BlockchainService) {}
+  constructor(private readonly blockchainService: BlockchainService) {}
 
   async execute(address: string): Promise<any> {
     try {

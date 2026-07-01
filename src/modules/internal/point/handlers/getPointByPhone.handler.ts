@@ -13,9 +13,9 @@ import { PointDBService } from '../services/point-db.service';
 
 @Injectable()
 export class GetPointByPhone {
-  private logger = new Logger(GetPointByPhone.name);
+  private readonly logger = new Logger(GetPointByPhone.name);
 
-  constructor(private db: PointDBService) {}
+  constructor(private readonly db: PointDBService) {}
 
   async execute(phone: string): Promise<GetPointByPhoneResponseType> {
     try {

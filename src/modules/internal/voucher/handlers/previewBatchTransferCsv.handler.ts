@@ -53,7 +53,7 @@ export class PreviewBatchTransferCsvHandler {
       throw new BadRequestException('Merchant ID is required');
     }
 
-    if (!file || !file.buffer) {
+    if (!file?.buffer) {
       throw new BadRequestException('CSV file is required');
     }
 
@@ -71,7 +71,7 @@ export class PreviewBatchTransferCsvHandler {
       throw new NotFoundException(`Merchant with ID ${merchantId} not found`);
     }
 
-    if (!merchant.wallet || !merchant.wallet.seedPhrase) {
+      if (!merchant.wallet?.seedPhrase) {
       throw new BadRequestException(
         'Merchant wallet is not fully operational or lacks a configuration seed phrase',
       );
@@ -151,7 +151,7 @@ export class PreviewBatchTransferCsvHandler {
           errors.push(
             `Customer phone number '${row.customerPhone}' is unregistered`,
           );
-        } else if (!customer.wallet || !customer.wallet.walletAddress) {
+        } else if (!customer.wallet?.walletAddress) {
           errors.push(`Customer has no active blockchain wallet address`);
         }
       }

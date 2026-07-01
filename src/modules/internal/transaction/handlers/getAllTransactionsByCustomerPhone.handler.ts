@@ -12,12 +12,12 @@ import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.uti
 
 @Injectable()
 export class GetAllTransactionsByCustomerPhone {
-  private logger = new Logger(GetAllTransactionsByCustomerPhone.name);
+  private readonly logger = new Logger(GetAllTransactionsByCustomerPhone.name);
 
   constructor(
-    private db: TransactionDBService,
-    private customerDb: CustomerDBService,
-    private prisma: PrismaService,
+    private readonly db: TransactionDBService,
+    private readonly customerDb: CustomerDBService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async execute(

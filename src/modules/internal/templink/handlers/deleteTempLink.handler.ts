@@ -4,9 +4,9 @@ import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.uti
 
 @Injectable()
 export class DeleteTempLink {
-  private logger = new Logger(DeleteTempLink.name);
+  private readonly logger = new Logger(DeleteTempLink.name);
 
-  constructor(private db: TempLinkDBService) {}
+  constructor(private readonly db: TempLinkDBService) {}
 
   async execute(uid: string) {
     try {

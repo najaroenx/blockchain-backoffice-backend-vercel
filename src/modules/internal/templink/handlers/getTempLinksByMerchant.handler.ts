@@ -8,9 +8,9 @@ import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 
 @Injectable()
 export class GetTempLinksByMerchant {
-  private logger = new Logger(GetTempLinksByMerchant.name);
+  private readonly logger = new Logger(GetTempLinksByMerchant.name);
 
-  constructor(private db: TempLinkDBService) {}
+  constructor(private readonly db: TempLinkDBService) {}
 
   async execute(merchantId: string) {
     try {

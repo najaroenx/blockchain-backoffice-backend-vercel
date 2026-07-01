@@ -16,9 +16,9 @@ import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 
 @Injectable()
 export class UpdatePoint {
-  private logger = new Logger(UpdatePoint.name);
+  private readonly logger = new Logger(UpdatePoint.name);
 
-  constructor(private db: PointDBService) {}
+  constructor(private readonly db: PointDBService) {}
 
   async execute(
     pointId: string,

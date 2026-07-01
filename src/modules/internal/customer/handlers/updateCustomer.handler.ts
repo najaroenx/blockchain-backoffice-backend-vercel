@@ -13,9 +13,9 @@ import { Customer, Prisma } from '@prisma/client';
 
 @Injectable()
 export class UpdateCustomer {
-  private logger = new Logger(UpdateCustomer.name);
+  private readonly logger = new Logger(UpdateCustomer.name);
 
-  constructor(private db: CustomerDBService) {}
+  constructor(private readonly db: CustomerDBService) {}
 
   async execute(
     customerId: string,

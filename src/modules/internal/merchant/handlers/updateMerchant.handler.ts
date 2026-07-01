@@ -14,9 +14,9 @@ import { UpdateMerchantResponseType } from '../types';
 
 @Injectable()
 export class UpdateMerchant {
-  private logger = new Logger(UpdateMerchant.name);
+  private readonly logger = new Logger(UpdateMerchant.name);
 
-  constructor(private db: MerchantDBService) {}
+  constructor(private readonly db: MerchantDBService) {}
 
   async execute(
     merchantId: string,

@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomInt, createHash, timingSafeEqual } from 'crypto';
+import { randomInt, createHash, timingSafeEqual } from 'node:crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 
 @Injectable()

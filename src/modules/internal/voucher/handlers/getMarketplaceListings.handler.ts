@@ -14,13 +14,13 @@ import {
 
 @Injectable()
 export class GetMarketplaceListings {
-  private logger = new Logger(GetMarketplaceListings.name);
-  private thbAddress: string;
+  private readonly logger = new Logger(GetMarketplaceListings.name);
+  private readonly thbAddress: string;
 
   constructor(
-    private blockchainService: BlockchainService,
-    private prisma: PrismaService,
-    private configService: ConfigService,
+    private readonly blockchainService: BlockchainService,
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
   ) {
     this.thbAddress = this.configService.get<string>('THB_ADDRESS') || '';
   }

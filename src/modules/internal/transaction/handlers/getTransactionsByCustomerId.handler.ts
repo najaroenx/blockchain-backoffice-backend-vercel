@@ -15,11 +15,11 @@ import {
 
 @Injectable()
 export class GetTransactionsByCustomerId {
-  private logger = new Logger(GetTransactionsByCustomerId.name);
+  private readonly logger = new Logger(GetTransactionsByCustomerId.name);
 
   constructor(
-    private db: TransactionDBService,
-    private getCustomerByPhone: GetCustomerPhone,
+    private readonly db: TransactionDBService,
+    private readonly getCustomerByPhone: GetCustomerPhone,
   ) {}
 
   async execute(

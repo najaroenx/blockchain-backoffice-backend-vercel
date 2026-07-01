@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import {
   AssetType,

@@ -9,9 +9,9 @@ import { PageOptionsDto } from 'src/common/dtos';
 
 @Injectable()
 export class GetCustomerListDev {
-  private logger = new Logger(GetCustomerListDev.name);
+  private readonly logger = new Logger(GetCustomerListDev.name);
 
-  constructor(private db: CustomerDBService) {}
+  constructor(private readonly db: CustomerDBService) {}
 
   async execute(pageOptionsDto: PageOptionsDto) {
     try {

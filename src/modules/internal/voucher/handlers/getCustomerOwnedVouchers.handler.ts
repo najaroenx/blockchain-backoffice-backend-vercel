@@ -62,12 +62,12 @@ interface ActiveVoucherRow {
 
 @Injectable()
 export class GetCustomerOwnedVouchers {
-  private logger = new Logger(GetCustomerOwnedVouchers.name);
+  private readonly logger = new Logger(GetCustomerOwnedVouchers.name);
 
   constructor(
-    private prisma: PrismaService,
-    private blockchainService: BlockchainService,
-    private merchantRefEnrichment: MerchantRefEnrichmentService,
+    private readonly prisma: PrismaService,
+    private readonly blockchainService: BlockchainService,
+    private readonly merchantRefEnrichment: MerchantRefEnrichmentService,
   ) {}
 
   async execute(

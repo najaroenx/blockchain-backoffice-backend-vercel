@@ -19,7 +19,7 @@ import { MerchantRefEnrichmentService } from 'src/modules/shared/services/mercha
 
 @Injectable()
 export class GetVoucherByMerchantRef {
-  private logger = new Logger(GetVoucherByMerchantRef.name);
+  private readonly logger = new Logger(GetVoucherByMerchantRef.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly merchantRefEnrichment: MerchantRefEnrichmentService,

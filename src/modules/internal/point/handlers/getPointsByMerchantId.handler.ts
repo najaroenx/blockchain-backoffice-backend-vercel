@@ -13,12 +13,12 @@ import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class GetPointsByMerchantId {
-  private logger = new Logger(GetPointsByMerchantId.name);
+  private readonly logger = new Logger(GetPointsByMerchantId.name);
 
   constructor(
-    private db: PointDBService,
-    private blockchainService: BlockchainService,
-    private prisma: PrismaService,
+    private readonly db: PointDBService,
+    private readonly blockchainService: BlockchainService,
+    private readonly prisma: PrismaService,
   ) {}
 
   private parseJSON<T>(value: unknown): T | null {

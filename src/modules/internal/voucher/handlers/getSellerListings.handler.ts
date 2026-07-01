@@ -33,9 +33,9 @@ export interface GetSellerListingsResult {
 
 @Injectable()
 export class GetSellerListingsHandler {
-  private logger = new Logger(GetSellerListingsHandler.name);
+  private readonly logger = new Logger(GetSellerListingsHandler.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async execute(
     sellerWalletAddress: string,

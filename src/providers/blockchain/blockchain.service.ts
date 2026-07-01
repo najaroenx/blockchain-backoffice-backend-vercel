@@ -19,7 +19,7 @@ import { ConfigService } from '@nestjs/config';
 import { transaction, transactionC2C } from './types/transaction.type';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { RPC_SERVER_ERROR } from 'src/errors/error.constants';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 interface MarketplaceListingContractView {
   seller: string;
@@ -44,21 +44,21 @@ interface MarketplaceListingView {
 @Injectable()
 export class BlockchainService {
   private readonly logger = new Logger(BlockchainService.name);
-  private pointFactoryAddress: string;
+  private readonly pointFactoryAddress: string;
 
-  private privateKey: string;
+  private readonly privateKey: string;
 
-  public provider: JsonRpcProvider;
+  public readonly provider: JsonRpcProvider;
 
   private readonly DEFAULT_BLOCK_TIME = 12;
 
-  private marketplaceAddress: string;
+  private readonly marketplaceAddress: string;
 
-  private thbAddress: string;
+  private readonly thbAddress: string;
 
-  private couponAddress: string;
+  private readonly couponAddress: string;
 
-  private vaultAddress: string;
+  private readonly vaultAddress: string;
 
   // In-memory cache for active marketplace listings (reduces N+1 RPC calls)
   private listingsCache: {
@@ -67,7 +67,7 @@ export class BlockchainService {
   } | null = null;
   private readonly LISTINGS_CACHE_TTL_MS = 30_000; // 30 seconds
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.pointFactoryAddress = this.configService.get<string>(
       'POINT_FACTORY_ADDRESS',
     );

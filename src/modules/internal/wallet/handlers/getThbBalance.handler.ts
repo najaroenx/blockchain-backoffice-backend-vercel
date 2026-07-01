@@ -9,7 +9,7 @@ import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 
 @Injectable()
 export class GetThbBalance {
-  private logger = new Logger(GetThbBalance.name);
+  private readonly logger = new Logger(GetThbBalance.name);
   private readonly thbTokenAddress: string;
 
   constructor(

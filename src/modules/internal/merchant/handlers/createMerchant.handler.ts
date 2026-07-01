@@ -15,14 +15,14 @@ import { deriveChildWallet } from 'src/libs/derive-wallet';
 
 @Injectable()
 export class CreateMerchant {
-  private logger = new Logger(CreateMerchant.name);
+  private readonly logger = new Logger(CreateMerchant.name);
 
   constructor(
-    private db: MerchantDBService,
-    private prisma: PrismaService,
-    private tokenService: TokenService,
-    private configService: ConfigService,
-    private blockchainService: BlockchainService,
+    private readonly db: MerchantDBService,
+    private readonly prisma: PrismaService,
+    private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
+    private readonly blockchainService: BlockchainService,
   ) {}
 
   async execute(
@@ -42,7 +42,7 @@ export class CreateMerchant {
         throw new BadRequestException(`User with ID ${userId} not found`);
       }
 
-      if (!user.wallet || !user.wallet.seedPhrase) {
+      if (!user.wallet?.seedPhrase) {
         throw new BadRequestException(
           `User ${userId} does not have a master wallet. Please re-register.`,
         );

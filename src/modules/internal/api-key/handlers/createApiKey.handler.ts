@@ -10,11 +10,11 @@ import { TokenService } from 'src/providers/token/token.service';
 
 @Injectable()
 export class CreateApiKey {
-  private logger = new Logger(CreateApiKey.name);
+  private readonly logger = new Logger(CreateApiKey.name);
 
   constructor(
-    private db: ApiKeyDBService,
-    private tokenService: TokenService,
+    private readonly db: ApiKeyDBService,
+    private readonly tokenService: TokenService,
   ) {}
 
   async execute(

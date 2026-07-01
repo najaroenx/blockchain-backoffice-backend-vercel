@@ -6,9 +6,9 @@ import * as CryptoJS from 'crypto-js';
 @Injectable()
 export class TokenService {
   private readonly logger = new Logger(TokenService.name);
-  private jwtSecret: string;
+  private readonly jwtSecret: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.jwtSecret = this.configService.get<string>('JWT_SECRET');
   }
 

@@ -8,9 +8,9 @@ import { MerchantDBService } from '../services/merchant-db.service';
 
 @Injectable()
 export class GetMerchants {
-  private logger = new Logger(GetMerchants.name);
+  private readonly logger = new Logger(GetMerchants.name);
 
-  constructor(private db: MerchantDBService) {}
+  constructor(private readonly db: MerchantDBService) {}
 
   async execute(userId: string): Promise<any> {
     // refactor

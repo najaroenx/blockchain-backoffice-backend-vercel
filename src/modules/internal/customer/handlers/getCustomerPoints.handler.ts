@@ -9,9 +9,9 @@ import { CustomerDBService } from '../services/customer-db.service';
 
 @Injectable()
 export class GetCustomerPoints {
-  private logger = new Logger(GetCustomerPoints.name);
+  private readonly logger = new Logger(GetCustomerPoints.name);
 
-  constructor(private db: CustomerDBService) {}
+  constructor(private readonly db: CustomerDBService) {}
 
   async execute(phone: string) {
     try {

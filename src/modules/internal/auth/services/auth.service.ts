@@ -29,15 +29,15 @@ import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.uti
 @Injectable()
 export class AuthService {
   constructor(
-    private tokenService: TokenService,
-    private createSession: CreateSession,
-    private getSessionByToken: GetSessionByToken,
-    private userDBService: UserDBService,
-    private configService: ConfigService,
-    private prisma: PrismaService,
+    private readonly tokenService: TokenService,
+    private readonly createSession: CreateSession,
+    private readonly getSessionByToken: GetSessionByToken,
+    private readonly userDBService: UserDBService,
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
-  private logger = new Logger(AuthService.name);
+  private readonly logger = new Logger(AuthService.name);
 
   async login(email: string, password: string): Promise<TokenResponse> {
     try {

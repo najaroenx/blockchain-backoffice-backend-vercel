@@ -8,15 +8,15 @@ import { AdmdTokenResponse } from './types';
 
 @Injectable()
 export class AdmdService {
-  private logger = new Logger(AdmdService.name);
-  private tokenUrl: string;
-  private clientId: string;
-  private clientSecret: string;
+  private readonly logger = new Logger(AdmdService.name);
+  private readonly tokenUrl: string;
+  private readonly clientId: string;
+  private readonly clientSecret: string;
 
   private cachedToken: string | null = null;
   private tokenExpiry = 0; // unix timestamp in ms
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.tokenUrl = this.configService.get<string>('ADMD_TOKEN_URL');
     this.clientId = this.configService.get<string>('ADMD_CLIENT_ID');
     this.clientSecret = this.configService.get<string>('ADMD_CLIENT_SECRET');

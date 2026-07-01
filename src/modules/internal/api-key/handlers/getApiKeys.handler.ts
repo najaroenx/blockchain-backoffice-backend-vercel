@@ -10,9 +10,9 @@ import { PageOptionsDto } from 'src/common/dtos';
 
 @Injectable()
 export class GetApiKeys {
-  private logger = new Logger(GetApiKeys.name);
+  private readonly logger = new Logger(GetApiKeys.name);
 
-  constructor(private db: ApiKeyDBService) {}
+  constructor(private readonly db: ApiKeyDBService) {}
 
   async execute(
     merchantId: string,

@@ -4,17 +4,17 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomInt } from 'crypto';
+import { randomInt } from 'node:crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 
 @Injectable()
 export class OTPService {
-  private logger = new Logger(OTPService.name);
-  private otpApiUrl: string;
-  private otpApiUsername: string;
-  private otpApiPassword: string;
+  private readonly logger = new Logger(OTPService.name);
+  private readonly otpApiUrl: string;
+  private readonly otpApiUsername: string;
+  private readonly otpApiPassword: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.otpApiUrl = this.configService.get<string>('OTP_API_URL');
     this.otpApiUsername = this.configService.get<string>('OTP_API_USERNAME');
     this.otpApiPassword = this.configService.get<string>('OTP_API_PASSWORD');

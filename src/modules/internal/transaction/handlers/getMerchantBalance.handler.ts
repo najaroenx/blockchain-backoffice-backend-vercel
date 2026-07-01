@@ -9,7 +9,7 @@ import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
 
 @Injectable()
 export class GetWalletBalance {
-  private logger = new Logger(GetWalletBalance.name);
+  private readonly logger = new Logger(GetWalletBalance.name);
 
   constructor(
     private readonly blockchainService: BlockchainService,

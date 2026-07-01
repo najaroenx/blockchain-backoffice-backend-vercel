@@ -12,7 +12,7 @@ import {
 } from 'src/errors/error.constants';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { Prisma, AssetType, ParticipantType } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { createBufferFromHex } from 'src/libs/createBufferFromHex';
 import { CreateTransaction as CreateTransactionResponse } from '../types';
@@ -29,7 +29,7 @@ import { ethers } from 'ethers';
 
 @Injectable()
 export class CreateTransactionB2C {
-  private logger = new Logger(CreateTransactionB2C.name);
+  private readonly logger = new Logger(CreateTransactionB2C.name);
 
   constructor(
     private readonly db: TransactionDBService,

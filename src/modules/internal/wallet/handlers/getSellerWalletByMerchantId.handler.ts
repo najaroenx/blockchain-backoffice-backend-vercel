@@ -4,11 +4,11 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 
 @Injectable()
 export class GetSellerWalletByMerchantId {
-  private logger = new Logger(GetSellerWalletByMerchantId.name);
+  private readonly logger = new Logger(GetSellerWalletByMerchantId.name);
 
   constructor(
-    private walletDB: WalletDBService,
-    private blockchainService: BlockchainService,
+    private readonly walletDB: WalletDBService,
+    private readonly blockchainService: BlockchainService,
   ) {}
 
   /**

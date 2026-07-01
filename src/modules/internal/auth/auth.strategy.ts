@@ -16,8 +16,8 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
   private readonly logger = new Logger(AuthStrategy.name);
 
   constructor(
-    private tokenService: TokenService,
-    private getApiKey: GetApiKey,
+    private readonly tokenService: TokenService,
+    private readonly getApiKey: GetApiKey,
   ) {
     super();
   }

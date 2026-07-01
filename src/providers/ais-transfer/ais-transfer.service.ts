@@ -13,7 +13,7 @@ import {
   AisTransferReverseRequestBody,
   AisTransferResponse,
 } from './types';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 const AIS_TRANSFER_POINTS_PATH = '/nlp-px/legacy-api/v1/points';
 const AIS_TRANSFER_ENDPOINTS = {
@@ -23,16 +23,16 @@ const AIS_TRANSFER_ENDPOINTS = {
 
 @Injectable()
 export class AisTransferService {
-  private logger = new Logger(AisTransferService.name);
-  private baseUrl: string;
-  private username: string;
-  private password: string;
-  private referenceCode: string;
+  private readonly logger = new Logger(AisTransferService.name);
+  private readonly baseUrl: string;
+  private readonly username: string;
+  private readonly password: string;
+  private readonly referenceCode: string;
 
   constructor(
-    private admdService: AdmdService,
-    private configService: ConfigService,
-    private prisma: PrismaService,
+    private readonly admdService: AdmdService,
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {
     this.baseUrl = this.buildAisBaseUrl(
       this.configService.get<string>('AIS_TRANSFER_BASE_URL') ?? '',

@@ -23,11 +23,11 @@ import { ethers } from 'ethers';
  */
 @Injectable()
 export class MintTHBToMerchant {
-  private logger = new Logger(MintTHBToMerchant.name);
+  private readonly logger = new Logger(MintTHBToMerchant.name);
 
   constructor(
-    private prisma: PrismaService,
-    private blockchainService: BlockchainService,
+    private readonly prisma: PrismaService,
+    private readonly blockchainService: BlockchainService,
   ) {}
 
   async execute(merchantId: string, amount: number): Promise<any> {

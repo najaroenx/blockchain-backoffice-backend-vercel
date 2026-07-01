@@ -15,11 +15,11 @@ import {
 
 @Injectable()
 export class GetTransactionsByMerchantId {
-  private logger = new Logger(GetTransactionsByMerchantId.name);
+  private readonly logger = new Logger(GetTransactionsByMerchantId.name);
 
   constructor(
-    private db: TransactionDBService,
-    private prisma: PrismaService,
+    private readonly db: TransactionDBService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async execute(

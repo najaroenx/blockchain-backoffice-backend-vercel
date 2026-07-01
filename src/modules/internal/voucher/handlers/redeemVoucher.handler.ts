@@ -11,7 +11,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TransactionTypeId } from 'src/constants/transaction-types.enum';
 import { AssetType, ParticipantType } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
@@ -26,16 +26,16 @@ type RedeemValidationOptions = {
 
 @Injectable()
 export class RedeemVoucher {
-  private logger = new Logger(RedeemVoucher.name);
-  private salt: string;
+  private readonly logger = new Logger(RedeemVoucher.name);
+  private readonly salt: string;
 
   constructor(
-    private prisma: PrismaService,
-    private blockchainService: BlockchainService,
-    private tokenService: TokenService,
-    private configService: ConfigService,
-    private merchantRefEnrichment: MerchantRefEnrichmentService,
-    private aisTransferService: AisTransferService,
+    private readonly prisma: PrismaService,
+    private readonly blockchainService: BlockchainService,
+    private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
+    private readonly merchantRefEnrichment: MerchantRefEnrichmentService,
+    private readonly aisTransferService: AisTransferService,
   ) {
     this.salt = this.configService.get<string>('SALT');
   }

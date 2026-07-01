@@ -14,9 +14,9 @@ export interface UpdateVoucherCodesPointCostInput {
 
 @Injectable()
 export class ManageCouponHandler {
-  private logger = new Logger(ManageCouponHandler.name);
+  private readonly logger = new Logger(ManageCouponHandler.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * อัปเดต pointsCost ของ VoucherCode โดยระบุจำนวน

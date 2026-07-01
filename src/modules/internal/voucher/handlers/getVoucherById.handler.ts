@@ -48,11 +48,11 @@ interface VoucherRow {
 
 @Injectable()
 export class GetVoucherById {
-  private logger = new Logger(GetVoucherById.name);
+  private readonly logger = new Logger(GetVoucherById.name);
 
   constructor(
-    private prisma: PrismaService,
-    private merchantRefEnrichment: MerchantRefEnrichmentService,
+    private readonly prisma: PrismaService,
+    private readonly merchantRefEnrichment: MerchantRefEnrichmentService,
   ) {}
 
   async execute(

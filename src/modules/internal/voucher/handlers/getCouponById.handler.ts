@@ -11,11 +11,11 @@ import { resolveVoucherMerchantId } from '../utils/resolve-voucher-merchant.util
 
 @Injectable()
 export class GetCouponById {
-  private logger = new Logger(GetCouponById.name);
+  private readonly logger = new Logger(GetCouponById.name);
 
   constructor(
-    private prisma: PrismaService,
-    private merchantRefEnrichment: MerchantRefEnrichmentService,
+    private readonly prisma: PrismaService,
+    private readonly merchantRefEnrichment: MerchantRefEnrichmentService,
   ) {}
 
   async execute(couponId: string): Promise<any> {

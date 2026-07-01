@@ -2,6 +2,12 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { TransferVoucherToCustomerHandler } from '../../voucher/handlers/transferVoucherToCustomer.handler';
 
+type RewardRowOutcome =
+  | { kind: 'skip' }
+  | { kind: 'notFoundCustomer'; data: Record<string, unknown> }
+  | { kind: 'failedTransfer'; data: Record<string, unknown> }
+  | { kind: 'successTransfer'; data: Record<string, unknown> };
+
 @Injectable()
 export class ExecuteRewardsCsvHandler {
   private readonly logger = new Logger(ExecuteRewardsCsvHandler.name);
@@ -53,8 +59,90 @@ export class ExecuteRewardsCsvHandler {
     return parsedRows;
   }
 
+  private async processRewardRow(row: string[]): Promise<RewardRowOutcome> {
+    if (row.length < 12) return { kind: 'skip' };
+
+    const sequenceNo = row[0];
+    const merchantRef = row[1]?.trim();
+    const status = row[8]?.trim();
+    const phone = row[9]?.trim();
+    const voucherId = row[11]?.trim();
+
+    if (status !== 'ยังไม่ได้แจก' || !phone) return { kind: 'skip' };
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { tel: phone },
+      include: { wallet: true },
+    });
+    if (!customer) {
+      return {
+        kind: 'notFoundCustomer',
+        data: { sequenceNo, phone, merchantRef },
+      };
+    }
+
+    const availableCode = await this.prisma.voucherCode.findFirst({
+      where: {
+        voucher: {
+          merchantRef: merchantRef,
+        },
+        currentOwnerType: 'MERCHANT',
+        isUsed: false,
+      },
+      include: { voucher: true },
+    });
+
+    if (!availableCode?.voucher) {
+      return {
+        kind: 'failedTransfer',
+        data: {
+          sequenceNo,
+          phone,
+          customerWallet: customer.wallet?.walletAddress || null,
+          merchantRef,
+          voucherId_in_csv: voucherId,
+          reason: 'NO_QUOTA_OR_MERCHANT_NOT_FOUND',
+        },
+      };
+    }
+
+    // Thực thiการแจกรางวัลให้ลูกค้า (Execute Transfer On-chain & Database)
+    try {
+      const transferResult = await this.transferVoucherToCustomerHandler.execute(
+        {
+          merchantId: availableCode.currentOwnerId,
+          customerPhone: phone,
+          voucherId: availableCode.voucherId,
+          quantity: 1,
+        },
+      );
+
+      return {
+        kind: 'successTransfer',
+        data: {
+          sequenceNo,
+          phone,
+          customerWallet: customer.wallet?.walletAddress || null,
+          merchantRef: merchantRef,
+          txHash: transferResult.transactionHash,
+        },
+      };
+    } catch (err) {
+      return {
+        kind: 'failedTransfer',
+        data: {
+          sequenceNo,
+          phone,
+          customerWallet: customer.wallet?.walletAddress || null,
+          merchantRef: merchantRef,
+          reason: err.message || 'TRANSFER_ERROR',
+        },
+      };
+    }
+  }
+
   async execute(file: any) {
-    if (!file || !file.buffer) {
+    if (!file?.buffer) {
       throw new BadRequestException('CSV file is required');
     }
 
@@ -72,74 +160,21 @@ export class ExecuteRewardsCsvHandler {
       const notFoundMerchants = [];
 
       for (const row of rows) {
-        if (row.length < 12) continue;
+        const outcome = await this.processRewardRow(row);
 
-        const sequenceNo = row[0];
-        const merchantRef = row[1]?.trim();
-        const voucherNameCSV = row[3];
-        const status = row[8]?.trim();
-        const phone = row[9]?.trim();
-        const voucherId = row[11]?.trim();
-
-        if (status !== 'ยังไม่ได้แจก' || !phone) continue;
-
-        const customer = await this.prisma.customer.findUnique({
-          where: { tel: phone },
-          include: { wallet: true },
-        });
-        if (!customer) {
-          notFoundCustomers.push({ sequenceNo, phone, merchantRef });
-          continue;
-        }
-
-        const availableCode = await this.prisma.voucherCode.findFirst({
-          where: {
-            voucher: {
-              merchantRef: merchantRef,
-            },
-            currentOwnerType: 'MERCHANT',
-            isUsed: false,
-          },
-          include: { voucher: true },
-        });
-
-        if (!availableCode || !availableCode.voucher) {
-          failedTransfers.push({
-            sequenceNo,
-            phone,
-            customerWallet: customer.wallet?.walletAddress || null,
-            merchantRef,
-            voucherId_in_csv: voucherId,
-            reason: 'NO_QUOTA_OR_MERCHANT_NOT_FOUND',
-          });
-          continue;
-        }
-
-        // Thực thiการแจกรางวัลให้ลูกค้า (Execute Transfer On-chain & Database)
-        try {
-          const transferResult =
-            await this.transferVoucherToCustomerHandler.execute({
-              merchantId: availableCode.currentOwnerId,
-              customerPhone: phone,
-              voucherId: availableCode.voucherId,
-              quantity: 1,
-            });
-
-          successTransfers.push({
-            sequenceNo,
-            phone,
-            customerWallet: customer.wallet?.walletAddress || null,
-            merchantRef: merchantRef,
-            txHash: transferResult.transactionHash,
-          });
-        } catch (err) {
-          failedTransfers.push({
-            sequenceNo,
-            phone,
-            customerWallet: customer.wallet?.walletAddress || null,
-            merchantRef: merchantRef,
-            reason: err.message || 'TRANSFER_ERROR',
-          });
+        switch (outcome.kind) {
+          case 'notFoundCustomer':
+            notFoundCustomers.push(outcome.data);
+            break;
+          case 'failedTransfer':
+            failedTransfers.push(outcome.data);
+            break;
+          case 'successTransfer':
+            successTransfers.push(outcome.data);
+            break;
+          case 'skip':
+          default:
+            break;
         }
       }
 
@@ -161,8 +196,8 @@ export class ExecuteRewardsCsvHandler {
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       this.logger.error(
-        `Error processing CSV execute: ${(error as any).message}`,
-        (error as any).stack,
+        `Error processing CSV execute: ${error.message}`,
+        error.stack,
       );
       throw new BadRequestException('Failed to process CSV file');
     }

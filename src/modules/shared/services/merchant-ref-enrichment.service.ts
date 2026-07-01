@@ -17,7 +17,7 @@ export interface MerchantRefDetail {
 
 @Injectable()
 export class MerchantRefEnrichmentService {
-  private logger = new Logger(MerchantRefEnrichmentService.name);
+  private readonly logger = new Logger(MerchantRefEnrichmentService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 

@@ -13,12 +13,12 @@ import { GetMerchant } from 'src/modules/internal/merchant/handlers/getMerchantB
 
 @Injectable()
 export class CreatePoint {
-  private logger = new Logger(CreatePoint.name);
+  private readonly logger = new Logger(CreatePoint.name);
 
   constructor(
-    private db: PointDBService,
-    private blockchainService: BlockchainService,
-    private getMerchant: GetMerchant,
+    private readonly db: PointDBService,
+    private readonly blockchainService: BlockchainService,
+    private readonly getMerchant: GetMerchant,
   ) {}
 
   async execute(merchantId: string, data: CreatePointDto): Promise<Point> {

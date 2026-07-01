@@ -13,13 +13,13 @@ import { getSignerFromSeedPhrase } from 'src/libs/derive-wallet';
 
 @Injectable()
 export class ActivateVoucher {
-  private logger = new Logger(ActivateVoucher.name);
+  private readonly logger = new Logger(ActivateVoucher.name);
 
   constructor(
-    private prisma: PrismaService,
-    private blockchainService: BlockchainService,
-    private tokenService: TokenService,
-    private configService: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly blockchainService: BlockchainService,
+    private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
   ) {}
 
   async execute(

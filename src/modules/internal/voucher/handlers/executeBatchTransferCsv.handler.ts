@@ -66,7 +66,7 @@ export class ExecuteBatchTransferCsvHandler {
       throw new NotFoundException(`Merchant with ID ${merchantId} not found`);
     }
 
-      if (!merchant.wallet?.seedPhrase) {
+    if (!merchant.wallet?.seedPhrase) {
       throw new BadRequestException(
         'Merchant wallet is not fully operational or lacks a seed phrase',
       );

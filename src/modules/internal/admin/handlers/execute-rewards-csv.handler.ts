@@ -108,14 +108,13 @@ export class ExecuteRewardsCsvHandler {
 
     // Thực thiการแจกรางวัลให้ลูกค้า (Execute Transfer On-chain & Database)
     try {
-      const transferResult = await this.transferVoucherToCustomerHandler.execute(
-        {
+      const transferResult =
+        await this.transferVoucherToCustomerHandler.execute({
           merchantId: availableCode.currentOwnerId,
           customerPhone: phone,
           voucherId: availableCode.voucherId,
           quantity: 1,
-        },
-      );
+        });
 
       return {
         kind: 'successTransfer',

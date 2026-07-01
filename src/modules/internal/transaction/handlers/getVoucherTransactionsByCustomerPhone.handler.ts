@@ -7,7 +7,9 @@ import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.uti
 
 @Injectable()
 export class GetVoucherTransactionsByCustomerPhone {
-  private readonly logger = new Logger(GetVoucherTransactionsByCustomerPhone.name);
+  private readonly logger = new Logger(
+    GetVoucherTransactionsByCustomerPhone.name,
+  );
 
   constructor(
     private readonly db: TransactionDBService,

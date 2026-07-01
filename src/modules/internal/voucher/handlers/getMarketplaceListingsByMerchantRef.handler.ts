@@ -14,7 +14,9 @@ import {
 
 @Injectable()
 export class GetMarketplaceListingsByMerchantRef {
-  private readonly logger = new Logger(GetMarketplaceListingsByMerchantRef.name);
+  private readonly logger = new Logger(
+    GetMarketplaceListingsByMerchantRef.name,
+  );
   private readonly thbAddress: string;
 
   constructor(

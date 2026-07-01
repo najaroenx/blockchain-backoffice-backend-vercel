@@ -98,8 +98,8 @@ export class VoucherController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const pageNum = page ? Number.parseInt(page, 10) : 1;
+    const limitNum = limit ? Number.parseInt(limit, 10) : 10;
     return this.getMarketerTransferHistoryHandler.execute(
       merchantId,
       pageNum,
@@ -195,8 +195,8 @@ export class VoucherController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const pageNum = page ? parseInt(page, 10) : undefined;
-    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    const pageNum = page ? Number.parseInt(page, 10) : undefined;
+    const limitNum = limit ? Number.parseInt(limit, 10) : undefined;
     return this.getMarketplaceListings.execute(
       undefined, // no merchantId filter
       true, // sellerOnly = true
@@ -288,9 +288,9 @@ export class VoucherController {
       };
     }
 
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const skipNum = skip ? parseInt(skip, 10) : 0;
-    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const pageNum = page ? Number.parseInt(page, 10) : 1;
+    const skipNum = skip ? Number.parseInt(skip, 10) : 0;
+    const limitNum = limit ? Number.parseInt(limit, 10) : 20;
 
     return this.voucherService.getVoucherCodesByGroup(
       merchantId,
@@ -315,9 +315,9 @@ export class VoucherController {
     @Query('skip') skip?: string,
     @Query('limit') limit?: string,
   ) {
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const skipNum = skip ? parseInt(skip, 10) : 0;
-    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const pageNum = page ? Number.parseInt(page, 10) : 1;
+    const skipNum = skip ? Number.parseInt(skip, 10) : 0;
+    const limitNum = limit ? Number.parseInt(limit, 10) : 20;
 
     return this.voucherService.getVoucherCodesByGroup(
       merchantId,
@@ -480,8 +480,8 @@ export class VoucherController {
       };
     }
 
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const pageNum = page ? Number.parseInt(page, 10) : 1;
+    const limitNum = limit ? Number.parseInt(limit, 10) : 20;
     const statusEnum = status as
       | 'ACTIVE'
       | 'SOLD_OUT'

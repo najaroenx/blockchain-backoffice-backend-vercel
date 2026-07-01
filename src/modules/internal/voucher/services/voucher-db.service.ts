@@ -218,9 +218,9 @@ export class VoucherDBService {
     try {
       const balanceResult = await this.blockchainService.getUserCouponBalance(
         voucher.merchant.wallet.walletAddress,
-        parseInt(voucher.tokenId),
+        Number.parseInt(voucher.tokenId),
       );
-      const count = parseInt(balanceResult.balance);
+      const count = Number.parseInt(balanceResult.balance);
       this.logger.log(
         `[getVouchersByMerchant] Voucher ${voucher.id} (${voucher.name}): No codes in DB, blockchain balance = ${count}`,
       );

@@ -384,12 +384,12 @@ export class ActivateVoucher {
       const merchantNFTBalance =
         await this.blockchainService.getUserCouponBalance(
           walletAddress,
-          parseInt(tokenId),
+          Number.parseInt(tokenId),
         );
       this.logger.log(
         `[STEP 4.2] Merchant NFT balance: ${merchantNFTBalance.balance} (activating ${amount})`,
       );
-      if (parseInt(merchantNFTBalance.balance) < amount) {
+      if (Number.parseInt(merchantNFTBalance.balance) < amount) {
         this.logger.error(
           `[ERROR] Insufficient NFT balance. Required: ${amount}, Available: ${merchantNFTBalance.balance}`,
         );

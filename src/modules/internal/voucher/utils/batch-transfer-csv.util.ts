@@ -44,18 +44,22 @@ export function parseCsv(
     let currentBuffer = '';
     let isInsideQuotes = false;
 
-    for (let j = 0; j < lineText.length; j++) {
+    let j = 0;
+    while (j < lineText.length) {
       const char = lineText[j];
       if (char === '"' && lineText[j + 1] === '"') {
         currentBuffer += '"';
-        j++;
+        j += 2;
       } else if (char === '"') {
         isInsideQuotes = !isInsideQuotes;
+        j++;
       } else if (char === ',' && !isInsideQuotes) {
         columns.push(currentBuffer.trim());
         currentBuffer = '';
+        j++;
       } else {
         currentBuffer += char;
+        j++;
       }
     }
 
@@ -148,7 +152,7 @@ export function parseBatchTransferCsvRows(
         lineNum: item.lineNum,
         customerPhone,
         voucherId,
-        quantity: parseInt(qtyStr, 10),
+        quantity: Number.parseInt(qtyStr, 10),
       };
     })
     .filter((row) => row.customerPhone !== '' || row.voucherId !== '');

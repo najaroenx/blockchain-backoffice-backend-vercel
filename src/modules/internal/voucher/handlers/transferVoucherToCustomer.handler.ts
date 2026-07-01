@@ -85,7 +85,7 @@ export class TransferVoucherToCustomerHandler {
         throw new NotFoundException('Voucher or Token ID not found');
       }
 
-      const typeId = parseInt(voucher.tokenId, 10);
+      const typeId = Number.parseInt(voucher.tokenId, 10);
 
       // Decrypt merchant key
       const merchantPrivateKey = getMerchantPrivateKey(

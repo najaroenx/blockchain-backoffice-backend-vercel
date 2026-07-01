@@ -22,7 +22,11 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
     super();
   }
 
-  async authenticate(request: Request) {
+  authenticate(request: Request): void {
+    void this.authenticateAsync(request);
+  }
+
+  private async authenticateAsync(request: Request): Promise<void> {
     /** API key authorization */
     const authorizationKey = this.extractAuthorizationKey(request);
 
@@ -41,10 +45,11 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
           merchantId,
         );
 
-        return this.success({
+        this.success({
           type: 'api-key',
           id: apiKeyDetails.id,
         });
+        return;
       } catch (error) {
         this.logger.debug(`API key auth failed for key: ${error?.message}`);
       }
@@ -53,7 +58,8 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
     let bearerToken = request.query['token'] ?? request.headers.authorization;
 
     if (typeof bearerToken !== 'string') {
-      return this.fail('Invalid request', 400);
+      this.fail('Invalid request', 400);
+      return;
     }
 
     if (bearerToken.startsWith('Bearer '))
@@ -64,10 +70,10 @@ export class AuthStrategy extends PassportStrategy(AuthStrategyName) {
         LOGIN_ACCESS_TOKEN,
         bearerToken,
       ) as AccessTokenClaims;
-      return this.success(payload);
+      this.success(payload);
     } catch (err: any) {
       this.logger.warn(`Invalid token: ${err.message}`);
-      return this.fail('Invalid token', 400);
+      this.fail('Invalid token', 400);
     }
   }
 

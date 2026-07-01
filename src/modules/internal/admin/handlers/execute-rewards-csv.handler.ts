@@ -37,18 +37,22 @@ export class ExecuteRewardsCsvHandler {
       let current = '';
       let inQuotes = false;
 
-      for (let j = 0; j < text.length; j++) {
+      let j = 0;
+      while (j < text.length) {
         const char = text[j];
         if (char === '"' && text[j + 1] === '"') {
           current += '"';
-          j++;
+          j += 2;
         } else if (char === '"') {
           inQuotes = !inQuotes;
+          j++;
         } else if (char === ',' && !inQuotes) {
           result.push(current);
           current = '';
+          j++;
         } else {
           current += char;
+          j++;
         }
       }
 

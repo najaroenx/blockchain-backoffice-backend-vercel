@@ -171,7 +171,7 @@ export class PreviewBatchTransferCsvHandler {
       }
 
       // C. Validations for quantities & stock level
-      if (isNaN(row.quantity) || row.quantity <= 0) {
+      if (Number.isNaN(row.quantity) || row.quantity <= 0) {
         errors.push('Quantity must be a positive integer greater than zero');
       } else if (isValidNumber(row.quantity)) {
         totalQuantity += row.quantity;
@@ -202,7 +202,7 @@ export class PreviewBatchTransferCsvHandler {
         seqNo,
         customerPhone: row.customerPhone,
         voucherId: row.voucherId,
-        quantity: isNaN(row.quantity) ? 0 : row.quantity,
+        quantity: Number.isNaN(row.quantity) ? 0 : row.quantity,
         isValid: rowIsValid,
         errors,
       });
@@ -222,5 +222,5 @@ export class PreviewBatchTransferCsvHandler {
 }
 
 function isValidNumber(num: number): boolean {
-  return typeof num === 'number' && !isNaN(num);
+  return typeof num === 'number' && !Number.isNaN(num);
 }

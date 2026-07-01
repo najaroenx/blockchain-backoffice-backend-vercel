@@ -180,7 +180,7 @@ export class BatchTransferVoucherToCustomerHandler {
         const { customerPhone, voucherId, quantity } = transfer;
         const customer = customerMap.get(customerPhone)!;
         const voucher = voucherMap.get(voucherId)!;
-        const typeId = parseInt(voucher.tokenId!, 10);
+        const typeId = Number.parseInt(voucher.tokenId!, 10);
 
         // Slice allocated codes for this transfer task
         const fullList = lockedVoucherCodesByVoucherId.get(voucherId)!;

@@ -369,7 +369,7 @@ export class GetCustomerOwnedVouchers {
           walletAddress,
           Number(v.tokenId),
         );
-        return { tokenId: v.tokenId, balance: parseInt(bal.balance) };
+        return { tokenId: v.tokenId, balance: Number.parseInt(bal.balance) };
       }),
     );
     for (const r of results) {

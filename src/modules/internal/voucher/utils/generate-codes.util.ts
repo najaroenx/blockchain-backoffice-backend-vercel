@@ -14,7 +14,7 @@ export function generateUniqueCodes(
   const prefix = voucherId
     .substring(0, 6)
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
+    .replaceAll(/[^A-Z0-9]/g, '');
 
   while (codes.size < quantity) {
     // สร้าง random code
@@ -40,7 +40,7 @@ export function generateSequentialCodes(
   const prefix = voucherId
     .substring(0, 6)
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
+    .replaceAll(/[^A-Z0-9]/g, '');
   const timestamp = Date.now().toString(36).toUpperCase();
 
   for (let i = 1; i <= quantity; i++) {
@@ -67,7 +67,7 @@ export function generateShortCodes(
   const prefix = voucherId
     .substring(0, 4)
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
+    .replaceAll(/[^A-Z0-9]/g, '');
 
   while (codes.size < quantity) {
     // สร้าง 6 ตัวอักษร/ตัวเลข

@@ -118,7 +118,7 @@ export class ExecuteBatchTransferCsvHandler {
       const current = cumulativeQuantities.get(row.voucherId) || 0;
       cumulativeQuantities.set(
         row.voucherId,
-        current + (isNaN(row.quantity) ? 0 : row.quantity),
+        current + (Number.isNaN(row.quantity) ? 0 : row.quantity),
       );
     }
 
@@ -167,18 +167,18 @@ export class ExecuteBatchTransferCsvHandler {
       const { customerPhone, voucherId, quantity } = row;
 
       // Basic validations
-      if (!customerPhone || !voucherId || isNaN(quantity) || quantity <= 0) {
+      if (!customerPhone || !voucherId || Number.isNaN(quantity) || quantity <= 0) {
         let errMsg = 'Invalid Row Data';
         if (!customerPhone) errMsg = 'Customer phone number is missing';
         else if (!voucherId) errMsg = 'Voucher ID is missing';
-        else if (quantity <= 0 || isNaN(quantity))
+        else if (quantity <= 0 || Number.isNaN(quantity))
           errMsg = 'Quantity must be a positive integer';
 
         results.push({
           seqNo: i + 1,
           phone: customerPhone,
           couponId: voucherId,
-          quantity: isNaN(quantity) ? 0 : quantity,
+          quantity: Number.isNaN(quantity) ? 0 : quantity,
           status: 'FAILED',
           error: errMsg,
         });
@@ -248,7 +248,7 @@ export class ExecuteBatchTransferCsvHandler {
       codeAllocators.set(voucherId, startIndex + quantity);
 
       const voucherCodeIds = allocatedCodes.map((c) => c.id);
-      const typeId = parseInt(voucher.tokenId, 10);
+      const typeId = Number.parseInt(voucher.tokenId, 10);
 
       try {
         this.logger.log(

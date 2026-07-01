@@ -384,7 +384,9 @@ function computeAvailableCodes(
   const isSellerListing =
     listing.paymentToken.toLowerCase() === thbAddress.toLowerCase();
   const dbAvailableCodes = countMap.get(listing.listingId) || 0;
-  return isSellerListing ? Number.parseInt(listing.amount, 10) : dbAvailableCodes;
+  return isSellerListing
+    ? Number.parseInt(listing.amount, 10)
+    : dbAvailableCodes;
 }
 
 function buildListingEntry({

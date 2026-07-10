@@ -59,7 +59,13 @@ RUN npm install -g npm@11.12.0 --no-audit --no-fund \
     && npm pack picomatch@4.0.4 --pack-destination . \
     && tar -xzf picomatch-4.0.4.tgz \
     && mv package picomatch \
-    && rm picomatch-4.0.4.tgz
+    && rm picomatch-4.0.4.tgz \
+    && npm pack sigstore@4.1.1 --pack-destination /tmp \
+    && cd /usr/local/lib/node_modules/npm/node_modules \
+    && rm -rf sigstore \
+    && tar -xzf /tmp/sigstore-4.1.1.tgz \
+    && mv package sigstore \
+    && rm /tmp/sigstore-4.1.1.tgz
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S merchant-backoffice -u 1001

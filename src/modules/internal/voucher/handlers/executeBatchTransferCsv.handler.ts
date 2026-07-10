@@ -167,7 +167,12 @@ export class ExecuteBatchTransferCsvHandler {
       const { customerPhone, voucherId, quantity } = row;
 
       // Basic validations
-      if (!customerPhone || !voucherId || Number.isNaN(quantity) || quantity <= 0) {
+      if (
+        !customerPhone ||
+        !voucherId ||
+        Number.isNaN(quantity) ||
+        quantity <= 0
+      ) {
         let errMsg = 'Invalid Row Data';
         if (!customerPhone) errMsg = 'Customer phone number is missing';
         else if (!voucherId) errMsg = 'Voucher ID is missing';

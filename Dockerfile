@@ -29,6 +29,7 @@ RUN yarn run build
 
 # Compile standalone TS scripts to JS for runtime execution
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
+RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop scripts/fix-checkin-event-bugs.ts --outDir dist/scripts
 
 # Compile one-off admin scripts
 
@@ -83,5 +84,6 @@ EXPOSE 4000
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
     node dist/prisma/seed.js && \
+    node dist/scripts/fix-checkin-event-bugs.js && \
     node dist/src/main \
 "]

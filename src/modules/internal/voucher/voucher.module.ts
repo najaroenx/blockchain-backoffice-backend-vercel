@@ -38,6 +38,7 @@ import { GetVoucherByLatestCode } from './handlers/getVoucherByLatestCode.handle
 import { GetMarketplaceListingsByMerchantRef } from './handlers/getMarketplaceListingsByMerchantRef.handler';
 import { DelistMarketplaceListingHandler } from './handlers/delistMarketplaceListing.handler';
 import { TransactionModule } from '../transaction/transaction.module';
+import { CheckAndSyncVoucherOnchainHandler } from './handlers/checkAndSyncVoucherOnchain.handler';
 @Module({
   imports: [
     PrismaModule,
@@ -80,6 +81,7 @@ import { TransactionModule } from '../transaction/transaction.module';
     GetCouponById,
     GetVoucherByLatestCode,
     GetMarketplaceListingsByMerchantRef,
+    CheckAndSyncVoucherOnchainHandler,
   ],
   exports: [
     PreviewBatchTransferCsvHandler,
@@ -91,6 +93,7 @@ import { TransactionModule } from '../transaction/transaction.module';
     GetCouponById,
     GetVoucherByLatestCode,
     GetMarketplaceListingsByMerchantRef,
+    CheckAndSyncVoucherOnchainHandler,
   ],
 })
 export class VoucherModule {}

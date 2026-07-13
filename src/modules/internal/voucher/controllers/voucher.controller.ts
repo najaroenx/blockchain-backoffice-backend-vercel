@@ -49,6 +49,7 @@ import { GetMarketplaceListingsEndUser } from '../handlers/getMarketplaceListtin
 import { GetCouponById } from '../handlers/getCouponById.handler';
 import { GetVoucherByListingId } from '../handlers/getVoucherByListingId.handler';
 import { DelistMarketplaceListingHandler } from '../handlers/delistMarketplaceListing.handler';
+import { CheckAndSyncVoucherOnchainHandler } from '../handlers/checkAndSyncVoucherOnchain.handler';
 
 @ApiTags('Voucher')
 @Controller('coupon')
@@ -75,6 +76,7 @@ export class VoucherController {
     private readonly executeBatchTransferCsvHandler: ExecuteBatchTransferCsvHandler,
     private readonly getMarketerTransferHistoryHandler: GetMarketerTransferHistoryHandler,
     private readonly delistMarketplaceListingHandler: DelistMarketplaceListingHandler,
+    private readonly checkAndSyncVoucherOnchainHandler: CheckAndSyncVoucherOnchainHandler,
   ) {}
 
   @Get('/')
@@ -623,5 +625,47 @@ export class VoucherController {
       listingId,
       dto.merchantId,
     );
+  }
+
+  /**
+   * Reconcile Database records with Onchain balances and optionally sync them
+   * GET /coupon/reconcile/:voucherId?sync=true&fixOnchain=true
+   */
+  @Get('reconcile/:voucherId')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Compare on-chain balances with DB voucher codes, and safely sync them',
+    description: 'ดึงข้อมูลสมุดบัญชีจากบล็อกเชน (อุปทาน, เจ้าของทั้งหมด) เทียบกับ DB และแก้ไขความผิดพลาดสิทธิ์ผู้ถือสิทธิ์เมื่อระบุ ?sync=true (แก้ฝั่ง DB ให้ตรงกับ on-chain) หรือ ?fixOnchain=true (mint ส่วนต่างบนเชนให้ตรงกับ DB แทน)',
+  })
+  async reconcileVoucherCodes(
+    @Param('voucherId') voucherId: string,
+    @Query('sync') sync?: string,
+    @Query('fixOnchain') fixOnchain?: string,
+  ) {
+    const syncFlag = sync === 'true' || sync === '1';
+    const fixOnchainFlag = fixOnchain === 'true' || fixOnchain === '1';
+    return this.checkAndSyncVoucherOnchainHandler.execute(voucherId, syncFlag, fixOnchainFlag);
+  }
+
+  /**
+   * Reconcile all Database records with Onchain balances and optionally sync them for any given marketer / merchant
+   * GET /coupon/reconcile-merchant/:merchantId?sync=true&fixOnchain=true
+   */
+  @Get('reconcile-merchant/:merchantId')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Compare all on-chain balances with DB voucher codes for a marketer, and safely sync them',
+    description: 'ดึงข้อมูลสมุดบัญชีคูปองข้ามเชนและ DB ทั้งหมดใน Marketer นั้น และดำเนินการซิงค์ยอดสิทธิ์อัตโนมัติเมื่อกำหนด ?sync=true (แก้ DB) หรือ ?fixOnchain=true (mint ส่วนต่างบนเชน)',
+  })
+  async reconcileMerchantVouchers(
+    @Param('merchantId') merchantId: string,
+    @Query('sync') sync?: string,
+    @Query('fixOnchain') fixOnchain?: string,
+  ) {
+    const syncFlag = sync === 'true' || sync === '1';
+    const fixOnchainFlag = fixOnchain === 'true' || fixOnchain === '1';
+    return this.checkAndSyncVoucherOnchainHandler.executeForMerchant(merchantId, syncFlag, fixOnchainFlag);
   }
 }

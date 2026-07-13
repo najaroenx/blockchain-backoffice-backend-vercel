@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
@@ -41,7 +37,10 @@ export class CheckAndSyncVoucherOnchainHandler {
     let timer: NodeJS.Timeout;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(
-        () => reject(new Error(`RPC call timed out after ${timeoutMs}ms: ${label}`)),
+        () =>
+          reject(
+            new Error(`RPC call timed out after ${timeoutMs}ms: ${label}`),
+          ),
         timeoutMs,
       );
     });
@@ -77,7 +76,9 @@ export class CheckAndSyncVoucherOnchainHandler {
     });
 
     if (!voucher) {
-      throw new NotFoundException(`Voucher with ID ${voucherId} not found in database.`);
+      throw new NotFoundException(
+        `Voucher with ID ${voucherId} not found in database.`,
+      );
     }
 
     if (!voucher.tokenId) {
@@ -89,18 +90,23 @@ export class CheckAndSyncVoucherOnchainHandler {
 
     const tokenId = Number.parseInt(voucher.tokenId, 10);
     const couponAddress = this.configService.get<string>('COUPON_ADDRESS');
-    const marketplaceAddress = this.configService.get<string>('MARKETPLACE_ADDRESS');
+    const marketplaceAddress = this.configService.get<string>(
+      'MARKETPLACE_ADDRESS',
+    );
 
     if (!couponAddress) {
       return {
         success: false,
-        message: 'COUPON_ADDRESS is not configured in the application environment variables.',
+        message:
+          'COUPON_ADDRESS is not configured in the application environment variables.',
       };
     }
 
-    const rpcUrl = this.configService.get<string>('RPC_URL') || 'https://dlp-rpc2-testnet.adldigitalservice.com';
+    const rpcUrl =
+      this.configService.get<string>('RPC_URL') ||
+      'https://dlp-rpc2-testnet.adldigitalservice.com';
     const provider = new JsonRpcProvider(rpcUrl);
-    
+
     const contractAbi = [
       'function balanceOf(address account, uint256 id) view returns (uint256)',
       'function getCouponData(uint256 typeId) view returns (string name, uint256 startDate, uint256 expireDate, uint256 totalSupply, uint256 totalRedeemed)',
@@ -202,7 +208,10 @@ export class CheckAndSyncVoucherOnchainHandler {
     }
 
     // 5. Structure Group DB Counts by Client/Merchant Owner
-    const dbOwnerCounts = new Map<string, { total: number; unused: number; used: number }>();
+    const dbOwnerCounts = new Map<
+      string,
+      { total: number; unused: number; used: number }
+    >();
     for (const code of dbCodes) {
       const ownerId = code.currentOwnerId || 'UNOWNED_MERCHANT';
       if (!dbOwnerCounts.has(ownerId)) {
@@ -236,10 +245,13 @@ export class CheckAndSyncVoucherOnchainHandler {
       where: { id: merchantId },
       include: { wallet: true },
     });
-    const merchantWalletAddr = merchantDetails?.wallet?.walletAddress?.toLowerCase();
+    const merchantWalletAddr =
+      merchantDetails?.wallet?.walletAddress?.toLowerCase();
 
     // Check Marketplace Wallet Balance vs DB Listed Count (which has non-null voucherGroupId)
-    const dbListedCodesCount = dbCodes.filter(c => c.voucherGroupId !== null).length;
+    const dbListedCodesCount = dbCodes.filter(
+      (c) => c.voucherGroupId !== null,
+    ).length;
     if (marketplaceBalance !== dbListedCodesCount) {
       discrepancies.push({
         type: 'MARKETPLACE_BALANCE_MISMATCH',
@@ -267,10 +279,16 @@ export class CheckAndSyncVoucherOnchainHandler {
     for (const customer of customers) {
       if (!customer.wallet?.walletAddress) continue;
       const cAddr = customer.wallet.walletAddress.toLowerCase();
-      const onchainRecord = activeWalletsOnchain.find(w => w.address.toLowerCase() === cAddr);
+      const onchainRecord = activeWalletsOnchain.find(
+        (w) => w.address.toLowerCase() === cAddr,
+      );
       const onchainBalance = onchainRecord ? onchainRecord.balance : 0;
 
-      const dbRecord = dbOwnerCounts.get(customer.id) || { total: 0, unused: 0, used: 0 };
+      const dbRecord = dbOwnerCounts.get(customer.id) || {
+        total: 0,
+        unused: 0,
+        used: 0,
+      };
       const dbUnusedCount = dbRecord.unused;
 
       if (onchainBalance !== dbUnusedCount) {
@@ -289,13 +307,26 @@ export class CheckAndSyncVoucherOnchainHandler {
     // Check Merchant Wallet Balance matches Database Merchant Ownership
     let merchantOnchainBalance = 0;
     if (merchantWalletAddr) {
-      const merchantOnchainRecord = activeWalletsOnchain.find(w => w.address.toLowerCase() === merchantWalletAddr);
-      merchantOnchainBalance = merchantOnchainRecord ? merchantOnchainRecord.balance : 0;
+      const merchantOnchainRecord = activeWalletsOnchain.find(
+        (w) => w.address.toLowerCase() === merchantWalletAddr,
+      );
+      merchantOnchainBalance = merchantOnchainRecord
+        ? merchantOnchainRecord.balance
+        : 0;
     }
 
-    const merchantDbRecordUnowned = dbOwnerCounts.get('UNOWNED_MERCHANT') || { total: 0, unused: 0, used: 0 };
-    const merchantDbRecordOwned = dbOwnerCounts.get(merchantId) || { total: 0, unused: 0, used: 0 };
-    const dbMerchantUnusedTotal = merchantDbRecordUnowned.unused + merchantDbRecordOwned.unused;
+    const merchantDbRecordUnowned = dbOwnerCounts.get('UNOWNED_MERCHANT') || {
+      total: 0,
+      unused: 0,
+      used: 0,
+    };
+    const merchantDbRecordOwned = dbOwnerCounts.get(merchantId) || {
+      total: 0,
+      unused: 0,
+      used: 0,
+    };
+    const dbMerchantUnusedTotal =
+      merchantDbRecordUnowned.unused + merchantDbRecordOwned.unused;
 
     if (merchantOnchainBalance !== dbMerchantUnusedTotal) {
       discrepancies.push({
@@ -315,13 +346,17 @@ export class CheckAndSyncVoucherOnchainHandler {
       // never conflicts with fixOnchain, since it only touches DB records.
       if (syncFlag) {
         const missingDbCodesCustomers = discrepancies.filter(
-          (d) => d.type === 'CUSTOMER_BALANCE_MISMATCH' && d.onchainBalance > d.dbUnusedCount,
+          (d) =>
+            d.type === 'CUSTOMER_BALANCE_MISMATCH' &&
+            d.onchainBalance > d.dbUnusedCount,
         );
 
         await this.prisma.$transaction(async (tx) => {
           for (const item of missingDbCodesCustomers) {
             const neededCount = item.onchainBalance - item.dbUnusedCount;
-            this.logger.log(`Fixing Customer ${item.phone} lacking ${neededCount} DB codes...`);
+            this.logger.log(
+              `Fixing Customer ${item.phone} lacking ${neededCount} DB codes...`,
+            );
 
             // Fetch available un-used, unassigned/merchant code IDs for this voucher
             const availableCodes = await tx.voucherCode.findMany({
@@ -366,7 +401,8 @@ export class CheckAndSyncVoucherOnchainHandler {
       //     truth; mark the DB codes as used instead.
       const overAllocatedEntities = discrepancies.filter(
         (d) =>
-          (d.type === 'CUSTOMER_BALANCE_MISMATCH' || d.type === 'MERCHANT_BALANCE_MISMATCH') &&
+          (d.type === 'CUSTOMER_BALANCE_MISMATCH' ||
+            d.type === 'MERCHANT_BALANCE_MISMATCH') &&
           d.dbUnusedCount > d.onchainBalance,
       );
 
@@ -384,7 +420,11 @@ export class CheckAndSyncVoucherOnchainHandler {
 
           try {
             const { hash } = await this.withTimeout(
-              this.blockchainService.mintCoupon(item.walletAddress, String(tokenId), shortfall),
+              this.blockchainService.mintCoupon(
+                item.walletAddress,
+                String(tokenId),
+                shortfall,
+              ),
               `mintCoupon(${item.walletAddress}, ${tokenId}, ${shortfall})`,
               MINT_CALL_TIMEOUT_MS,
             );
@@ -398,7 +438,8 @@ export class CheckAndSyncVoucherOnchainHandler {
           }
         }
       } else if (syncFlag) {
-        const totalRemainingOnchainRedeemedToSync = onchainStats.totalRedeemed - usedDbCodes;
+        const totalRemainingOnchainRedeemedToSync =
+          onchainStats.totalRedeemed - usedDbCodes;
         if (totalRemainingOnchainRedeemedToSync > 0) {
           let syncedRedeems = 0;
           await this.prisma.$transaction(async (tx) => {
@@ -414,7 +455,10 @@ export class CheckAndSyncVoucherOnchainHandler {
                   currentOwnerType: 'CUSTOMER',
                   isUsed: false,
                 },
-                take: Math.min(burnCount, totalRemainingOnchainRedeemedToSync - syncedRedeems),
+                take: Math.min(
+                  burnCount,
+                  totalRemainingOnchainRedeemedToSync - syncedRedeems,
+                ),
               });
 
               if (customerDbCodes.length > 0) {
@@ -462,7 +506,11 @@ export class CheckAndSyncVoucherOnchainHandler {
     };
   }
 
-  async executeForMerchant(merchantId: string, syncFlag = false, fixOnchainFlag = false) {
+  async executeForMerchant(
+    merchantId: string,
+    syncFlag = false,
+    fixOnchainFlag = false,
+  ) {
     this.logger.log(
       `[START] Reconciling all vouchers for merchantId: ${merchantId}, sync: ${syncFlag}, fixOnchain: ${fixOnchainFlag}`,
     );
@@ -477,10 +525,7 @@ export class CheckAndSyncVoucherOnchainHandler {
 
     const vouchers = await this.prisma.voucher.findMany({
       where: {
-        OR: [
-          { merchantId },
-          { sellerMerchantId: merchantId },
-        ],
+        OR: [{ merchantId }, { sellerMerchantId: merchantId }],
       },
       select: {
         id: true,
@@ -513,7 +558,11 @@ export class CheckAndSyncVoucherOnchainHandler {
           }
 
           try {
-            results[index] = await this.execute(voucher.id, syncFlag, fixOnchainFlag);
+            results[index] = await this.execute(
+              voucher.id,
+              syncFlag,
+              fixOnchainFlag,
+            );
           } catch (err: any) {
             results[index] = {
               success: false,

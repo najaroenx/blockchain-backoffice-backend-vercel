@@ -635,8 +635,10 @@ export class VoucherController {
   @Public()
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Compare on-chain balances with DB voucher codes, and safely sync them',
-    description: 'ดึงข้อมูลสมุดบัญชีจากบล็อกเชน (อุปทาน, เจ้าของทั้งหมด) เทียบกับ DB และแก้ไขความผิดพลาดสิทธิ์ผู้ถือสิทธิ์เมื่อระบุ ?sync=true (แก้ฝั่ง DB ให้ตรงกับ on-chain) หรือ ?fixOnchain=true (mint ส่วนต่างบนเชนให้ตรงกับ DB แทน)',
+    summary:
+      'Compare on-chain balances with DB voucher codes, and safely sync them',
+    description:
+      'ดึงข้อมูลสมุดบัญชีจากบล็อกเชน (อุปทาน, เจ้าของทั้งหมด) เทียบกับ DB และแก้ไขความผิดพลาดสิทธิ์ผู้ถือสิทธิ์เมื่อระบุ ?sync=true (แก้ฝั่ง DB ให้ตรงกับ on-chain) หรือ ?fixOnchain=true (mint ส่วนต่างบนเชนให้ตรงกับ DB แทน)',
   })
   async reconcileVoucherCodes(
     @Param('voucherId') voucherId: string,
@@ -645,7 +647,11 @@ export class VoucherController {
   ) {
     const syncFlag = sync === 'true' || sync === '1';
     const fixOnchainFlag = fixOnchain === 'true' || fixOnchain === '1';
-    return this.checkAndSyncVoucherOnchainHandler.execute(voucherId, syncFlag, fixOnchainFlag);
+    return this.checkAndSyncVoucherOnchainHandler.execute(
+      voucherId,
+      syncFlag,
+      fixOnchainFlag,
+    );
   }
 
   /**
@@ -656,8 +662,10 @@ export class VoucherController {
   @Public()
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Compare all on-chain balances with DB voucher codes for a marketer, and safely sync them',
-    description: 'ดึงข้อมูลสมุดบัญชีคูปองข้ามเชนและ DB ทั้งหมดใน Marketer นั้น และดำเนินการซิงค์ยอดสิทธิ์อัตโนมัติเมื่อกำหนด ?sync=true (แก้ DB) หรือ ?fixOnchain=true (mint ส่วนต่างบนเชน)',
+    summary:
+      'Compare all on-chain balances with DB voucher codes for a marketer, and safely sync them',
+    description:
+      'ดึงข้อมูลสมุดบัญชีคูปองข้ามเชนและ DB ทั้งหมดใน Marketer นั้น และดำเนินการซิงค์ยอดสิทธิ์อัตโนมัติเมื่อกำหนด ?sync=true (แก้ DB) หรือ ?fixOnchain=true (mint ส่วนต่างบนเชน)',
   })
   async reconcileMerchantVouchers(
     @Param('merchantId') merchantId: string,
@@ -666,6 +674,10 @@ export class VoucherController {
   ) {
     const syncFlag = sync === 'true' || sync === '1';
     const fixOnchainFlag = fixOnchain === 'true' || fixOnchain === '1';
-    return this.checkAndSyncVoucherOnchainHandler.executeForMerchant(merchantId, syncFlag, fixOnchainFlag);
+    return this.checkAndSyncVoucherOnchainHandler.executeForMerchant(
+      merchantId,
+      syncFlag,
+      fixOnchainFlag,
+    );
   }
 }

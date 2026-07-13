@@ -16,6 +16,7 @@ export async function configureApp(app: NestExpressApplication): Promise<void> {
   const configService = app.get(ConfigService);
 
   const originsRaw = configService.get<string>('CORS_ORIGINS') ?? '';
+  const allowAllOrigins = originsRaw.trim() === '*';
   const allowedOrigins = new Set(
     originsRaw
       .split(',')
@@ -23,22 +24,27 @@ export async function configureApp(app: NestExpressApplication): Promise<void> {
       .filter(Boolean),
   );
 
-  // Security: origin callback — echoes back only the exact allowed origin so
-  // browsers can verify; 'credentials: true' must never pair with '*'.
+  // Security: this app authenticates via Bearer token / API key headers only
+  // (see auth.strategy.ts) — no cookies are ever set or read, so CORS
+  // 'credentials' is not needed. That also means we can safely allow all
+  // origins ('*' via CORS_ORIGINS) without violating the spec rule that
+  // forbids combining a wildcard origin with 'credentials: true'.
   app.enableCors({
-    origin: (requestOrigin, callback) => {
-      if (!requestOrigin) {
-        // Same-origin / non-browser request — no CORS header needed.
-        return callback(null, false);
-      }
-      if (allowedOrigins.has(requestOrigin)) {
-        return callback(null, requestOrigin);
-      }
-      callback(null, false);
-    },
+    origin: allowAllOrigins
+      ? true
+      : (requestOrigin, callback) => {
+          if (!requestOrigin) {
+            // Same-origin / non-browser request — no CORS header needed.
+            return callback(null, false);
+          }
+          if (allowedOrigins.has(requestOrigin)) {
+            return callback(null, requestOrigin);
+          }
+          callback(null, false);
+        },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
-    credentials: true,
+    credentials: !allowAllOrigins,
   });
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));

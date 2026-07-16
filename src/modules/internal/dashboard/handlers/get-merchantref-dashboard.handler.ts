@@ -100,6 +100,7 @@ export class GetMerchantRefDashboardHandler {
       FROM "VoucherCode" vc
       JOIN "Voucher" v ON vc."voucherId" = v.id
       WHERE v."merchantRef" = ${merchantRef}
+        AND vc."currentOwnerType" = 'CUSTOMER'
         AND vc."currentOwnerId" IS NOT NULL
         ${hasCouponFilter ? Prisma.sql`AND v.id IN (${Prisma.join(couponIds!)})` : Prisma.empty}
     `;

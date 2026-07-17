@@ -144,9 +144,9 @@ export interface SellerMerchantsResponse {
 // ============================================
 
 export interface MerchantRefCouponSummary {
-  total: number; // จำนวนคูปองทั้งหมดที่ผูกกับ merchantRef นี้ (ทั้งขายแล้วและยังไม่ขาย)
-  sold: number; // จำนวนคูปองที่ขายให้ End User แล้ว (โอนกรรมสิทธิ์เป็น CUSTOMER แล้ว)
-  unsold: number; // จำนวนคูปองที่ยังไม่ขาย (ยังอยู่ในความครอบครองของ Merchant/Seller)
+  total: number; // จำนวนคูปองทั้งหมดที่ผูกกับ merchantRef นี้ (ทั้งลงขายแล้วและยังไม่ลงขาย)
+  sold: number; // จำนวนคูปองที่ลงขาย(activate)แล้ว ไม่ว่าจะมีลูกค้าซื้อไปแล้วหรือยังก็ตาม (pointId ถูกกำหนดแล้ว หรือถูกโอนให้ CUSTOMER แล้ว) — ใช้นิยามเดียวกับ Marketer Dashboard
+  unsold: number; // จำนวนคูปองที่ยังไม่ลงขาย (ยังอยู่กับ Merchant/Seller และยังไม่ถูก activate)
 }
 
 export interface MerchantRefEndUserSummary {

@@ -78,9 +78,13 @@ export class GetMerchantRefDashboardHandler {
   }> {
     const hasCouponFilter = couponIds && couponIds.length > 0;
 
-    // Note: totals/sold/unsold are counted over ALL VoucherCode rows linked to this
-    // merchantRef (any currentOwnerType), while the end-user breakdown (unredeemedUsers/
-    // redeemedUsers) only ever makes sense for codes already owned by a CUSTOMER.
+    // Note: sold/unsold use the same "listed for sale" definition as the Marketer
+    // Dashboard (get-marketer-dashboard.handler.ts computeCouponCountsAndValues):
+    // a code counts as "sold" once it has a pointId assigned (activated/listed) OR
+    // it has already been transferred to a CUSTOMER — NOT only when a CUSTOMER
+    // currently owns it. "unsold" = still with Merchant/Seller AND never activated
+    // (pointId IS NULL). The end-user breakdown (unredeemedUsers/redeemedUsers) only
+    // ever makes sense for codes already owned by a CUSTOMER.
     const result = await this.prisma.$queryRaw<
       [
         {
@@ -95,8 +99,8 @@ export class GetMerchantRefDashboardHandler {
     >`
       SELECT
         COUNT(*)::bigint AS total,
-        COUNT(CASE WHEN vc."currentOwnerType" = 'CUSTOMER' THEN 1 END)::bigint AS sold,
-        COUNT(CASE WHEN vc."currentOwnerType" IS DISTINCT FROM 'CUSTOMER' THEN 1 END)::bigint AS unsold,
+        COUNT(CASE WHEN vc."currentOwnerType" = 'CUSTOMER' OR vc."pointId" IS NOT NULL THEN 1 END)::bigint AS sold,
+        COUNT(CASE WHEN vc."currentOwnerType" IS DISTINCT FROM 'CUSTOMER' AND vc."pointId" IS NULL THEN 1 END)::bigint AS unsold,
         COUNT(DISTINCT CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."currentOwnerId" IS NOT NULL THEN vc."currentOwnerId" END)::bigint AS "totalUsers",
         COUNT(DISTINCT CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."currentOwnerId" IS NOT NULL AND NOT vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "unredeemedUsers",
         COUNT(DISTINCT CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."currentOwnerId" IS NOT NULL AND vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "redeemedUsers"

@@ -144,9 +144,9 @@ export interface SellerMerchantsResponse {
 // ============================================
 
 export interface MerchantRefCouponSummary {
-  total: number; // จำนวนคูปองที่ขายให้ End User
-  unredeemed: number; // จำนวนคูปองที่ End User ซื้อแต่ยังไม่ใช้
-  redeemed: number; // จำนวนคูปองที่ End User redeem แล้วจริง ๆ
+  total: number; // จำนวนคูปองทั้งหมดที่ผูกกับ merchantRef นี้ (ทั้งขายแล้วและยังไม่ขาย)
+  sold: number; // จำนวนคูปองที่ขายให้ End User แล้ว (โอนกรรมสิทธิ์เป็น CUSTOMER แล้ว)
+  unsold: number; // จำนวนคูปองที่ยังไม่ขาย (ยังอยู่ในความครอบครองของ Merchant/Seller)
 }
 
 export interface MerchantRefEndUserSummary {

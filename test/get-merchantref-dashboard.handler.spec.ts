@@ -20,8 +20,8 @@ describe('GetMerchantRefDashboardHandler', () => {
     prisma.$queryRaw.mockResolvedValue([
       {
         total: BigInt(10),
-        unredeemed: BigInt(6),
-        redeemed: BigInt(4),
+        sold: BigInt(6),
+        unsold: BigInt(4),
         totalUsers: BigInt(3),
         unredeemedUsers: BigInt(2),
         redeemedUsers: BigInt(1),
@@ -31,8 +31,8 @@ describe('GetMerchantRefDashboardHandler', () => {
     const result = await handler.execute('ref1', {});
     expect(result.merchantRef).toBe('ref1');
     expect(result.myMerchantSummary.coupon.total).toBe(10);
-    expect(result.myMerchantSummary.coupon.unredeemed).toBe(6);
-    expect(result.myMerchantSummary.coupon.redeemed).toBe(4);
+    expect(result.myMerchantSummary.coupon.sold).toBe(6);
+    expect(result.myMerchantSummary.coupon.unsold).toBe(4);
     expect(result.myMerchantSummary.endUser.total).toBe(3);
     expect(result.dateRange).toHaveProperty('startDate');
     expect(result.dateRange).toHaveProperty('endDate');
@@ -42,8 +42,8 @@ describe('GetMerchantRefDashboardHandler', () => {
     prisma.$queryRaw.mockResolvedValue([
       {
         total: BigInt(0),
-        unredeemed: BigInt(0),
-        redeemed: BigInt(0),
+        sold: BigInt(0),
+        unsold: BigInt(0),
         totalUsers: BigInt(0),
         unredeemedUsers: BigInt(0),
         redeemedUsers: BigInt(0),
@@ -58,8 +58,8 @@ describe('GetMerchantRefDashboardHandler', () => {
     prisma.$queryRaw.mockResolvedValue([
       {
         total: BigInt(0),
-        unredeemed: BigInt(0),
-        redeemed: BigInt(0),
+        sold: BigInt(0),
+        unsold: BigInt(0),
         totalUsers: BigInt(0),
         unredeemedUsers: BigInt(0),
         redeemedUsers: BigInt(0),

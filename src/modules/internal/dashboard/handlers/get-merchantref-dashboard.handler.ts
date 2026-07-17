@@ -78,12 +78,15 @@ export class GetMerchantRefDashboardHandler {
   }> {
     const hasCouponFilter = couponIds && couponIds.length > 0;
 
+    // Note: totals/sold/unsold are counted over ALL VoucherCode rows linked to this
+    // merchantRef (any currentOwnerType), while the end-user breakdown (unredeemedUsers/
+    // redeemedUsers) only ever makes sense for codes already owned by a CUSTOMER.
     const result = await this.prisma.$queryRaw<
       [
         {
           total: bigint;
-          unredeemed: bigint;
-          redeemed: bigint;
+          sold: bigint;
+          unsold: bigint;
           totalUsers: bigint;
           unredeemedUsers: bigint;
           redeemedUsers: bigint;
@@ -92,16 +95,14 @@ export class GetMerchantRefDashboardHandler {
     >`
       SELECT
         COUNT(*)::bigint AS total,
-        COUNT(CASE WHEN NOT vc."isUsed" THEN 1 END)::bigint AS unredeemed,
-        COUNT(CASE WHEN vc."isUsed" THEN 1 END)::bigint AS redeemed,
-        COUNT(DISTINCT vc."currentOwnerId")::bigint AS "totalUsers",
-        COUNT(DISTINCT CASE WHEN NOT vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "unredeemedUsers",
-        COUNT(DISTINCT CASE WHEN vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "redeemedUsers"
+        COUNT(CASE WHEN vc."currentOwnerType" = 'CUSTOMER' THEN 1 END)::bigint AS sold,
+        COUNT(CASE WHEN vc."currentOwnerType" IS DISTINCT FROM 'CUSTOMER' THEN 1 END)::bigint AS unsold,
+        COUNT(DISTINCT CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."currentOwnerId" IS NOT NULL THEN vc."currentOwnerId" END)::bigint AS "totalUsers",
+        COUNT(DISTINCT CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."currentOwnerId" IS NOT NULL AND NOT vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "unredeemedUsers",
+        COUNT(DISTINCT CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."currentOwnerId" IS NOT NULL AND vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "redeemedUsers"
       FROM "VoucherCode" vc
       JOIN "Voucher" v ON vc."voucherId" = v.id
       WHERE v."merchantRef" = ${merchantRef}
-        AND vc."currentOwnerType" = 'CUSTOMER'
-        AND vc."currentOwnerId" IS NOT NULL
         ${hasCouponFilter ? Prisma.sql`AND v.id IN (${Prisma.join(couponIds!)})` : Prisma.empty}
     `;
 
@@ -109,7 +110,7 @@ export class GetMerchantRefDashboardHandler {
 
     if (!row || Number(row.total) === 0) {
       return {
-        couponSummary: { total: 0, unredeemed: 0, redeemed: 0 },
+        couponSummary: { total: 0, sold: 0, unsold: 0 },
         endUserSummary: { total: 0, unredeemedUsers: 0, redeemedUsers: 0 },
       };
     }
@@ -117,8 +118,8 @@ export class GetMerchantRefDashboardHandler {
     return {
       couponSummary: {
         total: Number(row.total),
-        unredeemed: Number(row.unredeemed),
-        redeemed: Number(row.redeemed),
+        sold: Number(row.sold),
+        unsold: Number(row.unsold),
       },
       endUserSummary: {
         total: Number(row.totalUsers),

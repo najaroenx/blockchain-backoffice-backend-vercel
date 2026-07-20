@@ -4,12 +4,22 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as http from 'node:http';
+import * as https from 'node:https';
+import { URL } from 'node:url';
 import {
   AisSmsContentType,
   AisSmsDeliveryReport,
   AisSmsSendParams,
   AisSmsSendResult,
 } from './types';
+
+interface RawHttpResponse {
+  status: number;
+  statusText: string;
+  ok: boolean;
+  text: string;
+}
 
 /**
  * AIS SMS Gateway client (MT/DR) per the Service Parameter specification
@@ -64,16 +74,10 @@ export class AisSmsService {
 
     try {
       console.log(
-        `[AisSmsService.sendMt] step 4 - calling fetch: ${this.apiUrl}`,
+        `[AisSmsService.sendMt] step 4 - calling postForm: ${this.apiUrl}`,
       );
 
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body,
-      });
+      const response = await this.postForm(this.apiUrl, body);
 
       console.log('[AisSmsService.sendMt] step 5 - response received:', {
         status: response.status,
@@ -81,7 +85,7 @@ export class AisSmsService {
         ok: response.ok,
       });
 
-      const rawText = await response.text();
+      const rawText = response.text;
 
       console.log(
         '[AisSmsService.sendMt] step 6 - raw response body:',
@@ -188,6 +192,61 @@ export class AisSmsService {
       ackXml,
     );
     return ackXml;
+  }
+
+  /**
+   * Node's global fetch() (undici) enforces the WHATWG Fetch "bad port"
+   * blocklist, which includes 10080 - the port AIS's TEST gateway listens
+   * on. Using the low-level http/https module bypasses that fetch-specific
+   * restriction while still speaking plain HTTP/HTTPS.
+   */
+  private postForm(url: string, body: string): Promise<RawHttpResponse> {
+    console.log('[AisSmsService.postForm] step 1 - request:', { url, body });
+
+    return new Promise((resolve, reject) => {
+      const parsedUrl = new URL(url);
+      const client = parsedUrl.protocol === 'https:' ? https : http;
+
+      const req = client.request(
+        parsedUrl,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        (res) => {
+          let data = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            const status = res.statusCode ?? 0;
+            const result: RawHttpResponse = {
+              status,
+              statusText: res.statusMessage ?? '',
+              ok: status >= 200 && status < 300,
+              text: data,
+            };
+            console.log(
+              '[AisSmsService.postForm] step 2 - response:',
+              result,
+            );
+            resolve(result);
+          });
+        },
+      );
+
+      req.on('error', (error) => {
+        console.error('[AisSmsService.postForm] step ERROR - request:', error);
+        reject(error);
+      });
+
+      req.write(body);
+      req.end();
+    });
   }
 
   private detectContentType(content: string): AisSmsContentType {

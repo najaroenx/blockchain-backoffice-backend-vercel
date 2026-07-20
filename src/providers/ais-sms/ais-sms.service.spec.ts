@@ -4,7 +4,7 @@ import { ServiceUnavailableException } from '@nestjs/common';
 import { AisSmsService } from './ais-sms.service';
 
 const CONFIG: Record<string, string> = {
-  AIS_SMS_API_URL: 'https://110.49.202.49:10443/',
+  AIS_SMS_API_URL: 'http://110.49.202.49:10080/',
   AIS_SMS_FROM: 'AIS',
   AIS_SMS_CHARGE: '66614143821',
   AIS_SMS_CODE: '35145678001',
@@ -12,12 +12,9 @@ const CONFIG: Record<string, string> = {
 
 describe('AisSmsService', () => {
   let service: AisSmsService;
-  let fetchMock: jest.Mock;
+  let postFormMock: jest.SpyInstance;
 
   beforeEach(async () => {
-    fetchMock = jest.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AisSmsService,
@@ -29,6 +26,7 @@ describe('AisSmsService', () => {
     }).compile();
 
     service = module.get(AisSmsService);
+    postFormMock = jest.spyOn(service as never, 'postForm' as never);
   });
 
   afterEach(() => {
@@ -37,12 +35,11 @@ describe('AisSmsService', () => {
 
   describe('sendMt', () => {
     it('sends a TEXT MT request and parses a successful XML response', async () => {
-      fetchMock.mockResolvedValue({
+      postFormMock.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
         ok: true,
-        text: () =>
-          Promise.resolve(
-            '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL><SMID>1357412663</SMID></XML>',
-          ),
+        text: '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL><SMID>1357412663</SMID></XML>',
       });
 
       const result = await service.sendMt({
@@ -58,43 +55,37 @@ describe('AisSmsService', () => {
         raw: '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL><SMID>1357412663</SMID></XML>',
       });
 
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      const [url, init] = fetchMock.mock.calls[0];
+      expect(postFormMock).toHaveBeenCalledTimes(1);
+      const [url, body] = postFormMock.mock.calls[0];
       expect(url).toBe(CONFIG.AIS_SMS_API_URL);
-      expect(init.method).toBe('POST');
-      expect(init.headers['Content-Type']).toBe(
-        'application/x-www-form-urlencoded',
-      );
-      expect(init.body).toBe(
+      expect(body).toBe(
         'CMD=SENDMSG&FROM=AIS&TO=66818452233&REPORT=Y&CHARGE=66614143821&CODE=35145678001&CTYPE=TEXT&CONTENT=AIS_TEST',
       );
     });
 
     it('auto-detects Thai content as UNICODE and percent-encodes it as UTF-16BE', async () => {
-      fetchMock.mockResolvedValue({
+      postFormMock.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
         ok: true,
-        text: () =>
-          Promise.resolve(
-            '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL><SMID>1</SMID></XML>',
-          ),
+        text: '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL><SMID>1</SMID></XML>',
       });
 
       await service.sendMt({ to: '66818452233', content: 'AIS ทดสอบ' });
 
-      const [, init] = fetchMock.mock.calls[0];
-      expect(init.body).toContain('CTYPE=UNICODE');
-      expect(init.body).toContain(
+      const [, body] = postFormMock.mock.calls[0];
+      expect(body).toContain('CTYPE=UNICODE');
+      expect(body).toContain(
         'CONTENT=%00%41%00%49%00%53%00%20%0E%17%0E%14%0E%2A%0E%2D%0E%1A',
       );
     });
 
     it('honors an explicit ctype override', async () => {
-      fetchMock.mockResolvedValue({
+      postFormMock.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
         ok: true,
-        text: () =>
-          Promise.resolve(
-            '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL></XML>',
-          ),
+        text: '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL></XML>',
       });
 
       await service.sendMt({
@@ -103,17 +94,16 @@ describe('AisSmsService', () => {
         ctype: 'UNICODE',
       });
 
-      const [, init] = fetchMock.mock.calls[0];
-      expect(init.body).toContain('CTYPE=UNICODE');
+      const [, body] = postFormMock.mock.calls[0];
+      expect(body).toContain('CTYPE=UNICODE');
     });
 
     it('sends REPORT=N when report is explicitly disabled', async () => {
-      fetchMock.mockResolvedValue({
+      postFormMock.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
         ok: true,
-        text: () =>
-          Promise.resolve(
-            '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL></XML>',
-          ),
+        text: '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL></XML>',
       });
 
       await service.sendMt({
@@ -122,17 +112,16 @@ describe('AisSmsService', () => {
         report: false,
       });
 
-      const [, init] = fetchMock.mock.calls[0];
-      expect(init.body).toContain('REPORT=N');
+      const [, body] = postFormMock.mock.calls[0];
+      expect(body).toContain('REPORT=N');
     });
 
     it('returns a failed result when AIS responds with a business error', async () => {
-      fetchMock.mockResolvedValue({
+      postFormMock.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
         ok: true,
-        text: () =>
-          Promise.resolve(
-            '<XML><STATUS>ERR</STATUS><DETAIL>CORP:INVALID_FROM</DETAIL><SMID></SMID></XML>',
-          ),
+        text: '<XML><STATUS>ERR</STATUS><DETAIL>CORP:INVALID_FROM</DETAIL><SMID></SMID></XML>',
       });
 
       const result = await service.sendMt({
@@ -147,11 +136,11 @@ describe('AisSmsService', () => {
     });
 
     it('throws ServiceUnavailableException on an HTTP error response', async () => {
-      fetchMock.mockResolvedValue({
-        ok: false,
+      postFormMock.mockResolvedValue({
         status: 500,
         statusText: 'Internal Server Error',
-        text: () => Promise.resolve(''),
+        ok: false,
+        text: '',
       });
 
       await expect(
@@ -160,7 +149,7 @@ describe('AisSmsService', () => {
     });
 
     it('throws ServiceUnavailableException when the network request fails', async () => {
-      fetchMock.mockRejectedValue(new Error('fetch failed'));
+      postFormMock.mockRejectedValue(new Error('fetch failed'));
 
       await expect(
         service.sendMt({ to: '66818452233', content: 'AIS_TEST' }),

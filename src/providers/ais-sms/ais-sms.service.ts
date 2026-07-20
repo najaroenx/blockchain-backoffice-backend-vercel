@@ -252,7 +252,9 @@ export class AisSmsService {
         console.error(
           `[AisSmsService.postForm] step ERROR - timed out after ${timeoutMs}ms connecting to ${url}`,
         );
-        req.destroy(new Error(`Request to ${url} timed out after ${timeoutMs}ms`));
+        req.destroy(
+          new Error(`Request to ${url} timed out after ${timeoutMs}ms`),
+        );
       });
 
       req.on('error', (error) => {

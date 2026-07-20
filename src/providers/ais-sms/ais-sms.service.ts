@@ -83,7 +83,10 @@ export class AisSmsService {
 
       const rawText = await response.text();
 
-      console.log('[AisSmsService.sendMt] step 6 - raw response body:', rawText);
+      console.log(
+        '[AisSmsService.sendMt] step 6 - raw response body:',
+        rawText,
+      );
 
       if (!response.ok) {
         console.error(
@@ -277,10 +280,7 @@ export class AisSmsService {
         result,
       );
     } else {
-      console.log(
-        '[AisSmsService.parseSendResponse] step 2 - parsed:',
-        result,
-      );
+      console.log('[AisSmsService.parseSendResponse] step 2 - parsed:', result);
     }
 
     return result;

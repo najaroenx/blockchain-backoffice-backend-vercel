@@ -64,7 +64,7 @@ export class AisSmsService {
 
     try {
       console.log(
-        `[AisSmsService.sendMt] step 4 - calling fetch: ${this.apiUrl}`,
+        `[AisSmsService.sendMt]~ step 4 - calling fetch: ${this.apiUrl}`,
       );
 
       const response = await fetch(this.apiUrl, {

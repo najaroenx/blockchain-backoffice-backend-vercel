@@ -200,12 +200,21 @@ export class AisSmsService {
    * on. Using the low-level http/https module bypasses that fetch-specific
    * restriction while still speaking plain HTTP/HTTPS.
    */
-  private postForm(url: string, body: string): Promise<RawHttpResponse> {
-    console.log('[AisSmsService.postForm] step 1 - request:', { url, body });
+  private postForm(
+    url: string,
+    body: string,
+    timeoutMs = 15000,
+  ): Promise<RawHttpResponse> {
+    console.log('[AisSmsService.postForm] step 1 - request:', {
+      url,
+      body,
+      timeoutMs,
+    });
 
     return new Promise((resolve, reject) => {
       const parsedUrl = new URL(url);
       const client = parsedUrl.protocol === 'https:' ? https : http;
+      let settled = false;
 
       const req = client.request(
         parsedUrl,
@@ -215,6 +224,7 @@ export class AisSmsService {
             'Content-Type': 'application/x-www-form-urlencoded',
             'Content-Length': Buffer.byteLength(body),
           },
+          timeout: timeoutMs,
         },
         (res) => {
           let data = '';
@@ -223,6 +233,8 @@ export class AisSmsService {
             data += chunk;
           });
           res.on('end', () => {
+            if (settled) return;
+            settled = true;
             const status = res.statusCode ?? 0;
             const result: RawHttpResponse = {
               status,
@@ -236,7 +248,16 @@ export class AisSmsService {
         },
       );
 
+      req.on('timeout', () => {
+        console.error(
+          `[AisSmsService.postForm] step ERROR - timed out after ${timeoutMs}ms connecting to ${url}`,
+        );
+        req.destroy(new Error(`Request to ${url} timed out after ${timeoutMs}ms`));
+      });
+
       req.on('error', (error) => {
+        if (settled) return;
+        settled = true;
         console.error('[AisSmsService.postForm] step ERROR - request:', error);
         reject(error);
       });

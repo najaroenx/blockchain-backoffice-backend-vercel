@@ -14,6 +14,7 @@ import { TempLinkModule } from './templink/templink.module';
 import { AuthModule } from './auth/auth.module';
 import { SessionModule } from './session/session.module';
 import { UserModule } from './user/user.module';
+import { AisSmsModule } from './ais-sms/ais-sms.module';
 
 /**
  * Internal Module
@@ -54,6 +55,7 @@ import { UserModule } from './user/user.module';
     AuthModule,
     SessionModule,
     UserModule,
+    AisSmsModule,
   ],
   exports: [
     CustomerModule,
@@ -69,6 +71,7 @@ import { UserModule } from './user/user.module';
     AuthModule,
     SessionModule,
     UserModule,
+    AisSmsModule,
   ],
 })
 export class InternalModule {}

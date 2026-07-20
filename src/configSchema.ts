@@ -44,4 +44,10 @@ export const configSchema = Joi.object({
   AIS_TRANSFER_USERNAME: Joi.string().allow('').default(''),
   AIS_TRANSFER_PASSWORD: Joi.string().allow('').default(''),
   AIS_TRANSFER_REFERENCE_CODE: Joi.string().allow('').default(''),
+
+  // ─── AIS SMS Gateway (MT/DR) ─────────────────────────────────────────────────
+  AIS_SMS_API_URL: Joi.string().allow('').default(''),
+  AIS_SMS_FROM: Joi.string().allow('').default('AIS'),
+  AIS_SMS_CHARGE: Joi.string().allow('').default(''),
+  AIS_SMS_CODE: Joi.string().allow('').default(''),
 });

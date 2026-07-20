@@ -69,9 +69,7 @@ export class AisSmsService {
       const result = this.parseSendResponse(rawText);
 
       if (result.success) {
-        this.logger.log(
-          `[MT] SMS sent to ${maskedTo}, smid=${result.smid}`,
-        );
+        this.logger.log(`[MT] SMS sent to ${maskedTo}, smid=${result.smid}`);
       } else {
         this.logger.error(
           `[MT] AIS gateway rejected message to ${maskedTo}: ${result.detail}`,
@@ -94,9 +92,7 @@ export class AisSmsService {
    * AIS sends: CMD=DLVRREP&NTYPE=REP&FROM=..&SMID=..&STATUS=OK|ERR&DETAIL=..
    * Pass the request body/query already parsed as key-value pairs.
    */
-  parseDeliveryReport(
-    payload: Record<string, string>,
-  ): AisSmsDeliveryReport {
+  parseDeliveryReport(payload: Record<string, string>): AisSmsDeliveryReport {
     return {
       ntype: payload.NTYPE,
       from: payload.FROM,

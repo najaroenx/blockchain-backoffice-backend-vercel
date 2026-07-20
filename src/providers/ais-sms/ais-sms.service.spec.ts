@@ -92,7 +92,9 @@ describe('AisSmsService', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         text: () =>
-          Promise.resolve('<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL></XML>'),
+          Promise.resolve(
+            '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL></XML>',
+          ),
       });
 
       await service.sendMt({
@@ -109,7 +111,9 @@ describe('AisSmsService', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         text: () =>
-          Promise.resolve('<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL></XML>'),
+          Promise.resolve(
+            '<XML><STATUS>OK</STATUS><DETAIL>SUCCESS</DETAIL></XML>',
+          ),
       });
 
       await service.sendMt({

@@ -230,10 +230,7 @@ export class AisSmsService {
               ok: status >= 200 && status < 300,
               text: data,
             };
-            console.log(
-              '[AisSmsService.postForm] step 2 - response:',
-              result,
-            );
+            console.log('[AisSmsService.postForm] step 2 - response:', result);
             resolve(result);
           });
         },

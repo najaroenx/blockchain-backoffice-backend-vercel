@@ -4,10 +4,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as dns from 'node:dns';
 import * as http from 'node:http';
 import * as https from 'node:https';
-import * as net from 'node:net';
 import { URL } from 'node:url';
 import {
   AisSmsContentType,
@@ -21,14 +19,6 @@ interface RawHttpResponse {
   statusText: string;
   ok: boolean;
   text: string;
-}
-
-export interface TelnetCheckResult {
-  host: string;
-  port: number;
-  reachable: boolean;
-  durationMs: number;
-  error?: string;
 }
 
 /**
@@ -64,7 +54,7 @@ export class AisSmsService {
    */
   async sendMt(params: AisSmsSendParams): Promise<AisSmsSendResult> {
     console.log('[AisSmsService.sendMt] step 1 - params received:', params);
-
+  
     const { to, content } = params;
     const ctype = params.ctype ?? this.detectContentType(content);
     const report = params.report === false ? 'N' : 'Y';
@@ -276,229 +266,6 @@ export class AisSmsService {
 
       req.write(body);
       req.end();
-    });
-  }
-
-  /**
-   * Raw TCP connectivity probe, equivalent to `telnet host port`. Bypasses
-   * HTTP entirely so it isolates network/firewall reachability from
-   * anything the AIS gateway itself might do at the HTTP layer.
-   *
-   * `host` is caller-supplied (exposed via a public endpoint), so before
-   * connecting we resolve it and refuse private/loopback/link-local
-   * targets - otherwise this becomes an SSRF primitive for scanning the
-   * internal network (e.g. cloud metadata at 169.254.169.254).
-   */
-  telnetCheck(
-    host: string,
-    port: number,
-    timeoutMs = 5000,
-  ): Promise<TelnetCheckResult> {
-    console.log('[AisSmsService.telnetCheck] step 1 - probing:', {
-      host,
-      port,
-      timeoutMs,
-    });
-
-    const startedAt = Date.now();
-    const literalIp = net.isIP(host) ? host : null;
-
-    if (literalIp) {
-      if (this.isPrivateOrReservedIp(literalIp)) {
-        return Promise.resolve(this.blockedTelnetResult(host, port, startedAt));
-      }
-      return this.connectSocket(literalIp, port, timeoutMs, startedAt);
-    }
-
-    if (!this.isValidHostname(host)) {
-      return Promise.resolve({
-        host,
-        port,
-        reachable: false,
-        durationMs: Date.now() - startedAt,
-        error: 'Invalid hostname format',
-      });
-    }
-
-    const allowedHosts = this.getAllowedTelnetHosts();
-    if (!allowedHosts.has(host.toLowerCase())) {
-      return Promise.resolve({
-        host,
-        port,
-        reachable: false,
-        durationMs: Date.now() - startedAt,
-        error: 'Host is not in telnet allowlist',
-      });
-    }
-
-    return dns.promises
-      .lookup(host)
-      .then(({ address }) => {
-        if (this.isPrivateOrReservedIp(address)) {
-          return this.blockedTelnetResult(host, port, startedAt);
-        }
-        return this.connectSocket(address, port, timeoutMs, startedAt);
-      })
-      .catch((error) => {
-        const message = this.getErrorMessage(error);
-        console.error(
-          '[AisSmsService.telnetCheck] step ERROR - DNS lookup failed:',
-          { host, message },
-        );
-        return {
-          host,
-          port,
-          reachable: false,
-          durationMs: Date.now() - startedAt,
-          error: message,
-        };
-      });
-  }
-
-  private blockedTelnetResult(
-    host: string,
-    port: number,
-    startedAt: number,
-  ): TelnetCheckResult {
-    const message = `Refusing to probe private/reserved address: ${host}`;
-    console.error(
-      '[AisSmsService.telnetCheck] step ERROR - blocked private/reserved target:',
-      { host, port },
-    );
-    return {
-      host,
-      port,
-      reachable: false,
-      durationMs: Date.now() - startedAt,
-      error: message,
-    };
-  }
-
-  /**
-   * IPv4/IPv6 ranges reserved for loopback, private networks, link-local
-   * (incl. cloud metadata endpoints), and multicast/reserved space. Fails
-   * closed on unrecognized formats.
-   */
-  private getAllowedTelnetHosts(): Set<string> {
-    const raw =
-      this.configService.get<string>('AIS_SMS_TELNET_ALLOWED_HOSTS') ?? '';
-    return new Set(
-      raw
-        .split(',')
-        .map((item) => item.trim().toLowerCase())
-        .filter(Boolean),
-    );
-  }
-
-  private isValidHostname(host: string): boolean {
-    if (!host || host.length > 253) return false;
-    const labels = host.split('.');
-    return labels.every(
-      (label) =>
-        label.length > 0 &&
-        label.length <= 63 &&
-        /^[a-zA-Z0-9-]+$/.test(label) &&
-        !label.startsWith('-') &&
-        !label.endsWith('-'),
-    );
-  }
-
-  private isPrivateOrReservedIp(ip: string): boolean {
-    if (net.isIPv4(ip)) {
-      const parts = ip.split('.').map(Number);
-      const [a, b] = parts;
-      if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) {
-        return true;
-      }
-      if (a === 0 || a === 10 || a === 127) return true;
-      if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
-      if (a === 169 && b === 254) return true; // link-local / cloud metadata
-      if (a === 172 && b >= 16 && b <= 31) return true; // private
-      if (a === 192 && b === 168) return true; // private
-      if (a >= 224) return true; // multicast/reserved
-      return false;
-    }
-
-    if (net.isIPv6(ip)) {
-      const lower = ip.toLowerCase();
-      if (lower === '::1' || lower === '::') return true;
-      if (/^fe[89ab]/.test(lower)) return true; // link-local fe80::/10
-      if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // unique local fc00::/7
-      if (lower.startsWith('::ffff:')) {
-        const embeddedV4 = lower.split(':').pop() ?? '';
-        if (net.isIPv4(embeddedV4)) {
-          return this.isPrivateOrReservedIp(embeddedV4);
-        }
-      }
-      return false;
-    }
-
-    return true;
-  }
-
-  private connectSocket(
-    host: string,
-    port: number,
-    timeoutMs: number,
-    startedAt: number,
-  ): Promise<TelnetCheckResult> {
-    return new Promise((resolve) => {
-      let settled = false;
-      const socket = new net.Socket();
-
-      const finish = (reachable: boolean, error?: string) => {
-        if (settled) return;
-        settled = true;
-        socket.destroy();
-
-        const result: TelnetCheckResult = {
-          host,
-          port,
-          reachable,
-          durationMs: Date.now() - startedAt,
-          error,
-        };
-
-        if (reachable) {
-          console.log(
-            '[AisSmsService.telnetCheck] step 2 - connected:',
-            result,
-          );
-        } else {
-          console.error(
-            '[AisSmsService.telnetCheck] step ERROR - unreachable:',
-            result,
-          );
-        }
-
-        resolve(result);
-      };
-
-      socket.setTimeout(timeoutMs);
-
-      socket.once('connect', () => {
-        console.log(
-          `[AisSmsService.telnetCheck] step 1a - TCP handshake succeeded to ${host}:${port}`,
-        );
-        finish(true);
-      });
-
-      socket.once('timeout', () => {
-        console.error(
-          `[AisSmsService.telnetCheck] step ERROR - timed out after ${timeoutMs}ms connecting to ${host}:${port}`,
-        );
-        finish(false, `Timed out after ${timeoutMs}ms`);
-      });
-
-      socket.once('error', (error) => {
-        console.error(
-          '[AisSmsService.telnetCheck] step ERROR - socket error:',
-          error,
-        );
-        finish(false, this.getErrorMessage(error));
-      });
-
-      socket.connect(port, host);
     });
   }
 

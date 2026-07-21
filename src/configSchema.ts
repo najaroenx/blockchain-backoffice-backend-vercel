@@ -50,7 +50,4 @@ export const configSchema = Joi.object({
   AIS_SMS_FROM: Joi.string().allow('').default('AIS'),
   AIS_SMS_CHARGE: Joi.string().allow('').default(''),
   AIS_SMS_CODE: Joi.string().allow('').default(''),
-  // Comma-separated hostname allowlist for the /ais-sms/telnet-check
-  // diagnostic endpoint (SSRF guard - hostnames not in this list are refused).
-  AIS_SMS_TELNET_ALLOWED_HOSTS: Joi.string().allow('').default(''),
 });

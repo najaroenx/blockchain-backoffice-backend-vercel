@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AisSmsService, TelnetCheckResult } from 'src/providers/ais-sms/ais-sms.service';
+import {
+  AisSmsService,
+  TelnetCheckResult,
+} from 'src/providers/ais-sms/ais-sms.service';
 import { TelnetCheckQueryDto } from '../dtos/ais-sms.dto';
 
 @Injectable()

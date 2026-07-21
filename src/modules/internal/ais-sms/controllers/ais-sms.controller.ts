@@ -1,10 +1,5 @@
 import { Controller, Post, Get, Body, Query, HttpCode } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBody,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from 'src/modules/internal/auth/public.decorator';
 import { SendAisSmsTest } from '../handlers/sendAisSmsTest.handler';

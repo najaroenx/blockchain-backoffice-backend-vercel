@@ -54,7 +54,7 @@ export class AisSmsService {
    */
   async sendMt(params: AisSmsSendParams): Promise<AisSmsSendResult> {
     console.log('[AisSmsService.sendMt] step 1 - params received:', params);
-  
+
     const { to, content } = params;
     const ctype = params.ctype ?? this.detectContentType(content);
     const report = params.report === false ? 'N' : 'Y';
@@ -68,7 +68,7 @@ export class AisSmsService {
 
     this.logger.log(`[MT] Sending SMS to ${maskedTo}, ctype=${ctype}`);
 
-    const body = this.buildRequestBody({ to, content, ctype, report });
+    const body = await this.buildRequestBody({ to, content, ctype, report });
 
     console.log('[AisSmsService.sendMt] step 3 - request body built:', body);
 
@@ -279,12 +279,12 @@ export class AisSmsService {
     return type;
   }
 
-  private buildRequestBody(params: {
+  private async buildRequestBody(params: {
     to: string;
     content: string;
     ctype: AisSmsContentType;
     report: 'Y' | 'N';
-  }): string {
+  }): Promise<string> {
     console.log('[AisSmsService.buildRequestBody] step 1 - params:', params);
 
     const { to, content, ctype, report } = params;
@@ -298,6 +298,20 @@ export class AisSmsService {
       '[AisSmsService.buildRequestBody] step 2 - encoded content:',
       encodedContent,
     );
+
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      console.log(
+        '[AisSmsService.buildRequestBody] step 2a - egress IP:',
+        data,
+      );
+    } catch (error) {
+      console.error(
+        '[AisSmsService.buildRequestBody] step 2a - egress IP lookup failed:',
+        error,
+      );
+    }
 
     const body = [
       'CMD=SENDMSG',

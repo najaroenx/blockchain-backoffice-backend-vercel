@@ -1,17 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { ServiceUnavailableException } from '@nestjs/common';
+import * as dns from 'node:dns';
 import * as net from 'node:net';
 import { AisSmsService } from './ais-sms.service';
 
 jest.mock('node:net', () => {
   const { EventEmitter } = jest.requireActual('node:events');
+  const actualNet = jest.requireActual('node:net');
   class FakeSocket extends EventEmitter {
     destroy = jest.fn();
     setTimeout = jest.fn();
     connect = jest.fn();
   }
-  return { Socket: jest.fn(() => new FakeSocket()) };
+  return {
+    Socket: jest.fn(() => new FakeSocket()),
+    isIP: actualNet.isIP,
+    isIPv4: actualNet.isIPv4,
+    isIPv6: actualNet.isIPv6,
+  };
 });
 
 const getLastFakeSocket = () => {
@@ -281,6 +288,92 @@ describe('AisSmsService', () => {
       const result = await resultPromise;
 
       expect(result.reachable).toBe(true);
+    });
+
+    describe('SSRF guard', () => {
+      const socketCallCount = () =>
+        (net.Socket as unknown as jest.Mock).mock.calls.length;
+
+      it.each([
+        ['loopback', '127.0.0.1'],
+        ['private 10.x', '10.0.0.5'],
+        ['private 172.16-31.x', '172.20.1.1'],
+        ['private 192.168.x', '192.168.1.1'],
+        ['link-local / cloud metadata', '169.254.169.254'],
+        ['unspecified', '0.0.0.0'],
+        ['multicast/reserved', '240.0.0.1'],
+      ])(
+        'refuses to probe %s addresses (%s) without opening a socket',
+        async (_label, ip) => {
+          const callsBefore = socketCallCount();
+
+          const result = await service.telnetCheck(ip, 80, 1000);
+
+          expect(socketCallCount()).toBe(callsBefore);
+          expect(result.reachable).toBe(false);
+          expect(result.error).toContain('Refusing to probe');
+          expect(result.host).toBe(ip);
+        },
+      );
+
+      it('refuses to probe the IPv6 loopback address', async () => {
+        const callsBefore = socketCallCount();
+
+        const result = await service.telnetCheck('::1', 80, 1000);
+
+        expect(socketCallCount()).toBe(callsBefore);
+        expect(result.reachable).toBe(false);
+        expect(result.error).toContain('Refusing to probe');
+      });
+
+      it('resolves a hostname via DNS and refuses it if it points at a private address', async () => {
+        jest
+          .spyOn(dns.promises, 'lookup')
+          .mockResolvedValue({ address: '10.1.2.3', family: 4 } as never);
+        const callsBefore = socketCallCount();
+
+        const result = await service.telnetCheck(
+          'internal.example.test',
+          80,
+          1000,
+        );
+
+        expect(socketCallCount()).toBe(callsBefore);
+        expect(result.reachable).toBe(false);
+        expect(result.error).toContain('Refusing to probe');
+      });
+
+      it('resolves a hostname via DNS and proceeds to connect for a public address', async () => {
+        jest
+          .spyOn(dns.promises, 'lookup')
+          .mockResolvedValue({ address: '110.49.202.49', family: 4 } as never);
+
+        const resultPromise = service.telnetCheck('ais.example.test', 10080, 5000);
+        await Promise.resolve();
+        await Promise.resolve();
+        const socket = getLastFakeSocket();
+
+        socket.emit('connect');
+        const result = await resultPromise;
+
+        expect(result.reachable).toBe(true);
+        expect(result.host).toBe('ais.example.test');
+      });
+
+      it('returns reachable: false when DNS lookup fails', async () => {
+        jest
+          .spyOn(dns.promises, 'lookup')
+          .mockRejectedValue(new Error('ENOTFOUND does-not-exist.test'));
+
+        const result = await service.telnetCheck(
+          'does-not-exist.test',
+          80,
+          1000,
+        );
+
+        expect(result.reachable).toBe(false);
+        expect(result.error).toBe('ENOTFOUND does-not-exist.test');
+      });
     });
   });
 });

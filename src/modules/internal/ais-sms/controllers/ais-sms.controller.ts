@@ -33,14 +33,13 @@ export class AisSmsController {
     return this.sendAisSmsTestHandler.execute(body);
   }
 
-  @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Get('/telnet-check')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Raw TCP connectivity check (like `telnet host port`)',
     description:
-      'Opens a bare TCP connection to the given host/port, bypassing HTTP entirely. Used to diagnose network/firewall reachability issues (e.g. whether this pod can reach an AIS gateway) independent of anything at the HTTP layer.',
+      'Opens a bare TCP connection to the given host/port, bypassing HTTP entirely. Used to diagnose network/firewall reachability issues (e.g. whether this pod can reach an AIS gateway) independent of anything at the HTTP layer. Requires auth; private/loopback/link-local targets are refused server-side to prevent SSRF.',
   })
   @ApiResponse({
     status: 200,

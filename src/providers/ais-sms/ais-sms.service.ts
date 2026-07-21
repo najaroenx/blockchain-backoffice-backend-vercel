@@ -380,7 +380,8 @@ export class AisSmsService {
    * closed on unrecognized formats.
    */
   private getAllowedTelnetHosts(): Set<string> {
-    const raw = this.configService.get<string>('AIS_SMS_TELNET_ALLOWED_HOSTS') ?? '';
+    const raw =
+      this.configService.get<string>('AIS_SMS_TELNET_ALLOWED_HOSTS') ?? '';
     return new Set(
       raw
         .split(',')

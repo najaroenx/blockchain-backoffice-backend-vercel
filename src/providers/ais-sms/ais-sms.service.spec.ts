@@ -32,6 +32,8 @@ const CONFIG: Record<string, string> = {
   AIS_SMS_FROM: 'AIS',
   AIS_SMS_CHARGE: '66614143821',
   AIS_SMS_CODE: '35145678001',
+  AIS_SMS_TELNET_ALLOWED_HOSTS:
+    'ais.example.test,internal.example.test,does-not-exist.test',
 };
 
 describe('AisSmsService', () => {
@@ -357,11 +359,12 @@ describe('AisSmsService', () => {
         await Promise.resolve();
         const socket = getLastFakeSocket();
 
+        expect(socket.connect).toHaveBeenCalledWith(10080, '110.49.202.49');
+
         socket.emit('connect');
         const result = await resultPromise;
 
         expect(result.reachable).toBe(true);
-        expect(result.host).toBe('ais.example.test');
       });
 
       it('returns reachable: false when DNS lookup fails', async () => {
@@ -377,6 +380,36 @@ describe('AisSmsService', () => {
 
         expect(result.reachable).toBe(false);
         expect(result.error).toBe('ENOTFOUND does-not-exist.test');
+      });
+
+      it('refuses a hostname that is not in the configured allowlist, without a DNS lookup', async () => {
+        const lookupSpy = jest.spyOn(dns.promises, 'lookup');
+        const callsBefore = socketCallCount();
+
+        const result = await service.telnetCheck(
+          'not-allowed.example.test',
+          80,
+          1000,
+        );
+
+        expect(lookupSpy).not.toHaveBeenCalled();
+        expect(socketCallCount()).toBe(callsBefore);
+        expect(result.reachable).toBe(false);
+        expect(result.error).toBe('Host is not in telnet allowlist');
+      });
+
+      it('refuses a malformed hostname before checking the allowlist or DNS', async () => {
+        const lookupSpy = jest.spyOn(dns.promises, 'lookup');
+
+        const result = await service.telnetCheck(
+          'not a valid host!!',
+          80,
+          1000,
+        );
+
+        expect(lookupSpy).not.toHaveBeenCalled();
+        expect(result.reachable).toBe(false);
+        expect(result.error).toBe('Invalid hostname format');
       });
     });
   });

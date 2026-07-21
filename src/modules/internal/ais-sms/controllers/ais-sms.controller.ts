@@ -39,7 +39,7 @@ export class AisSmsController {
   @ApiOperation({
     summary: 'Raw TCP connectivity check (like `telnet host port`)',
     description:
-      'Opens a bare TCP connection to the given host/port, bypassing HTTP entirely. Used to diagnose network/firewall reachability issues (e.g. whether this pod can reach an AIS gateway) independent of anything at the HTTP layer. Requires auth; private/loopback/link-local targets are refused server-side to prevent SSRF.',
+      'Opens a bare TCP connection to the given host/port, bypassing HTTP entirely. Used to diagnose network/firewall reachability issues (e.g. whether this pod can reach an AIS gateway) independent of anything at the HTTP layer. Requires auth; private/loopback/link-local targets are refused server-side to prevent SSRF. IP literals are checked directly; hostnames must also be listed in AIS_SMS_TELNET_ALLOWED_HOSTS.',
   })
   @ApiResponse({
     status: 200,

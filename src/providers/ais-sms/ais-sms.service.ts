@@ -307,7 +307,28 @@ export class AisSmsService {
       if (this.isPrivateOrReservedIp(literalIp)) {
         return Promise.resolve(this.blockedTelnetResult(host, port, startedAt));
       }
-      return this.connectSocket(host, port, timeoutMs, startedAt);
+      return this.connectSocket(literalIp, port, timeoutMs, startedAt);
+    }
+
+    if (!this.isValidHostname(host)) {
+      return Promise.resolve({
+        host,
+        port,
+        reachable: false,
+        durationMs: Date.now() - startedAt,
+        error: 'Invalid hostname format',
+      });
+    }
+
+    const allowedHosts = this.getAllowedTelnetHosts();
+    if (!allowedHosts.has(host.toLowerCase())) {
+      return Promise.resolve({
+        host,
+        port,
+        reachable: false,
+        durationMs: Date.now() - startedAt,
+        error: 'Host is not in telnet allowlist',
+      });
     }
 
     return dns.promises
@@ -316,7 +337,7 @@ export class AisSmsService {
         if (this.isPrivateOrReservedIp(address)) {
           return this.blockedTelnetResult(host, port, startedAt);
         }
-        return this.connectSocket(host, port, timeoutMs, startedAt);
+        return this.connectSocket(address, port, timeoutMs, startedAt);
       })
       .catch((error) => {
         const message = this.getErrorMessage(error);
@@ -358,6 +379,29 @@ export class AisSmsService {
    * (incl. cloud metadata endpoints), and multicast/reserved space. Fails
    * closed on unrecognized formats.
    */
+  private getAllowedTelnetHosts(): Set<string> {
+    const raw = this.configService.get<string>('AIS_SMS_TELNET_ALLOWED_HOSTS') ?? '';
+    return new Set(
+      raw
+        .split(',')
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean),
+    );
+  }
+
+  private isValidHostname(host: string): boolean {
+    if (!host || host.length > 253) return false;
+    const labels = host.split('.');
+    return labels.every(
+      (label) =>
+        label.length > 0 &&
+        label.length <= 63 &&
+        /^[a-zA-Z0-9-]+$/.test(label) &&
+        !label.startsWith('-') &&
+        !label.endsWith('-'),
+    );
+  }
+
   private isPrivateOrReservedIp(ip: string): boolean {
     if (net.isIPv4(ip)) {
       const parts = ip.split('.').map(Number);

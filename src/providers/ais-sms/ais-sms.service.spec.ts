@@ -348,7 +348,11 @@ describe('AisSmsService', () => {
           .spyOn(dns.promises, 'lookup')
           .mockResolvedValue({ address: '110.49.202.49', family: 4 } as never);
 
-        const resultPromise = service.telnetCheck('ais.example.test', 10080, 5000);
+        const resultPromise = service.telnetCheck(
+          'ais.example.test',
+          10080,
+          5000,
+        );
         await Promise.resolve();
         await Promise.resolve();
         const socket = getLastFakeSocket();

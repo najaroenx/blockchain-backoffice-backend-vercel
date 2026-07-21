@@ -305,9 +305,7 @@ export class AisSmsService {
 
     if (literalIp) {
       if (this.isPrivateOrReservedIp(literalIp)) {
-        return Promise.resolve(
-          this.blockedTelnetResult(host, port, startedAt),
-        );
+        return Promise.resolve(this.blockedTelnetResult(host, port, startedAt));
       }
       return this.connectSocket(host, port, timeoutMs, startedAt);
     }

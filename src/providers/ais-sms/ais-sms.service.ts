@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as http from 'node:http';
 import * as https from 'node:https';
+import * as net from 'node:net';
 import { URL } from 'node:url';
 import {
   AisSmsContentType,
@@ -19,6 +20,14 @@ interface RawHttpResponse {
   statusText: string;
   ok: boolean;
   text: string;
+}
+
+export interface TelnetCheckResult {
+  host: string;
+  port: number;
+  reachable: boolean;
+  durationMs: number;
+  error?: string;
 }
 
 /**
@@ -266,6 +275,84 @@ export class AisSmsService {
 
       req.write(body);
       req.end();
+    });
+  }
+
+  /**
+   * Raw TCP connectivity probe, equivalent to `telnet host port`. Bypasses
+   * HTTP entirely so it isolates network/firewall reachability from
+   * anything the AIS gateway itself might do at the HTTP layer.
+   */
+  telnetCheck(
+    host: string,
+    port: number,
+    timeoutMs = 5000,
+  ): Promise<TelnetCheckResult> {
+    console.log('[AisSmsService.telnetCheck] step 1 - probing:', {
+      host,
+      port,
+      timeoutMs,
+    });
+
+    const startedAt = Date.now();
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const socket = new net.Socket();
+
+      const finish = (reachable: boolean, error?: string) => {
+        if (settled) return;
+        settled = true;
+        socket.destroy();
+
+        const result: TelnetCheckResult = {
+          host,
+          port,
+          reachable,
+          durationMs: Date.now() - startedAt,
+          error,
+        };
+
+        if (reachable) {
+          console.log(
+            '[AisSmsService.telnetCheck] step 2 - connected:',
+            result,
+          );
+        } else {
+          console.error(
+            '[AisSmsService.telnetCheck] step ERROR - unreachable:',
+            result,
+          );
+        }
+
+        resolve(result);
+      };
+
+      socket.setTimeout(timeoutMs);
+
+      socket.once('connect', () => {
+        console.log(
+          `[AisSmsService.telnetCheck] step 1a - TCP handshake succeeded to ${host}:${port}`,
+        );
+        finish(true);
+      });
+
+      socket.once('timeout', () => {
+        console.error(
+          `[AisSmsService.telnetCheck] step ERROR - timed out after ${timeoutMs}ms connecting to ${host}:${port}`,
+        );
+        finish(false, `Timed out after ${timeoutMs}ms`);
+      });
+
+      socket.once('error', (error) => {
+        console.error(
+          '[AisSmsService.telnetCheck] step ERROR - socket error:',
+          error,
+        );
+        finish(false, this.getErrorMessage(error));
+      });
+
+      socket.connect(port, host);
     });
   }
 

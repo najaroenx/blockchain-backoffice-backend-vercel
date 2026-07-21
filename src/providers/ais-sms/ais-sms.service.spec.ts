@@ -1,7 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { ServiceUnavailableException } from '@nestjs/common';
+import * as net from 'node:net';
 import { AisSmsService } from './ais-sms.service';
+
+jest.mock('node:net', () => {
+  const { EventEmitter } = jest.requireActual('node:events');
+  class FakeSocket extends EventEmitter {
+    destroy = jest.fn();
+    setTimeout = jest.fn();
+    connect = jest.fn();
+  }
+  return { Socket: jest.fn(() => new FakeSocket()) };
+});
+
+const getLastFakeSocket = () => {
+  const socketMock = net.Socket as unknown as jest.Mock;
+  const results = socketMock.mock.results;
+  return results[results.length - 1].value;
+};
 
 const CONFIG: Record<string, string> = {
   AIS_SMS_API_URL: 'http://110.49.202.49:10080/',
@@ -195,6 +212,79 @@ describe('AisSmsService', () => {
       expect(service.buildDeliveryReportAckXml()).toBe(
         '<XML><STATUS>OK</STATUS><DETAIL></DETAIL></XML>',
       );
+    });
+  });
+
+  describe('telnetCheck', () => {
+    it('connects to the given host and port', async () => {
+      const resultPromise = service.telnetCheck(
+        '110.49.202.49',
+        10080,
+        5000,
+      );
+      const socket = getLastFakeSocket();
+
+      expect(socket.connect).toHaveBeenCalledWith(10080, '110.49.202.49');
+      expect(socket.setTimeout).toHaveBeenCalledWith(5000);
+
+      socket.emit('connect');
+      await resultPromise;
+    });
+
+    it('resolves reachable: true when the TCP handshake succeeds', async () => {
+      const resultPromise = service.telnetCheck('110.49.202.49', 10080, 5000);
+      const socket = getLastFakeSocket();
+
+      socket.emit('connect');
+
+      const result = await resultPromise;
+
+      expect(result).toEqual({
+        host: '110.49.202.49',
+        port: 10080,
+        reachable: true,
+        durationMs: expect.any(Number),
+      });
+      expect(socket.destroy).toHaveBeenCalled();
+    });
+
+    it('resolves reachable: false with the underlying error on a socket error', async () => {
+      const resultPromise = service.telnetCheck('110.49.202.49', 10080, 5000);
+      const socket = getLastFakeSocket();
+
+      socket.emit('error', new Error('connect ETIMEDOUT 110.49.202.49:10080'));
+
+      const result = await resultPromise;
+
+      expect(result.reachable).toBe(false);
+      expect(result.error).toBe('connect ETIMEDOUT 110.49.202.49:10080');
+      expect(socket.destroy).toHaveBeenCalled();
+    });
+
+    it('resolves reachable: false when the connection times out', async () => {
+      const resultPromise = service.telnetCheck('110.49.202.49', 10080, 50);
+      const socket = getLastFakeSocket();
+
+      socket.emit('timeout');
+
+      const result = await resultPromise;
+
+      expect(result.reachable).toBe(false);
+      expect(result.error).toBe('Timed out after 50ms');
+      expect(socket.destroy).toHaveBeenCalled();
+    });
+
+    it('only settles once when multiple events fire', async () => {
+      const resultPromise = service.telnetCheck('110.49.202.49', 10080, 50);
+      const socket = getLastFakeSocket();
+
+      socket.emit('connect');
+      socket.emit('error', new Error('should be ignored'));
+      socket.emit('timeout');
+
+      const result = await resultPromise;
+
+      expect(result.reachable).toBe(true);
     });
   });
 });

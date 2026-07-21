@@ -217,11 +217,7 @@ describe('AisSmsService', () => {
 
   describe('telnetCheck', () => {
     it('connects to the given host and port', async () => {
-      const resultPromise = service.telnetCheck(
-        '110.49.202.49',
-        10080,
-        5000,
-      );
+      const resultPromise = service.telnetCheck('110.49.202.49', 10080, 5000);
       const socket = getLastFakeSocket();
 
       expect(socket.connect).toHaveBeenCalledWith(10080, '110.49.202.49');

@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { configSchema } from './configSchema';
 import { TokenModule } from './providers/token/token.module';
 import { AdmdModule } from './providers/admd/admd.module';
+import { AisSmsModule } from './providers/ais-sms/ais-sms.module';
 import { CustomAuthGuard } from './modules/internal/auth/custom-auth.guard';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { InternalModule } from './modules/internal/internal.module';
@@ -24,6 +25,7 @@ import { SharedModule } from './modules/shared/shared.module';
     PrismaModule,
     TokenModule,
     AdmdModule,
+    AisSmsModule,
     SharedModule,
     InternalModule,
     ExternalModule,

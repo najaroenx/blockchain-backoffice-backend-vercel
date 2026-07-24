@@ -65,7 +65,13 @@ RUN npm install -g npm@11.12.0 --no-audit --no-fund \
     && rm -rf sigstore \
     && tar -xzf /tmp/sigstore-4.1.1.tgz \
     && mv package sigstore \
-    && rm /tmp/sigstore-4.1.1.tgz
+    && rm /tmp/sigstore-4.1.1.tgz \
+    && npm pack tar@7.5.20 --pack-destination /tmp \
+    && cd /usr/local/lib/node_modules/npm/node_modules \
+    && rm -rf tar \
+    && tar -xzf /tmp/tar-7.5.20.tgz \
+    && mv package tar \
+    && rm /tmp/tar-7.5.20.tgz
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S merchant-backoffice -u 1001

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
@@ -23,6 +28,17 @@ export class CheckAndSyncVoucherOnchainHandler {
     private readonly blockchainService: BlockchainService,
     private readonly configService: ConfigService,
   ) {}
+
+  private assertReportOnly(syncFlag: boolean, fixOnchainFlag: boolean) {
+    if (!syncFlag && !fixOnchainFlag) return;
+
+    throw new BadRequestException({
+      statusCode: 400,
+      code: 'AUTOMATIC_RECONCILIATION_DISABLED',
+      message:
+        'Automatic reconciliation is disabled. Use report-only audit. Historical repair requires an approved runbook.',
+    });
+  }
 
   /**
    * Races a promise against a timeout so a hung RPC call fails fast instead
@@ -61,6 +77,8 @@ export class CheckAndSyncVoucherOnchainHandler {
    *   "mark as used" behavior for that specific case — only one can win.
    */
   async execute(voucherId: string, syncFlag = false, fixOnchainFlag = false) {
+    this.assertReportOnly(syncFlag, fixOnchainFlag);
+
     this.logger.log(
       `[START] Reconciling on-chain status for voucherId: ${voucherId}, sync: ${syncFlag}, fixOnchain: ${fixOnchainFlag}`,
     );
@@ -511,6 +529,8 @@ export class CheckAndSyncVoucherOnchainHandler {
     syncFlag = false,
     fixOnchainFlag = false,
   ) {
+    this.assertReportOnly(syncFlag, fixOnchainFlag);
+
     this.logger.log(
       `[START] Reconciling all vouchers for merchantId: ${merchantId}, sync: ${syncFlag}, fixOnchain: ${fixOnchainFlag}`,
     );

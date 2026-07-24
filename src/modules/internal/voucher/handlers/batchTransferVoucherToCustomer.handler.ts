@@ -13,6 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { BatchTransferVoucherDto } from '../dtos/batch-transfer-voucher.dto';
 import {
   getMerchantPrivateKey,
+  insufficientWalletPoolError,
   lockAvailableMerchantVoucherCodes,
   writeDirectVoucherTransferLedger,
 } from '../utils/direct-voucher-transfer.util';
@@ -149,9 +150,11 @@ export class BatchTransferVoucherToCustomerHandler {
         );
 
         if (!availableCodes || availableCodes.length < requiredQty) {
-          throw new BadRequestException(
-            `Not enough available voucher stock for voucherId ${voucherId}. Requested ${requiredQty}, found ${availableCodes?.length || 0}`,
-          );
+          throw insufficientWalletPoolError({
+            voucherId,
+            requested: requiredQty,
+            available: availableCodes?.length || 0,
+          });
         }
 
         lockedVoucherCodesByVoucherId.set(voucherId, availableCodes);

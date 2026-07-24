@@ -117,6 +117,18 @@ describe('ExecuteRewardsCsvHandler', () => {
 
     const result = await handler.execute({ buffer });
 
+    expect(mockPrisma.voucherCode.findFirst).toHaveBeenCalledWith({
+      where: {
+        voucherId: 'VID1',
+        voucher: { merchantRef: 'REF1' },
+        currentOwnerType: 'MERCHANT',
+        isUsed: false,
+        voucherGroupId: null,
+        pointId: null,
+      },
+      include: { voucher: true },
+      orderBy: { id: 'asc' },
+    });
     expect(mockTransferHandler.execute).toHaveBeenCalledWith({
       merchantId: 'm1',
       customerPhone: '0812345678',

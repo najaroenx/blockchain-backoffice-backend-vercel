@@ -85,7 +85,7 @@ describe('RedeemVoucher', () => {
   });
 
   describe('execute', () => {
-    it('should successfully redeem voucher and release vault funds', async () => {
+    it('should redeem a directly transferred Point-currency voucher without pointId', async () => {
       const code = 'VOUCHER-0001';
       const phone = '0812345678';
       const merchantRef = 'REF-123';
@@ -125,21 +125,18 @@ describe('RedeemVoucher', () => {
         id: 'code-123',
         code,
         voucherId: mockVoucher.id,
+        voucherGroupId: null,
+        pointId: null,
+        currency: 'TST',
         currentOwnerId: mockCustomer.id,
+        currentOwnerType: 'CUSTOMER',
         isUsed: false,
         voucher: mockVoucher,
-      });
-
-      const mockPoint = MockDataFactory.createMockPoint({
-        id: 'point-123',
-        merchantId: 'merchant-123',
-        contractAddress: Buffer.from('POINT_ADDRESS', 'hex'),
       });
 
       // Setup mocks
       prisma.customer.findFirst.mockResolvedValue(mockCustomer);
       prisma.voucherCode.findUnique.mockResolvedValue(mockVoucherCode);
-      prisma.point.findUnique.mockResolvedValue(mockPoint);
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
 
       // Mock on-chain balance check (must have at least 1)
@@ -196,6 +193,7 @@ describe('RedeemVoucher', () => {
       expect(prisma.voucherCode.findUnique).toHaveBeenCalled();
 
       expect(blockchainService.redeemVoucher).toHaveBeenCalled();
+      expect(prisma.point.findUnique).not.toHaveBeenCalled();
 
       // Handler uses $transaction with array operations, not separate calls
       expect(prisma.$transaction).toHaveBeenCalled();
@@ -213,6 +211,46 @@ describe('RedeemVoucher', () => {
       ).rejects.toThrow(NotFoundException);
 
       expect(prisma.customer.findFirst).toHaveBeenCalled();
+    });
+
+    it('should resolve the redemption merchant wallet before any on-chain call', async () => {
+      const mockCustomer = MockDataFactory.createMockCustomer({
+        id: 'customer-123',
+        tel: '0812345678',
+      });
+      const mockVoucher = MockDataFactory.createMockVoucher({
+        merchantId: 'merchant-without-wallet',
+        merchantRef: 'REF-123',
+        startDate: new Date('2025-01-01'),
+        endDate: new Date('2027-12-31'),
+      });
+      const mockVoucherCode = MockDataFactory.createMockVoucherCode({
+        code: 'VOUCHER-0001',
+        voucherGroupId: null,
+        pointId: null,
+        currency: 'TST',
+        currentOwnerId: mockCustomer.id,
+        currentOwnerType: 'CUSTOMER',
+        voucher: mockVoucher,
+      });
+
+      prisma.customer.findFirst.mockResolvedValue(mockCustomer);
+      prisma.voucherCode.findUnique.mockResolvedValue(mockVoucherCode);
+      prisma.merchant.findUnique.mockResolvedValue({
+        id: 'merchant-without-wallet',
+        wallet: null,
+      });
+
+      await expect(
+        handler.execute('VOUCHER-0001', '0812345678', 'REF-123'),
+      ).rejects.toMatchObject({
+        response: {
+          code: 'REDEMPTION_MERCHANT_WALLET_NOT_FOUND',
+        },
+      });
+
+      expect(blockchainService.getUserCouponBalance).not.toHaveBeenCalled();
+      expect(blockchainService.redeemVoucher).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when voucher code not found', async () => {
@@ -304,6 +342,37 @@ describe('RedeemVoucher', () => {
       await expect(
         handler.execute('VOUCHER-0001', '0812345678', 'WRONG-REF'),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject redemption when the voucher has no merchantRef', async () => {
+      const mockCustomer = MockDataFactory.createMockCustomer({
+        id: 'customer-123',
+      });
+      const mockVoucher = MockDataFactory.createMockVoucher({
+        merchantRef: null,
+        startDate: new Date('2025-01-01'),
+        endDate: new Date('2027-12-31'),
+      });
+      const mockVoucherCode = MockDataFactory.createMockVoucherCode({
+        currentOwnerId: mockCustomer.id,
+        currentOwnerType: 'CUSTOMER',
+        isUsed: false,
+        voucher: mockVoucher,
+      });
+
+      prisma.customer.findFirst.mockResolvedValue(mockCustomer);
+      prisma.voucherCode.findUnique.mockResolvedValue(mockVoucherCode);
+
+      await expect(
+        handler.execute('VOUCHER-0001', '0812345678', 'REF-123'),
+      ).rejects.toMatchObject({
+        response: {
+          code: 'VOUCHER_MERCHANT_REF_NOT_CONFIGURED',
+        },
+      });
+
+      expect(blockchainService.getUserCouponBalance).not.toHaveBeenCalled();
+      expect(blockchainService.redeemVoucher).not.toHaveBeenCalled();
     });
   });
 });

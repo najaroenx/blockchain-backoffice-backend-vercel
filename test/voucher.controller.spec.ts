@@ -19,6 +19,7 @@ import { PreviewBatchTransferCsvHandler } from '../src/modules/internal/voucher/
 import { ExecuteBatchTransferCsvHandler } from '../src/modules/internal/voucher/handlers/executeBatchTransferCsv.handler';
 import { GetMarketerTransferHistoryHandler } from '../src/modules/internal/voucher/handlers/getMarketerTransferHistory.handler';
 import { DelistMarketplaceListingHandler } from '../src/modules/internal/voucher/handlers/delistMarketplaceListing.handler';
+import { CheckAndSyncVoucherOnchainHandler } from '../src/modules/internal/voucher/handlers/checkAndSyncVoucherOnchain.handler';
 
 describe('VoucherController', () => {
   let controller: VoucherController;
@@ -104,6 +105,11 @@ describe('VoucherController', () => {
     execute: jest.fn(),
   };
 
+  const mockCheckAndSyncVoucherOnchainHandler = {
+    execute: jest.fn(),
+    executeForMerchant: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [VoucherController],
@@ -179,6 +185,10 @@ describe('VoucherController', () => {
         {
           provide: DelistMarketplaceListingHandler,
           useValue: mockDelistMarketplaceListingHandler,
+        },
+        {
+          provide: CheckAndSyncVoucherOnchainHandler,
+          useValue: mockCheckAndSyncVoucherOnchainHandler,
         },
       ],
     }).compile();

@@ -173,6 +173,39 @@ describe('PreviewBatchTransferCsvHandler', () => {
     );
   });
 
+  it('should exclude Marketplace and Point-configured codes from transferable stock', async () => {
+    prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+    prisma.customer.findMany.mockResolvedValue([mockCustomer]);
+    prisma.voucher.findMany.mockResolvedValue([mockVoucher]);
+    prisma.voucherCode.groupBy.mockImplementation(({ where }) => {
+      const usesWalletPoolEligibility =
+        where.voucherGroupId === null && where.pointId === null;
+      return Promise.resolve([
+        {
+          voucherId: 'voucher-1',
+          _count: { id: usesWalletPoolEligibility ? 3 : 5 },
+        },
+      ]);
+    });
+
+    const csvContent = 'phone,voucherId,qty\n0812345678,voucher-1,4\n';
+    const mockFile: UploadedCsvFile = {
+      fieldname: 'file',
+      originalname: 'transfer.csv',
+      encoding: '7bit',
+      mimetype: 'text/csv',
+      buffer: Buffer.from(csvContent, 'utf-8'),
+      size: csvContent.length,
+    };
+
+    const response = await handler.execute('merchant-1', mockFile);
+
+    expect(response.isValidAll).toBe(false);
+    expect(response.details[0].errors[0]).toContain(
+      'merchant only holds 3 codes',
+    );
+  });
+
   it('should reject requests with invalid quantities like zero or non-numeric cells', async () => {
     prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
     prisma.customer.findMany.mockResolvedValue([mockCustomer]);

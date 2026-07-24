@@ -88,6 +88,70 @@ describe('VoucherDBService - Grouping Logic', () => {
   });
 
   describe('getVouchersByMerchant', () => {
+    it('should classify a THB marketplace listing as active without using pointId', async () => {
+      const merchantId = 'merchant-123';
+      const voucherId = 'voucher-thb';
+      const mockVoucher = MockDataFactory.createMockVoucher({
+        id: voucherId,
+        merchantId,
+        tokenId: '12345',
+        voucherCodes: [],
+        merchant: MockDataFactory.createMockMerchant({
+          id: merchantId,
+          wallet: {
+            walletAddress: '0x1234567890123456789012345678901234567890',
+          },
+        }),
+      });
+
+      repository.findMany.mockResolvedValue([mockVoucher]);
+      prisma.voucherCode.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            voucherGroupId: 'listing-thb',
+            createdAt: new Date(),
+            pointsCost: 100,
+            pointId: null,
+            currency: 'THB',
+          },
+        ]);
+      prisma.voucherCode.count
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0);
+
+      const result = await service.getVouchersByMerchant(merchantId);
+
+      const activeCountWhere = prisma.voucherCode.count.mock.calls[1][0].where;
+      const activatedGroupWhere =
+        prisma.voucherCode.findMany.mock.calls[1][0].where;
+
+      expect(activeCountWhere).toMatchObject({
+        voucherId,
+        voucherGroupId: { not: null },
+        isUsed: false,
+      });
+      expect(activeCountWhere).not.toHaveProperty('pointId');
+      expect(activatedGroupWhere).toMatchObject({
+        voucherId,
+        voucherGroupId: { not: null },
+      });
+      expect(activatedGroupWhere).not.toHaveProperty('pointId');
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            status: 'active',
+            voucherGroupId: 'listing-thb',
+            pointId: null,
+            currency: 'THB',
+          }),
+        ]),
+      );
+    });
+
     it('should group vouchers correctly with active, redeemed, and upcoming counts', async () => {
       const merchantId = 'merchant-123';
       const voucherId = 'voucher-123';
@@ -478,6 +542,77 @@ describe('VoucherDBService - Grouping Logic', () => {
         distinct: ['voucherId'],
       });
       expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('getMarketerInventory', () => {
+    it('classifies inventory from ownership, usage and listing state instead of pointId', async () => {
+      prisma.voucherCode.findMany.mockResolvedValue([
+        {
+          id: 'wallet-code',
+          voucherId: 'voucher-1',
+          currentOwnerType: 'MERCHANT',
+          currentOwnerId: 'merchant-123',
+          isUsed: false,
+          voucherGroupId: null,
+          pointId: null,
+          pointsCost: 0,
+          thbPrice: null,
+          voucher: { id: 'voucher-1', name: 'Wallet coupon' },
+        },
+        {
+          id: 'thb-listing-code',
+          voucherId: 'voucher-2',
+          currentOwnerType: 'MERCHANT',
+          currentOwnerId: 'merchant-123',
+          isUsed: false,
+          voucherGroupId: 'listing-thb',
+          pointId: null,
+          pointsCost: 100,
+          thbPrice: 100,
+          voucher: { id: 'voucher-2', name: 'THB listing' },
+        },
+        {
+          id: 'customer-code',
+          voucherId: 'voucher-3',
+          currentOwnerType: 'CUSTOMER',
+          currentOwnerId: 'customer-1',
+          isUsed: false,
+          voucherGroupId: null,
+          pointId: null,
+          pointsCost: 0,
+          thbPrice: null,
+          voucher: { id: 'voucher-3', name: 'Direct transfer' },
+        },
+        {
+          id: 'legacy-code',
+          voucherId: 'voucher-4',
+          currentOwnerType: 'MERCHANT',
+          currentOwnerId: 'merchant-123',
+          isUsed: false,
+          voucherGroupId: null,
+          pointId: 'legacy-point',
+          pointsCost: 100,
+          thbPrice: null,
+          voucher: { id: 'voucher-4', name: 'Legacy' },
+        },
+      ]);
+
+      const result = await service.getMarketerInventory('merchant-123');
+
+      expect(
+        result.map((entry) => ({
+          voucherId: entry.voucher.id,
+          status: entry.status,
+        })),
+      ).toEqual(
+        expect.arrayContaining([
+          { voucherId: 'voucher-1', status: 'upcoming' },
+          { voucherId: 'voucher-2', status: 'active' },
+          { voucherId: 'voucher-3', status: 'active' },
+          { voucherId: 'voucher-4', status: 'legacyUnclassified' },
+        ]),
+      );
     });
   });
 });

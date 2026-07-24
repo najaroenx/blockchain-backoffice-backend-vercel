@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { TransferVoucherToCustomerHandler } from '../../voucher/handlers/transferVoucherToCustomer.handler';
+import { directTransferWalletPoolWhere } from '../../voucher/utils/direct-voucher-transfer.util';
 
 type RewardRowOutcome =
   | { kind: 'skip' }
@@ -87,13 +88,15 @@ export class ExecuteRewardsCsvHandler {
 
     const availableCode = await this.prisma.voucherCode.findFirst({
       where: {
+        ...directTransferWalletPoolWhere({
+          voucherId: voucherId || undefined,
+        }),
         voucher: {
           merchantRef: merchantRef,
         },
-        currentOwnerType: 'MERCHANT',
-        isUsed: false,
       },
       include: { voucher: true },
+      orderBy: { id: 'asc' },
     });
 
     if (!availableCode?.voucher) {

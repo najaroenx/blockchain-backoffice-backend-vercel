@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { parseBatchTransferCsvRows } from '../utils/batch-transfer-csv.util';
+import { directTransferWalletPoolWhere } from '../utils/direct-voucher-transfer.util';
 
 export interface UploadedCsvFile {
   fieldname: string;
@@ -113,12 +114,10 @@ export class PreviewBatchTransferCsvHandler {
     // 3. Look up stock balances (unused codes owned by this merchant) in bulk
     const stockStats = await this.prisma.voucherCode.groupBy({
       by: ['voucherId'],
-      where: {
-        voucherId: { in: uniqueVoucherIds },
-        currentOwnerId: merchantId,
-        currentOwnerType: 'MERCHANT',
-        isUsed: false,
-      },
+      where: directTransferWalletPoolWhere({
+        voucherIds: uniqueVoucherIds,
+        merchantId,
+      }),
       _count: {
         id: true,
       },

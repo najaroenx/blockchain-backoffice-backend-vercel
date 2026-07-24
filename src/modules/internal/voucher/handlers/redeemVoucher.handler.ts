@@ -20,10 +20,6 @@ import { AisTransferService } from 'src/providers/ais-transfer/ais-transfer.serv
 import { nanoid } from 'nanoid';
 import { resolveVoucherMerchantId } from '../utils/resolve-voucher-merchant.util';
 
-type RedeemValidationOptions = {
-  requirePointId?: boolean;
-};
-
 @Injectable()
 export class RedeemVoucher {
   private readonly logger = new Logger(RedeemVoucher.name);
@@ -40,12 +36,7 @@ export class RedeemVoucher {
     this.salt = this.configService.get<string>('SALT');
   }
 
-  async execute(
-    code: string,
-    phone: string,
-    merchantRef: string,
-    options: RedeemValidationOptions = {},
-  ) {
+  async execute(code: string, phone: string, merchantRef: string) {
     try {
       this.logger.log(
         `[START] Redeeming voucher code: ${code} for customer phone: ${phone} at merchant: ${merchantRef}`,
@@ -55,7 +46,6 @@ export class RedeemVoucher {
         code,
         phone,
         merchantRef,
-        options,
       );
       const redeemResult = await this.executeRedeemCore(redeemContext);
 
@@ -91,7 +81,6 @@ export class RedeemVoucher {
     code: string,
     customerId: string,
     merchantRef: string,
-    options: RedeemValidationOptions = {},
   ) {
     this.logger.log(`[STEP 1] Validating voucher code: ${code}`);
     const voucherCode = await this.prisma.voucherCode.findUnique({
@@ -148,9 +137,6 @@ export class RedeemVoucher {
     this.assertCodeNotUsed(voucherCode);
     this.assertMerchantRefMatch(voucherCode, merchantRef);
     this.assertVoucherNotExpired(voucherCode.voucher);
-    if (options.requirePointId !== false) {
-      this.assertPointIdConfigured(voucherCode, code);
-    }
     this.assertCodeActivated(voucherCode);
     this.assertOwnership(voucherCode, customerId);
 
@@ -172,12 +158,23 @@ export class RedeemVoucher {
 
   private assertMerchantRefMatch(voucherCode: any, merchantRef: string) {
     this.logger.log(`[STEP 2.5] Verifying merchantRef: ${merchantRef}`);
-    if (
-      voucherCode.voucher.merchantRef &&
-      voucherCode.voucher.merchantRef !== merchantRef
-    ) {
+    const voucherMerchantRef = voucherCode.voucher.merchantRef;
+
+    if (!voucherMerchantRef) {
       this.logger.error(
-        `[ERROR] MerchantRef mismatch. Expected: ${voucherCode.voucher.merchantRef}, Got: ${merchantRef}`,
+        `[ERROR] Voucher ${voucherCode.voucher.id} has no merchantRef configured`,
+      );
+      throw new BadRequestException({
+        statusCode: HttpStatus.BAD_REQUEST,
+        code: 'VOUCHER_MERCHANT_REF_NOT_CONFIGURED',
+        message:
+          'This voucher is not configured for redemption at a merchantRef.',
+      });
+    }
+
+    if (voucherMerchantRef !== merchantRef) {
+      this.logger.error(
+        `[ERROR] MerchantRef mismatch. Expected: ${voucherMerchantRef}, Got: ${merchantRef}`,
       );
       throw new BadRequestException(
         `This voucher can only be redeemed at the issuing merchant`,
@@ -205,20 +202,6 @@ export class RedeemVoucher {
         `Voucher is not yet valid. Available from ${voucher.startDate}`,
       );
     }
-  }
-
-  private assertPointIdConfigured(voucherCode: any, code: string) {
-    if (!voucherCode.pointId && voucherCode.currency !== 'THB') {
-      this.logger.error(
-        `[ERROR] VoucherCode ${code} has no pointId configured`,
-      );
-      throw new BadRequestException(
-        'This voucher requires point currency setup. Please contact admin.',
-      );
-    }
-    this.logger.log(
-      `[STEP 4] Point currency: ${voucherCode.currency} (pointId: ${voucherCode.pointId})`,
-    );
   }
 
   private assertCodeActivated(voucherCode: any) {
@@ -283,7 +266,6 @@ export class RedeemVoucher {
     code: string,
     phone: string,
     merchantRef: string,
-    options: RedeemValidationOptions = {},
   ) {
     const customer = await this.findCustomerByPhone(phone);
     const customerId = customer.id;
@@ -291,7 +273,6 @@ export class RedeemVoucher {
       code,
       customerId,
       merchantRef,
-      options,
     );
     const voucher = voucherCode.voucher;
     const { customerAddress, customerPrivateKey } =
@@ -330,6 +311,9 @@ export class RedeemVoucher {
       customerPrivateKey,
     } = redeemContext;
 
+    const { merchantId, merchant, merchantAddress } =
+      await this.resolveMerchantForRedemption(voucher, voucherCode);
+
     if (!options.skipOnChainBalance) {
       await this.verifyOnChainBalance(customerAddress, voucher.tokenId);
     }
@@ -340,9 +324,6 @@ export class RedeemVoucher {
       customerAddress,
       customerPrivateKey,
     );
-
-    const { merchantId, merchant, merchantAddress } =
-      await this.resolveMerchantForRedemption(voucher, voucherCode);
 
     const [updatedCode, redeemTransaction] = await this.prisma.$transaction([
       this.prisma.voucherCode.update({
@@ -519,9 +500,12 @@ export class RedeemVoucher {
     }
 
     if (!merchantId) {
-      throw new BadRequestException(
-        'Cannot determine merchant for redemption. Voucher code may not be properly activated.',
-      );
+      throw new BadRequestException({
+        statusCode: HttpStatus.BAD_REQUEST,
+        code: 'REDEMPTION_MERCHANT_NOT_FOUND',
+        message:
+          'Cannot determine merchant for redemption. Voucher code may not be properly activated.',
+      });
     }
 
     if (!merchant) {
@@ -538,10 +522,12 @@ export class RedeemVoucher {
       });
     }
 
-    if (!merchant?.wallet) {
-      throw new BadRequestException(
-        'Merchant wallet not configured. Cannot process redemption.',
-      );
+    if (!merchant?.wallet?.walletAddress) {
+      throw new BadRequestException({
+        statusCode: HttpStatus.BAD_REQUEST,
+        code: 'REDEMPTION_MERCHANT_WALLET_NOT_FOUND',
+        message: 'Merchant wallet not configured. Cannot process redemption.',
+      });
     }
 
     return {
@@ -840,9 +826,6 @@ export class RedeemVoucher {
         code,
         phone,
         merchantRef,
-        {
-          requirePointId: false,
-        },
       );
 
       await this.verifyOnChainBalance(

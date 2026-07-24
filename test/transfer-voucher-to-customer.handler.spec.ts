@@ -126,7 +126,23 @@ describe('TransferVoucherToCustomerHandler', () => {
       prisma.customer.findUnique.mockResolvedValue(mockCustomer);
       prisma.$queryRawUnsafe.mockResolvedValue([{ id: 'code-1', code: 'X' }]);
 
-      await expect(handler.execute(dto)).rejects.toThrow(BadRequestException);
+      let caught: BadRequestException | undefined;
+      try {
+        await handler.execute(dto);
+      } catch (error) {
+        caught = error as BadRequestException;
+      }
+
+      expect(caught).toBeInstanceOf(BadRequestException);
+      expect(caught?.getResponse()).toEqual({
+        statusCode: 400,
+        code: 'INSUFFICIENT_WALLET_POOL',
+        message: 'Insufficient Wallet Pool stock. Requested 2, available 1.',
+        voucherId: 'voucher-1',
+        requested: 2,
+        available: 1,
+      });
+      expect(blockchainService.transferCoupon).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when voucher not found', async () => {
@@ -186,6 +202,23 @@ describe('TransferVoucherToCustomerHandler', () => {
         '0xCustomerAddr',
         '0xMerchantKey',
       );
+    });
+
+    it('should lock only deterministic Wallet Pool rows', async () => {
+      await handler.execute(dto);
+
+      const [sql, voucherId, merchantId, quantity] =
+        prisma.$queryRawUnsafe.mock.calls[0];
+
+      expect(sql).toContain('"voucherGroupId" IS NULL');
+      expect(sql).toContain('"pointId" IS NULL');
+      expect(sql).toContain('ORDER BY "id" ASC');
+      expect(sql).toContain('FOR UPDATE SKIP LOCKED');
+      expect([voucherId, merchantId, quantity]).toEqual([
+        'voucher-1',
+        'merchant-1',
+        2,
+      ]);
     });
 
     it('should use default quantity of 1 when not provided', async () => {

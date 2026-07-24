@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import {
   AssetType,
   TransactionTypeId,
@@ -51,6 +53,43 @@ export interface LockAvailableMerchantVoucherCodesParams {
   quantity: number;
 }
 
+export function directTransferWalletPoolWhere(params: {
+  merchantId?: string;
+  voucherId?: string;
+  voucherIds?: string[];
+}): Prisma.VoucherCodeWhereInput {
+  const { merchantId, voucherId, voucherIds } = params;
+
+  return {
+    ...(voucherId
+      ? { voucherId }
+      : voucherIds
+        ? { voucherId: { in: voucherIds } }
+        : {}),
+    ...(merchantId ? { currentOwnerId: merchantId } : {}),
+    currentOwnerType: 'MERCHANT',
+    isUsed: false,
+    voucherGroupId: null,
+    pointId: null,
+  };
+}
+
+export function insufficientWalletPoolError(params: {
+  voucherId: string;
+  requested: number;
+  available: number;
+}): BadRequestException {
+  const { voucherId, requested, available } = params;
+  return new BadRequestException({
+    statusCode: 400,
+    code: 'INSUFFICIENT_WALLET_POOL',
+    message: `Insufficient Wallet Pool stock. Requested ${requested}, available ${available}.`,
+    voucherId,
+    requested,
+    available,
+  });
+}
+
 function hexAddressToBuffer(address: string): Buffer {
   return Buffer.from(address.replace(/^0x/, ''), 'hex');
 }
@@ -70,6 +109,9 @@ export async function lockAvailableMerchantVoucherCodes(
       AND "currentOwnerId" = $2
       AND "currentOwnerType" = 'MERCHANT'
       AND "isUsed" = false
+      AND "voucherGroupId" IS NULL
+      AND "pointId" IS NULL
+    ORDER BY "id" ASC
     LIMIT $3
     FOR UPDATE SKIP LOCKED
   `,

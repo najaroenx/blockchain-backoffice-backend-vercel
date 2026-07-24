@@ -1002,6 +1002,10 @@ describe('RedeemVoucher', () => {
           derivationIndex: 0,
         },
       });
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: 'm1',
+        wallet: { walletAddress: '0xmerchant123' },
+      });
       mockPrisma.voucherCode.findUnique
         .mockResolvedValueOnce({
           voucher: { valueType: 'aispoint', value: 50 },
@@ -1092,6 +1096,10 @@ describe('RedeemVoucher', () => {
           seedPhrase: 'enc-seed',
           derivationIndex: 0,
         },
+      });
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: 'm1',
+        wallet: { walletAddress: '0xmerchant123' },
       });
       mockPrisma.voucherCode.findUnique
         .mockResolvedValueOnce({

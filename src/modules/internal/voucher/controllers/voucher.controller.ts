@@ -635,10 +635,9 @@ export class VoucherController {
   @Public()
   @HttpCode(200)
   @ApiOperation({
-    summary:
-      'Compare on-chain balances with DB voucher codes, and safely sync them',
+    summary: 'Compare on-chain balances with DB voucher codes (report only)',
     description:
-      'ดึงข้อมูลสมุดบัญชีจากบล็อกเชน (อุปทาน, เจ้าของทั้งหมด) เทียบกับ DB และแก้ไขความผิดพลาดสิทธิ์ผู้ถือสิทธิ์เมื่อระบุ ?sync=true (แก้ฝั่ง DB ให้ตรงกับ on-chain) หรือ ?fixOnchain=true (mint ส่วนต่างบนเชนให้ตรงกับ DB แทน)',
+      'ดึงข้อมูลสมุดบัญชีจากบล็อกเชน (อุปทาน, เจ้าของทั้งหมด) เทียบกับ DB แบบ read-only เท่านั้น; ระบบจะปฏิเสธ sync=true และ fixOnchain=true',
   })
   async reconcileVoucherCodes(
     @Param('voucherId') voucherId: string,
@@ -663,9 +662,9 @@ export class VoucherController {
   @HttpCode(200)
   @ApiOperation({
     summary:
-      'Compare all on-chain balances with DB voucher codes for a marketer, and safely sync them',
+      'Compare all on-chain balances with DB voucher codes for a marketer (report only)',
     description:
-      'ดึงข้อมูลสมุดบัญชีคูปองข้ามเชนและ DB ทั้งหมดใน Marketer นั้น และดำเนินการซิงค์ยอดสิทธิ์อัตโนมัติเมื่อกำหนด ?sync=true (แก้ DB) หรือ ?fixOnchain=true (mint ส่วนต่างบนเชน)',
+      'ดึงข้อมูลสมุดบัญชีคูปองข้ามเชนและ DB ทั้งหมดใน Marketer แบบ read-only เท่านั้น; ระบบจะปฏิเสธ sync=true และ fixOnchain=true',
   })
   async reconcileMerchantVouchers(
     @Param('merchantId') merchantId: string,

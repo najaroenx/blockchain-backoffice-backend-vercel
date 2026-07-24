@@ -11,6 +11,7 @@ import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import {
   getMerchantPrivateKey,
+  insufficientWalletPoolError,
   lockAvailableMerchantVoucherCodes,
   writeDirectVoucherTransferLedger,
 } from '../utils/direct-voucher-transfer.util';
@@ -69,9 +70,11 @@ export class TransferVoucherToCustomerHandler {
       );
 
       if (!availableCodes || availableCodes.length < quantity) {
-        throw new BadRequestException(
-          `Not enough available voucher stock. Requested ${quantity}, found ${availableCodes?.length || 0}`,
-        );
+        throw insufficientWalletPoolError({
+          voucherId,
+          requested: quantity,
+          available: availableCodes?.length || 0,
+        });
       }
 
       const voucherCodeIds = availableCodes.map((c) => c.id);

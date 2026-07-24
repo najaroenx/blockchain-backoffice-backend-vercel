@@ -189,15 +189,19 @@ export class VoucherDBService {
             voucherId: voucher.id,
             currentOwnerId: merchantId,
             currentOwnerType: 'MERCHANT',
+            isUsed: false,
+            voucherGroupId: null,
             pointId: null,
           },
         })
       : await this.prisma.voucherCode.count({
           where: {
             voucherId: voucher.id,
-            pointId: null,
-            voucherGroupId: null,
+            currentOwnerId: merchantId,
             currentOwnerType: 'MERCHANT',
+            isUsed: false,
+            voucherGroupId: null,
+            pointId: null,
           },
         });
 
@@ -252,7 +256,7 @@ export class VoucherDBService {
     const activeCodesCount = await this.prisma.voucherCode.count({
       where: {
         voucherId,
-        pointId: { not: null },
+        voucherGroupId: { not: null },
         isUsed: false,
         ...filter,
       },
@@ -261,7 +265,7 @@ export class VoucherDBService {
     const redeemedCodesCount = await this.prisma.voucherCode.count({
       where: {
         voucherId,
-        pointId: { not: null },
+        voucherGroupId: { not: null },
         isUsed: true,
         ...filter,
       },
@@ -284,7 +288,6 @@ export class VoucherDBService {
       where: {
         voucherId: voucher.id,
         voucherGroupId: { not: null },
-        pointId: { not: null },
         ...filter,
       },
       select: {
@@ -1047,9 +1050,18 @@ export class VoucherDBService {
       const isOwnedByMarketer =
         code.currentOwnerType === 'MERCHANT' &&
         code.currentOwnerId === merchantId;
+      const isCustomerHeld = code.currentOwnerType === 'CUSTOMER';
+      const inventoryStatus =
+        isOwnedByMarketer &&
+        !code.isUsed &&
+        code.voucherGroupId === null &&
+        code.pointId === null
+          ? 'upcoming'
+          : code.voucherGroupId !== null || isCustomerHeld
+            ? 'active'
+            : 'legacyUnclassified';
 
-      if (code.pointId === null) {
-        // Upcoming
+      if (inventoryStatus === 'upcoming') {
         const key = `upcoming|${vId}`;
         if (!groupedMap.has(key)) {
           groupedMap.set(key, {
@@ -1066,9 +1078,8 @@ export class VoucherDBService {
         if (isOwnedByMarketer) g.availableCount++;
         else g.totalRedeemed++; // Count transferred to CUSTOMER as redeemed for Marketer's total math
         if (!g.voucherIds.includes(vId)) g.voucherIds.push(vId);
-      } else {
-        // Active
-        const gId = code.voucherGroupId || 'legacy';
+      } else if (inventoryStatus === 'active') {
+        const gId = code.voucherGroupId || 'customer-held';
         const key = `active|${vId}|${gId}`;
         if (!groupedMap.has(key)) {
           groupedMap.set(key, {
@@ -1084,6 +1095,21 @@ export class VoucherDBService {
         g.totalIssued++;
         if (isOwnedByMarketer && !code.isUsed) g.availableCount++;
         else g.totalRedeemed++; // Redeemed or transferred counts against available
+        if (!g.voucherIds.includes(vId)) g.voucherIds.push(vId);
+      } else {
+        const key = `legacyUnclassified|${vId}`;
+        if (!groupedMap.has(key)) {
+          groupedMap.set(key, {
+            baseData: cleanBase,
+            status: 'legacyUnclassified',
+            totalIssued: 0,
+            availableCount: 0,
+            totalRedeemed: 0,
+            voucherIds: [],
+          });
+        }
+        const g = groupedMap.get(key);
+        g.totalIssued++;
         if (!g.voucherIds.includes(vId)) g.voucherIds.push(vId);
       }
     }

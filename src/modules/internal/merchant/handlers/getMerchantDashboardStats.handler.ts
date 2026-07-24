@@ -165,17 +165,18 @@ export class GetMerchantDashboardStats {
         id: true,
         pointsCost: true,
         currentOwnerId: true,
+        currentOwnerType: true,
         isUsed: true,
       },
     });
 
     // Calculate statistics
     const total = allCodes.length;
-    const soldCodes = allCodes.filter((c) => c.currentOwnerId !== null);
+    const soldCodes = allCodes.filter((c) => c.currentOwnerType === 'CUSTOMER');
     const sold = soldCodes.length;
     const soldButNotUsedCodes = soldCodes.filter((c) => !c.isUsed);
     const soldButNotUsed = soldButNotUsedCodes.length;
-    const redeemedCodes = allCodes.filter((c) => c.isUsed);
+    const redeemedCodes = soldCodes.filter((c) => c.isUsed);
     const redeemed = redeemedCodes.length;
 
     // Calculate values (sum of pointsCost)
@@ -234,9 +235,10 @@ export class GetMerchantDashboardStats {
     const purchasedCustomers = await this.prisma.voucherCode.findMany({
       where: {
         voucherId: { in: voucherIds },
+        currentOwnerType: 'CUSTOMER',
         currentOwnerId: { not: null },
       },
-      select: { currentOwnerId: true, isUsed: true },
+      select: { currentOwnerId: true, currentOwnerType: true, isUsed: true },
     });
 
     const uniquePurchasedCustomers = new Set(

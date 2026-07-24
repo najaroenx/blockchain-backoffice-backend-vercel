@@ -8,8 +8,8 @@ export interface DateRangeInfo {
 // Shared Coupon Stats Interface
 export interface CouponStats {
   total: number; // จำนวน/มูลค่าคูปองทั้งหมดที่เรามี
-  unsold: number; // จำนวน/มูลค่าคูปองที่ยังไม่ลงขาย
-  sold: number; // จำนวน/มูลค่าคูปองที่ลงขายแล้ว
+  unsold: number; // จำนวน/มูลค่าคูปองที่ยังไม่ได้โอนให้ End User
+  sold: number; // จำนวน/มูลค่าคูปองที่โอนให้ End User แล้ว (= unredeemed + redeemed)
   unredeemed: number; // จำนวน/มูลค่าคูปองที่ End User ซื้อแต่ยังไม่ใช้
   redeemed: number; // จำนวน/มูลค่าคูปองที่ End User redeem แล้วจริง ๆ
 }
@@ -145,8 +145,10 @@ export interface SellerMerchantsResponse {
 
 export interface MerchantRefCouponSummary {
   total: number; // จำนวนคูปองทั้งหมดที่ผูกกับ merchantRef นี้ (ทั้งลงขายแล้วและยังไม่ลงขาย)
-  sold: number; // จำนวนคูปองที่ลงขาย(activate)แล้ว ไม่ว่าจะมีลูกค้าซื้อไปแล้วหรือยังก็ตาม (pointId ถูกกำหนดแล้ว หรือถูกโอนให้ CUSTOMER แล้ว) — ใช้นิยามเดียวกับ Marketer Dashboard
-  unsold: number; // จำนวนคูปองที่ยังไม่ลงขาย (ยังอยู่กับ Merchant/Seller และยังไม่ถูก activate)
+  sold: number; // จำนวนคูปองที่โอนให้ลูกค้าแล้ว (= unredeemed + redeemed)
+  unsold: number; // จำนวนคูปองที่ยังไม่ได้โอนให้ลูกค้า
+  unredeemed: number; // จำนวนคูปองที่ลูกค้าถืออยู่และยังไม่ได้ redeem
+  redeemed: number; // จำนวนคูปองที่ลูกค้าถืออยู่และ redeem แล้ว
 }
 
 export interface MerchantRefEndUserSummary {

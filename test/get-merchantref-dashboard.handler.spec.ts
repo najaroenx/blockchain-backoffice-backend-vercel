@@ -22,6 +22,8 @@ describe('GetMerchantRefDashboardHandler', () => {
         total: BigInt(10),
         sold: BigInt(6),
         unsold: BigInt(4),
+        unredeemed: BigInt(4),
+        redeemed: BigInt(2),
         totalUsers: BigInt(3),
         unredeemedUsers: BigInt(2),
         redeemedUsers: BigInt(1),
@@ -33,9 +35,27 @@ describe('GetMerchantRefDashboardHandler', () => {
     expect(result.myMerchantSummary.coupon.total).toBe(10);
     expect(result.myMerchantSummary.coupon.sold).toBe(6);
     expect(result.myMerchantSummary.coupon.unsold).toBe(4);
+    expect(result.myMerchantSummary.coupon.unredeemed).toBe(4);
+    expect(result.myMerchantSummary.coupon.redeemed).toBe(2);
+    expect(result.myMerchantSummary.coupon.total).toBe(
+      result.myMerchantSummary.coupon.sold +
+        result.myMerchantSummary.coupon.unsold,
+    );
+    expect(result.myMerchantSummary.coupon.sold).toBe(
+      result.myMerchantSummary.coupon.unredeemed +
+        result.myMerchantSummary.coupon.redeemed,
+    );
     expect(result.myMerchantSummary.endUser.total).toBe(3);
     expect(result.dateRange).toHaveProperty('startDate');
     expect(result.dateRange).toHaveProperty('endDate');
+
+    const [queryParts] = prisma.$queryRaw.mock.calls[0];
+    const sql = queryParts.join(' ');
+    expect(sql).toContain(
+      `vc."currentOwnerType" = 'CUSTOMER' AND NOT vc."isUsed"`,
+    );
+    expect(sql).toContain(`vc."currentOwnerType" = 'CUSTOMER' AND vc."isUsed"`);
+    expect(sql).not.toContain(`OR vc."pointId" IS NOT NULL`);
   });
 
   it('returns zero values when no data', async () => {
@@ -44,6 +64,8 @@ describe('GetMerchantRefDashboardHandler', () => {
         total: BigInt(0),
         sold: BigInt(0),
         unsold: BigInt(0),
+        unredeemed: BigInt(0),
+        redeemed: BigInt(0),
         totalUsers: BigInt(0),
         unredeemedUsers: BigInt(0),
         redeemedUsers: BigInt(0),
@@ -51,7 +73,13 @@ describe('GetMerchantRefDashboardHandler', () => {
     ]);
 
     const result = await handler.execute('ref1', {});
-    expect(result.myMerchantSummary.coupon.total).toBe(0);
+    expect(result.myMerchantSummary.coupon).toEqual({
+      total: 0,
+      sold: 0,
+      unsold: 0,
+      unredeemed: 0,
+      redeemed: 0,
+    });
   });
 
   it('uses custom date range from query', async () => {
@@ -60,6 +88,8 @@ describe('GetMerchantRefDashboardHandler', () => {
         total: BigInt(0),
         sold: BigInt(0),
         unsold: BigInt(0),
+        unredeemed: BigInt(0),
+        redeemed: BigInt(0),
         totalUsers: BigInt(0),
         unredeemedUsers: BigInt(0),
         redeemedUsers: BigInt(0),

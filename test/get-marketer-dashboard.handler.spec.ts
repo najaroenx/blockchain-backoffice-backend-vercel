@@ -63,7 +63,7 @@ describe('GetMarketerDashboardHandler', () => {
         currency: 'PT',
         currentOwnerId: 'c1',
         currentOwnerType: 'CUSTOMER',
-        isUsed: true,
+        isUsed: false,
         listingBatchId: 'lb1',
         voucherId: 'v1',
         voucherMerchantId: 'm1',
@@ -72,6 +72,40 @@ describe('GetMarketerDashboardHandler', () => {
         batchTotalValue: null,
         batchTotalItems: null,
         thbBuyAmount: 50,
+      },
+      {
+        id: 'vc2',
+        pointsCost: 20,
+        pointId: 'p1',
+        currency: 'PT',
+        currentOwnerId: 'c1',
+        currentOwnerType: 'CUSTOMER',
+        isUsed: true,
+        listingBatchId: 'lb1',
+        voucherId: 'v1',
+        voucherMerchantId: 'm1',
+        thbPurchasePrice: 60,
+        pointSymbol: 'PT',
+        batchTotalValue: null,
+        batchTotalItems: null,
+        thbBuyAmount: 60,
+      },
+      {
+        id: 'vc3',
+        pointsCost: 30,
+        pointId: 'p1',
+        currency: 'PT',
+        currentOwnerId: 'm1',
+        currentOwnerType: 'MERCHANT',
+        isUsed: false,
+        listingBatchId: 'lb1',
+        voucherId: 'v1',
+        voucherMerchantId: 'm1',
+        thbPurchasePrice: 70,
+        pointSymbol: 'PT',
+        batchTotalValue: null,
+        batchTotalItems: null,
+        thbBuyAmount: 70,
       },
     ]);
 
@@ -95,7 +129,33 @@ describe('GetMarketerDashboardHandler', () => {
     const result = await handler.execute('m1', defaultQuery);
 
     expect(result.dateRange).toBeDefined();
-    expect(result.couponCount).toBeDefined();
+    expect(result.couponCount).toEqual({
+      total: 3,
+      unsold: 1,
+      sold: 2,
+      unredeemed: 1,
+      redeemed: 1,
+    });
+    expect(result.couponCount.total).toBe(
+      result.couponCount.sold + result.couponCount.unsold,
+    );
+    expect(result.couponCount.sold).toBe(
+      result.couponCount.unredeemed + result.couponCount.redeemed,
+    );
+    expect(result.couponValue.total).toBe(
+      result.couponValue.sold + result.couponValue.unsold,
+    );
+    expect(result.couponValue.sold).toBe(
+      result.couponValue.unredeemed + result.couponValue.redeemed,
+    );
+    expect(result.couponValueByCurrency[0]).toEqual({
+      currency: 'PT',
+      total: 60,
+      unsold: 30,
+      sold: 30,
+      unredeemed: 10,
+      redeemed: 20,
+    });
     expect(result.transactions.transferPoint).toBe(100);
     expect(result.transactions.purchaseCoupon).toBe(5);
     expect(result.thbToken.deposited).toBe(1000);

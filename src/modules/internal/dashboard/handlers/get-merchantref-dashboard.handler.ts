@@ -78,19 +78,18 @@ export class GetMerchantRefDashboardHandler {
   }> {
     const hasCouponFilter = couponIds && couponIds.length > 0;
 
-    // Note: sold/unsold use the same "listed for sale" definition as the Marketer
-    // Dashboard (get-marketer-dashboard.handler.ts computeCouponCountsAndValues):
-    // a code counts as "sold" once it has a pointId assigned (activated/listed) OR
-    // it has already been transferred to a CUSTOMER — NOT only when a CUSTOMER
-    // currently owns it. "unsold" = still with Merchant/Seller AND never activated
-    // (pointId IS NULL). The end-user breakdown (unredeemedUsers/redeemedUsers) only
-    // ever makes sense for codes already owned by a CUSTOMER.
+    // Coupon-count invariants:
+    // total = sold + unsold
+    // sold = unredeemed + redeemed
+    // A code is sold only after ownership has been transferred to a CUSTOMER.
     const result = await this.prisma.$queryRaw<
       [
         {
           total: bigint;
           sold: bigint;
           unsold: bigint;
+          unredeemed: bigint;
+          redeemed: bigint;
           totalUsers: bigint;
           unredeemedUsers: bigint;
           redeemedUsers: bigint;
@@ -99,8 +98,10 @@ export class GetMerchantRefDashboardHandler {
     >`
       SELECT
         COUNT(*)::bigint AS total,
-        COUNT(CASE WHEN vc."currentOwnerType" = 'CUSTOMER' OR vc."pointId" IS NOT NULL THEN 1 END)::bigint AS sold,
-        COUNT(CASE WHEN vc."currentOwnerType" IS DISTINCT FROM 'CUSTOMER' AND vc."pointId" IS NULL THEN 1 END)::bigint AS unsold,
+        COUNT(CASE WHEN vc."currentOwnerType" = 'CUSTOMER' THEN 1 END)::bigint AS sold,
+        COUNT(CASE WHEN vc."currentOwnerType" IS DISTINCT FROM 'CUSTOMER' THEN 1 END)::bigint AS unsold,
+        COUNT(CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND NOT vc."isUsed" THEN 1 END)::bigint AS unredeemed,
+        COUNT(CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."isUsed" THEN 1 END)::bigint AS redeemed,
         COUNT(DISTINCT CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."currentOwnerId" IS NOT NULL THEN vc."currentOwnerId" END)::bigint AS "totalUsers",
         COUNT(DISTINCT CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."currentOwnerId" IS NOT NULL AND NOT vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "unredeemedUsers",
         COUNT(DISTINCT CASE WHEN vc."currentOwnerType" = 'CUSTOMER' AND vc."currentOwnerId" IS NOT NULL AND vc."isUsed" THEN vc."currentOwnerId" END)::bigint AS "redeemedUsers"
@@ -114,7 +115,13 @@ export class GetMerchantRefDashboardHandler {
 
     if (!row || Number(row.total) === 0) {
       return {
-        couponSummary: { total: 0, sold: 0, unsold: 0 },
+        couponSummary: {
+          total: 0,
+          sold: 0,
+          unsold: 0,
+          unredeemed: 0,
+          redeemed: 0,
+        },
         endUserSummary: { total: 0, unredeemedUsers: 0, redeemedUsers: 0 },
       };
     }
@@ -124,6 +131,8 @@ export class GetMerchantRefDashboardHandler {
         total: Number(row.total),
         sold: Number(row.sold),
         unsold: Number(row.unsold),
+        unredeemed: Number(row.unredeemed),
+        redeemed: Number(row.redeemed),
       },
       endUserSummary: {
         total: Number(row.totalUsers),

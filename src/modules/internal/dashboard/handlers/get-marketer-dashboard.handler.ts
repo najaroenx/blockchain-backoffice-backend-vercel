@@ -334,14 +334,8 @@ export class GetMarketerDashboardHandler {
         continue;
       }
 
-      if (code.pointId === null) {
-        unsoldVal += value;
-        unsoldCount += 1;
-        continue;
-      }
-
-      soldVal += value;
-      soldCount += 1;
+      unsoldVal += value;
+      unsoldCount += 1;
     }
 
     return {
@@ -399,11 +393,16 @@ export class GetMarketerDashboardHandler {
       if (!stats) continue;
       const value = code.pointsCost ?? 0;
       stats.total += value;
-      stats.sold += value;
 
+      if (code.currentOwnerType !== 'CUSTOMER') {
+        stats.unsold += value;
+        continue;
+      }
+
+      stats.sold += value;
       if (code.isUsed) {
         stats.redeemed += value;
-      } else if (code.currentOwnerType === 'CUSTOMER') {
+      } else {
         stats.unredeemed += value;
       }
     }

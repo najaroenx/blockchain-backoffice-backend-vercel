@@ -37,13 +37,39 @@ describe('GetMerchantDashboardStats', () => {
 
     prisma.voucherCode.findMany
       .mockResolvedValueOnce([
-        { id: 'vc1', pointsCost: 100, currentOwnerId: 'c1', isUsed: false },
-        { id: 'vc2', pointsCost: 200, currentOwnerId: 'c1', isUsed: true },
-        { id: 'vc3', pointsCost: 150, currentOwnerId: null, isUsed: false },
+        {
+          id: 'vc1',
+          pointsCost: 100,
+          currentOwnerId: 'c1',
+          currentOwnerType: 'CUSTOMER',
+          isUsed: false,
+        },
+        {
+          id: 'vc2',
+          pointsCost: 200,
+          currentOwnerId: 'c1',
+          currentOwnerType: 'CUSTOMER',
+          isUsed: true,
+        },
+        {
+          id: 'vc3',
+          pointsCost: 150,
+          currentOwnerId: 'm1',
+          currentOwnerType: 'MERCHANT',
+          isUsed: false,
+        },
       ])
       .mockResolvedValueOnce([
-        { currentOwnerId: 'c1', isUsed: false },
-        { currentOwnerId: 'c1', isUsed: true },
+        {
+          currentOwnerId: 'c1',
+          currentOwnerType: 'CUSTOMER',
+          isUsed: false,
+        },
+        {
+          currentOwnerId: 'c1',
+          currentOwnerType: 'CUSTOMER',
+          isUsed: true,
+        },
       ]);
 
     // End user stats
@@ -88,7 +114,11 @@ describe('GetMerchantDashboardStats', () => {
 
     expect(result.vouchers.total).toBe(3);
     expect(result.vouchers.sold).toBe(2);
+    expect(result.vouchers.soldButNotUsed).toBe(1);
     expect(result.vouchers.redeemed).toBe(1);
+    expect(result.vouchers.sold).toBe(
+      result.vouchers.soldButNotUsed + result.vouchers.redeemed,
+    );
     expect(result.voucherValue.total).toBe(450);
     expect(result.endUsers.total).toBe(5);
     expect(result.transactions.merchantPointTransfers).toHaveLength(1);

@@ -125,6 +125,7 @@ describe('ExecuteRewardsCsvHandler', () => {
         isUsed: false,
         voucherGroupId: null,
         pointId: null,
+        directTransferOperationId: null,
       },
       include: { voucher: true },
       orderBy: { id: 'asc' },

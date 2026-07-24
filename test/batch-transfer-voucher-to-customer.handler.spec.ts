@@ -61,8 +61,15 @@ describe('BatchTransferVoucherToCustomerHandler', () => {
       $transaction: jest.fn(),
       voucherCode: { updateMany: jest.fn() },
       transaction: { create: jest.fn() },
+      directTransferOperation: {
+        create: jest.fn(),
+        update: jest.fn(),
+      },
     };
-    blockchainService = { transferCoupon: jest.fn() };
+    blockchainService = {
+      submitCouponTransfer: jest.fn(),
+      waitForCouponTransferReceipt: jest.fn(),
+    };
     tokenService = { decryptKey: jest.fn().mockReturnValue('decrypted_seed') };
     configService = { get: jest.fn().mockReturnValue('salt123') };
 
@@ -191,14 +198,31 @@ describe('BatchTransferVoucherToCustomerHandler', () => {
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
       prisma.customer.findMany.mockResolvedValue([mockCustomer]);
       prisma.voucher.findMany.mockResolvedValue([mockVoucher]);
-      prisma.$queryRawUnsafe.mockResolvedValue([{ id: 'code-1' }]);
-      blockchainService.transferCoupon.mockResolvedValue(txHash);
-      prisma.$transaction.mockImplementation(async (fn: any) => {
-        return fn({
-          voucherCode: { updateMany: jest.fn().mockResolvedValue({}) },
-          transaction: { create: jest.fn().mockResolvedValue(mockTx) },
-        });
+      prisma.$queryRawUnsafe.mockImplementation(
+        async (
+          _sql: string,
+          _voucherId: string,
+          _merchantId: string,
+          qty: number,
+        ) => [{ id: 'code-1' }, { id: 'code-2' }].slice(0, qty),
+      );
+      blockchainService.submitCouponTransfer.mockResolvedValue(txHash);
+      blockchainService.waitForCouponTransferReceipt.mockResolvedValue(
+        undefined,
+      );
+      prisma.directTransferOperation.create.mockResolvedValue({
+        id: 'operation-1',
       });
+      prisma.directTransferOperation.update.mockResolvedValue({
+        id: 'operation-1',
+      });
+      prisma.voucherCode.updateMany.mockImplementation(
+        async ({ where }: any) => ({
+          count: where.id?.in?.length ?? 0,
+        }),
+      );
+      prisma.transaction.create.mockResolvedValue(mockTx);
+      prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
     });
 
     it('should return batch result with success', async () => {
@@ -212,6 +236,17 @@ describe('BatchTransferVoucherToCustomerHandler', () => {
       expect(result.totalProcessed).toBe(1);
       expect(result.results[0].status).toBe('SUCCESS');
       expect(result.results[0].transactionHash).toBe(txHash);
+      expect(result.results[0].operationId).toBe('operation-1');
+      expect(blockchainService.submitCouponTransfer).toHaveBeenCalledWith(
+        10,
+        1,
+        '0xMerchantAddr',
+        '0xCustomerAddr',
+        '0xMerchantKey',
+      );
+      expect(
+        blockchainService.waitForCouponTransferReceipt,
+      ).toHaveBeenCalledWith(txHash);
     });
 
     it('should return batchJobId as UUID', async () => {
@@ -226,7 +261,7 @@ describe('BatchTransferVoucherToCustomerHandler', () => {
     });
 
     it('should mark item as FAILED when blockchain throws', async () => {
-      blockchainService.transferCoupon.mockRejectedValue(
+      blockchainService.submitCouponTransfer.mockRejectedValue(
         new Error('TX reverted'),
       );
 

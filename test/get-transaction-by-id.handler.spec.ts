@@ -44,6 +44,7 @@ describe('GetTransactionById', () => {
     senderType: 'MERCHANT',
     receiverType: 'CUSTOMER',
     type: 'POINT',
+    sourcePool: 'WALLET_POOL',
     eventId: null,
     transactionRefId: 'ref-1',
     createdAt: new Date('2025-01-01'),
@@ -89,6 +90,7 @@ describe('GetTransactionById', () => {
     expect(result.amount).toBe(100);
     expect(result.merchant.name).toBe('Test Merchant');
     expect(result.point).not.toBeNull();
+    expect(result.sourcePool).toBe('WALLET_POOL');
   });
 
   it('should throw NotFoundException when transaction not found', async () => {

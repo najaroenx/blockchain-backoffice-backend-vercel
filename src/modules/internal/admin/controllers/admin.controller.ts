@@ -9,11 +9,14 @@ import {
   Post,
   Put,
   Query,
+  Req,
   Res,
   StreamableFile,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -23,7 +26,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { Public } from 'src/modules/internal/auth/public.decorator';
 import { ExportAisLogQueryDto } from '../dtos/export-ais-log-query.dto';
 import { ExportAisLog } from '../handlers/export-ais-log.handler';
@@ -37,6 +40,15 @@ import { ResetVoucherTokenIds } from '../handlers/reset-voucher-token-ids.handle
 import { UpdatePointContractAddress } from '../handlers/update-point-contract-address.handler';
 import { DryRunRewardsCsvHandler } from '../handlers/dry-run-rewards-csv.handler';
 import { ExecuteRewardsCsvHandler } from '../handlers/execute-rewards-csv.handler';
+import { RecoverDirectTransferOperationsHandler } from '../../voucher/handlers/recoverDirectTransferOperations.handler';
+import { AdminOnlyGuard } from '../guards/admin-only.guard';
+import {
+  ListDirectTransferRecoveryQueryDto,
+  ManualDirectTransferRecoveryDto,
+  ReleasePreparedDirectTransferDto,
+} from '../dtos/direct-transfer-recovery.dto';
+
+type AdminRequest = Request & { adminActor?: string };
 
 /**
  * ⚠️ PHASE 1 SOLUTION - DEVELOPMENT/TESTING ONLY
@@ -75,7 +87,71 @@ export class AdminController {
     private readonly updatePointContractAddressHandler: UpdatePointContractAddress,
     private readonly dryRunRewardsCsvHandler: DryRunRewardsCsvHandler,
     private readonly executeRewardsCsvHandler: ExecuteRewardsCsvHandler,
+    private readonly recoverDirectTransferOperationsHandler: RecoverDirectTransferOperationsHandler,
   ) {}
+
+  @Get('direct-transfer-recovery/operations')
+  @UseGuards(AdminOnlyGuard)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'List direct transfer operations requiring manual review',
+  })
+  async listDirectTransferRecoveryOperations(
+    @Query() query: ListDirectTransferRecoveryQueryDto,
+  ) {
+    return this.recoverDirectTransferOperationsHandler.listNeedsAction(query);
+  }
+
+  @Post('direct-transfer-recovery/dry-run')
+  @UseGuards(AdminOnlyGuard)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Inspect selected direct transfer operations without mutation',
+  })
+  async dryRunDirectTransferRecovery(
+    @Body() body: ManualDirectTransferRecoveryDto,
+    @Req() request: AdminRequest,
+  ) {
+    return this.recoverDirectTransferOperationsHandler.dryRun({
+      ...body,
+      actorId: this.getAdminActor(request),
+    });
+  }
+
+  @Post('direct-transfer-recovery/execute')
+  @UseGuards(AdminOnlyGuard)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Execute safe manual recovery for selected direct transfers',
+  })
+  async executeDirectTransferRecovery(
+    @Body() body: ManualDirectTransferRecoveryDto,
+    @Req() request: AdminRequest,
+  ) {
+    return this.recoverDirectTransferOperationsHandler.executeManual({
+      ...body,
+      actorId: this.getAdminActor(request),
+    });
+  }
+
+  @Post('direct-transfer-recovery/operations/:operationId/release-prepared')
+  @UseGuards(AdminOnlyGuard)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Explicitly release a verified PREPARED reservation',
+  })
+  async releasePreparedDirectTransferOperation(
+    @Param('operationId') operationId: string,
+    @Body() body: ReleasePreparedDirectTransferDto,
+    @Req() request: AdminRequest,
+  ) {
+    return this.recoverDirectTransferOperationsHandler.releasePrepared({
+      operationId,
+      reason: body.reason,
+      evidence: body.evidence,
+      actorId: this.getAdminActor(request),
+    });
+  }
 
   @Post('rewards/execute-csv')
   @UseInterceptors(FileInterceptor('file'))
@@ -468,5 +544,12 @@ export class AdminController {
   })
   async deleteVoucherCascade() {
     return this.deleteVoucherCascadeHandler.execute();
+  }
+
+  private getAdminActor(request: AdminRequest): string {
+    if (!request.adminActor) {
+      throw new UnauthorizedException('Authenticated admin actor is missing');
+    }
+    return request.adminActor;
   }
 }

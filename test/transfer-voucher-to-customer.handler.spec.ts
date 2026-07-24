@@ -60,10 +60,19 @@ describe('TransferVoucherToCustomerHandler', () => {
       merchant: { findUnique: jest.fn() },
       customer: { findUnique: jest.fn() },
       voucher: { findUnique: jest.fn() },
+      voucherCode: { updateMany: jest.fn() },
+      transaction: { create: jest.fn() },
+      directTransferOperation: {
+        create: jest.fn(),
+        update: jest.fn(),
+      },
       $queryRawUnsafe: jest.fn(),
-      $transaction: jest.fn(),
+      $transaction: jest.fn(async (fn: any) => fn(prisma)),
     };
-    blockchainService = { transferCoupon: jest.fn() };
+    blockchainService = {
+      submitCouponTransfer: jest.fn(),
+      waitForCouponTransferReceipt: jest.fn(),
+    };
     tokenService = { decryptKey: jest.fn().mockReturnValue('decrypted_seed') };
     configService = { get: jest.fn().mockReturnValue('some_salt') };
 
@@ -124,6 +133,7 @@ describe('TransferVoucherToCustomerHandler', () => {
     it('should throw BadRequestException when not enough voucher stock', async () => {
       prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
       prisma.customer.findUnique.mockResolvedValue(mockCustomer);
+      prisma.voucher.findUnique.mockResolvedValue(mockVoucher);
       prisma.$queryRawUnsafe.mockResolvedValue([{ id: 'code-1', code: 'X' }]);
 
       let caught: BadRequestException | undefined;
@@ -142,7 +152,7 @@ describe('TransferVoucherToCustomerHandler', () => {
         requested: 2,
         available: 1,
       });
-      expect(blockchainService.transferCoupon).not.toHaveBeenCalled();
+      expect(blockchainService.submitCouponTransfer).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when voucher not found', async () => {
@@ -173,11 +183,21 @@ describe('TransferVoucherToCustomerHandler', () => {
       prisma.customer.findUnique.mockResolvedValue(mockCustomer);
       prisma.$queryRawUnsafe.mockResolvedValue(mockAvailableCodes);
       prisma.voucher.findUnique.mockResolvedValue(mockVoucher);
-      blockchainService.transferCoupon.mockResolvedValue(txHash);
-      prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
-      prisma.voucherCode = { updateMany: jest.fn() };
-      prisma.transaction = { create: jest.fn() };
-      prisma.voucherCode.updateMany.mockResolvedValue({});
+      blockchainService.submitCouponTransfer.mockResolvedValue(txHash);
+      blockchainService.waitForCouponTransferReceipt.mockResolvedValue(
+        undefined,
+      );
+      prisma.directTransferOperation.create.mockResolvedValue({
+        id: 'operation-1',
+      });
+      prisma.directTransferOperation.update.mockResolvedValue({
+        id: 'operation-1',
+      });
+      prisma.voucherCode.updateMany.mockImplementation(
+        async ({ where }: any) => ({
+          count: where.id?.in?.length ?? 0,
+        }),
+      );
       prisma.transaction.create
         .mockResolvedValueOnce(mockTransactions[0])
         .mockResolvedValueOnce(mockTransactions[1]);
@@ -188,19 +208,40 @@ describe('TransferVoucherToCustomerHandler', () => {
 
       expect(result.message).toBe('Voucher transfer successful');
       expect(result.transactionHash).toBe(txHash);
+      expect(result.operationId).toBe('operation-1');
       expect(result.transferredQuantity).toBe(2);
       expect(result.voucherCodeIds).toEqual(['code-1', 'code-2']);
     });
 
-    it('should call blockchainService.transferCoupon with correct args', async () => {
+    it('should persist SUBMITTED before waiting for confirmation', async () => {
       await handler.execute(dto);
 
-      expect(blockchainService.transferCoupon).toHaveBeenCalledWith(
+      expect(blockchainService.submitCouponTransfer).toHaveBeenCalledWith(
         42,
         2,
         '0xMerchantAddr',
         '0xCustomerAddr',
         '0xMerchantKey',
+      );
+      expect(
+        blockchainService.waitForCouponTransferReceipt,
+      ).toHaveBeenCalledWith(txHash);
+
+      const submittedUpdate =
+        prisma.directTransferOperation.update.mock.calls.find(
+          ([args]: any[]) => args.data.status === 'SUBMITTED',
+        );
+      expect(submittedUpdate?.[0].data.txHash).toBe(txHash);
+      expect(
+        blockchainService.submitCouponTransfer.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        prisma.directTransferOperation.update.mock.invocationCallOrder[0],
+      );
+      expect(
+        prisma.directTransferOperation.update.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        blockchainService.waitForCouponTransferReceipt.mock
+          .invocationCallOrder[0],
       );
     });
 
@@ -243,6 +284,22 @@ describe('TransferVoucherToCustomerHandler', () => {
         'encrypted_seed',
       );
     });
+
+    it('should write Wallet Pool provenance without a Point payment or pointId', async () => {
+      await handler.execute(dto);
+
+      expect(prisma.transaction.create).toHaveBeenCalledTimes(2);
+      for (const [args] of prisma.transaction.create.mock.calls) {
+        expect(args.data).toEqual(
+          expect.objectContaining({
+            type: 'VOUCHER',
+            sourcePool: 'WALLET_POOL',
+            transactionRefId: 'operation-1',
+          }),
+        );
+        expect(args.data).not.toHaveProperty('pointId');
+      }
+    });
   });
 
   describe('error handling', () => {
@@ -271,6 +328,127 @@ describe('TransferVoucherToCustomerHandler', () => {
 
       await expect(handler.execute(dto)).rejects.toThrow(
         InternalServerErrorException,
+      );
+    });
+
+    it('should keep reserved codes for manual review when submission fails before a tx hash exists', async () => {
+      prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+      prisma.customer.findUnique.mockResolvedValue(mockCustomer);
+      prisma.voucher.findUnique.mockResolvedValue(mockVoucher);
+      prisma.$queryRawUnsafe.mockResolvedValue(mockAvailableCodes);
+      prisma.directTransferOperation.create.mockResolvedValue({
+        id: 'operation-1',
+      });
+      prisma.voucherCode.updateMany.mockResolvedValue({ count: 2 });
+      blockchainService.submitCouponTransfer.mockRejectedValue(
+        new Error('RPC rejected submission'),
+      );
+
+      await expect(handler.execute(dto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+
+      expect(prisma.voucherCode.updateMany).not.toHaveBeenCalledWith({
+        where: { directTransferOperationId: 'operation-1' },
+        data: { directTransferOperationId: null },
+      });
+      expect(prisma.directTransferOperation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'operation-1' },
+          data: expect.objectContaining({ status: 'MANUAL_REVIEW' }),
+        }),
+      );
+    });
+
+    it('should release reserved codes when the transaction is confirmed reverted', async () => {
+      const revertedError = Object.assign(new Error('reverted'), {
+        code: 'COUPON_TRANSFER_REVERTED',
+      });
+      prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+      prisma.customer.findUnique.mockResolvedValue(mockCustomer);
+      prisma.voucher.findUnique.mockResolvedValue(mockVoucher);
+      prisma.$queryRawUnsafe.mockResolvedValue(mockAvailableCodes);
+      prisma.directTransferOperation.create.mockResolvedValue({
+        id: 'operation-1',
+      });
+      prisma.voucherCode.updateMany.mockResolvedValue({ count: 2 });
+      blockchainService.submitCouponTransfer.mockResolvedValue('0xFailed');
+      blockchainService.waitForCouponTransferReceipt.mockRejectedValue(
+        revertedError,
+      );
+
+      await expect(handler.execute(dto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+
+      expect(prisma.voucherCode.updateMany).toHaveBeenCalledWith({
+        where: { directTransferOperationId: 'operation-1' },
+        data: { directTransferOperationId: null },
+      });
+      expect(prisma.directTransferOperation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'operation-1' },
+          data: expect.objectContaining({ status: 'CHAIN_FAILED' }),
+        }),
+      );
+    });
+
+    it('should keep reserved codes for manual review when receipt state is unknown', async () => {
+      prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+      prisma.customer.findUnique.mockResolvedValue(mockCustomer);
+      prisma.voucher.findUnique.mockResolvedValue(mockVoucher);
+      prisma.$queryRawUnsafe.mockResolvedValue(mockAvailableCodes);
+      prisma.directTransferOperation.create.mockResolvedValue({
+        id: 'operation-1',
+      });
+      prisma.voucherCode.updateMany.mockResolvedValue({ count: 2 });
+      blockchainService.submitCouponTransfer.mockResolvedValue('0xUnknown');
+      blockchainService.waitForCouponTransferReceipt.mockRejectedValue(
+        new Error('RPC timeout'),
+      );
+
+      await expect(handler.execute(dto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+
+      expect(prisma.voucherCode.updateMany).not.toHaveBeenCalledWith({
+        where: { directTransferOperationId: 'operation-1' },
+        data: { directTransferOperationId: null },
+      });
+      expect(prisma.directTransferOperation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'operation-1' },
+          data: expect.objectContaining({ status: 'MANUAL_REVIEW' }),
+        }),
+      );
+    });
+
+    it('should mark DB_FAILED when confirmed codes no longer match the reservation', async () => {
+      prisma.merchant.findUnique.mockResolvedValue(mockMerchant);
+      prisma.customer.findUnique.mockResolvedValue(mockCustomer);
+      prisma.voucher.findUnique.mockResolvedValue(mockVoucher);
+      prisma.$queryRawUnsafe.mockResolvedValue(mockAvailableCodes);
+      prisma.directTransferOperation.create.mockResolvedValue({
+        id: 'operation-1',
+      });
+      prisma.voucherCode.updateMany
+        .mockResolvedValueOnce({ count: 2 })
+        .mockResolvedValueOnce({ count: 0 });
+      blockchainService.submitCouponTransfer.mockResolvedValue('0xConfirmed');
+      blockchainService.waitForCouponTransferReceipt.mockResolvedValue(
+        undefined,
+      );
+
+      await expect(handler.execute(dto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+
+      expect(prisma.transaction.create).not.toHaveBeenCalled();
+      expect(prisma.directTransferOperation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'operation-1' },
+          data: expect.objectContaining({ status: 'DB_FAILED' }),
+        }),
       );
     });
   });

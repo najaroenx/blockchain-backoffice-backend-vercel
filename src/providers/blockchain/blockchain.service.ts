@@ -60,6 +60,11 @@ export class BlockchainService {
 
   private readonly vaultAddress: string;
 
+  private readonly pendingCouponTransferWaiters = new Map<
+    string,
+    () => Promise<any>
+  >();
+
   // In-memory cache for active marketplace listings (reduces N+1 RPC calls)
   private listingsCache: {
     data: Array<MarketplaceListingView & { listingId: string }>;
@@ -2448,7 +2453,7 @@ export class BlockchainService {
     }
   }
 
-  async transferCoupon(
+  async submitCouponTransfer(
     typeId: number,
     amount: number,
     fromAddress: string,
@@ -2476,13 +2481,69 @@ export class BlockchainService {
         '0x',
         { gasLimit: 15000000 },
       );
-      this.logger.log(`[Blockchain] Waiting for Tx confirmation: ${tx.hash}`);
-      await tx.wait();
-      this.logger.log(`[Blockchain] Transfer complete! TxHash: ${tx.hash}`);
+
+      this.pendingCouponTransferWaiters.set(tx.hash, () => tx.wait());
+      this.logger.log(`[Blockchain] Coupon transfer submitted: ${tx.hash}`);
       return tx.hash;
     } catch (error) {
-      this.logger.error(`[Blockchain] transferCoupon failed: ${error.message}`);
+      this.logger.error(
+        `[Blockchain] submitCouponTransfer failed: ${error.message}`,
+      );
       throw new Error(`Failed to transfer coupon: ${error.message}`);
     }
+  }
+
+  async waitForCouponTransferReceipt(txHash: string): Promise<void> {
+    try {
+      this.logger.log(`[Blockchain] Waiting for Tx confirmation: ${txHash}`);
+      const pendingWaiter = this.pendingCouponTransferWaiters.get(txHash);
+      const receipt = pendingWaiter
+        ? await pendingWaiter()
+        : await this.provider.waitForTransaction(txHash);
+
+      if (!receipt) {
+        throw new Error(`Receipt not found for transaction ${txHash}`);
+      }
+
+      if (Number(receipt.status) !== 1) {
+        const revertedError = new Error(
+          `Coupon transfer reverted on-chain: ${txHash}`,
+        );
+        (revertedError as Error & { code: string }).code =
+          'COUPON_TRANSFER_REVERTED';
+        throw revertedError;
+      }
+
+      this.logger.log(`[Blockchain] Transfer complete! TxHash: ${txHash}`);
+    } catch (error) {
+      this.logger.error(
+        `[Blockchain] waitForCouponTransferReceipt failed: ${error.message}`,
+      );
+      throw error;
+    } finally {
+      this.pendingCouponTransferWaiters.delete(txHash);
+    }
+  }
+
+  async getCouponTransferReceipt(txHash: string): Promise<any | null> {
+    return this.provider.getTransactionReceipt(txHash);
+  }
+
+  async transferCoupon(
+    typeId: number,
+    amount: number,
+    fromAddress: string,
+    toAddress: string,
+    fromPrivateKey: string,
+  ): Promise<string> {
+    const txHash = await this.submitCouponTransfer(
+      typeId,
+      amount,
+      fromAddress,
+      toAddress,
+      fromPrivateKey,
+    );
+    await this.waitForCouponTransferReceipt(txHash);
+    return txHash;
   }
 }

@@ -504,6 +504,41 @@ Marketplace purchase flow ต้องเขียน
 ต้อง refactor blockchain adapter ให้เปิด tx hash ได้หลัง submit และก่อน wait
 เพื่อเก็บสถานะ `SUBMITTED` อย่างถูกต้อง
 
+#### B3.1 Manual recovery decision
+
+Release B ใช้ manual recovery เท่านั้น ยังไม่มี cron:
+
+- Admin ตรวจรายการทุกวันประมาณ 09:00 และหลัง deploy/incident
+- `DB_FAILED` และ `MANUAL_REVIEW` แสดงเป็น `needsAction` ทันที
+- `SUBMITTED` และ `PREPARED` แสดงเมื่อค้างเกิน 15 นาที
+- recovery ต้อง query receipt และแก้เฉพาะ DB state/claim
+- ห้าม recovery ส่ง blockchain transaction ซ้ำ
+- generic execute ห้ามปล่อย `PREPARED`
+- การปล่อย `PREPARED` ใช้ endpoint แยก ต้องเก่ากว่า 15 นาที
+  และต้องส่งทั้ง reason กับ evidence
+- ถ้า DB อยู่ใน partial/inconsistent state ให้คง claim ไว้และส่ง
+  `MANUAL_REVIEW`
+- ทุก dry-run/execute/release สร้าง `DirectTransferRecoveryRun`
+  และ `DirectTransferOperationEvent`
+- actor มาจาก Admin Basic Auth ที่ตรวจผ่านแล้ว ห้ามรับ actor จาก request body
+- audit record เก็บไม่มีกำหนดในรอบแรก
+
+Admin API:
+
+```text
+GET  /admin/direct-transfer-recovery/operations
+POST /admin/direct-transfer-recovery/dry-run
+POST /admin/direct-transfer-recovery/execute
+POST /admin/direct-transfer-recovery/operations/:operationId/release-prepared
+```
+
+ข้อมูลเก่าก่อน Release B:
+
+- ไม่สร้าง operation ย้อนหลัง
+- ไม่ backfill `sourcePool`
+- ไม่เข้า recovery flow นี้
+- คงเป็น legacy/unclassified และใช้ repair plan แยกหากต้องแก้ภายหลัง
+
 ### B4. Tests
 
 - concurrent operations ไม่ claim Voucher Code ซ้ำ

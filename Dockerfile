@@ -54,6 +54,13 @@ RUN apk add --no-cache openssl libc6-compat \
     && apk upgrade --no-cache zlib
 
 RUN npm install -g npm@11.12.0 --no-audit --no-fund \
+    && npm pack brace-expansion@5.0.8 --pack-destination /tmp \
+    && cd /usr/local/lib/node_modules/npm/node_modules \
+    && rm -rf brace-expansion \
+    && tar -xzf /tmp/brace-expansion-5.0.8.tgz \
+    && mv package brace-expansion \
+    && rm /tmp/brace-expansion-5.0.8.tgz \
+    && node -e "const version = require('./brace-expansion/package.json').version; if (version !== '5.0.8') process.exit(1)" \
     && cd /usr/local/lib/node_modules/npm/node_modules/tinyglobby/node_modules \
     && rm -rf picomatch \
     && npm pack picomatch@4.0.4 --pack-destination . \

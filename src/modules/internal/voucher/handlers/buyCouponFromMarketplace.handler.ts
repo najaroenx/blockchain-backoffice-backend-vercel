@@ -509,6 +509,7 @@ export class BuyCouponFromMarketplace {
             voucherCodeId: voucherCode.id,
             transactionTypeId: TransactionTypeId.TRANSFER,
             type: AssetType.VOUCHER,
+            sourcePool: 'ACTIVE_MARKETPLACE_POOL',
             senderType: ParticipantType.MERCHANT,
             receiverType: ParticipantType.CUSTOMER,
             transactionRefId,

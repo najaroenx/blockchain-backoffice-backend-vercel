@@ -450,6 +450,7 @@ describe('BuyCouponFromMarketplace', () => {
         data: expect.objectContaining({
           merchantId: 'seller-merchant-1',
           senderId: 'seller-merchant-1',
+          sourcePool: 'ACTIVE_MARKETPLACE_POOL',
         }),
       }),
     );

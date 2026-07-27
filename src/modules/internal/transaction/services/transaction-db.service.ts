@@ -314,6 +314,7 @@ export class TransactionDBService {
       eventId: row.eventId,
       transactionRefId: row.transactionRefId,
       type: row.type,
+      sourcePool: row.sourcePool,
       merchantRef: row.merchantRef,
       createdAt: row.createdAt || row.created_at,
       updatedAt: row.updatedAt || row.updated_at,

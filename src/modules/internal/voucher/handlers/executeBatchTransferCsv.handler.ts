@@ -11,10 +11,11 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import { parseBatchTransferCsvRows } from '../utils/batch-transfer-csv.util';
 import {
+  DirectVoucherTransferFailure,
+  executeDirectVoucherTransfer,
   getMerchantPrivateKey,
   insufficientWalletPoolError,
   lockAvailableMerchantVoucherCodes,
-  writeDirectVoucherTransferLedger,
 } from '../utils/direct-voucher-transfer.util';
 
 export interface UploadedCsvFile {
@@ -123,7 +124,6 @@ export class ExecuteBatchTransferCsvHandler {
       );
     }
 
-    const lockedVoucherCodesByVoucherId = new Map<string, any[]>();
     for (const [voucherId, requiredQty] of cumulativeQuantities.entries()) {
       if (!voucherId) continue;
 
@@ -143,8 +143,6 @@ export class ExecuteBatchTransferCsvHandler {
           available: availableCodes?.length || 0,
         });
       }
-
-      lockedVoucherCodesByVoucherId.set(voucherId, availableCodes);
     }
 
     // 6. Decrypt Merchant Seed Phrase once
@@ -153,12 +151,6 @@ export class ExecuteBatchTransferCsvHandler {
       this.tokenService,
       merchant,
     );
-
-    // Track allocated codes slices
-    const codeAllocators = new Map<string, number>();
-    for (const vId of cumulativeQuantities.keys()) {
-      codeAllocators.set(vId, 0);
-    }
 
     const results: any[] = [];
     let successCount = 0;
@@ -249,13 +241,6 @@ export class ExecuteBatchTransferCsvHandler {
         continue;
       }
 
-      // Slice codes for this specific transfer
-      const fullList = lockedVoucherCodesByVoucherId.get(voucherId)!;
-      const startIndex = codeAllocators.get(voucherId)!;
-      const allocatedCodes = fullList.slice(startIndex, startIndex + quantity);
-      codeAllocators.set(voucherId, startIndex + quantity);
-
-      const voucherCodeIds = allocatedCodes.map((c) => c.id);
       const typeId = Number.parseInt(voucher.tokenId, 10);
 
       try {
@@ -263,68 +248,64 @@ export class ExecuteBatchTransferCsvHandler {
           `[BatchJob ${batchJobId}] [Item ${i + 1}/${dataRows.length}] CSV Direct execution transfer: ${quantity} x tokenId ${typeId} for phone ${customerPhone}`,
         );
 
-        // Invoke single on-chain transfer
-        const txHash = await this.blockchainService.transferCoupon(
+        const executedTransfer = await executeDirectVoucherTransfer({
+          prisma: this.prisma,
+          blockchainService: this.blockchainService,
+          merchant,
+          customer,
+          voucher,
+          voucherId,
           typeId,
           quantity,
-          merchant.wallet.walletAddress,
-          customer.wallet.walletAddress,
           merchantPrivateKey,
+        });
+        const voucherCodeIds = executedTransfer.voucherCodes.map(
+          (code) => code.id,
         );
 
-        // Update ownership and save transaction records
-        try {
-          await writeDirectVoucherTransferLedger({
-            prisma: this.prisma,
-            voucherCodeIds,
-            merchant,
-            customer,
-            voucher,
-            txHash,
-            transactionRefId: batchJobId,
-          });
+        results.push({
+          seqNo: i + 1,
+          phone: customerPhone,
+          couponId: voucherId,
+          quantity,
+          status: 'SUCCESS',
+          operationId: executedTransfer.operationId,
+          transactionHash: executedTransfer.txHash,
+          voucherCodeId: voucherCodeIds[0],
+        });
+        successCount++;
+      } catch (blockchainError) {
+        const transferFailure = blockchainError as DirectVoucherTransferFailure;
+        this.logger.error(
+          `[BatchJob ${batchJobId}] Failed to execute on-chain transfer for item ${i + 1} from CSV: ${blockchainError.message}`,
+        );
 
-          results.push({
-            seqNo: i + 1,
-            phone: customerPhone,
-            couponId: voucherId,
-            quantity,
-            status: 'SUCCESS',
-            transactionHash: txHash,
-            voucherCodeId: voucherCodeIds[0],
-          });
-          successCount++;
-        } catch (dbError) {
-          // DATABASE FAIL but BLOCKCHAIN SUCCESS! Major desynchronization risk!
-          const desyncErrorMessage = `CRITICAL DESYNC ERROR [BatchJob ${batchJobId}] Blockchain transfer succeeded (TxHash: ${txHash}) but Prisma database update failed. Error: ${dbError.message}`;
-          this.logger.error(
-            `!!! CRITICAL DESYNC ALERT !!!\n${desyncErrorMessage}\nStack: ${dbError.stack}\nPlease recover manually!`,
-          );
-
+        if (transferFailure.chainConfirmed && transferFailure.transactionHash) {
           results.push({
             seqNo: i + 1,
             phone: customerPhone,
             couponId: voucherId,
             quantity,
             status: 'FAILED',
-            error: `Prisma Database Error: ${dbError.message}`,
-            transactionHash: txHash, // crucial to keep txHash!
+            operationId: transferFailure.directTransferOperationId,
+            error: `Prisma Database Error: ${blockchainError.message}`,
+            transactionHash: transferFailure.transactionHash,
             isDesynced: true,
             desyncMessage:
               'Blockchain transfer succeeded but local database update failed. Manual reconciliation is required.',
           });
           failedCount++;
+          continue;
         }
-      } catch (blockchainError) {
-        this.logger.error(
-          `[BatchJob ${batchJobId}] Failed to execute on-chain transfer for item ${i + 1} from CSV: ${blockchainError.message}`,
-        );
+
         results.push({
           seqNo: i + 1,
           phone: customerPhone,
           couponId: voucherId,
           quantity,
           status: 'FAILED',
+          operationId: transferFailure.directTransferOperationId,
+          transactionHash: transferFailure.transactionHash,
           error: blockchainError.message,
         });
         failedCount++;

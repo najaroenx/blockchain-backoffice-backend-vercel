@@ -393,7 +393,7 @@ describe('BlockchainService (Simple)', () => {
     ethersModule.Contract.mockImplementation(() => ({
       safeTransferFrom: jest.fn().mockResolvedValue({
         hash: mockTxHash,
-        wait: jest.fn().mockResolvedValue({}),
+        wait: jest.fn().mockResolvedValue({ status: 1 }),
       }),
       connect: jest.fn().mockReturnThis(),
     }));
@@ -423,6 +423,29 @@ describe('BlockchainService (Simple)', () => {
     );
 
     expect(result).toBe(mockTxHash);
+  });
+
+  it('submitCouponTransfer should return the tx hash without waiting for confirmation', async () => {
+    const wait = jest.fn().mockResolvedValue({ status: 1 });
+    const ethersModule = jest.requireMock('ethers');
+    ethersModule.Contract.mockImplementation(() => ({
+      safeTransferFrom: jest.fn().mockResolvedValue({
+        hash: '0xSubmittedHash',
+        wait,
+      }),
+    }));
+
+    const svc = fullSvc();
+    const txHash = await svc.submitCouponTransfer(
+      1,
+      2,
+      '0xFrom',
+      '0xTo',
+      '0xPrivateKey',
+    );
+
+    expect(txHash).toBe('0xSubmittedHash');
+    expect(wait).not.toHaveBeenCalled();
   });
 });
 

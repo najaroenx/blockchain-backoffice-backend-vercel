@@ -160,6 +160,7 @@ export function formatTransactionDetail(
     eventId: rest.eventId || null,
     transactionRefId: (rest as any).transactionRefId || null,
     typeAsset: assetType,
+    sourcePool: (rest as any).sourcePool || null,
     createdAt: rest.createdAt,
     updatedAt: rest.updatedAt,
   };

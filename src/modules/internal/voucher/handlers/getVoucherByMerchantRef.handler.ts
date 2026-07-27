@@ -243,6 +243,7 @@ export class GetVoucherByMerchantRef {
             eventId: rest.eventId || null,
             transactionRefId: (rest as any).transactionRefId || null,
             typeAsset: (rest as any).type || null,
+            sourcePool: (rest as any).sourcePool || null,
             senderType: (rest as any).senderType || null,
             receiverType: (rest as any).receiverType || null,
             createdAt: rest.createdAt,

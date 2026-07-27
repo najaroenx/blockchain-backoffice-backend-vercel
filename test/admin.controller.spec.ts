@@ -11,6 +11,7 @@ import { UpdatePointContractAddress } from 'src/modules/internal/admin/handlers/
 import { DeleteVoucherCascade } from 'src/modules/internal/admin/handlers/delete-voucher-cascade.handler';
 import { DryRunRewardsCsvHandler } from 'src/modules/internal/admin/handlers/dry-run-rewards-csv.handler';
 import { ExecuteRewardsCsvHandler } from 'src/modules/internal/admin/handlers/execute-rewards-csv.handler';
+import { RecoverDirectTransferOperationsHandler } from 'src/modules/internal/voucher/handlers/recoverDirectTransferOperations.handler';
 import { describe } from 'node:test';
 
 describe('AdminController', () => {
@@ -26,6 +27,7 @@ describe('AdminController', () => {
   let deleteVoucherCascadeHandler: jest.Mocked<DeleteVoucherCascade>;
   let dryRunRewardsCsvHandler: jest.Mocked<DryRunRewardsCsvHandler>;
   let executeRewardsCsvHandler: jest.Mocked<ExecuteRewardsCsvHandler>;
+  let recoverDirectTransferOperationsHandler: jest.Mocked<RecoverDirectTransferOperationsHandler>;
 
   beforeEach(() => {
     mintHandler = { execute: jest.fn() } as any;
@@ -39,6 +41,12 @@ describe('AdminController', () => {
     deleteVoucherCascadeHandler = { execute: jest.fn() } as any;
     dryRunRewardsCsvHandler = { execute: jest.fn() } as any;
     executeRewardsCsvHandler = { execute: jest.fn() } as any;
+    recoverDirectTransferOperationsHandler = {
+      listNeedsAction: jest.fn(),
+      dryRun: jest.fn(),
+      executeManual: jest.fn(),
+      releasePrepared: jest.fn(),
+    } as any;
 
     controller = new AdminController(
       mintHandler,
@@ -52,7 +60,68 @@ describe('AdminController', () => {
       updatePointContractAddressHandler,
       dryRunRewardsCsvHandler,
       executeRewardsCsvHandler,
+      recoverDirectTransferOperationsHandler,
     );
+  });
+
+  it('lists direct transfer operations needing action', async () => {
+    recoverDirectTransferOperationsHandler.listNeedsAction.mockResolvedValue({
+      needsActionCount: 1,
+    } as any);
+
+    const result = await controller.listDirectTransferRecoveryOperations({
+      thresholdMinutes: 30,
+      limit: 20,
+    });
+
+    expect(
+      recoverDirectTransferOperationsHandler.listNeedsAction,
+    ).toHaveBeenCalledWith({ thresholdMinutes: 30, limit: 20 });
+    expect(result).toEqual({ needsActionCount: 1 });
+  });
+
+  it('passes authenticated admin actor to manual recovery execute', async () => {
+    recoverDirectTransferOperationsHandler.executeManual.mockResolvedValue({
+      runId: 'run-1',
+    } as any);
+
+    await controller.executeDirectTransferRecovery(
+      { operationIds: ['operation-1'], reason: 'incident review' },
+      { adminActor: 'admin' } as any,
+    );
+
+    expect(
+      recoverDirectTransferOperationsHandler.executeManual,
+    ).toHaveBeenCalledWith({
+      operationIds: ['operation-1'],
+      reason: 'incident review',
+      actorId: 'admin',
+    });
+  });
+
+  it('passes authenticated admin actor to explicit PREPARED release', async () => {
+    recoverDirectTransferOperationsHandler.releasePrepared.mockResolvedValue({
+      operationId: 'operation-1',
+      status: 'CHAIN_FAILED',
+    } as any);
+
+    await controller.releasePreparedDirectTransferOperation(
+      'operation-1',
+      {
+        reason: 'verified chain was never submitted',
+        evidence: 'RPC and explorer checked at block 123',
+      },
+      { adminActor: 'admin' } as any,
+    );
+
+    expect(
+      recoverDirectTransferOperationsHandler.releasePrepared,
+    ).toHaveBeenCalledWith({
+      operationId: 'operation-1',
+      reason: 'verified chain was never submitted',
+      evidence: 'RPC and explorer checked at block 123',
+      actorId: 'admin',
+    });
   });
 
   it('mintTHBToMerchant delegates to handler', async () => {

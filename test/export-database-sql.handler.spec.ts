@@ -24,6 +24,9 @@ describe('ExportDatabaseSql', () => {
       customerMerChant: { findMany: empty() },
       voucher: { findMany: empty() },
       listingBatch: { findMany: empty() },
+      directTransferOperation: { findMany: empty() },
+      directTransferRecoveryRun: { findMany: empty() },
+      directTransferOperationEvent: { findMany: empty() },
       voucherCode: { findMany: empty() },
       transaction: { findMany: empty() },
       customerPoint: { findMany: empty() },
@@ -70,7 +73,59 @@ describe('ExportDatabaseSql', () => {
         receiverId: null,
         receiverType: null,
         type: null,
+        sourcePool: 'WALLET_POOL',
         transactionRefId: null,
+      },
+    ]);
+    prisma.directTransferOperation.findMany.mockResolvedValue([
+      {
+        id: 'operation-1',
+        merchantId: 'merchant-1',
+        customerId: 'customer-1',
+        voucherId: 'voucher-1',
+        quantity: 1,
+        reservedVoucherCodeIds: ['code-1'],
+        sourcePool: 'WALLET_POOL',
+        status: 'CONFIRMED',
+        txHash: '0xabcd',
+        errorNote: null,
+        submittedAt: new Date('2026-03-27T10:00:00.000Z'),
+        confirmedAt: new Date('2026-03-27T10:00:10.000Z'),
+        createdAt: new Date('2026-03-27T10:00:00.000Z'),
+        updatedAt: new Date('2026-03-27T10:00:10.000Z'),
+      },
+    ]);
+    prisma.directTransferRecoveryRun.findMany.mockResolvedValue([
+      {
+        id: 'run-1',
+        status: 'COMPLETED',
+        actorId: 'admin',
+        reason: 'incident review',
+        startedAt: new Date('2026-03-27T10:01:00.000Z'),
+        finishedAt: new Date('2026-03-27T10:02:00.000Z'),
+        inspectedCount: 1,
+        confirmedCount: 1,
+        releasedCount: 0,
+        pendingCount: 0,
+        failedCount: 0,
+        errorNote: null,
+      },
+    ]);
+    prisma.directTransferOperationEvent.findMany.mockResolvedValue([
+      {
+        id: 'event-1',
+        recoveryRunId: 'run-1',
+        operationId: 'operation-1',
+        actorType: 'ADMIN',
+        actorId: 'admin',
+        action: 'DB_FINALIZED',
+        fromStatus: 'DB_FAILED',
+        toStatus: 'CONFIRMED',
+        txHash: '0xabcd',
+        receiptStatus: 1,
+        errorNote: null,
+        metadata: { reason: 'incident review' },
+        createdAt: new Date('2026-03-27T10:02:00.000Z'),
       },
     ]);
 
@@ -84,6 +139,10 @@ describe('ExportDatabaseSql', () => {
     expect(sql).toContain('INSERT INTO "Wallet"');
     expect(sql).toContain("'encrypted-seed'");
     expect(sql).toContain('INSERT INTO "Transaction"');
+    expect(sql).toContain('INSERT INTO "DirectTransferOperation"');
+    expect(sql).toContain('INSERT INTO "DirectTransferRecoveryRun"');
+    expect(sql).toContain('INSERT INTO "DirectTransferOperationEvent"');
+    expect(sql).toContain('"sourcePool"');
     expect(sql).toContain(expectedByteaLiteral);
     expect(sql).toContain('COMMIT;');
   });

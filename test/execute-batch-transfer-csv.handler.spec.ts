@@ -50,13 +50,24 @@ describe('ExecuteBatchTransferCsvHandler', () => {
       voucher: { findMany: jest.fn() },
       voucherCode: { updateMany: jest.fn() },
       transaction: { create: jest.fn() },
+      directTransferOperation: {
+        create: jest.fn().mockResolvedValue({ id: 'operation-1' }),
+        update: jest.fn().mockResolvedValue({ id: 'operation-1' }),
+      },
       batchTransferLog: { create: jest.fn() },
       $queryRawUnsafe: jest.fn(),
       $transaction: jest.fn((callback) => callback(prisma)),
     };
+    prisma.voucherCode.updateMany.mockImplementation(
+      async ({ where }: any) => ({
+        count: where.id?.in?.length ?? 0,
+      }),
+    );
+    prisma.transaction.create.mockResolvedValue({ id: 'transaction-1' });
 
     blockchainService = {
-      transferCoupon: jest.fn().mockResolvedValue('0xTxHash123'),
+      submitCouponTransfer: jest.fn().mockResolvedValue('0xTxHash123'),
+      waitForCouponTransferReceipt: jest.fn().mockResolvedValue(undefined),
     };
 
     tokenService = {
@@ -102,6 +113,11 @@ describe('ExecuteBatchTransferCsvHandler', () => {
     expect(response.failed).toBe(0);
     expect(response.results[0].status).toBe('SUCCESS');
     expect(response.results[0].transactionHash).toBe('0xTxHash123');
+    expect(response.results[0].operationId).toBe('operation-1');
+    expect(blockchainService.submitCouponTransfer).toHaveBeenCalled();
+    expect(blockchainService.waitForCouponTransferReceipt).toHaveBeenCalledWith(
+      '0xTxHash123',
+    );
 
     // Ensure BatchTransferLog is written correctly
     expect(prisma.batchTransferLog.create).toHaveBeenCalledWith(
@@ -209,10 +225,10 @@ describe('ExecuteBatchTransferCsvHandler', () => {
     prisma.voucher.findMany.mockResolvedValue([mockVoucher]);
     prisma.$queryRawUnsafe.mockResolvedValue(mockVoucherCodes);
 
-    // Mock Prisma $transaction failing with DB error
-    prisma.$transaction.mockRejectedValue(
-      new Error('Prisma database connection lost'),
-    );
+    // Reservation succeeds, then the confirmed-chain ledger write fails.
+    prisma.$transaction
+      .mockImplementationOnce((callback) => callback(prisma))
+      .mockRejectedValueOnce(new Error('Prisma database connection lost'));
 
     const csvContent = 'phone,voucherId,qty\n0812345678,voucher-1,1\n';
     const mockFile: UploadedCsvFile = {

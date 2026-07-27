@@ -7,15 +7,20 @@ describe('AdminOnlyGuard', () => {
   let configService: jest.Mocked<ConfigService>;
   let response: { setHeader: jest.Mock };
 
-  const createContext = (authorization?: string): ExecutionContext =>
-    ({
+  const createContext = (authorization?: string) => {
+    const request = {
+      headers: { authorization },
+      adminActor: undefined as string | undefined,
+    };
+    const context = {
       switchToHttp: jest.fn(() => ({
-        getRequest: jest.fn(() => ({
-          headers: { authorization },
-        })),
+        getRequest: jest.fn(() => request),
         getResponse: jest.fn(() => response),
       })),
-    }) as any;
+    } as any;
+
+    return { context: context as ExecutionContext, request };
+  };
 
   beforeEach(() => {
     configService = {
@@ -35,9 +40,12 @@ describe('AdminOnlyGuard', () => {
       return undefined;
     });
 
-    expect(
-      guard.canActivate(createContext('Basic YWRtaW46c3VwZXItc2VjcmV0')),
-    ).toBe(true);
+    const { context, request } = createContext(
+      'Basic YWRtaW46c3VwZXItc2VjcmV0',
+    );
+
+    expect(guard.canActivate(context)).toBe(true);
+    expect(request.adminActor).toBe('admin');
   });
 
   it('treats configured admin username as case-insensitive', () => {
@@ -47,9 +55,12 @@ describe('AdminOnlyGuard', () => {
       return undefined;
     });
 
-    expect(
-      guard.canActivate(createContext('Basic QWRtaW46c3VwZXItc2VjcmV0')),
-    ).toBe(true);
+    const { context, request } = createContext(
+      'Basic QWRtaW46c3VwZXItc2VjcmV0',
+    );
+
+    expect(guard.canActivate(context)).toBe(true);
+    expect(request.adminActor).toBe('admin');
   });
 
   it('rejects requests without basic auth header', () => {
@@ -59,7 +70,7 @@ describe('AdminOnlyGuard', () => {
       return undefined;
     });
 
-    expect(() => guard.canActivate(createContext())).toThrow(
+    expect(() => guard.canActivate(createContext().context)).toThrow(
       new UnauthorizedException('Invalid admin credentials'),
     );
     expect(response.setHeader).toHaveBeenCalledWith(
@@ -76,7 +87,9 @@ describe('AdminOnlyGuard', () => {
     });
 
     expect(() =>
-      guard.canActivate(createContext('Basic YWRtaW46d3JvbmctcGFzcw==')),
+      guard.canActivate(
+        createContext('Basic YWRtaW46d3JvbmctcGFzcw==').context,
+      ),
     ).toThrow(new UnauthorizedException('Invalid admin credentials'));
   });
 
@@ -87,9 +100,9 @@ describe('AdminOnlyGuard', () => {
       return undefined;
     });
 
-    expect(() => guard.canActivate(createContext('Bearer some-token'))).toThrow(
-      new UnauthorizedException('Invalid admin credentials'),
-    );
+    expect(() =>
+      guard.canActivate(createContext('Bearer some-token').context),
+    ).toThrow(new UnauthorizedException('Invalid admin credentials'));
   });
 
   it('rejects access when admin basic auth config is missing', () => {
@@ -101,7 +114,7 @@ describe('AdminOnlyGuard', () => {
 
     expect(() =>
       guard.canActivate(
-        createContext('Basic YWRtaW5AZXhhbXBsZS5jb206c3VwZXItc2VjcmV0'),
+        createContext('Basic YWRtaW5AZXhhbXBsZS5jb206c3VwZXItc2VjcmV0').context,
       ),
     ).toThrow(new UnauthorizedException('Admin basic auth is not configured'));
   });

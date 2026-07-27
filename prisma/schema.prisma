@@ -162,13 +162,14 @@ model Transaction {
 
   // Unified sender/receiver - ID can be Customer, Merchant, or System
   // Use senderType/receiverType to determine which table to lookup
-  senderId     String?          // ID of sender (Customer ID or Merchant ID)
+  senderId     String? // ID of sender (Customer ID or Merchant ID)
   senderType   ParticipantType? // CUSTOMER | MERCHANT | SYSTEM
-  receiverId   String?          // ID of receiver (Customer ID or Merchant ID)
+  receiverId   String? // ID of receiver (Customer ID or Merchant ID)
   receiverType ParticipantType? // CUSTOMER | MERCHANT | SYSTEM
 
   // Asset type: POINT or VOUCHER
-  type AssetType?
+  type       AssetType?
+  sourcePool VoucherSourcePool?
 
   // Transaction reference ID for grouping related transactions
   transactionRefId String?
@@ -181,6 +182,7 @@ model Transaction {
   @@index([receiverType])
   @@index([senderId])
   @@index([receiverId])
+  @@index([sourcePool])
 }
 
 model Customer {
@@ -252,6 +254,45 @@ enum ParticipantType {
   MERCHANT
   SELLER
   SYSTEM
+}
+
+enum VoucherSourcePool {
+  WALLET_POOL
+  ACTIVE_MARKETPLACE_POOL
+}
+
+enum DirectTransferOperationStatus {
+  PREPARED
+  SUBMITTED
+  CONFIRMED
+  CHAIN_FAILED
+  DB_FAILED
+  MANUAL_REVIEW
+}
+
+enum DirectTransferRecoveryRunStatus {
+  RUNNING
+  COMPLETED
+  PARTIAL_FAILED
+  FAILED
+}
+
+enum DirectTransferRecoveryActorType {
+  ADMIN
+  APPLICATION
+}
+
+enum DirectTransferOperationAction {
+  OPERATION_PREPARED
+  TRANSACTION_SUBMITTED
+  OPERATION_CONFIRMED
+  RECEIPT_CHECKED
+  DB_FINALIZED
+  CLAIM_RELEASED
+  MARKED_DB_FAILED
+  MARKED_MANUAL_REVIEW
+  NO_CHANGE
+  ERROR
 }
 
 model Voucher {
@@ -333,6 +374,8 @@ model VoucherCode {
   // Batch listing reference (optional - for batch listings)
   listingBatchId String? // ← FK to ListingBatch
   listingBatch   ListingBatch? @relation(fields: [listingBatchId], references: [id], onDelete: SetNull)
+  directTransferOperationId String?
+  directTransferOperation   DirectTransferOperation? @relation(fields: [directTransferOperationId], references: [id], onDelete: SetNull)
 
   @@index([voucherId, isUsed])
   @@index([code])
@@ -340,6 +383,74 @@ model VoucherCode {
   @@index([currentOwnerId, currentOwnerType])
   @@index([pointId])
   @@index([listingBatchId])
+  @@index([directTransferOperationId])
+}
+
+model DirectTransferOperation {
+  id                     String                        @id @default(cuid())
+  merchantId             String
+  customerId             String
+  voucherId              String
+  quantity               Int
+  reservedVoucherCodeIds String[]                      @default([])
+  sourcePool             VoucherSourcePool             @default(WALLET_POOL)
+  status                 DirectTransferOperationStatus @default(PREPARED)
+  txHash                 String?
+  errorNote              String?
+  submittedAt            DateTime?
+  confirmedAt            DateTime?
+  createdAt              DateTime                      @default(now()) @map(name: "created_at")
+  updatedAt              DateTime                      @updatedAt @map(name: "updated_at")
+  voucherCodes           VoucherCode[]
+  events                 DirectTransferOperationEvent[]
+
+  @@index([merchantId, status])
+  @@index([customerId])
+  @@index([voucherId])
+  @@index([status, createdAt])
+}
+
+model DirectTransferRecoveryRun {
+  id             String                          @id @default(cuid())
+  status         DirectTransferRecoveryRunStatus @default(RUNNING)
+  actorId        String?
+  reason         String?
+  startedAt      DateTime                        @default(now())
+  finishedAt     DateTime?
+  inspectedCount Int                             @default(0)
+  confirmedCount Int                             @default(0)
+  releasedCount  Int                             @default(0)
+  pendingCount   Int                             @default(0)
+  failedCount    Int                             @default(0)
+  errorNote      String?
+  createdAt      DateTime                        @default(now()) @map(name: "created_at")
+  updatedAt      DateTime                        @updatedAt @map(name: "updated_at")
+  events         DirectTransferOperationEvent[]
+
+  @@index([status, startedAt])
+  @@index([actorId, startedAt])
+}
+
+model DirectTransferOperationEvent {
+  id            String                          @id @default(cuid())
+  recoveryRunId String?
+  recoveryRun   DirectTransferRecoveryRun?      @relation(fields: [recoveryRunId], references: [id], onDelete: SetNull)
+  operationId   String?
+  operation     DirectTransferOperation?        @relation(fields: [operationId], references: [id], onDelete: SetNull)
+  actorType     DirectTransferRecoveryActorType
+  actorId       String?
+  action        DirectTransferOperationAction
+  fromStatus    DirectTransferOperationStatus?
+  toStatus      DirectTransferOperationStatus?
+  txHash        String?
+  receiptStatus Int?
+  errorNote     String?
+  metadata      Json?
+  createdAt     DateTime                        @default(now()) @map(name: "created_at")
+
+  @@index([recoveryRunId])
+  @@index([operationId, createdAt])
+  @@index([action, createdAt])
 }
 
 model Treasury {

@@ -14,6 +14,7 @@ export class AdminOnlyGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<{
       headers: { authorization?: string };
+      adminActor?: string;
     }>();
     const response = context.switchToHttp().getResponse<{
       setHeader(name: string, value: string): void;
@@ -44,6 +45,7 @@ export class AdminOnlyGuard implements CanActivate {
       this.safeEquals(this.normalizeIdentifier(username), adminUsername) &&
       this.safeEquals(password, adminPassword)
     ) {
+      request.adminActor = adminUsername;
       return true;
     }
 

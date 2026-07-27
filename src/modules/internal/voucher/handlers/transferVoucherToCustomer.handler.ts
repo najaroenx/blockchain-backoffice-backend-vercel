@@ -10,10 +10,8 @@ import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import {
+  executeDirectVoucherTransfer,
   getMerchantPrivateKey,
-  insufficientWalletPoolError,
-  lockAvailableMerchantVoucherCodes,
-  writeDirectVoucherTransferLedger,
 } from '../utils/direct-voucher-transfer.util';
 
 @Injectable()
@@ -58,28 +56,7 @@ export class TransferVoucherToCustomerHandler {
         throw new NotFoundException('Customer or Customer Wallet not found');
       }
 
-      // 3. Find available VoucherCode for this Merchant
-      // The merchant must own the code (currentOwnerId = merchantId)
-      const availableCodes = await lockAvailableMerchantVoucherCodes(
-        this.prisma,
-        {
-          voucherId,
-          merchantId,
-          quantity,
-        },
-      );
-
-      if (!availableCodes || availableCodes.length < quantity) {
-        throw insufficientWalletPoolError({
-          voucherId,
-          requested: quantity,
-          available: availableCodes?.length || 0,
-        });
-      }
-
-      const voucherCodeIds = availableCodes.map((c) => c.id);
-
-      // 4. Get Voucher Meta (for typeId)
+      // 3. Get Voucher Meta (for typeId)
       const voucher = await this.prisma.voucher.findUnique({
         where: { id: voucherId },
       });
@@ -97,39 +74,36 @@ export class TransferVoucherToCustomerHandler {
         merchant,
       );
 
-      // 5. Transfer via Blockchain
       this.logger.log(
         `Transferring Voucher typeId ${typeId} (qty: ${quantity}) from ${merchant.wallet.walletAddress} to customer ${customer.wallet.walletAddress}`,
       );
 
-      const txHash = await this.blockchainService.transferCoupon(
-        typeId,
-        quantity,
-        merchant.wallet.walletAddress,
-        customer.wallet.walletAddress,
-        merchantPrivateKey,
-      );
-
-      // 6. Update DB State (assign owner & record transaction)
-      const result = await writeDirectVoucherTransferLedger({
+      // Atomically reserve Wallet Pool codes, persist the chain lifecycle,
+      // and only finalize ownership after a successful receipt.
+      const transfer = await executeDirectVoucherTransfer({
         prisma: this.prisma,
-        voucherCodeIds,
+        blockchainService: this.blockchainService,
         merchant,
         customer,
         voucher,
-        txHash,
+        voucherId,
+        typeId,
+        quantity,
+        merchantPrivateKey,
       });
+      const voucherCodeIds = transfer.voucherCodes.map((code) => code.id);
 
       return {
         message: 'Voucher transfer successful',
-        transactionHash: txHash,
+        operationId: transfer.operationId,
+        transactionHash: transfer.txHash,
         transferredQuantity: quantity,
         voucherCodeIds: voucherCodeIds,
-        transactionIds: result.map((tx) => tx.id),
+        transactionIds: transfer.transactions.map((tx) => tx.id),
         // Design Doc compatibility
         voucherCodeId: voucherCodeIds[0],
-        code: availableCodes[0]?.code,
-        transactionId: result[0]?.id,
+        code: transfer.voucherCodes[0]?.code,
+        transactionId: transfer.transactions[0]?.id,
         voucher: voucher,
       };
     } catch (error) {

@@ -12,10 +12,10 @@ import { TokenService } from 'src/providers/token/token.service';
 import { ConfigService } from '@nestjs/config';
 import { BatchTransferVoucherDto } from '../dtos/batch-transfer-voucher.dto';
 import {
+  executeDirectVoucherTransfer,
   getMerchantPrivateKey,
   insufficientWalletPoolError,
   lockAvailableMerchantVoucherCodes,
-  writeDirectVoucherTransferLedger,
 } from '../utils/direct-voucher-transfer.util';
 
 export interface BatchTransferTaskResult {
@@ -23,6 +23,7 @@ export interface BatchTransferTaskResult {
   voucherId: string;
   quantity: number;
   status: 'SUCCESS' | 'FAILED';
+  operationId?: string;
   transactionHash?: string;
   voucherCodeIds?: string[];
   transactionIds?: string[];
@@ -137,8 +138,8 @@ export class BatchTransferVoucherToCustomerHandler {
         );
       }
 
-      // Lock and fetch available VoucherCodes for each needed voucherId using SKIP LOCKED
-      const lockedVoucherCodesByVoucherId = new Map<string, any[]>();
+      // Preflight cumulative stock. Each item is reserved again atomically
+      // immediately before its blockchain submission.
       for (const [voucherId, requiredQty] of cumulativeQuantities.entries()) {
         const availableCodes = await lockAvailableMerchantVoucherCodes(
           this.prisma,
@@ -156,8 +157,6 @@ export class BatchTransferVoucherToCustomerHandler {
             available: availableCodes?.length || 0,
           });
         }
-
-        lockedVoucherCodesByVoucherId.set(voucherId, availableCodes);
       }
 
       // 5. Decrypt Merchant Seed Phrase once
@@ -166,12 +165,6 @@ export class BatchTransferVoucherToCustomerHandler {
         this.tokenService,
         merchant,
       );
-
-      // Prepare code allocators
-      const codeAllocators = new Map<string, number>(); // Keeps track of slice index for each voucherId
-      for (const voucherId of cumulativeQuantities.keys()) {
-        codeAllocators.set(voucherId, 0);
-      }
 
       const results: BatchTransferTaskResult[] = [];
       let successCount = 0;
@@ -185,49 +178,35 @@ export class BatchTransferVoucherToCustomerHandler {
         const voucher = voucherMap.get(voucherId)!;
         const typeId = Number.parseInt(voucher.tokenId!, 10);
 
-        // Slice allocated codes for this transfer task
-        const fullList = lockedVoucherCodesByVoucherId.get(voucherId)!;
-        const startIndex = codeAllocators.get(voucherId)!;
-        const allocatedCodes = fullList.slice(
-          startIndex,
-          startIndex + quantity,
-        );
-        codeAllocators.set(voucherId, startIndex + quantity);
-
-        const voucherCodeIds = allocatedCodes.map((c) => c.id);
-
         try {
           this.logger.log(
             `[BatchJob ${batchJobId}] [Item ${i + 1}/${transfers.length}] Distributing ${quantity} x Voucher tokenId ${typeId} to customer ${customer.wallet!.walletAddress}`,
           );
 
-          // Invoke single on-chain transfer
-          const txHash = await this.blockchainService.transferCoupon(
-            typeId,
-            quantity,
-            merchant.wallet.walletAddress,
-            customer.wallet!.walletAddress,
-            merchantPrivateKey,
-          );
-
-          // Update ownership & write activity logs in a Prisma $transaction
-          const updatedTransactions = await writeDirectVoucherTransferLedger({
+          const executedTransfer = await executeDirectVoucherTransfer({
             prisma: this.prisma,
-            voucherCodeIds,
+            blockchainService: this.blockchainService,
             merchant,
             customer: { ...customer, wallet: customer.wallet! },
             voucher,
-            txHash,
+            voucherId,
+            typeId,
+            quantity,
+            merchantPrivateKey,
           });
+          const voucherCodeIds = executedTransfer.voucherCodes.map(
+            (code) => code.id,
+          );
 
           results.push({
             customerPhone,
             voucherId,
             quantity,
             status: 'SUCCESS',
-            transactionHash: txHash,
+            operationId: executedTransfer.operationId,
+            transactionHash: executedTransfer.txHash,
             voucherCodeIds,
-            transactionIds: updatedTransactions.map((tx) => tx.id),
+            transactionIds: executedTransfer.transactions.map((tx) => tx.id),
           });
           successCount++;
         } catch (itemError) {

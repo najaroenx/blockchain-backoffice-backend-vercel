@@ -5,6 +5,7 @@ import {
   Transaction,
   Wallet,
   ParticipantType,
+  VoucherSourcePool,
 } from '@prisma/client';
 import { PointInfo } from 'src/modules/internal/customer/types';
 import {
@@ -94,6 +95,7 @@ export interface TransactionDetail {
   eventId: string | null;
   transactionRefId: string | null;
   typeAsset: string | null;
+  sourcePool: VoucherSourcePool | null;
   createdAt: Date;
   updatedAt: Date;
 }

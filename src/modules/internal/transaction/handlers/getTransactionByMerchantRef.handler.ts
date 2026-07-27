@@ -185,6 +185,7 @@ export class GetTransactionByMerchantRef {
             eventId: rest.eventId || null,
             transactionRefId: rest.transactionRefId || null,
             typeAsset: rest.type || null,
+            sourcePool: rest.sourcePool || null,
             createdAt: rest.createdAt,
             updatedAt: rest.updatedAt,
           };

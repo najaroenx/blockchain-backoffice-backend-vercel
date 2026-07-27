@@ -27,6 +27,9 @@ describe('ExportDatabase', () => {
       transactionType: { findMany: empty() },
       voucher: { findMany: empty() },
       listingBatch: { findMany: empty() },
+      directTransferOperation: { findMany: empty() },
+      directTransferRecoveryRun: { findMany: empty() },
+      directTransferOperationEvent: { findMany: empty() },
       voucherCode: { findMany: empty() },
       treasury: { findMany: empty() },
       tempLinkCreateUser: { findMany: empty() },
@@ -56,6 +59,12 @@ describe('ExportDatabase', () => {
         txHash: Buffer.from('abcd', 'hex'),
       },
     ]);
+    prisma.directTransferRecoveryRun.findMany.mockResolvedValue([
+      { id: 'run-1', actorId: 'admin', status: 'COMPLETED' },
+    ]);
+    prisma.directTransferOperationEvent.findMany.mockResolvedValue([
+      { id: 'event-1', operationId: 'operation-1', action: 'DB_FINALIZED' },
+    ]);
 
     const result = await handler.execute();
     const json = JSON.parse(result.fileBuffer.toString('utf8'));
@@ -63,7 +72,10 @@ describe('ExportDatabase', () => {
     expect(result.fileName).toMatch(/^database-export-.*\.json$/);
     expect(json.counts.wallets).toBe(1);
     expect(json.counts.transactions).toBe(1);
+    expect(json.counts.directTransferRecoveryRuns).toBe(1);
+    expect(json.counts.directTransferOperationEvents).toBe(1);
     expect(json.data.wallets[0].id).toBe('wallet-1');
     expect(json.data.transactions[0].txHash).toBe('0xabcd');
+    expect(json.data.directTransferRecoveryRuns[0].actorId).toBe('admin');
   });
 });

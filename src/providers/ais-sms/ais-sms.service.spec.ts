@@ -28,6 +28,20 @@ describe('AisSmsService', () => {
 
     service = module.get(AisSmsService);
     postFormMock = jest.spyOn(service as never, 'postForm' as never);
+
+    // Both hit the network (ipify / the AIS host) - stub them so unit tests
+    // stay hermetic and don't hang on the real AIS gateway's known timeout.
+    const getEgressIpMock: jest.SpyInstance = jest.spyOn(
+      service as never,
+      'getEgressIp' as never,
+    );
+    getEgressIpMock.mockResolvedValue('203.0.113.1');
+
+    const checkTcpConnectivityMock: jest.SpyInstance = jest.spyOn(
+      service as never,
+      'checkTcpConnectivity' as never,
+    );
+    checkTcpConnectivityMock.mockResolvedValue({ connected: true });
   });
 
   afterEach(() => {

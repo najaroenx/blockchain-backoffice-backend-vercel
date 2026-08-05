@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as http from 'node:http';
 import * as https from 'node:https';
+import * as net from 'node:net';
 import { URL } from 'node:url';
 import {
   AisSmsContentType,
@@ -77,9 +78,19 @@ export class AisSmsService {
 
     const egressIp = await this.getEgressIp();
 
+    const tcpCheck = await this.checkTcpConnectivity(
+      this.apiUrl,
+      Math.min(this.timeoutMs, 10000),
+    );
+
+    console.log(
+      '[AisSmsService.sendMt] step 3a - TCP connectivity check:',
+      { egressIp, ...tcpCheck },
+    );
+
     try {
       console.log(
-        `[AisSmsService.sendMt] step 4 - calling postForm: ${this.apiUrl} (egressIp=${egressIp ?? 'unknown'})`,
+        `[AisSmsService.sendMt] step 4 - calling postForm: ${this.apiUrl} (egressIp=${egressIp ?? 'unknown'}, tcpConnected=${tcpCheck.connected})`,
       );
 
       const response = await this.postForm(this.apiUrl, body, this.timeoutMs);
@@ -141,13 +152,14 @@ export class AisSmsService {
       console.error('[AisSmsService.sendMt] step ERROR - caught exception:', {
         maskedTo,
         egressIp,
+        tcpCheck,
         message,
         stack: this.getErrorStack(error),
         error,
       });
 
       this.logger.error(
-        `[MT] Error sending SMS to ${maskedTo} (egressIp=${egressIp ?? 'unknown'}): ${message}`,
+        `[MT] Error sending SMS to ${maskedTo} (egressIp=${egressIp ?? 'unknown'}, tcpConnected=${tcpCheck.connected}): ${message}`,
         this.getErrorStack(error),
       );
       throw new ServiceUnavailableException(`AIS SMS send failed: ${message}`);
@@ -272,6 +284,48 @@ export class AisSmsService {
 
       req.write(body);
       req.end();
+    });
+  }
+
+  /**
+   * Opens a raw TCP connection to the gateway host/port without sending any
+   * protocol data. This tells apart a network-level block (TCP itself never
+   * connects - firewall/whitelist issue) from an application-level one (TCP
+   * connects fine, but the AIS gateway never answers our HTTP request).
+   * Uses Node's built-in `net` module only, so it adds no new dependency
+   * (and therefore no new supply-chain surface) to the project.
+   */
+  private checkTcpConnectivity(
+    url: string,
+    timeoutMs: number,
+  ): Promise<{ connected: boolean; error?: string }> {
+    return new Promise((resolve) => {
+      const parsedUrl = new URL(url);
+      const port =
+        Number(parsedUrl.port) || (parsedUrl.protocol === 'https:' ? 443 : 80);
+      const socket = new net.Socket();
+      let settled = false;
+
+      const finish = (result: { connected: boolean; error?: string }) => {
+        if (settled) return;
+        settled = true;
+        socket.destroy();
+        resolve(result);
+      };
+
+      socket.setTimeout(timeoutMs);
+      socket.once('connect', () => finish({ connected: true }));
+      socket.once('timeout', () =>
+        finish({
+          connected: false,
+          error: `TCP connect timed out after ${timeoutMs}ms`,
+        }),
+      );
+      socket.once('error', (error: Error) =>
+        finish({ connected: false, error: error.message }),
+      );
+
+      socket.connect(port, parsedUrl.hostname);
     });
   }
 

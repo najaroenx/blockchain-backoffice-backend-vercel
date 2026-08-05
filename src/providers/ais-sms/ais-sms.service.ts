@@ -33,18 +33,21 @@ export class AisSmsService {
   private readonly from: string;
   private readonly charge: string;
   private readonly code: string;
+  private readonly timeoutMs: number;
 
   constructor(private readonly configService: ConfigService) {
     this.apiUrl = this.configService.get<string>('AIS_SMS_API_URL');
     this.from = this.configService.get<string>('AIS_SMS_FROM') || 'AIS';
     this.charge = this.configService.get<string>('AIS_SMS_CHARGE');
     this.code = this.configService.get<string>('AIS_SMS_CODE');
+    this.timeoutMs = this.configService.get<number>('AIS_SMS_TIMEOUT_MS');
 
     console.log('[AisSmsService] constructor - config loaded:', {
       apiUrl: this.apiUrl,
       from: this.from,
       charge: this.charge,
       code: this.code,
+      timeoutMs: this.timeoutMs,
     });
   }
 
@@ -77,7 +80,7 @@ export class AisSmsService {
         `[AisSmsService.sendMt] step 4 - calling postForm: ${this.apiUrl}`,
       );
 
-      const response = await this.postForm(this.apiUrl, body);
+      const response = await this.postForm(this.apiUrl, body, this.timeoutMs);
 
       console.log('[AisSmsService.sendMt] step 5 - response received:', {
         status: response.status,
@@ -203,7 +206,7 @@ export class AisSmsService {
   private postForm(
     url: string,
     body: string,
-    timeoutMs = 15000,
+    timeoutMs: number,
   ): Promise<RawHttpResponse> {
     console.log('[AisSmsService.postForm] step 1 - request:', {
       url,

@@ -54,5 +54,5 @@ export const configSchema = Joi.object({
     .integer()
     .min(1000)
     .max(120000)
-    .default(60000),
+    .default(120000),
 });

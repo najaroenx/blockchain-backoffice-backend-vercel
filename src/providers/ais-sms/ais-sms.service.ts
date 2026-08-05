@@ -71,13 +71,15 @@ export class AisSmsService {
 
     this.logger.log(`[MT] Sending SMS to ${maskedTo}, ctype=${ctype}`);
 
-    const body = await this.buildRequestBody({ to, content, ctype, report });
+    const body = this.buildRequestBody({ to, content, ctype, report });
 
     console.log('[AisSmsService.sendMt] step 3 - request body built:', body);
 
+    const egressIp = await this.getEgressIp();
+
     try {
       console.log(
-        `[AisSmsService.sendMt] step 4 - calling postForm: ${this.apiUrl}`,
+        `[AisSmsService.sendMt] step 4 - calling postForm: ${this.apiUrl} (egressIp=${egressIp ?? 'unknown'})`,
       );
 
       const response = await this.postForm(this.apiUrl, body, this.timeoutMs);
@@ -138,13 +140,14 @@ export class AisSmsService {
 
       console.error('[AisSmsService.sendMt] step ERROR - caught exception:', {
         maskedTo,
+        egressIp,
         message,
         stack: this.getErrorStack(error),
         error,
       });
 
       this.logger.error(
-        `[MT] Error sending SMS to ${maskedTo}: ${message}`,
+        `[MT] Error sending SMS to ${maskedTo} (egressIp=${egressIp ?? 'unknown'}): ${message}`,
         this.getErrorStack(error),
       );
       throw new ServiceUnavailableException(`AIS SMS send failed: ${message}`);
@@ -272,6 +275,27 @@ export class AisSmsService {
     });
   }
 
+  /**
+   * Looks up this server's outbound public IP as seen externally. AIS's
+   * gateway sits behind a NAT pool that can egress through any of several
+   * whitelisted IPs, so logging this per-attempt makes it possible to
+   * correlate a specific failed send with the IP it went out on.
+   */
+  private async getEgressIp(): Promise<string | null> {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = (await res.json()) as { ip: string };
+      console.log('[AisSmsService.getEgressIp] step 1 - egress IP:', data.ip);
+      return data.ip;
+    } catch (error) {
+      console.error(
+        '[AisSmsService.getEgressIp] step ERROR - lookup failed:',
+        error,
+      );
+      return null;
+    }
+  }
+
   private detectContentType(content: string): AisSmsContentType {
     // eslint-disable-next-line no-control-regex
     const type = /[^\x00-\x7F]/.test(content) ? 'UNICODE' : 'TEXT';
@@ -282,12 +306,12 @@ export class AisSmsService {
     return type;
   }
 
-  private async buildRequestBody(params: {
+  private buildRequestBody(params: {
     to: string;
     content: string;
     ctype: AisSmsContentType;
     report: 'Y' | 'N';
-  }): Promise<string> {
+  }): string {
     console.log('[AisSmsService.buildRequestBody] step 1 - params:', params);
 
     const { to, content, ctype, report } = params;
@@ -301,20 +325,6 @@ export class AisSmsService {
       '[AisSmsService.buildRequestBody] step 2 - encoded content:',
       encodedContent,
     );
-
-    try {
-      const res = await fetch('https://api.ipify.org?format=json');
-      const data = await res.json();
-      console.log(
-        '[AisSmsService.buildRequestBody] step 2a - egress IP:',
-        data,
-      );
-    } catch (error) {
-      console.error(
-        '[AisSmsService.buildRequestBody] step 2a - egress IP lookup failed:',
-        error,
-      );
-    }
 
     const body = [
       'CMD=SENDMSG',

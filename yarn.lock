@@ -1658,13 +1658,13 @@
     webpack "5.105.4"
     webpack-node-externals "3.0.0"
 
-"@nestjs/common@^11.1.6":
-  version "11.1.8"
-  resolved "https://registry.npmjs.org/@nestjs/common/-/common-11.1.8.tgz"
-  integrity sha512-bbsOqwld/GdBfiRNc4nnjyWWENDEicq4SH+R5AuYatvf++vf1x5JIsHB1i1KtfZMD3eRte0D4K9WXuAYil6XAg==
+"@nestjs/common@^11.1.25":
+  version "11.1.25"
+  resolved "https://registry.yarnpkg.com/@nestjs/common/-/common-11.1.25.tgz#4cd111cfa69c43d098a586df41302835dd91e97d"
+  integrity sha512-eObNI89zpPEHQWr9BxD5yQe6hcDjzT6sj/jng1tWBL4GXEgZzrVYOnFA4pzk1ZvDNHa3z7GD2Yy0Z06Ihv9y6g==
   dependencies:
     uid "2.0.2"
-    file-type "21.0.0"
+    file-type "21.3.4"
     iterare "1.2.1"
     load-esm "1.0.3"
     tslib "2.8.1"
@@ -4168,7 +4168,7 @@ file-entry-cache@^6.0.1:
   dependencies:
     flat-cache "^3.0.4"
 
-file-type@21.0.0, file-type@>=21.3.2:
+file-type@21.3.4, file-type@>=21.3.2:
   version "22.0.1"
   resolved "https://registry.yarnpkg.com/file-type/-/file-type-22.0.1.tgz#0184dbd6b6353bb25eb21a0c413a23885b6d1818"
   integrity sha512-ww5Mhre0EE+jmBvOXTmXAbEMuZE7uX4a3+oRCQFNj8w++g3ev913N6tXQz0XTXbueQ5TWQfm6BdaViEHHn8bhA==

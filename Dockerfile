@@ -54,13 +54,13 @@ RUN apk add --no-cache openssl libc6-compat \
     && apk upgrade --no-cache zlib
 
 RUN npm install -g npm@11.12.0 --no-audit --no-fund \
-    && npm pack brace-expansion@5.0.8 --pack-destination /tmp \
+    && npm pack brace-expansion@5.0.9 --pack-destination /tmp \
     && cd /usr/local/lib/node_modules/npm/node_modules \
     && rm -rf brace-expansion \
-    && tar -xzf /tmp/brace-expansion-5.0.8.tgz \
+    && tar -xzf /tmp/brace-expansion-5.0.9.tgz \
     && mv package brace-expansion \
-    && rm /tmp/brace-expansion-5.0.8.tgz \
-    && node -e "const version = require('./brace-expansion/package.json').version; if (version !== '5.0.8') process.exit(1)" \
+    && rm /tmp/brace-expansion-5.0.9.tgz \
+    && node -e "const version = require('./brace-expansion/package.json').version; if (version !== '5.0.9') process.exit(1)" \
     && cd /usr/local/lib/node_modules/npm/node_modules/tinyglobby/node_modules \
     && rm -rf picomatch \
     && npm pack picomatch@4.0.4 --pack-destination . \
@@ -78,7 +78,13 @@ RUN npm install -g npm@11.12.0 --no-audit --no-fund \
     && rm -rf tar \
     && tar -xzf /tmp/tar-7.5.20.tgz \
     && mv package tar \
-    && rm /tmp/tar-7.5.20.tgz
+    && rm /tmp/tar-7.5.20.tgz \
+    && npm pack ip-address@10.3.1 --pack-destination /tmp \
+    && cd /usr/local/lib/node_modules/npm/node_modules \
+    && rm -rf ip-address \
+    && tar -xzf /tmp/ip-address-10.3.1.tgz \
+    && mv package ip-address \
+    && rm /tmp/ip-address-10.3.1.tgz
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S merchant-backoffice -u 1001

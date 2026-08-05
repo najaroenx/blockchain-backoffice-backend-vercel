@@ -50,5 +50,9 @@ export const configSchema = Joi.object({
   AIS_SMS_FROM: Joi.string().allow('').default('AIS'),
   AIS_SMS_CHARGE: Joi.string().allow('').default(''),
   AIS_SMS_CODE: Joi.string().allow('').default(''),
-  AIS_SMS_TIMEOUT_MS: Joi.number().integer().min(1000).max(120000).default(60000),
+  AIS_SMS_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .max(120000)
+    .default(60000),
 });

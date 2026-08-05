@@ -9,6 +9,7 @@ import * as https from 'node:https';
 import * as net from 'node:net';
 import { URL } from 'node:url';
 import {
+  AisSmsConnectivityCheck,
   AisSmsContentType,
   AisSmsDeliveryReport,
   AisSmsSendParams,
@@ -83,10 +84,10 @@ export class AisSmsService {
       Math.min(this.timeoutMs, 10000),
     );
 
-    console.log(
-      '[AisSmsService.sendMt] step 3a - TCP connectivity check:',
-      { egressIp, ...tcpCheck },
-    );
+    console.log('[AisSmsService.sendMt] step 3a - TCP connectivity check:', {
+      egressIp,
+      ...tcpCheck,
+    });
 
     try {
       console.log(
@@ -164,6 +165,34 @@ export class AisSmsService {
       );
       throw new ServiceUnavailableException(`AIS SMS send failed: ${message}`);
     }
+  }
+
+  /**
+   * Standalone connectivity probe (raw TCP connect, like `telnet host port`)
+   * against the configured AIS gateway. Sends no HTTP request and no SMS, so
+   * it can be polled freely to tell a network-level block apart from AIS
+   * itself being unreachable, without spending a real MT request.
+   */
+  async checkConnectivity(): Promise<AisSmsConnectivityCheck> {
+    const parsedUrl = new URL(this.apiUrl);
+    const port =
+      Number(parsedUrl.port) || (parsedUrl.protocol === 'https:' ? 443 : 80);
+
+    const [egressIp, tcpCheck] = await Promise.all([
+      this.getEgressIp(),
+      this.checkTcpConnectivity(this.apiUrl, Math.min(this.timeoutMs, 10000)),
+    ]);
+
+    const result: AisSmsConnectivityCheck = {
+      ...tcpCheck,
+      host: parsedUrl.hostname,
+      port,
+      egressIp,
+    };
+
+    console.log('[AisSmsService.checkConnectivity] step 1 - result:', result);
+
+    return result;
   }
 
   /**

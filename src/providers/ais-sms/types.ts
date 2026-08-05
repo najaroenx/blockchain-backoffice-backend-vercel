@@ -40,3 +40,14 @@ export interface AisSmsDeliveryReport {
   /** e.g. 'DELIVRD' on success, or an error code/'EXPIRED' on failure */
   detail: string;
 }
+
+export interface AisSmsConnectivityCheck {
+  /** Whether a raw TCP connection to the gateway succeeded */
+  connected: boolean;
+  /** Present when connected is false */
+  error?: string;
+  host: string;
+  port: number;
+  /** This server's outbound IP as seen externally, or null if the lookup failed */
+  egressIp: string | null;
+}

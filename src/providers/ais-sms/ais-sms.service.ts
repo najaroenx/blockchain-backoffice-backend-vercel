@@ -332,8 +332,14 @@ export class AisSmsService {
       const parsedUrl = new URL(url);
       const port =
         Number(parsedUrl.port) || (parsedUrl.protocol === 'https:' ? 443 : 80);
+      const host = parsedUrl.hostname;
       const socket = new net.Socket();
       let settled = false;
+
+      // Logged in the same shape a manual `telnet host port` session prints,
+      // so this reads exactly like the connectivity checks we've been doing
+      // by hand during troubleshooting.
+      console.log(`[AisSmsService.checkTcpConnectivity] Trying ${host}...`);
 
       const finish = (result: { connected: boolean; error?: string }) => {
         if (settled) return;
@@ -343,18 +349,32 @@ export class AisSmsService {
       };
 
       socket.setTimeout(timeoutMs);
-      socket.once('connect', () => finish({ connected: true }));
-      socket.once('timeout', () =>
+
+      socket.once('connect', () => {
+        console.log(
+          `[AisSmsService.checkTcpConnectivity] Connected to ${host}.`,
+        );
+        finish({ connected: true });
+      });
+
+      socket.once('timeout', () => {
+        console.error(
+          `[AisSmsService.checkTcpConnectivity] telnet: connect to address ${host}: Operation timed out`,
+        );
         finish({
           connected: false,
           error: `TCP connect timed out after ${timeoutMs}ms`,
-        }),
-      );
-      socket.once('error', (error: Error) =>
-        finish({ connected: false, error: error.message }),
-      );
+        });
+      });
 
-      socket.connect(port, parsedUrl.hostname);
+      socket.once('error', (error: Error) => {
+        console.error(
+          `[AisSmsService.checkTcpConnectivity] telnet: connect to address ${host}: ${error.message}`,
+        );
+        finish({ connected: false, error: error.message });
+      });
+
+      socket.connect(port, host);
     });
   }
 

@@ -30,6 +30,7 @@ RUN yarn run build
 # Compile standalone TS scripts to JS for runtime execution
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --esModuleInterop prisma/seed.ts --outDir dist/prisma
 RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --resolveJsonModule --esModuleInterop scripts/fix-checkin-event-bugs.ts --outDir dist
+RUN npx tsc --target ES2021 --module commonjs --skipLibCheck --resolveJsonModule --esModuleInterop scripts/repair-token-35-buyer-voucher-code.ts --outDir dist
 
 # Compile one-off admin scripts
 
@@ -104,5 +105,6 @@ CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
     node dist/prisma/seed.js && \
     node dist/scripts/fix-checkin-event-bugs.js && \
+    node dist/scripts/repair-token-35-buyer-voucher-code.js --apply && \
     node dist/src/main \
 "]

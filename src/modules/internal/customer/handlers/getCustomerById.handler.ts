@@ -3,7 +3,6 @@ import { CUSTOMER_NOT_FOUND } from 'src/errors/error.constants';
 import { CustomerDBService } from '../services/customer-db.service';
 import { convertBufferToAddress } from 'src/libs/convertBufferToAddress';
 import { GetCustomersIdResponseType } from '../types';
-import { Kiwari } from '@kiwarilabs/chidori-sdk';
 import { BlockchainService } from 'src/providers/blockchain/blockchain.service';
 import { logAndRethrowOrInternalError } from 'src/common/utils/handler-error.util';
 
@@ -74,24 +73,6 @@ export class GetCustomerById {
     } catch (error) {
       logAndRethrowOrInternalError(this.logger, error, [NotFoundException]);
     }
-  }
-
-  private async getPointBalance(
-    pointAddress: string,
-    walletAddress: string,
-  ): Promise<number> {
-    const kiwari = new Kiwari({
-      provider: this.blockchainService.provider,
-    });
-
-    const balances = await kiwari.erc20Expirable.getBalanceOf({
-      contractAddress: pointAddress,
-      accountAddress: walletAddress,
-    });
-
-    this.logger.log(balances);
-
-    return balances;
   }
 
   private async getBalanceFromContract(

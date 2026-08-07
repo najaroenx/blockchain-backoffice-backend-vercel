@@ -64,7 +64,6 @@
   },
   "dependencies": {
     "@babel/highlight": "^7.25.9",
-    "@kiwarilabs/chidori-sdk": "1.0.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.1",
     "@nestjs/core": "^11.1.18",

@@ -8,6 +8,7 @@ const CONFIG: Record<string, string> = {
   AIS_SMS_FROM: 'AIS',
   AIS_SMS_CHARGE: '66614143821',
   AIS_SMS_CODE: '35145678001',
+  AIS_SMS_TIMEOUT_MS: '60000',
 };
 
 describe('AisSmsService', () => {
@@ -27,6 +28,20 @@ describe('AisSmsService', () => {
 
     service = module.get(AisSmsService);
     postFormMock = jest.spyOn(service as never, 'postForm' as never);
+
+    // Both hit the network (ipify / the AIS host) - stub them so unit tests
+    // stay hermetic and don't hang on the real AIS gateway's known timeout.
+    const getEgressIpMock: jest.SpyInstance = jest.spyOn(
+      service as never,
+      'getEgressIp' as never,
+    );
+    getEgressIpMock.mockResolvedValue('203.0.113.1');
+
+    const checkTcpConnectivityMock: jest.SpyInstance = jest.spyOn(
+      service as never,
+      'checkTcpConnectivity' as never,
+    );
+    checkTcpConnectivityMock.mockResolvedValue({ connected: true });
   });
 
   afterEach(() => {
@@ -56,11 +71,12 @@ describe('AisSmsService', () => {
       });
 
       expect(postFormMock).toHaveBeenCalledTimes(1);
-      const [url, body] = postFormMock.mock.calls[0];
+      const [url, body, timeoutMs] = postFormMock.mock.calls[0];
       expect(url).toBe(CONFIG.AIS_SMS_API_URL);
       expect(body).toBe(
         'CMD=SENDMSG&FROM=AIS&TO=66818452233&REPORT=Y&CHARGE=66614143821&CODE=35145678001&CTYPE=TEXT&CONTENT=AIS_TEST',
       );
+      expect(timeoutMs).toBe(60000);
     });
 
     it('auto-detects Thai content as UNICODE and percent-encodes it as UTF-16BE', async () => {

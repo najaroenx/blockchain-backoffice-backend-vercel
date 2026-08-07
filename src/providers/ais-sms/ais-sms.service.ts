@@ -6,8 +6,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as http from 'node:http';
 import * as https from 'node:https';
+import * as net from 'node:net';
 import { URL } from 'node:url';
 import {
+  AisSmsConnectivityCheck,
   AisSmsContentType,
   AisSmsDeliveryReport,
   AisSmsSendParams,
@@ -33,18 +35,21 @@ export class AisSmsService {
   private readonly from: string;
   private readonly charge: string;
   private readonly code: string;
+  private readonly timeoutMs: number;
 
   constructor(private readonly configService: ConfigService) {
     this.apiUrl = this.configService.get<string>('AIS_SMS_API_URL');
     this.from = this.configService.get<string>('AIS_SMS_FROM') || 'AIS';
     this.charge = this.configService.get<string>('AIS_SMS_CHARGE');
     this.code = this.configService.get<string>('AIS_SMS_CODE');
+    this.timeoutMs = this.configService.get<number>('AIS_SMS_TIMEOUT_MS');
 
     console.log('[AisSmsService] constructor - config loaded:', {
       apiUrl: this.apiUrl,
       from: this.from,
       charge: this.charge,
       code: this.code,
+      timeoutMs: this.timeoutMs,
     });
   }
 
@@ -68,16 +73,28 @@ export class AisSmsService {
 
     this.logger.log(`[MT] Sending SMS to ${maskedTo}, ctype=${ctype}`);
 
-    const body = await this.buildRequestBody({ to, content, ctype, report });
+    const body = this.buildRequestBody({ to, content, ctype, report });
 
     console.log('[AisSmsService.sendMt] step 3 - request body built:', body);
 
+    const egressIp = await this.getEgressIp();
+
+    const tcpCheck = await this.checkTcpConnectivity(
+      this.apiUrl,
+      Math.min(this.timeoutMs, 10000),
+    );
+
+    console.log('[AisSmsService.sendMt] step 3a - TCP connectivity check:', {
+      egressIp,
+      ...tcpCheck,
+    });
+
     try {
       console.log(
-        `[AisSmsService.sendMt] step 4 - calling postForm: ${this.apiUrl}`,
+        `[AisSmsService.sendMt] step 4 - calling postForm: ${this.apiUrl} (egressIp=${egressIp ?? 'unknown'}, tcpConnected=${tcpCheck.connected})`,
       );
 
-      const response = await this.postForm(this.apiUrl, body);
+      const response = await this.postForm(this.apiUrl, body, this.timeoutMs);
 
       console.log('[AisSmsService.sendMt] step 5 - response received:', {
         status: response.status,
@@ -135,17 +152,47 @@ export class AisSmsService {
 
       console.error('[AisSmsService.sendMt] step ERROR - caught exception:', {
         maskedTo,
+        egressIp,
+        tcpCheck,
         message,
         stack: this.getErrorStack(error),
         error,
       });
 
       this.logger.error(
-        `[MT] Error sending SMS to ${maskedTo}: ${message}`,
+        `[MT] Error sending SMS to ${maskedTo} (egressIp=${egressIp ?? 'unknown'}, tcpConnected=${tcpCheck.connected}): ${message}`,
         this.getErrorStack(error),
       );
       throw new ServiceUnavailableException(`AIS SMS send failed: ${message}`);
     }
+  }
+
+  /**
+   * Standalone connectivity probe (raw TCP connect, like `telnet host port`)
+   * against the configured AIS gateway. Sends no HTTP request and no SMS, so
+   * it can be polled freely to tell a network-level block apart from AIS
+   * itself being unreachable, without spending a real MT request.
+   */
+  async checkConnectivity(): Promise<AisSmsConnectivityCheck> {
+    const parsedUrl = new URL(this.apiUrl);
+    const port =
+      Number(parsedUrl.port) || (parsedUrl.protocol === 'https:' ? 443 : 80);
+
+    const [egressIp, tcpCheck] = await Promise.all([
+      this.getEgressIp(),
+      this.checkTcpConnectivity(this.apiUrl, Math.min(this.timeoutMs, 10000)),
+    ]);
+
+    const result: AisSmsConnectivityCheck = {
+      ...tcpCheck,
+      host: parsedUrl.hostname,
+      port,
+      egressIp,
+    };
+
+    console.log('[AisSmsService.checkConnectivity] step 1 - result:', result);
+
+    return result;
   }
 
   /**
@@ -203,7 +250,7 @@ export class AisSmsService {
   private postForm(
     url: string,
     body: string,
-    timeoutMs = 15000,
+    timeoutMs: number,
   ): Promise<RawHttpResponse> {
     console.log('[AisSmsService.postForm] step 1 - request:', {
       url,
@@ -269,6 +316,89 @@ export class AisSmsService {
     });
   }
 
+  /**
+   * Opens a raw TCP connection to the gateway host/port without sending any
+   * protocol data. This tells apart a network-level block (TCP itself never
+   * connects - firewall/whitelist issue) from an application-level one (TCP
+   * connects fine, but the AIS gateway never answers our HTTP request).
+   * Uses Node's built-in `net` module only, so it adds no new dependency
+   * (and therefore no new supply-chain surface) to the project.
+   */
+  private checkTcpConnectivity(
+    url: string,
+    timeoutMs: number,
+  ): Promise<{ connected: boolean; error?: string }> {
+    return new Promise((resolve) => {
+      const parsedUrl = new URL(url);
+      const port =
+        Number(parsedUrl.port) || (parsedUrl.protocol === 'https:' ? 443 : 80);
+      const host = parsedUrl.hostname;
+      const socket = new net.Socket();
+      let settled = false;
+
+      // Logged in the same shape a manual `telnet host port` session prints,
+      // so this reads exactly like the connectivity checks we've been doing
+      // by hand during troubleshooting.
+      console.log(`[AisSmsService.checkTcpConnectivity] Trying ${host}...`);
+
+      const finish = (result: { connected: boolean; error?: string }) => {
+        if (settled) return;
+        settled = true;
+        socket.destroy();
+        resolve(result);
+      };
+
+      socket.setTimeout(timeoutMs);
+
+      socket.once('connect', () => {
+        console.log(
+          `[AisSmsService.checkTcpConnectivity] Connected to ${host}.`,
+        );
+        finish({ connected: true });
+      });
+
+      socket.once('timeout', () => {
+        console.error(
+          `[AisSmsService.checkTcpConnectivity] telnet: connect to address ${host}: Operation timed out`,
+        );
+        finish({
+          connected: false,
+          error: `TCP connect timed out after ${timeoutMs}ms`,
+        });
+      });
+
+      socket.once('error', (error: Error) => {
+        console.error(
+          `[AisSmsService.checkTcpConnectivity] telnet: connect to address ${host}: ${error.message}`,
+        );
+        finish({ connected: false, error: error.message });
+      });
+
+      socket.connect(port, host);
+    });
+  }
+
+  /**
+   * Looks up this server's outbound public IP as seen externally. AIS's
+   * gateway sits behind a NAT pool that can egress through any of several
+   * whitelisted IPs, so logging this per-attempt makes it possible to
+   * correlate a specific failed send with the IP it went out on.
+   */
+  private async getEgressIp(): Promise<string | null> {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = (await res.json()) as { ip: string };
+      console.log('[AisSmsService.getEgressIp] step 1 - egress IP:', data.ip);
+      return data.ip;
+    } catch (error) {
+      console.error(
+        '[AisSmsService.getEgressIp] step ERROR - lookup failed:',
+        error,
+      );
+      return null;
+    }
+  }
+
   private detectContentType(content: string): AisSmsContentType {
     // eslint-disable-next-line no-control-regex
     const type = /[^\x00-\x7F]/.test(content) ? 'UNICODE' : 'TEXT';
@@ -279,12 +409,12 @@ export class AisSmsService {
     return type;
   }
 
-  private async buildRequestBody(params: {
+  private buildRequestBody(params: {
     to: string;
     content: string;
     ctype: AisSmsContentType;
     report: 'Y' | 'N';
-  }): Promise<string> {
+  }): string {
     console.log('[AisSmsService.buildRequestBody] step 1 - params:', params);
 
     const { to, content, ctype, report } = params;
@@ -298,20 +428,6 @@ export class AisSmsService {
       '[AisSmsService.buildRequestBody] step 2 - encoded content:',
       encodedContent,
     );
-
-    try {
-      const res = await fetch('https://api.ipify.org?format=json');
-      const data = await res.json();
-      console.log(
-        '[AisSmsService.buildRequestBody] step 2a - egress IP:',
-        data,
-      );
-    } catch (error) {
-      console.error(
-        '[AisSmsService.buildRequestBody] step 2a - egress IP lookup failed:',
-        error,
-      );
-    }
 
     const body = [
       'CMD=SENDMSG',

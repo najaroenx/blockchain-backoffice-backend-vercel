@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { InternalServerErrorException } from '@nestjs/common';
 import { OtpService } from '../src/modules/internal/otp/otp.service';
+import { AisSmsService } from '../src/providers/ais-sms/ais-sms.service';
 import { INTERNAL_SERVER_ERROR } from '../src/errors/error.constants';
 
 global.fetch = jest.fn();
@@ -13,14 +14,21 @@ describe('OtpService (modules/internal/otp)', () => {
         OTP_API_URL: 'https://sms.example.com/send',
         OTP_API_USERNAME: 'smsuser',
         OTP_API_PASSWORD: 'smspass',
+        FRONT_AUTHORIZE_OTP_URL: 'http://localhost:3000/authorize-otp',
       };
       return map[key];
     }),
   };
+  const mockAisSmsService = {
+    sendMt: jest.fn(),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new OtpService(mockConfigService as unknown as ConfigService);
+    service = new OtpService(
+      mockConfigService as unknown as ConfigService,
+      mockAisSmsService as unknown as AisSmsService,
+    );
   });
 
   it('should be defined', () => {
@@ -180,6 +188,54 @@ describe('OtpService (modules/internal/otp)', () => {
       await expect(service.sendOtp(phone, otp)).rejects.toThrow(
         InternalServerErrorException,
       );
+    });
+  });
+
+  describe('sendOtpViaAisSms', () => {
+    const phone = '0812345678';
+    const otp = '456789';
+
+    it('should return the AIS gateway result as-is on success', async () => {
+      const aisResult = {
+        success: true,
+        status: 'OK',
+        detail: 'SUCCESS',
+        smid: 'abc123',
+        raw: '<XML/>',
+      };
+      mockAisSmsService.sendMt.mockResolvedValueOnce(aisResult);
+
+      const result = await service.sendOtpViaAisSms(phone, otp);
+
+      expect(result).toEqual(aisResult);
+      expect(mockAisSmsService.sendMt).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: phone,
+          content: expect.stringContaining(otp),
+        }),
+      );
+    });
+
+    it('should return the AIS gateway result as-is on rejection, without throwing', async () => {
+      const aisResult = {
+        success: false,
+        status: 'ERR',
+        detail: 'CORP:INVALID_FROM',
+        smid: null,
+        raw: '<XML/>',
+      };
+      mockAisSmsService.sendMt.mockResolvedValueOnce(aisResult);
+
+      const result = await service.sendOtpViaAisSms(phone, otp);
+
+      expect(result).toEqual(aisResult);
+    });
+
+    it('should propagate the error when sendMt throws', async () => {
+      const error = new Error('AIS SMS send failed');
+      mockAisSmsService.sendMt.mockRejectedValueOnce(error);
+
+      await expect(service.sendOtpViaAisSms(phone, otp)).rejects.toBe(error);
     });
   });
 });

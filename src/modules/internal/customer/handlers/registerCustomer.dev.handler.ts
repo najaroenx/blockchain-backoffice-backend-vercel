@@ -89,7 +89,7 @@ export class RegisterCustomerDev {
     merchantId: string,
     callbackUri?: string,
   ): RegistrationResponse {
-    const baseUrl = this.configService.get<string>('FRONT_URL');
+    const baseUrl = this.configService.get<string>('FRONT_AUTHORIZE_OTP_URL');
     const callback = callbackUri || '';
 
     const url = `${baseUrl}/otp?requestid=${requestId}&merchantId=${merchantId}&callbackUri=${callback}`;

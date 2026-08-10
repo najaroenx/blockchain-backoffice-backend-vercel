@@ -34,7 +34,13 @@ export class CreateOTP {
         phoneNumber,
         otp: hashedOtp,
       });
-      await this.otpService.sendOtp(phoneNumber, otp);
+      this.logger.log(
+        `OTP created and stored for temp link with phoneNumber: ${phoneNumber}`,
+      );
+      const phoneFormatted = phoneNumber.startsWith('0')
+        ? `66${phoneNumber.slice(1)}`
+        : phoneNumber;
+      await this.otpService.sendOtpViaAisSms(phoneFormatted, otp);
 
       return {
         success: true,

@@ -33,6 +33,7 @@ export const configSchema = Joi.object({
   OTP_API_URL: Joi.string().allow('').default(''),
   OTP_API_USERNAME: Joi.string().allow('').default(''),
   OTP_API_PASSWORD: Joi.string().allow('').default(''),
+  FRONT_AUTHORIZE_OTP_URL: Joi.string().allow('').default(''),
 
   // ─── ADMD OAuth ──────────────────────────────────────────────────────────────
   ADMD_TOKEN_URL: Joi.string().allow('').default(''),

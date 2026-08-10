@@ -60,8 +60,10 @@ export class ReSendOTP {
         otp: hashedOtp,
         expire: newExpiry,
       });
-
-      await this.otpService.sendOtp(tempLink.phoneNumber, newOtp);
+      const phoneFormatted = tempLink.phoneNumber.startsWith('0')
+        ? `66${tempLink.phoneNumber.slice(1)}`
+        : tempLink.phoneNumber;
+      await this.otpService.sendOtpViaAisSms(phoneFormatted, newOtp);
 
       return {
         success: true,

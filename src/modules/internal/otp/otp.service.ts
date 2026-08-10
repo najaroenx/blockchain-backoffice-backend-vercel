@@ -6,6 +6,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomInt, createHash, timingSafeEqual } from 'node:crypto';
 import { INTERNAL_SERVER_ERROR } from 'src/errors/error.constants';
+import { AisSmsService } from 'src/providers/ais-sms/ais-sms.service';
+import { AisSmsSendResult } from 'src/providers/ais-sms/types';
 
 @Injectable()
 export class OtpService {
@@ -13,11 +15,18 @@ export class OtpService {
   private readonly otpApiUrl: string;
   private readonly otpApiUsername: string;
   private readonly otpApiPassword: string;
+  private readonly frontAuthorizeOtpUrl: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly aisSmsService: AisSmsService,
+  ) {
     this.otpApiUrl = this.configService.get<string>('OTP_API_URL');
     this.otpApiUsername = this.configService.get<string>('OTP_API_USERNAME');
     this.otpApiPassword = this.configService.get<string>('OTP_API_PASSWORD');
+    this.frontAuthorizeOtpUrl = this.configService.get<string>(
+      'FRONT_AUTHORIZE_OTP_URL',
+    );
   }
 
   generateOtp(length: number = 6): string {
@@ -63,8 +72,7 @@ export class OtpService {
           sender: 'myAvatar',
           text: `รหัส OTP คือ ${otp} จะหมดอายุใน 5 นาที และจะใช้ได้ 1 ครั้งเท่านั้น`,
           destinations: [{ destination: phoneNumber }],
-          callback_url:
-            'https://dlp-backofficefe-testnet.adldigitalservice.com',
+          callback_url: this.frontAuthorizeOtpUrl,
           callback_method: 'GET',
         }),
       });
@@ -92,5 +100,18 @@ export class OtpService {
       this.logger.error(`Error sending OTP: ${error.message}`, error.stack);
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
+  }
+
+  async sendOtpViaAisSms(
+    phoneNumber: string,
+    otp: string,
+  ): Promise<AisSmsSendResult> {
+    const maskedPhone = phoneNumber.replace(/(\d{3})\d+(\d{2})/, '$1***$2');
+    this.logger.log(`Sending OTP via AIS SMS to phone: ${maskedPhone}`);
+
+    return this.aisSmsService.sendMt({
+      to: phoneNumber,
+      content: `Your OTP code is ${otp}. It will expire in 5 minutes and can only be used once.`,
+    });
   }
 }

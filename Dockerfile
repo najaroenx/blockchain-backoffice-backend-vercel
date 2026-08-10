@@ -110,6 +110,6 @@ EXPOSE 4000
 CMD ["sh", "-c", "\
     npx prisma migrate deploy && \
     node dist/prisma/seed.js && \
-    if [ "${RUN_TOKEN_35_BUYER_REPAIR:-false}" = "true" ]; then node dist/scripts/repair-token-35-buyer-voucher-code.js --apply; fi && \
+    if [ \"${RUN_TOKEN_35_BUYER_REPAIR:-false}\" = \"true\" ]; then node dist/scripts/repair-token-35-buyer-voucher-code.js --apply; fi && \
     node dist/src/main \
 "]

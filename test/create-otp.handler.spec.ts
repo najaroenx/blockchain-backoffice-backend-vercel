@@ -30,9 +30,13 @@ describe('CreateOTP', () => {
     otpService = {
       generateOtp: jest.fn().mockReturnValue('123456'),
       hashOtp: jest.fn().mockReturnValue('hashed_123456'),
-      sendOtp: jest
-        .fn()
-        .mockResolvedValue({ success: true, message: 'OTP sent successfully' }),
+      sendOtpViaAisSms: jest.fn().mockResolvedValue({
+        success: true,
+        status: 'OK',
+        detail: 'SUCCESS',
+        smid: 'abc123',
+        raw: '<XML/>',
+      }),
     } as any;
     handler = new CreateOTP(tempLinkDB, otpService);
     jest.clearAllMocks();
@@ -43,10 +47,6 @@ describe('CreateOTP', () => {
     otpService.hashOtp.mockReturnValue('hashed_123456');
     tempLinkDB.getTempLinkByUid.mockResolvedValue(mockTempLink as any);
     tempLinkDB.updateTempLink.mockResolvedValue(mockTempLink as any);
-    otpService.sendOtp.mockResolvedValue({
-      success: true,
-      message: 'OTP sent successfully',
-    });
 
     const result = await handler.execute('uid-abc', '0899999999');
 
@@ -57,7 +57,10 @@ describe('CreateOTP', () => {
       phoneNumber: '0899999999',
       otp: 'hashed_123456',
     });
-    expect(otpService.sendOtp).toHaveBeenCalledWith('0899999999', '123456');
+    expect(otpService.sendOtpViaAisSms).toHaveBeenCalledWith(
+      '66899999999',
+      '123456',
+    );
     expect(result.success).toBe(true);
     expect(result.message).toBe('OTP sent successfully');
   });
@@ -85,7 +88,7 @@ describe('CreateOTP', () => {
   it('should throw InternalServerErrorException on OTP send failure', async () => {
     tempLinkDB.getTempLinkByUid.mockResolvedValue(mockTempLink as any);
     tempLinkDB.updateTempLink.mockResolvedValue(mockTempLink as any);
-    otpService.sendOtp.mockRejectedValue(new Error('SMS failed'));
+    otpService.sendOtpViaAisSms.mockRejectedValue(new Error('SMS failed'));
 
     await expect(handler.execute('uid-abc', '0812345678')).rejects.toThrow(
       InternalServerErrorException,
